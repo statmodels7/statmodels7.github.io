@@ -4,15 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>statmodels7 — an S7 stack for statistical modelling</title>
-<meta name="description" content="An R statistical modelling stack built on the S7 object system: link functions, distributions, and the pieces that assemble into models — all carrying exact analytical derivatives.">
+<meta name="description" content="Distributions and link functions as reusable S7 objects, carrying every derivative up to fourth order in closed form. The pieces every R modelling package rebuilds from scratch, written once.">
 <link rel="icon" href="logo/statmodels7.svg" type="image/svg+xml">
 <style>
   :root {
-    --ink: #0F2A3F;
-    --accent: #4FB3A9;
-    --paper: #FBFCFD;
-    --muted: #5A7387;
-    --rule: #DFE7EC;
+    --ink: #3D6B4C;
+    --accent: #9C3E11;
+    --paper: #FCFCF7;
+    --muted: #5F7266;
+    --rule: #E1E6DE;
+    --chalk: #F7F4D4;
   }
   * { box-sizing: border-box; }
   body {
@@ -27,14 +28,17 @@
 
   header {
     background: var(--ink);
-    color: #EAF1F4;
+    color: var(--chalk);
     padding: 72px 0 64px;
+    border-bottom: 6px solid var(--accent);
   }
   header .wrap { display: flex; align-items: center; gap: 40px; flex-wrap: wrap; }
   header img { width: 150px; flex: 0 0 auto; }
-  header h1 { margin: 0 0 10px; font-size: 2.6rem; font-weight: 300; letter-spacing: -0.5px; }
-  header h1 b { font-weight: 600; color: var(--accent); }
-  header p { margin: 0; font-size: 1.12rem; color: #B9CBD6; max-width: 46ch; }
+  header h1 {
+    margin: 0 0 12px; font-size: 2.5rem; font-weight: 400; letter-spacing: -0.5px;
+    font-family: "JetBrains Mono", ui-monospace, "Courier New", monospace;
+  }
+  header p { margin: 0; font-size: 1.12rem; color: #D6DFC6; max-width: 48ch; }
 
   main { padding: 56px 0 80px; }
   h2 {
@@ -53,6 +57,7 @@
   .card:hover { border-color: var(--accent); transform: translateY(-2px); }
   .card h3 { margin: 0 0 8px; font-size: 1.2rem; font-weight: 600; }
   .card h3 span { color: var(--accent); }
+  .card h3 { font-family: "JetBrains Mono", ui-monospace, "Courier New", monospace; }
   .card p { margin: 0; color: var(--muted); font-size: 0.97rem; }
   .card.planned { opacity: 0.62; border-style: dashed; pointer-events: none; }
   .tag {
@@ -63,11 +68,11 @@
   }
 
   pre {
-    background: var(--ink); color: #DDE8EE; padding: 18px 20px;
+    background: var(--ink); color: var(--chalk); padding: 18px 20px;
     border-radius: 8px; overflow-x: auto; font-size: 0.9rem;
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
-  pre .c { color: #7E97A6; }
+  pre .c { color: #A9C2AE; }
   code { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
 
   ul.plain { padding-left: 20px; }
@@ -78,7 +83,7 @@
     color: var(--muted); font-size: 0.9rem;
   }
   footer a { color: var(--muted); }
-  a { color: #1C6B7E; }
+  a { color: #8A380F; }
 </style>
 </head>
 <body>
@@ -87,9 +92,10 @@
   <div class="wrap">
     <img src="logo/statmodels7.svg" alt="statmodels7">
     <div>
-      <h1>statmodels<b>7</b></h1>
-      <p>An R statistical modelling stack built on the S7 object system, where
-         every piece carries exact analytical derivatives.</p>
+      <h1>statmodels7</h1>
+      <p>The pieces every statistical modelling package rebuilds from scratch,
+         written once as objects you can actually reuse — carrying every
+         derivative up to fourth order, exactly.</p>
     </div>
   </div>
 </header>
@@ -97,20 +103,39 @@
 <main class="wrap">
 
   <section>
+    <h2>The problem</h2>
+    <p>Open almost any R package that fits statistical models and you will find
+       the same things written again: a handful of distributions, a handful of
+       link functions. Not as objects — as internal helper functions, a
+       <code>switch</code> on a character string, a list of closures private to
+       the package that owns them.</p>
+    <p>So they cannot be reused. You cannot hand a link function to another
+       package, ask a distribution for its third derivative, or add a new one
+       without editing somebody else's source. And because each package writes
+       only what it happens to need, what you get is almost always the density
+       and the score, sometimes the Hessian, and nothing beyond.</p>
+    <p><b>Why should a Gamma be re-implemented in every package that uses one?</b>
+       These are fixed mathematical objects. They can be written once, correctly,
+       with everything a modelling routine could want already computed — and then
+       everybody builds on top.</p>
+  </section>
+
+  <section>
     <h2>The packages</h2>
     <div class="cards">
 
       <a class="card" href="https://statmodels7.github.io/linkfunctions7">
         <h3>linkfunctions<span>7</span></h3>
-        <p>Fourteen link functions with exact derivatives to fourth order in both
-           directions, and a diagnostic that verifies them.</p>
+        <p>A link is an object, not a string. Fourteen of them, each carrying
+           exact derivatives to fourth order in both directions, and a
+           diagnostic that proves them right.</p>
       </a>
 
       <a class="card" href="https://statmodels7.github.io/distributions7">
         <h3>distributions<span>7</span></h3>
-        <p>Fourteen distributions with closed-form score, information and higher
-           derivatives, maximum likelihood on the link scale, and numerical
-           validation.</p>
+        <p>Fourteen distributions carrying closed-form score, information and
+           third and fourth derivatives — with respect to the parameters, the
+           response, and the unconstrained scale.</p>
       </a>
 
       <div class="card planned">
@@ -134,36 +159,50 @@
       <div class="card planned">
         <h3>statmodels<span>7</span><span class="tag">planned</span></h3>
         <p>The package that assembles the others into models: every parameter
-           modelled, pluggable optimisers, frequentist or Bayesian.</p>
+           modelled, not just the mean; optimisers you choose; frequentist or
+           Bayesian.</p>
       </div>
 
     </div>
   </section>
 
   <section>
-    <h2>What ties it together</h2>
-    <p>Fitting a model means optimising a likelihood over constrained
-       parameters — a variance that must stay positive, a probability that must
-       stay in the unit interval. Every package in this stack takes the same
-       approach to that problem: reparameterise through a link so the optimiser
-       works on the whole real line, and supply the derivatives it needs
-       <em>exactly</em>, in closed form, rather than by differencing.</p>
-    <p>That is why link functions and distributions come first. They are where
-       the derivatives live.</p>
+    <h2>What you get that you usually don't</h2>
+    <p>The derivatives are the point. A modelling routine wants the score to
+       take a step, the information for standard errors, and the third and
+       fourth derivatives for higher-order corrections, bias adjustment or
+       saddlepoint work. Those higher orders are almost never available, so they
+       get approximated by differencing, or the method that needs them does not
+       get written.</p>
+    <p>Here they are computed in closed form, in C++, for every distribution —
+       and not only with respect to the parameters. Also with respect to the
+       response, and with respect to the <em>unconstrained</em> parameters behind
+       each link, which is the scale an optimiser actually works on. Where a
+       closed form genuinely does not exist, what replaces it is a documented
+       approximation, not a silence.</p>
+<pre><span class="c"># everything below is exact, none of it is a finite difference</span>
+d &lt;- gamma_distrib()
+distrib_gradient(d, y, theta)                   <span class="c"># score</span>
+distrib_expected_hessian(d, y, theta)           <span class="c"># information</span>
+distrib_deriv4(d, y, theta)                     <span class="c"># fourth order</span>
+distrib_gradient(d, y, theta, scale = "link")   <span class="c"># w.r.t. eta</span></pre>
   </section>
 
   <section>
-    <h2>A taste</h2>
-<pre><span class="c"># a distribution is an object, and it knows its own derivatives</span>
-d &lt;- gamma_distrib()
-y &lt;- distrib_rng(d, 500, list(mu = 3, sigma2 = 2))
-
-fit &lt;- fit_distrib(d, y)   <span class="c"># maximised on the link scale</span>
-coef(fit)
-plot(fit)                  <span class="c"># the fit against the data</span>
-
-<span class="c"># and a distribution of your own needs only its density:</span>
-<span class="c"># the cdf, quantile, sampler and every derivative follow</span></pre>
+    <h2>Built to be extended</h2>
+    <p>A stack that only works for the fourteen distributions it ships with
+       would have solved nothing. Everything dispatches on S7 generics, so your
+       own distribution is a subclass and one method — <b>the density</b>. The
+       distribution function, the quantile function, the sampler and every
+       derivative then follow from numerical fallbacks, and each one you later
+       derive in closed form silently takes over.</p>
+    <p>The same holds for link functions, and will hold for model terms, bases
+       and penalties as those arrive. If you write a component, it works with
+       everything already here — and everything already here works with yours.</p>
+    <p><code>check_distrib()</code> and <code>check_link()</code> exist for that
+       reason: they put your component through the same numerical validation the
+       shipped ones face, so a derivative you got wrong is caught before it
+       reaches a model.</p>
   </section>
 
   <section>
@@ -173,8 +212,8 @@ plot(fit)                  <span class="c"># the fit against the data</span>
           system, and the plural of what it provides.</li>
       <li>Derivatives are exact and analytical wherever a closed form exists,
           and numerically validated where one does not.</li>
-      <li>Anything the packages compute for themselves, you can compute for a
-          component of your own: the extension points are the same generics.</li>
+      <li>Nothing is private. What the packages use internally is exported,
+          documented and available to you.</li>
     </ul>
   </section>
 
