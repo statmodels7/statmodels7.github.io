@@ -82,9 +82,12 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
     site\            the portal, its own repository (statmodels7.github.io)
 ```
 
-⚠️ `book/` has **no repository yet**. Like this file and `logo/`, it is not
-covered by any of the three repos, so it needs a home — the natural one is `site/`,
-which would also let the rendered book be served from the portal.
+`book/` is versioned through `site/` (source under `stack/book/`, rendered HTML
+under `book/`, both carried by `sync-stack-files.sh`), and the rendered book is
+**published at `statmodels7.github.io/book/`** (since 2026-07-26). After editing
+the book: `quarto render` in `book/`, then `sh sync-stack-files.sh` in `site/`
+and commit there — the render is a manual step because it executes R against the
+working tree.
 
 GitHub: `github.com/statmodels7/{linkfunctions7,distributions7}`. The repositories were
 transferred from `giovannitinervia9/*` on 2026-07-22; GitHub keeps redirects, so
@@ -544,9 +547,6 @@ exactly 1. What was wrong was everything around them.
   the mode of the density with a dot, and he was right to have it removed.
 - The portal is hand-written HTML. If the stack grows past a handful of packages it may
   deserve a generator, but not yet.
-- **`book/` is not versioned anywhere.** It needs a repository — `site/` is the obvious
-  one, since it already hosts the stack-wide files and could serve the rendered book
-  from the portal. Decide before the book accumulates history worth keeping.
 - The book covers links, distributions and the transformation wrappers. `fit_distrib`
   (Fisher scoring, Newton, BFGS, delta-method standard errors, intervals built on the
   link scale and mapped back) has no chapter yet, and neither do the numerical
