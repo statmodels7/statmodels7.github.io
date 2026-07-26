@@ -256,11 +256,17 @@ window.Quarto = {
   <li><a href="#sec-trunc-derivatives" id="toc-sec-trunc-derivatives" class="nav-link" data-scroll-target="#sec-trunc-derivatives"><span class="header-section-number">4.5.1</span> Derivatives</a></li>
   <li><a href="#sec-trunc-validity" id="toc-sec-trunc-validity" class="nav-link" data-scroll-target="#sec-trunc-validity"><span class="header-section-number">4.5.2</span> Which truncations make sense</a></li>
   </ul></li>
-  <li><a href="#sec-choosing" id="toc-sec-choosing" class="nav-link" data-scroll-target="#sec-choosing"><span class="header-section-number">4.6</span> Choosing among the constructions</a></li>
-  <li><a href="#sec-identifiability" id="toc-sec-identifiability" class="nav-link" data-scroll-target="#sec-identifiability"><span class="header-section-number">4.7</span> Identifiability</a>
+  <li><a href="#sec-higher-orders" id="toc-sec-higher-orders" class="nav-link" data-scroll-target="#sec-higher-orders"><span class="header-section-number">4.6</span> The higher orders, all at once</a>
   <ul class="collapse">
-  <li><a href="#sec-no-stacking" id="toc-sec-no-stacking" class="nav-link" data-scroll-target="#sec-no-stacking"><span class="header-section-number">4.7.1</span> Wrappers do not stack</a></li>
-  <li><a href="#sec-counting-rule" id="toc-sec-counting-rule" class="nav-link" data-scroll-target="#sec-counting-rule"><span class="header-section-number">4.7.2</span> Counting the support</a></li>
+  <li><a href="#sec-two-facts" id="toc-sec-two-facts" class="nav-link" data-scroll-target="#sec-two-facts"><span class="header-section-number">4.6.1</span> Two facts, both sums over partitions</a></li>
+  <li><a href="#sec-higher-per-wrapper" id="toc-sec-higher-per-wrapper" class="nav-link" data-scroll-target="#sec-higher-per-wrapper"><span class="header-section-number">4.6.2</span> What each wrapper needs</a></li>
+  <li><a href="#sec-higher-cost" id="toc-sec-higher-cost" class="nav-link" data-scroll-target="#sec-higher-cost"><span class="header-section-number">4.6.3</span> What it costs</a></li>
+  </ul></li>
+  <li><a href="#sec-choosing" id="toc-sec-choosing" class="nav-link" data-scroll-target="#sec-choosing"><span class="header-section-number">4.7</span> Choosing among the constructions</a></li>
+  <li><a href="#sec-identifiability" id="toc-sec-identifiability" class="nav-link" data-scroll-target="#sec-identifiability"><span class="header-section-number">4.8</span> Identifiability</a>
+  <ul class="collapse">
+  <li><a href="#sec-no-stacking" id="toc-sec-no-stacking" class="nav-link" data-scroll-target="#sec-no-stacking"><span class="header-section-number">4.8.1</span> Wrappers do not stack</a></li>
+  <li><a href="#sec-counting-rule" id="toc-sec-counting-rule" class="nav-link" data-scroll-target="#sec-counting-rule"><span class="header-section-number">4.8.2</span> Counting the support</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -883,8 +889,71 @@ M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + s_is_j\right].\]</span></p>
 </div>
 </section>
 </section>
-<section id="sec-choosing" class="level2" data-number="4.6">
-<h2 data-number="4.6" class="anchored" data-anchor-id="sec-choosing"><span class="header-section-number">4.6</span> Choosing among the constructions</h2>
+<section id="sec-higher-orders" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="sec-higher-orders"><span class="header-section-number">4.6</span> The higher orders, all at once</h2>
+<p>Everything derived so far has stopped at the second derivative, which is where a fitting routine stops. The stack promises four orders, though, and the promise is worth keeping for the wrappers as well as for the distributions they wrap. What makes that cheap is a structural observation: <strong>every wrapper’s log-likelihood has the same shape</strong>. Setting the branches side by side,</p>
+<p><span class="math display">\[
+\begin{aligned}
+\text{zero-inflated, } y = 0:\quad &amp; \ell_Y = \log L_0, \qquad L_0 = \zeta + (1-\zeta)f_0,\\
+\text{hurdle, } y &gt; 0:\quad &amp; \ell_Y = \ell(y) - \log(1-f_0) + \log(1-\pi),\\
+\text{zero-adjusted continuous, } y \neq 0:\quad &amp; \ell_Y = \ell_W(y) + \log(1-\pi),\\
+\text{truncated}:\quad &amp; \ell_T = \ell(y) - \log Z,
+\end{aligned}
+\]</span></p>
+<p>each is the parent’s log-density plus, or instead of, <strong>the logarithm of some quantity that depends on <span class="math inline">\(\theta\)</span></strong>. So one derivation covers all four, provided we can differentiate a logarithm to arbitrary order — and we can, using nothing that has not already appeared in this book.</p>
+<section id="sec-two-facts" class="level3" data-number="4.6.1">
+<h3 data-number="4.6.1" class="anchored" data-anchor-id="sec-two-facts"><span class="header-section-number">4.6.1</span> Two facts, both sums over partitions</h3>
+<p>The first is <a href="03-distributions.html#lem-exp-deriv" class="quarto-xref">Lemma&nbsp;<span>3.1</span></a>, read in the direction opposite to the one <a href="03-distributions.html#sec-bartlett" class="quarto-xref"><span>Section 3.3</span></a> used it. There it turned <span class="math inline">\(\partial^k f\)</span> into something whose expectation vanishes; here it simply says how to get the derivatives of a density from those of its logarithm:</p>
+<p><span class="math display">\[\frac{\partial^{I} f}{f} \;=\; \sum_{\pi \in \Pi_I} \prod_{B \in \pi} \ell^{(B)},\]</span></p>
+<p>the complete Bell polynomial in the parent’s derivatives, where <span class="math inline">\(\Pi_I\)</span> runs over the set partitions of the multi-index <span class="math inline">\(I\)</span>.</p>
+<p>The second is its inverse, and is the classical relation between moments and cumulants.</p>
+<div id="prp-log-deriv" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.7 (Derivatives of a logarithm)</strong></span> For a positive function <span class="math inline">\(L\)</span> of the parameters and a multi-index <span class="math inline">\(I\)</span>,</p>
+<p><span class="math display">\[\partial^{I} \log L \;=\; \sum_{\pi \in \Pi_I} (-1)^{|\pi|-1}\,(|\pi|-1)!
+   \prod_{B \in \pi} \frac{\partial^{B} L}{L}.\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>Both sides are determined by their values on the algebra of partitions, so it suffices to check that the two expansions invert one another. Substituting the first fact into the second with <span class="math inline">\(L = f\)</span> gives, on the right, a sum over pairs <span class="math inline">\((\pi, \sigma)\)</span> with <span class="math inline">\(\sigma\)</span> refining <span class="math inline">\(\pi\)</span>, weighted by <span class="math inline">\((-1)^{|\pi|-1}(|\pi|-1)!\)</span>. For a fixed <span class="math inline">\(\sigma\)</span> the inner sum over the <span class="math inline">\(\pi\)</span> it refines is <span class="math inline">\(\sum_{\pi \geq \sigma}(-1)^{|\pi|-1}(|\pi|-1)!\)</span>, which is the Möbius function of the partition lattice and vanishes unless <span class="math inline">\(\sigma\)</span> is the single-block partition. What survives is <span class="math inline">\(\ell^{(I)}\)</span>, which is what <span class="math inline">\(\partial^I \log f\)</span> should be. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>Only the <em>ratios</em> <span class="math inline">\(\partial^B L / L\)</span> are ever needed, never <span class="math inline">\(L\)</span>’s derivatives on their own — which matters because for the truncated wrapper those ratios are exactly the truncated expectations already met in <a href="#thm-truncated" class="quarto-xref">Theorem&nbsp;<span>4.3</span></a>:</p>
+<p><span class="math display">\[\frac{\partial^{B} Z}{Z} = \mathbb{E}_T\!\left[\frac{\partial^{B}f}{f}\right].\]</span></p>
+<p>At second order this is <span class="math inline">\(M_{ij}\)</span>, and <a href="#prp-log-deriv" class="quarto-xref">Proposition&nbsp;<span>4.7</span></a> reduces to <span class="math inline">\(\partial_{ij}\log Z = M_{ij} - m_i m_j\)</span> — the formula derived by hand earlier. The same collapse happens everywhere: putting <span class="math inline">\(|I| = 1\)</span> or <span class="math inline">\(2\)</span> into the two facts reproduces every score and Hessian in this chapter, including the <span class="math inline">\(w_0(1-w_0)\)</span> of <a href="#prp-zi-hessian" class="quarto-xref">Proposition&nbsp;<span>4.2</span></a> and the truncation correction <span class="math inline">\(C_{ij}\)</span> of <a href="#prp-hurdle-hessian" class="quarto-xref">Proposition&nbsp;<span>4.5</span></a>. The general machinery and the hand derivations are two routes to the same formulas, and each is a check on the other.</p>
+</section>
+<section id="sec-higher-per-wrapper" class="level3" data-number="4.6.2">
+<h3 data-number="4.6.2" class="anchored" data-anchor-id="sec-higher-per-wrapper"><span class="header-section-number">4.6.2</span> What each wrapper needs</h3>
+<p>With the two facts in hand, each wrapper is a matter of naming its <span class="math inline">\(L\)</span> and its ratios.</p>
+<p>For a <strong>transformed</strong> distribution there is nothing to do at all: by <a href="#thm-transform-invariance" class="quarto-xref">Theorem&nbsp;<span>4.2</span></a> the derivatives are the parent’s at <span class="math inline">\(x = g^{-1}(y)\)</span>, at every order.</p>
+<p>For <strong>zero-inflation</strong> at <span class="math inline">\(y = 0\)</span> we have <span class="math inline">\(L = L_0\)</span>, which is <em>affine</em> in <span class="math inline">\(\zeta\)</span> — a fact that does most of the work, since it kills every block containing two or more <span class="math inline">\(\zeta\)</span>’s. Writing <span class="math inline">\(A\)</span> for the <span class="math inline">\(\theta\)</span>-part of a block and counting its <span class="math inline">\(\zeta\)</span>’s,</p>
+<p><span class="math display">\[
+\frac{\partial^{B}L_0}{L_0} =
+\begin{cases}
+w_0 \cdot \dfrac{\partial^{A} f_0}{f_0} &amp; \text{no } \zeta,\\[8pt]
+-f_0\,\dfrac{\partial^{A} f_0}{f_0}\Big/L_0 &amp; \text{one } \zeta,\ A \neq \emptyset,\\[8pt]
+(1-f_0)/L_0 &amp; \text{one } \zeta,\ A = \emptyset,\\[4pt]
+0 &amp; \text{two or more } \zeta.
+\end{cases}
+\]</span></p>
+<p>Above zero the likelihood separates, so mixed components vanish and the pure ones are the parent’s and <span class="math inline">\(\partial^k\log(1-\zeta) = -(k-1)!/(1-\zeta)^k\)</span>.</p>
+<p>For the <strong>hurdle</strong> the separation is complete at every order, so all mixed components are identically zero; the <span class="math inline">\(\theta\)</span> part above zero is the parent’s derivative minus that of <span class="math inline">\(\log(1-f_0)\)</span>, whose ratios are <span class="math inline">\(-f_0(\partial^B f_0/f_0)/(1-f_0)\)</span>. The <strong>zero-adjusted continuous</strong> case is the same without the truncation constant. And <strong>truncation</strong> is <span class="math inline">\(\ell\)</span> minus <span class="math inline">\(\log Z\)</span> with the expectations above.</p>
+<p>As a small closed form to end on, the pure <span class="math inline">\(\zeta\)</span> derivatives at zero: since <span class="math inline">\(\ell_Y = \log\big(f_0 + \zeta(1-f_0)\big)\)</span> is a logarithm of an affine function,</p>
+<p><span class="math display">\[\frac{\partial^{k}\ell_Y}{\partial\zeta^{k}}\bigg|_{y=0}
+= (-1)^{k-1}(k-1)!\left(\frac{1-f_0}{L_0}\right)^{k}.\]</span></p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>())</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>f0 <span class="ot">&lt;-</span> <span class="fu">dpois</span>(<span class="dv">0</span>, <span class="dv">3</span>); L0 <span class="ot">&lt;-</span> <span class="fl">0.25</span> <span class="sc">+</span> <span class="fl">0.75</span> <span class="sc">*</span> f0; r <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> f0) <span class="sc">/</span> L0</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">package =</span> <span class="fu">distrib_deriv3</span>(d, <span class="dv">0</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.25</span>))[[<span class="st">"zi_zi_zi"</span>]],</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">closed  =</span> <span class="dv">2</span> <span class="sc">*</span> r<span class="sc">^</span><span class="dv">3</span>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  package   closed </span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 72.32745 72.32745</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-higher-cost" class="level3" data-number="4.6.3">
+<h3 data-number="4.6.3" class="anchored" data-anchor-id="sec-higher-cost"><span class="header-section-number">4.6.3</span> What it costs</h3>
+<p>For the zero wrappers, nothing to speak of: the ratios are algebraic in <span class="math inline">\(f_0\)</span> and the parent’s derivatives, and the partition sums have at most fifteen terms at fourth order. For truncation each <em>distinct block</em> costs one quadrature or summation, so a fourth-order component with two parameters needs a handful — memoised across the partition sum, since a partition of four indices asks for the same small blocks repeatedly. It is the same trade the second order already made, and the reason the closed forms of a future <code>distrib_grad_cdf</code> would pay for themselves.</p>
+</section>
+</section>
+<section id="sec-choosing" class="level2" data-number="4.7">
+<h2 data-number="4.7" class="anchored" data-anchor-id="sec-choosing"><span class="header-section-number">4.7</span> Choosing among the constructions</h2>
 <p>The three families answer different questions, and the differences are easiest to see side by side.</p>
 <table class="table-striped caption-top table">
 <caption>The three constructions</caption>
@@ -945,20 +1014,20 @@ M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + s_is_j\right].\]</span></p>
 <p>Truncation answers a different question altogether. It is not a model for surplus or deficient zeros but for <strong>unobservable regions</strong>: a detection limit, a register that only records positive counts, a measuring instrument with a ceiling. Part of the sample space was never available, and the model says so.</p>
 <p>One boundary between the families is worth marking explicitly, because the package enforces it. For a continuous parent, “zero-inflation” and “zero-adjustment” would denote the same object — with <span class="math inline">\(P(W=0)=0\)</span> the mixture <span class="math inline">\(\zeta\delta_0 + (1-\zeta)f_W\)</span> <em>is</em> <a href="#def-za-continuous" class="quarto-xref">Definition&nbsp;<span>4.4</span></a> with <span class="math inline">\(\zeta\)</span> in the role of <span class="math inline">\(\pi\)</span> — and offering both names would only invite the belief that they differ. The constructor therefore accepts a continuous parent only under the name <code>zero_adjusted()</code>, and points there when asked otherwise:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">gamma_distrib</span>())</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() requires a discrete distribution: a continuous one has</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   P(Y = 0) = 0, so there is no mass at zero to inflate. To place a point mass</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   at zero alongside a density, use zero_adjusted().</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">gamma_distrib</span>())</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() requires a discrete distribution: a continuous one has</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   P(Y = 0) = 0, so there is no mass at zero to inflate. To place a point mass</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   at zero alongside a density, use zero_adjusted().</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
-<section id="sec-identifiability" class="level2" data-number="4.7">
-<h2 data-number="4.7" class="anchored" data-anchor-id="sec-identifiability"><span class="header-section-number">4.7</span> Identifiability</h2>
+<section id="sec-identifiability" class="level2" data-number="4.8">
+<h2 data-number="4.8" class="anchored" data-anchor-id="sec-identifiability"><span class="header-section-number">4.8</span> Identifiability</h2>
 <p>The zero wrappers add a parameter, and adding a parameter to a family does not always produce an identified family. What makes this dangerous is that nothing at run time betrays the failure: the mass function still sums to one, every numerical check still passes, and an optimiser still converges — to an arbitrary point of a flat ridge, with standard errors to match. The only place the failure can be caught is the constructor, so the constructors carry the mathematics needed to catch it. This section derives that mathematics.</p>
-<section id="sec-no-stacking" class="level3" data-number="4.7.1">
-<h3 data-number="4.7.1" class="anchored" data-anchor-id="sec-no-stacking"><span class="header-section-number">4.7.1</span> Wrappers do not stack</h3>
+<section id="sec-no-stacking" class="level3" data-number="4.8.1">
+<h3 data-number="4.8.1" class="anchored" data-anchor-id="sec-no-stacking"><span class="header-section-number">4.8.1</span> Wrappers do not stack</h3>
 <div id="prp-no-stack-1" class="theorem proposition">
-<p><span class="theorem-title"><strong>Proposition 4.7 (Zero-truncation annihilates zero-inflation)</strong></span> Let <span class="math inline">\(D_\zeta\)</span> be the zero-inflated version of <span class="math inline">\(D\)</span>. Then the zero-truncated law of <span class="math inline">\(D_\zeta\)</span> coincides with the zero-truncated law of <span class="math inline">\(D\)</span> itself, whatever the value of <span class="math inline">\(\zeta\)</span>.</p>
+<p><span class="theorem-title"><strong>Proposition 4.8 (Zero-truncation annihilates zero-inflation)</strong></span> Let <span class="math inline">\(D_\zeta\)</span> be the zero-inflated version of <span class="math inline">\(D\)</span>. Then the zero-truncated law of <span class="math inline">\(D_\zeta\)</span> coincides with the zero-truncated law of <span class="math inline">\(D\)</span> itself, whatever the value of <span class="math inline">\(\zeta\)</span>.</p>
 </div>
 <div class="proof">
 <p><span class="proof-title"><em>Proof</em>. </span>For <span class="math inline">\(y &gt; 0\)</span>, the mass function of <span class="math inline">\(D_\zeta\)</span> is <span class="math inline">\((1-\zeta)f(y)\)</span> and its total mass on the positive integers is <span class="math inline">\(1 - L_0 = 1 - \zeta - (1-\zeta)f_0 = (1-\zeta)(1-f_0)\)</span>. Dividing,</p>
@@ -969,55 +1038,55 @@ M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + s_is_j\right].\]</span></p>
 </div>
 <p>The consequence is immediate: in <code>zero_adjusted(zero_inflated(D))</code> the parameter <span class="math inline">\(\zeta\)</span> appears nowhere in the resulting mass function, its score is identically zero, and it cannot be estimated. The reverse composition fails similarly — in <code>zero_inflated(zero_adjusted(D))</code> the pair <span class="math inline">\((\zeta, \pi)\)</span> enters the law only through the combination <span class="math inline">\(c = \zeta + (1-\zeta)\pi\)</span>, since the mass at zero is <span class="math inline">\(c\)</span> and the positive part carries the factor <span class="math inline">\((1-\zeta)(1-\pi) = 1 - c\)</span>, so every pair on the curve <span class="math inline">\(\zeta + (1-\zeta)\pi = c\)</span> produces exactly the same distribution. Both constructions are therefore refused:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_adjusted</span>(<span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>())))</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_adjusted() cannot wrap 'zero-inflated poisson', which already models the probability of a zero.</span></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_inflated</span>(<span class="fu">zero_adjusted</span>(<span class="fu">poisson_distrib</span>())))</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_inflated() cannot wrap 'zero-adjusted poisson', which already models the probability of a zero.</span></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_adjusted</span>(<span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>())))</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_adjusted() cannot wrap 'zero-inflated poisson', which already models the probability of a zero.</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_inflated</span>(<span class="fu">zero_adjusted</span>(<span class="fu">poisson_distrib</span>())))</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_inflated() cannot wrap 'zero-adjusted poisson', which already models the probability of a zero.</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>That these refusals guard against something real, and not a theoretical scruple, can be seen by building the forbidden object by hand, bypassing the constructor, and watching the parameter vanish:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.70</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_gradient</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))<span class="sc">$</span>zi</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0 0 0 0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.70</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_gradient</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))<span class="sc">$</span>zi</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0 0 0 0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
-<section id="sec-counting-rule" class="level3" data-number="4.7.2">
-<h3 data-number="4.7.2" class="anchored" data-anchor-id="sec-counting-rule"><span class="header-section-number">4.7.2</span> Counting the support</h3>
+<section id="sec-counting-rule" class="level3" data-number="4.8.2">
+<h3 data-number="4.8.2" class="anchored" data-anchor-id="sec-counting-rule"><span class="header-section-number">4.8.2</span> Counting the support</h3>
 <div id="prp-counting" class="theorem proposition">
-<p><span class="theorem-title"><strong>Proposition 4.8 (The counting rule)</strong></span> A distribution supported on <span class="math inline">\(k\)</span> points is an element of the <span class="math inline">\((k-1)\)</span>-dimensional probability simplex, so a family with <span class="math inline">\(q\)</span> free parameters can be identified only if <span class="math inline">\(q \leq k-1\)</span>. Both zero wrappers have <span class="math inline">\(q = p+1\)</span> parameters, where <span class="math inline">\(p\)</span> is the number of the parent’s; hence at least</p>
+<p><span class="theorem-title"><strong>Proposition 4.9 (The counting rule)</strong></span> A distribution supported on <span class="math inline">\(k\)</span> points is an element of the <span class="math inline">\((k-1)\)</span>-dimensional probability simplex, so a family with <span class="math inline">\(q\)</span> free parameters can be identified only if <span class="math inline">\(q \leq k-1\)</span>. Both zero wrappers have <span class="math inline">\(q = p+1\)</span> parameters, where <span class="math inline">\(p\)</span> is the number of the parent’s; hence at least</p>
 <p><span class="math display">\[k \geq p + 2\]</span></p>
 <p>support points are necessary for either wrapper to be identified.</p>
 </div>
 <p>The condition is necessary but not sufficient — a badly parametrised family can fail to be identified with any amount of support — yet it is exactly what rules out the case that arises in practice: the Bernoulli, with <span class="math inline">\(k = 2\)</span> and <span class="math inline">\(p = 1\)</span>. Zero-inflating a Bernoulli spends two parameters describing the single free cell of <span class="math inline">\(\{0, 1\}\)</span>. Zero-adjusting one is even more striking: the truncation concentrates everything on <span class="math inline">\(\{1\}\)</span>, so <span class="math inline">\(f(1)/(1-f_0) = \mu/(1-(1-\mu)) = 1\)</span> whatever <span class="math inline">\(\mu\)</span> is, and the parent’s parameter drops out of the model completely, leaving <span class="math inline">\(P(Y=0) = \pi,\ P(Y=1) = 1-\pi\)</span>.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">bernoulli_distrib</span>())</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() cannot wrap 'bernoulli': its support has 2 points, so the family has 1 free</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability, while the wrapped distribution would have 2 parameters. They are not</span></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified -- different parameter values give exactly the same distribution.</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   A support of at least 3 points is required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_adjusted</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">1</span>))</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">bernoulli_distrib</span>())</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_adjusted() cannot wrap 'binomial': its support has 2 points, so the family has 1 free</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() cannot wrap 'bernoulli': its support has 2 points, so the family has 1 free</span></span>
 <span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability, while the wrapped distribution would have 2 parameters. They are not</span></span>
 <span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified -- different parameter values give exactly the same distribution.</span></span>
 <span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   A support of at least 3 points is required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_adjusted</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">1</span>))</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_adjusted() cannot wrap 'binomial': its support has 2 points, so the family has 1 free</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability, while the wrapped distribution would have 2 parameters. They are not</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified -- different parameter values give exactly the same distribution.</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   A support of at least 3 points is required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
 <p>The same rule admits a binomial with two trials, whose three support points are enough for the two parameters:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">2</span>))<span class="sc">@</span>params</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu" "zi"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">2</span>))<span class="sc">@</span>params</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu" "zi"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A caveat to end on: the counting rule protects against structural non-identification, the kind that no amount of data can cure. Weak identification of the statistical kind — a Poisson mean so large that <span class="math inline">\(f_0\)</span> underflows, a <span class="math inline">\(\zeta\)</span> so close to zero that the data barely see it — remains possible in any mixture model, and there it is the standard errors from <code>fit_distrib()</code> that tell the story.</p>
 

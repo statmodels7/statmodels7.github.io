@@ -230,7 +230,29 @@ E[d_ij l_T] = -Cov_T(s_i, s_j)                (2nd Bartlett identity)
 ```
 
 `m` and `M` have no closed form in general and go through `expectation()`, so truncated
-derivatives are much dearer than the parent's and orders 3–4 use the FD fallback.
+derivatives are much dearer than the parent's.
+
+**Orders 3 and 4 are closed form for every wrapper** (`R/wrapper_derivatives.R`,
+2026-07-27). Every wrapper's log-likelihood is the parent's log-density plus, or instead
+of, `log L` for some θ-dependent `L`, so two partition sums cover all of them:
+
+- `d^I f / f = Σ_π Π_B l^(B)` — the complete Bell polynomial, i.e. the Bartlett lemma
+  read backwards;
+- `d^I log L = Σ_π (-1)^{|π|-1}(|π|-1)! Π_B (d^B L / L)` — the moment-to-cumulant
+  relation. Only the **ratios** are needed, never `L`'s own derivatives.
+
+Orders 1–2 fall out as special cases and reproduce the hand-written closed forms exactly
+(`w0(1-w0)`, `C_ij`, `M_ij - m_i m_j`), so the two derivations check each other. `L0` is
+**affine in zi**, which kills every block containing two or more zi's. For truncation each
+distinct block costs one quadrature, memoised across the partition sum.
+
+Two traps found while writing it, both worth keeping:
+- **`$` on a list does partial matching.** `d4[["mu_mu_mu"]]` is NULL but `d4$mu_mu_mu`
+  silently resolves to `mu_mu_mu_mu` when that prefix is unique. Always `[[ ]]` in tests.
+- **`deriv_index_list()`'s order-2 case is ordered for `hess_names()`** (diagonal first)
+  while `deriv_names()` is lexicographic; pairing them would label `"mu_sigma"` with the
+  index `(sigma, sigma)`. Orders 3–4 agree, so the bug is invisible until someone reuses
+  the helper. `order_indices()` in `wrapper_derivatives.R` generates its own.
 
 **Link scale.** `scale = "link"` gives derivatives with respect to the unconstrained
 parameters, to 4th order, via Faà di Bruno with a diagonal Jacobian and partial Bell
@@ -273,7 +295,7 @@ and `plot()` on the fit.
 | | |
 |---|---|
 | `linkfunctions7` | 711 tests, `R CMD check` OK, CI green |
-| `distributions7` | 1168 tests, `R CMD check` OK (2026-07-26, local), CI green |
+| `distributions7` | 1345 tests, `R CMD check` OK (2026-07-27, local), CI green |
 
 Both repositories run `R-CMD-check` on macOS, Windows and three Linux/R combinations
 (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix matters for
@@ -532,10 +554,15 @@ exactly 1. What was wrong was everything around them.
   them within Monte Carlo noise).
 - Publishing `linkfunctions7` to CRAN, which unblocks `distributions7`.
 - Next packages: `modelterms7`, `basis7`, `penalties7`.
-- Truncated distributions have no closed-form 3rd/4th derivatives (the FD fallback of
-  the analytical Hessian is used). Deriving `d^3 log Z` and `d^4 log Z` from the
-  moment-to-cumulant relations would close that, and would also give the zero wrappers
-  their missing orders.
+- **Derivatives of the log-cdf** (`d log F / d theta`) are the natural next addition, and
+  Giovanni raised it 2026-07-27. The key relation is `d_i F(t) = F(t) E[l^(i) | Y <= t]`,
+  a partial expectation of the score. It would serve three things at once: censored
+  likelihoods (right/left/interval — survival, tobit, detection limits), which are
+  currently impossible; quantile residuals and their delta-method SEs; and **truncation**,
+  whose `d^B Z / Z` are literally differences of log-cdf derivatives and are today
+  computed by quadrature. Suggested shape: `distrib_grad_cdf` / `distrib_hess_cdf`
+  generics, numerical fallback via that conditional expectation, closed forms where they
+  exist.
 - No `NEWS.md` on either package.
 - **Logos** exist but are competent rather than designed — drawn by a script, not by
   someone with visual judgement. Worth redoing with a designer if the identity matters.
