@@ -27,25 +27,33 @@ distribution has density or mass function $f(y;\theta)$ with log-density
 $\ell(y) = \log f(y;\theta)$, and we write
 
 $$
-s_i(y) = \frac{\partial \ell(y)}{\partial\theta_i}, \qquad
-H_{ij}(y) = \frac{\partial^{2} \ell(y)}{\partial\theta_i\partial\theta_j}, \qquad
+\ell^{(i)}(y) = \frac{\partial \ell(y)}{\partial\theta_i}, \qquad
+\ell^{(ij)}(y) = \frac{\partial^{2} \ell(y)}{\partial\theta_i\partial\theta_j}, \qquad
 f_0 = f(0;\theta)
 $$
 
-for its score, its Hessian and its mass at zero. One elementary identity will
-be needed again and again, so we record it once, with its one-line proof.
+for its score, its Hessian and its mass at zero, following the convention of
+@sec-likelihood throughout: a parenthesized superscript on $\ell$ is a
+derivative with respect to the parameters it names. One elementary identity
+will be needed again and again, so we record it once, with its one-line proof.
 
 ::: {#lem-fij}
 ## Second derivative of a density through its log
 
-$$\frac{1}{f}\frac{\partial^{2} f}{\partial\theta_i\partial\theta_j} = H_{ij} + s_i s_j .$$
+$$\frac{1}{f}\,\partial_{ij} f = \ell^{(ij)} + \ell^{(i)} \ell^{(j)},$$
+
+where $\partial_{ij}$ abbreviates $\partial^{2}/\partial\theta_i\partial\theta_j$.
 :::
 
 ::: {.proof}
-From $\ell = \log f$ we get $s_i = f_i/f$, that is $f_i = f\,s_i$.
-Differentiating this product with respect to $\theta_j$ gives
-$f_{ij} = f_j\,s_i + f\,\partial_j s_i = f\,s_j s_i + f\,H_{ij}$, and dividing
-by $f$ finishes the proof. $\square$
+From $\ell = \log f$ we get $\ell^{(i)} = (\partial_i f)/f$, that is
+$\partial_i f = f\,\ell^{(i)}$. Differentiating this product with respect to
+$\theta_j$ gives
+
+$$\partial_{ij} f = (\partial_j f)\,\ell^{(i)} + f\,\partial_j \ell^{(i)}
+= f\,\ell^{(j)}\ell^{(i)} + f\,\ell^{(ij)},$$
+
+and dividing by $f$ finishes the proof. $\square$
 :::
 
 ## Change of variables {#sec-transformation}
@@ -60,7 +68,7 @@ A **transformer** is a map $g : S \to T$, defined on the support $S$ of the
 parent, which is a strictly monotone, continuously differentiable bijection
 with $g' \neq 0$ throughout. In the package it is described by $g$, by its
 inverse $g^{-1}$, by the absolute Jacobian of the inverse
-$|J(y)| = |\,\mathrm{d}g^{-1}/\mathrm{d}y\,|$, by its effect on the support
+$\lvert J(y)\rvert = \lvert\,\mathrm{d}g^{-1}/\mathrm{d}y\,\rvert$, by its effect on the support
 bounds, and by a flag recording whether it is decreasing. Crucially, **a
 transformer does not depend on $\theta$**; this apparently innocent remark will
 do most of the work of the section.
@@ -73,7 +81,7 @@ do most of the work of the section.
 
 If $Y = g(X)$ with $g$ a transformer, then
 
-$$f_Y(y;\theta) = f_X\!\left(g^{-1}(y);\theta\right)\,\left|J(y)\right|,
+$$f_Y(y;\theta) = f_X\!\left(g^{-1}(y);\theta\right)\,\left\lvert J(y)\right\rvert,
 \qquad y \in T .$$
 :::
 
@@ -129,7 +137,7 @@ $\mathbb{E}_Y\!\left[\partial^{k}\ell_Y\right] = \mathbb{E}_X\!\left[\partial^{k
 ::: {.proof}
 Taking the logarithm of @thm-cov,
 
-$$\ell_Y(\theta;y) = \ell_X\!\left(\theta;\, g^{-1}(y)\right) + \log|J(y)| .$$
+$$\ell_Y(\theta;y) = \ell_X\!\left(\theta;\, g^{-1}(y)\right) + \log\lvert J(y)\rvert .$$
 
 Look at the two terms through the eyes of $\partial/\partial\theta$. The
 Jacobian term depends on $y$ alone — this is where the requirement that a
@@ -157,7 +165,7 @@ because the links attach to the parameters and the parameters have not changed.
 The Jacobian, having dropped out of the $\theta$-derivatives, has not left the
 theory altogether: it survives in the density itself and in the derivatives
 with respect to $y$. This is why a transformer also carries
-$\partial_y \log|J|$ and $\partial^2_y \log|J|$, which feed the response
+$\partial_y \log\lvert J\rvert$ and $\partial^2_y \log\lvert J\rvert$, which feed the response
 derivatives of @sec-response-derivatives.
 
 ### The twelve transformers {#sec-transformer-catalogue}
@@ -169,7 +177,7 @@ tt <- do.call(rbind, lapply(TRANSFORMERS, function(tr) data.frame(
   transformer = sprintf("`%s`", tr$ctor),
   `$g(x)$` = sprintf("$%s$", tr$g),
   `$g^{-1}(y)$` = sprintf("$%s$", tr$ginv),
-  `$|J(y)|$` = sprintf("$%s$", tr$jac),
+  `$\\lvert J(y)\\rvert$` = sprintf("$%s$", tr$jac),
   `domain` = sprintf("$%s$", tr$domain),
   check.names = FALSE, stringsAsFactors = FALSE)))
 knitr::kable(tt, align = "lllll", row.names = FALSE,
@@ -270,7 +278,7 @@ $\mathrm{Bernoulli}(\zeta)$ fraction of the draws by structural zeros.
 
 $$
 \frac{\partial \ell_Y}{\partial \theta_i} =
-\begin{cases} w_0\, s_i(0) & y = 0 \\ s_i(y) & y > 0\end{cases}
+\begin{cases} w_0\, \ell^{(i)}(0) & y = 0 \\ \ell^{(i)}(y) & y > 0\end{cases}
 \qquad\qquad
 \frac{\partial \ell_Y}{\partial \zeta} =
 \begin{cases} \dfrac{1 - f_0}{L_0} & y = 0 \\[6pt] -\dfrac{1}{1-\zeta} & y > 0 .\end{cases}
@@ -281,14 +289,14 @@ $$
 Consider first an observation $y > 0$, where the log-likelihood is
 $\log(1-\zeta) + \ell(y)$. The two terms separate cleanly: the first involves
 only $\zeta$ and differentiates to $-1/(1-\zeta)$, the second involves only
-$\theta$ and differentiates to $s_i(y)$.
+$\theta$ and differentiates to $\ell^{(i)}(y)$.
 
 At $y = 0$ the log-likelihood is $\log L_0$, and both parameters enter through
-$L_0$. For $\theta_i$, using $\partial_i f_0 = f_0\,s_i(0)$,
+$L_0$. For $\theta_i$, using $\partial_i f_0 = f_0\,\ell^{(i)}(0)$,
 
 $$\frac{\partial \ell_Y}{\partial\theta_i}
 = \frac{(1-\zeta)\,\partial_i f_0}{L_0}
-= \frac{(1-\zeta) f_0}{L_0}\cdot s_i(0) = w_0\,s_i(0),$$
+= \frac{(1-\zeta) f_0}{L_0}\cdot \ell^{(i)}(0) = w_0\,\ell^{(i)}(0),$$
 
 while for $\zeta$ the derivative of $L_0 = \zeta + (1-\zeta)f_0$ is simply
 $1 - f_0$, giving $(1-f_0)/L_0$. $\square$
@@ -308,14 +316,14 @@ the estimation of $\theta$, which is exactly as it should be.
 $$
 \frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j} =
 \begin{cases}
-w_0 H_{ij}(0) + w_0(1-w_0)\,s_i(0)s_j(0) & y = 0\\[4pt]
-H_{ij}(y) & y > 0
+w_0 \ell^{(ij)}(0) + w_0(1-w_0)\,\ell^{(i)}(0)\ell^{(j)}(0) & y = 0\\[4pt]
+\ell^{(ij)}(y) & y > 0
 \end{cases}
 $$
 
 $$
 \frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\zeta} =
-\begin{cases} -\dfrac{f_0\,s_i(0)}{L_0^{2}} & y = 0 \\[6pt] 0 & y > 0\end{cases}
+\begin{cases} -\dfrac{f_0\,\ell^{(i)}(0)}{L_0^{2}} & y = 0 \\[6pt] 0 & y > 0\end{cases}
 \qquad\quad
 \frac{\partial^{2}\ell_Y}{\partial\zeta^{2}} =
 \begin{cases} -\dfrac{(1-f_0)^{2}}{L_0^{2}} & y = 0 \\[6pt] -\dfrac{1}{(1-\zeta)^{2}} & y > 0 .\end{cases}
@@ -325,7 +333,7 @@ $$
 ::: {.proof}
 We work block by block, and the only case requiring care is $y = 0$, since for
 $y > 0$ the separated form $\log(1-\zeta) + \ell(y)$ immediately gives
-$H_{ij}(y)$ for the $\theta\theta$ block, zero for the mixed block, and
+$\ell^{(ij)}(y)$ for the $\theta\theta$ block, zero for the mixed block, and
 $-1/(1-\zeta)^2$ for the $\zeta\zeta$ block.
 
 *The $\theta\theta$ block at $y = 0$.* We differentiate the score
@@ -344,11 +352,11 @@ multiply and divide by $f_0$ and invoke @lem-fij:
 
 $$\frac{(1-\zeta)\,\partial_{ij} f_0}{L_0}
 = w_0\,\frac{\partial_{ij} f_0}{f_0}
-= w_0\left(H_{ij}(0) + s_i(0)s_j(0)\right).$$
+= w_0\left(\ell^{(ij)}(0) + \ell^{(i)}(0)\ell^{(j)}(0)\right).$$
 
-For the second, note that $(1-\zeta)\,\partial_i f_0 / L_0 = w_0\,s_i(0)$, so
-the piece equals $w_0^{2}\,s_i(0)s_j(0)$. Subtracting, the pure product terms
-combine into $w_0(1 - w_0)\,s_i(0)s_j(0)$, and the stated formula emerges.
+For the second, note that $(1-\zeta)\,\partial_i f_0 / L_0 = w_0\,\ell^{(i)}(0)$, so
+the piece equals $w_0^{2}\,\ell^{(i)}(0)\ell^{(j)}(0)$. Subtracting, the pure product terms
+combine into $w_0(1 - w_0)\,\ell^{(i)}(0)\ell^{(j)}(0)$, and the stated formula emerges.
 
 *The mixed block at $y = 0$.* Differentiate the same score, this time with
 respect to $\zeta$. Both the factor $(1-\zeta)$ and the denominator $L_0$
@@ -367,7 +375,7 @@ $$L_0 + (1-\zeta)(1-f_0)
 = \zeta + (1-\zeta)f_0 + (1-\zeta) - (1-\zeta)f_0
 = \zeta + (1-\zeta) = 1,$$
 
-so the whole block reduces to $-\partial_i f_0 / L_0^{2} = -f_0\,s_i(0)/L_0^{2}$.
+so the whole block reduces to $-\partial_i f_0 / L_0^{2} = -f_0\,\ell^{(i)}(0)/L_0^{2}$.
 The simplification is not cosmetic — it removes a numerical cancellation that
 the unsimplified expression would have to perform at run time.
 
@@ -389,13 +397,13 @@ $$\mathbb{E}[u(Y)] = L_0\,u(0) + (1-\zeta)\sum_{y>0} f(y)\,u(y).$$
 
 $$
 \mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}\right]
-= L_0\Big[w_0H_{ij}(0) + w_0(1-w_0)s_i(0)s_j(0)\Big]
-+ (1-\zeta)\Big(\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)\Big),
+= L_0\Big[w_0\ell^{(ij)}(0) + w_0(1-w_0)\ell^{(i)}(0)\ell^{(j)}(0)\Big]
++ (1-\zeta)\Big(\mathbb{E}_f[\ell^{(ij)}] - f_0 \ell^{(ij)}(0)\Big),
 $$
 
 $$
 \mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\zeta}\right]
-= -\frac{f_0\,s_i(0)}{L_0},
+= -\frac{f_0\,\ell^{(i)}(0)}{L_0},
 \qquad
 \mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\zeta^{2}}\right]
 = -\left[\frac{(1-f_0)^{2}}{L_0} + \frac{1-L_0}{(1-\zeta)^{2}}\right].
@@ -405,12 +413,12 @@ $$
 ::: {.proof}
 For the $\theta\theta$ block, the zero branch of @prp-zi-hessian is a constant,
 so it contributes $L_0$ times its value. The positive branch contributes
-$(1-\zeta)\sum_{y>0} f(y) H_{ij}(y)$; since summing over the *whole* support
-would give $\mathbb{E}_f[H_{ij}]$, removing the $y = 0$ term leaves
-$\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)$, and the first formula follows. The
+$(1-\zeta)\sum_{y>0} f(y) \ell^{(ij)}(y)$; since summing over the *whole* support
+would give $\mathbb{E}_f[\ell^{(ij)}]$, removing the $y = 0$ term leaves
+$\mathbb{E}_f[\ell^{(ij)}] - f_0 \ell^{(ij)}(0)$, and the first formula follows. The
 mixed block vanishes on the positive branch, so only the zero branch survives,
 weighted by $L_0$, which cancels one power of the denominator:
-$L_0 \cdot (-f_0 s_i(0)/L_0^2) = -f_0 s_i(0)/L_0$. The $\zeta\zeta$ block is
+$L_0 \cdot (-f_0 \ell^{(i)}(0)/L_0^2) = -f_0 \ell^{(i)}(0)/L_0$. The $\zeta\zeta$ block is
 the weighted average of its two branches with weights $L_0$ and $1-L_0$.
 
 As a cross-check, the second Bartlett identity of @thm-bartlett requires this
@@ -492,7 +500,7 @@ two halves of the model could be fitted separately with identical results.
 $$
 \frac{\partial\ell_Y}{\partial\theta_i} =
 \begin{cases} 0 & y = 0 \\[4pt]
-s_i(y) + \dfrac{f_0}{1-f_0}\,s_i(0) & y > 0\end{cases}
+\ell^{(i)}(y) + \dfrac{f_0}{1-f_0}\,\ell^{(i)}(0) & y > 0\end{cases}
 \qquad\qquad
 \frac{\partial\ell_Y}{\partial\pi} =
 \begin{cases} \dfrac{1}{\pi} & y = 0 \\[6pt] -\dfrac{1}{1-\pi} & y > 0 .\end{cases}
@@ -503,13 +511,13 @@ $$
 At $y = 0$ the log-likelihood is $\log\pi$, which does not contain $\theta$, so
 the $\theta$-score vanishes and the $\pi$-score is $1/\pi$. At $y > 0$ it is
 $\log(1-\pi) + \ell(y) - \log(1-f_0)$; the $\pi$-derivative of the first term
-is $-1/(1-\pi)$, the $\theta_i$-derivative of the second is $s_i(y)$, and for
+is $-1/(1-\pi)$, the $\theta_i$-derivative of the second is $\ell^{(i)}(y)$, and for
 the third,
 
 $$-\frac{\partial}{\partial\theta_i}\log(1-f_0)
-= \frac{\partial_i f_0}{1-f_0} = \frac{f_0}{1-f_0}\,s_i(0),$$
+= \frac{\partial_i f_0}{1-f_0} = \frac{f_0}{1-f_0}\,\ell^{(i)}(0),$$
 
-again using $\partial_i f_0 = f_0\,s_i(0)$. $\square$
+again using $\partial_i f_0 = f_0\,\ell^{(i)}(0)$. $\square$
 :::
 
 The extra term is the **truncation correction**, and it has a transparent
@@ -527,15 +535,15 @@ Abbreviate
 $$
 C_{ij} = \frac{(1-f_0)\,\partial_{ij}f_0 + \partial_i f_0\,\partial_j f_0}{(1-f_0)^{2}},
 \qquad\text{where}\quad
-\partial_i f_0 = f_0\,s_i(0), \quad
-\partial_{ij} f_0 = f_0\left(H_{ij}(0) + s_i(0)s_j(0)\right).
+\partial_i f_0 = f_0\,\ell^{(i)}(0), \quad
+\partial_{ij} f_0 = f_0\left(\ell^{(ij)}(0) + \ell^{(i)}(0)\ell^{(j)}(0)\right).
 $$
 
 Then the observed Hessian is
 
 $$
 \frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j} =
-\begin{cases} 0 & y=0 \\ H_{ij}(y) + C_{ij} & y>0\end{cases}
+\begin{cases} 0 & y=0 \\ \ell^{(ij)}(y) + C_{ij} & y>0\end{cases}
 \qquad
 \frac{\partial^{2}\ell_Y}{\partial\pi^{2}} =
 \begin{cases} -\dfrac{1}{\pi^{2}} & y=0\\[6pt] -\dfrac{1}{(1-\pi)^{2}} & y>0,\end{cases}
@@ -545,7 +553,7 @@ with the mixed block identically zero, and in expectation
 
 $$
 \mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}\right]
-= (1-\pi)\left[\frac{\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)}{1-f_0} + C_{ij}\right],
+= (1-\pi)\left[\frac{\mathbb{E}_f[\ell^{(ij)}] - f_0 \ell^{(ij)}(0)}{1-f_0} + C_{ij}\right],
 \qquad
 \mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\pi^{2}}\right] = -\frac{1}{\pi(1-\pi)} .
 $$
@@ -553,8 +561,8 @@ $$
 
 ::: {.proof}
 For the observed $\theta\theta$ block at $y > 0$, differentiate the score of
-@prp-hurdle-score with respect to $\theta_j$. The term $s_i(y)$ gives
-$H_{ij}(y)$. The correction term is the quotient
+@prp-hurdle-score with respect to $\theta_j$. The term $\ell^{(i)}(y)$ gives
+$\ell^{(ij)}(y)$. The correction term is the quotient
 $\partial_i f_0 / (1-f_0)$, and by the quotient rule — keeping in mind that
 $\partial_j(1-f_0) = -\partial_j f_0$, which turns the usual minus into a plus —
 
@@ -571,11 +579,11 @@ For the expectation of the $\theta\theta$ block, the zero branch contributes
 nothing, and each positive $y$ carries mass $(1-\pi)f(y)/(1-f_0)$, so
 
 $$\mathbb{E}\left[\partial^{2}_{ij}\ell_Y\right]
-= \frac{1-\pi}{1-f_0}\sum_{y>0} f(y)\Big(H_{ij}(y) + C_{ij}\Big).$$
+= \frac{1-\pi}{1-f_0}\sum_{y>0} f(y)\Big(\ell^{(ij)}(y) + C_{ij}\Big).$$
 
 The conditional weights $f(y)/(1-f_0)$ sum to one over the positive values, so
 the constant $C_{ij}$ passes through with factor $(1-\pi)$, and the sum
-$\sum_{y>0} f(y)H_{ij}(y)$ is $\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)$, as in the
+$\sum_{y>0} f(y)\ell^{(ij)}(y)$ is $\mathbb{E}_f[\ell^{(ij)}] - f_0 \ell^{(ij)}(0)$, as in the
 zero-inflated case. Finally, averaging the two branches of the $\pi\pi$ block
 with weights $\pi$ and $1-\pi$,
 
@@ -655,15 +663,15 @@ no truncation constant at all:
 $$\ell_Y = \mathbb{I}(y=0)\log\pi
 + \mathbb{I}(y\neq 0)\Big[\log(1-\pi) + \ell_W(y)\Big].$$
 
-Reading off the branches, the score in $\theta_i$ is $s_i(y)$ off the atom and
+Reading off the branches, the score in $\theta_i$ is $\ell^{(i)}(y)$ off the atom and
 zero on it; the score in $\pi$ is $1/\pi$ on the atom and $-1/(1-\pi)$ off it;
-the $\theta\theta$ block of the Hessian is $H_{ij}(y)$ off the atom; the mixed
+the $\theta\theta$ block of the Hessian is $\ell^{(ij)}(y)$ off the atom; the mixed
 block vanishes; and since $P(Y \neq 0) = 1-\pi$ while conditionally on
 $Y \neq 0$ the law of $Y$ is exactly that of $W$,
 
 $$
 \mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}\right]
-= (1-\pi)\,\mathbb{E}_W[H_{ij}],
+= (1-\pi)\,\mathbb{E}_W[\ell^{(ij)}],
 \qquad
 \mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\pi^{2}}\right] = -\frac{1}{\pi(1-\pi)} .
 $$
@@ -711,11 +719,11 @@ differentiating that constant is all the work there is.
 ## Truncated distribution
 
 Let $D$ have density or mass function $f(\cdot\,;\theta)$ and support $S$, and
-let $\ell < u$ be truncation points with $T = S \cap [\ell, u]$ non-empty.
+let $L < U$ be truncation points with $T = S \cap [L, U]$ non-empty.
 Writing
 
-$$Z(\theta) = P(\ell \leq Y \leq u) = F(u;\theta) - F(\ell^-;\theta), \qquad
-F(\ell^-) = F(\ell) - P(Y = \ell),$$
+$$Z(\theta) = P(L \leq Y \leq U) = F(U;\theta) - F(L^-;\theta), \qquad
+F(L^-) = F(L) - P(Y = L),$$
 
 the **truncated** version of $D$ is
 
@@ -724,35 +732,35 @@ $$f_T(y;\theta) = \frac{f(y;\theta)}{Z(\theta)} \ \ (y \in T),
 :::
 
 Both endpoints are included in the truncated support. For a continuous parent
-this is a distinction without a difference, since $P(Y = \ell) = 0$; for a
+this is a distinction without a difference, since $P(Y = L) = 0$; for a
 discrete parent it is the whole point — truncating a Poisson below at
-$\ell = 1$ produces the zero-truncated Poisson on $\{1, 2, \dots\}$, and the
+$L = 1$ produces the zero-truncated Poisson on $\{1, 2, \dots\}$, and the
 mass sitting exactly at the included endpoint must be added back into $Z$,
-whence the correction $F(\ell^-) = F(\ell) - f(\ell)$.
+whence the correction $F(L^-) = F(L) - f(L)$.
 
 There is a subtlety here that repays attention. The correction "subtract the
-mass at $\ell$" is naturally read as belonging to the discrete case, but what
-it really belongs to is the case where the parent places an **atom** at $\ell$
+mass at $L$" is naturally read as belonging to the discrete case, but what
+it really belongs to is the case where the parent places an **atom** at $L$
 — and @sec-za-continuous has just manufactured continuous distributions that do
 exactly that. The cdf of a zero-adjusted Gamma already contains the point mass
 at zero, so for that parent $F(0) \neq F(0^-)$ even though the object is
 formally continuous, and a truncation that retained the atom but used $F(0)$ in
 $Z$ would lose precisely that mass from the normalising constant. The
-implementation therefore obtains the mass at $\ell$ from `distrib_atoms()`,
+implementation therefore obtains the mass at $L$ from `distrib_atoms()`,
 uniformly for every kind of parent.
 
 The distribution functions follow the same pattern as before. For $q \in T$,
 
-$$F_T(q) = \frac{F(q;\theta) - F(\ell^-;\theta)}{Z(\theta)},$$
+$$F_T(q) = \frac{F(q;\theta) - F(L^-;\theta)}{Z(\theta)},$$
 
 clamped to $[0,1]$ outside, and solving $F_T(q) = p$ for $q$ gives the quantile
 function by delegation to the parent,
 
-$$Q_T(p) = Q\!\left(F(\ell^-;\theta) + p\,Z(\theta)\right),$$
+$$Q_T(p) = Q\!\left(F(L^-;\theta) + p\,Z(\theta)\right),$$
 
 a relation that holds verbatim for the generalized inverse of a lattice cdf, so
 the discrete case needs no separate treatment. Generation is inverse transform
-through this formula, $Y = Q(F(\ell^-) + UZ)$ with $U$ uniform — exact, and
+through this formula, $Y = Q(F(L^-) + VZ)$ with $V$ uniform on $(0,1)$ — exact, and
 guaranteed to finish in one pass no matter how small $Z$ is, which is where
 rejection sampling would stall.
 
@@ -764,19 +772,19 @@ rejection sampling would stall.
 Let $\ell_T = \ell - \log Z$, and define, with all expectations taken under the
 **truncated** distribution itself,
 
-$$m_i = \mathbb{E}_T[s_i], \qquad
-M_{ij} = \mathbb{E}_T\!\left[H_{ij} + s_is_j\right].$$
+$$m_i = \mathbb{E}_T[\ell^{(i)}], \qquad
+M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + s_is_j\right].$$
 
 Then
 
 $$
-\frac{\partial \ell_T}{\partial\theta_i} = s_i(y) - m_i,
+\frac{\partial \ell_T}{\partial\theta_i} = \ell^{(i)}(y) - m_i,
 \qquad
 \frac{\partial^{2}\ell_T}{\partial\theta_i\partial\theta_j}
-= H_{ij}(y) - M_{ij} + m_im_j,
+= \ell^{(ij)}(y) - M_{ij} + m_im_j,
 \qquad
 \mathbb{E}\!\left[\frac{\partial^{2}\ell_T}{\partial\theta_i\partial\theta_j}\right]
-= -\operatorname{Cov}_T\!\left(s_i, s_j\right).
+= -\operatorname{Cov}_T\!\left(\ell^{(i)}, \ell^{(j)}\right).
 $$
 :::
 
@@ -788,13 +796,13 @@ differentiation under the integral sign; it is also why truncation at fixed
 points is a regular problem, where truncation at a $\theta$-dependent point
 would not be.
 
-Differentiating once, and using $\partial_i f = f\,s_i$,
+Differentiating once, and using $\partial_i f = f\,\ell^{(i)}$,
 
 $$\frac{\partial Z}{\partial\theta_i}
 = \int_T \partial_i f
-= \int_T f\,s_i
-= Z \int_T \frac{f}{Z}\,s_i
-= Z\,\mathbb{E}_T[s_i] = Z\,m_i,$$
+= \int_T f\,\ell^{(i)}
+= Z \int_T \frac{f}{Z}\,\ell^{(i)}
+= Z\,\mathbb{E}_T[\ell^{(i)}] = Z\,m_i,$$
 
 where the second-to-last step divides and multiplies by $Z$ so as to recognise
 $f/Z = f_T$ inside the integral. Hence $\partial_i \log Z = m_i$, and the score
@@ -805,7 +813,7 @@ gives
 
 $$\frac{\partial^{2} Z}{\partial\theta_i\partial\theta_j}
 = \int_T \partial_{ij} f
-= \int_T f\left(H_{ij} + s_is_j\right)
+= \int_T f\left(\ell^{(ij)} + s_is_j\right)
 = Z\,M_{ij},$$
 
 and then, by the quotient rule applied to $\partial_i \log Z = \partial_i Z/Z$,
@@ -821,15 +829,15 @@ $M_{ij}$ and $m_im_j$ do not involve $y$, so they pass through the expectation
 unchanged, and
 
 $$\mathbb{E}_T\!\left[\partial_{ij}\ell_T\right]
-= \mathbb{E}_T[H_{ij}] - M_{ij} + m_im_j .$$
+= \mathbb{E}_T[\ell^{(ij)}] - M_{ij} + m_im_j .$$
 
 Substituting the definition
-$M_{ij} = \mathbb{E}_T[H_{ij}] + \mathbb{E}_T[s_is_j]$, the two occurrences of
-$\mathbb{E}_T[H_{ij}]$ cancel — a cancellation worth savouring, since it
+$M_{ij} = \mathbb{E}_T[\ell^{(ij)}] + \mathbb{E}_T[s_is_j]$, the two occurrences of
+$\mathbb{E}_T[\ell^{(ij)}]$ cancel — a cancellation worth savouring, since it
 removes the parent's expected Hessian from the formula entirely — and what
 remains is
 
-$$-\left(\mathbb{E}_T[s_is_j] - m_im_j\right) = -\operatorname{Cov}_T(s_i, s_j). \qquad\square$$
+$$-\left(\mathbb{E}_T[s_is_j] - m_im_j\right) = -\operatorname{Cov}_T(\ell^{(i)}, \ell^{(j)}). \qquad\square$$
 :::
 
 The three formulas invite three readings. The score of the truncated model is
@@ -844,7 +852,7 @@ derivatives of a truncated distribution markedly more expensive than the
 parent's own, with third and fourth orders falling back to finite differences
 of the analytical Hessian.
 
-Inside $[\ell, u]$ the constant $\log Z$ does not depend on $y$, so the
+Inside $[L, U]$ the constant $\log Z$ does not depend on $y$, so the
 response derivatives are the parent's, unchanged; outside, the log-density is
 $-\infty$ and they are `NaN`.
 
@@ -892,16 +900,16 @@ One further refusal connects this section to the previous ones.
 ## Truncating away the zero of a zero wrapper destroys its parameter
 
 Let $D_\zeta$ be the zero-inflated version of $D$ and suppose
-$0 \notin [\ell, u]$. Then the truncated law of $D_\zeta$ does not depend on
+$0 \notin [L, U]$. Then the truncated law of $D_\zeta$ does not depend on
 $\zeta$ at all.
 :::
 
 ::: {.proof}
-For $y \in [\ell, u]$, which excludes zero, the mass function of $D_\zeta$ is
+For $y \in [L, U]$, which excludes zero, the mass function of $D_\zeta$ is
 $(1-\zeta)f(y)$, and by the same token the retained mass is
-$Z = (1-\zeta)\big(F(u) - F(\ell^-)\big)$, where $F$ is the parent's cdf. In
+$Z = (1-\zeta)\big(F(U) - F(L^-)\big)$, where $F$ is the parent's cdf. In
 the ratio $f_T = (1-\zeta)f(y)/Z$ the factor $(1-\zeta)$ cancels, leaving
-$f(y)/(F(u) - F(\ell^-))$, which is free of $\zeta$. The score with respect to
+$f(y)/(F(U) - F(L^-))$, which is free of $\zeta$. The score with respect to
 $\zeta$ is therefore identically zero. The argument for the two zero-adjusted
 forms is the same with $(1-\pi)$ in place of $(1-\zeta)$. $\square$
 :::
@@ -960,7 +968,7 @@ to see side by side.
 
 | | Zero-inflation | Zero-adjustment (hurdle) | Truncation |
 |---|---|---|---|
-| Effect on $P(Y=0)$ | *adds*: $\zeta + (1-\zeta)f_0 > f_0$ | *replaces*: $\pi$, free in $(0,1)$ | removes it, if $0 \notin [\ell,u]$ |
+| Effect on $P(Y=0)$ | *adds*: $\zeta + (1-\zeta)f_0 > f_0$ | *replaces*: $\pi$, free in $(0,1)$ | removes it, if $0 \notin [L,U]$ |
 | Parameters added | one, $\zeta$ | one, $\pi$ | none |
 | Fewer zeros than the parent? | impossible | possible | only none at all |
 | Meaning of $\theta$ | the original count process | the zero-truncated law | the restricted law |

@@ -77,32 +77,49 @@ showed.
 Fix a distribution with density or mass function $f(y;\theta)$, where
 $\theta = (\theta_1, \dots, \theta_p)^\top$, and write
 $\ell(\theta; y) = \log f(y;\theta)$ for the log-likelihood of a single
-observation. Subscripts on $\ell$ will always denote differentiation with
-respect to parameters, so that
+observation. Derivatives with respect to the parameters are written with
+parenthesized superscripts,
 
 $$
-\ell_i = \frac{\partial \ell}{\partial \theta_i}, \qquad
-\ell_{ij} = \frac{\partial^{2} \ell}{\partial \theta_i \partial \theta_j}, \qquad
-\ell_{ijk} = \frac{\partial^{3} \ell}{\partial \theta_i \partial \theta_j \partial \theta_k},
+\ell^{(i)} = \frac{\partial \ell}{\partial \theta_i}, \qquad
+\ell^{(ij)} = \frac{\partial^{2} \ell}{\partial \theta_i \partial \theta_j}, \qquad
+\ell^{(ijk)} = \frac{\partial^{3} \ell}{\partial \theta_i \partial \theta_j \partial \theta_k},
 $$
 
-and so on. The vector $(\ell_1, \dots, \ell_p)^\top$ is the **score**; the
-matrix $-[\ell_{ij}]$ is the **observed information**; and the **expected
+and so on. The choice is deliberate. A subscript on $\ell$ is left free for
+what subscripts usually mean in likelihood work — $\ell_i$ as the contribution
+of the $i$-th observation, or, in the next chapter, $\ell_Y$ as the
+log-likelihood of a transformed model — while the parenthesized superscript
+unambiguously marks a derivative, in the same spirit as $f^{(k)}$ for the
+$k$-th derivative of a function of one variable. Indeed the two usages agree:
+when $\ell$ depends on a single parameter $\theta$, the $k$-th derivative can
+be written either as $\ell^{(k)}$ with an integer order or as
+$\ell^{(\theta\cdots\theta)}$ with the label repeated, and both forms appear
+below where each is the clearer one.
+
+$$
+\ell^{(i)} = \frac{\partial \ell}{\partial \theta_i}, \qquad
+\ell^{(ij)} = \frac{\partial^{2} \ell}{\partial \theta_i \partial \theta_j}, \qquad
+\ell^{(ijk)} = \frac{\partial^{3} \ell}{\partial \theta_i \partial \theta_j \partial \theta_k},
+$$
+
+and so on. The vector $(\ell^{(1)}, \dots, \ell^{(p)})^\top$ is the **score**; the
+matrix $-[\ell^{(ij)}]$ is the **observed information**; and the **expected
 information**, or Fisher information, is
-$\mathcal{I}(\theta) = -\mathbb{E}[\ell_{ij}]$, the expectation being taken over
+$\mathcal{I}(\theta) = -\mathbb{E}[\ell^{(ij)}]$, the expectation being taken over
 $Y \sim f(\cdot\,;\theta)$ at the same parameter value.
 
 A word on sign conventions, because both conventions circulate and a sign error
 here is invisible inside a symmetric matrix. The package returns *derivatives*,
-not informations: `distrib_hessian()` gives $[\ell_{ij}]$, and
-`distrib_expected_hessian()` gives $\mathbb{E}[\ell_{ij}]$, each with the sign
+not informations: `distrib_hessian()` gives $[\ell^{(ij)}]$, and
+`distrib_expected_hessian()` gives $\mathbb{E}[\ell^{(ij)}]$, each with the sign
 of the derivative, so the informations are the negatives of what the functions
 return.
 
 Since mixed partial derivatives are symmetric, only one representative of each
 multi-index is stored, and components are returned as named lists keyed in a
 canonical order — `"mu_sigma2"` stands for
-$\ell_{\mu\sigma^2} = \ell_{\sigma^2\mu}$:
+$\ell^{(\mu\sigma^2)} = \ell^{(\sigma^2\mu)}$:
 
 ```{r}
 #| label: derivatives-demo
@@ -125,7 +142,7 @@ whose location parameter sits at a kink of the log-likelihood, and
 ## The Bartlett identities {#sec-bartlett}
 
 Most readers will know the identity
-$\mathbb{E}[\ell_{ij}] = -\mathbb{E}[\ell_i \ell_j]$, the information matrix
+$\mathbb{E}[\ell^{(ij)}] = -\mathbb{E}[\ell^{(i)} \ell^{(j)}]$, the information matrix
 equality. What is less often written down is that this is only the second
 member of an infinite family of identities, one for each order of
 differentiation, and that the family taken as a whole allows an expected
@@ -156,24 +173,24 @@ For every $k \geq 1$,
 
 $$
 \frac{\partial^{k} e^{\ell}}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}
-= e^{\ell} \sum_{\pi \in \Pi_k} \prod_{B \in \pi} \ell_B ,
+= e^{\ell} \sum_{\pi \in \Pi_k} \prod_{B \in \pi} \ell^{(B)} ,
 $$
 
 where $\Pi_k$ is the set of all partitions of the index set
-$\{i_1, \dots, i_k\}$ into non-empty blocks, and $\ell_B$ is the derivative of
+$\{i_1, \dots, i_k\}$ into non-empty blocks, and $\ell^{(B)}$ is the derivative of
 $\ell$ with respect to the parameters indexed by the block $B$.
 :::
 
 ::: {.proof}
 We argue by induction on $k$. For $k = 1$ the claim reads
-$\partial_i e^{\ell} = e^{\ell}\ell_i$, which is the chain rule, and indeed
+$\partial_i e^{\ell} = e^{\ell}\ell^{(i)}$, which is the chain rule, and indeed
 $\Pi_1$ contains the single partition $\{\{i\}\}$.
 
 Suppose the formula holds at order $k$, and differentiate it with respect to a
 new index $\theta_{i_{k+1}}$. By the product rule, the derivative acts either
 on the factor $e^{\ell}$ in front — producing an extra factor
-$\ell_{i_{k+1}}$ — or on one of the factors $\ell_B$ inside a partition,
-turning it into $\ell_{B \cup \{i_{k+1}\}}$. In the first case, the new index
+$\ell^{(i_{k+1})}$ — or on one of the factors $\ell^{(B)}$ inside a partition,
+turning it into $\ell^{(B \cup \{i_{k+1}\})}$. In the first case, the new index
 ends up in a block of its own; in the second, it joins an existing block. But
 these two cases are precisely the two ways of building a partition of the
 $(k{+}1)$-element set from a partition of the $k$-element set, and every
@@ -192,17 +209,17 @@ result.
 Under the regularity conditions above, for every $k \geq 1$ and every choice of
 indices,
 
-$$\sum_{\pi \,\in\, \Pi_k} \mathbb{E}\!\left[\;\prod_{B \in \pi} \ell_B \right] = 0.$$
+$$\sum_{\pi \,\in\, \Pi_k} \mathbb{E}\!\left[\;\prod_{B \in \pi} \ell^{(B)} \right] = 0.$$
 :::
 
 To use the identity, single out the partition consisting of one big block: its
-contribution is $\mathbb{E}[\ell_{i_1 \cdots i_k}]$, the expected derivative of
+contribution is $\mathbb{E}[\ell^{(i_1 \cdots i_k)}]$, the expected derivative of
 top order, and moving everything else to the other side,
 
 $$
-\mathbb{E}\!\left[\ell_{i_1\cdots i_k}\right]
+\mathbb{E}\!\left[\ell^{(i_1\cdots i_k)}\right]
 = -\sum_{\substack{\pi \in \Pi_k \\ |\pi| > 1}}
-   \mathbb{E}\!\left[\prod_{B\in\pi}\ell_B\right].
+   \mathbb{E}\!\left[\prod_{B\in\pi}\ell^{(B)}\right].
 \tag{3.2}$$
 
 The first three cases, written out, show the family growing out of familiar
@@ -210,11 +227,11 @@ ground:
 
 $$
 \begin{aligned}
-k = 1: \quad & \mathbb{E}[\ell_i] = 0, \\[4pt]
-k = 2: \quad & \mathbb{E}[\ell_{ij}] = -\mathbb{E}[\ell_i\ell_j], \\[4pt]
-k = 3: \quad & \mathbb{E}[\ell_{ijk}] = -\Big(\mathbb{E}[\ell_{ij}\ell_k]
-   + \mathbb{E}[\ell_{ik}\ell_j] + \mathbb{E}[\ell_{jk}\ell_i]
-   + \mathbb{E}[\ell_i\ell_j\ell_k]\Big).
+k = 1: \quad & \mathbb{E}[\ell^{(i)}] = 0, \\[4pt]
+k = 2: \quad & \mathbb{E}[\ell^{(ij)}] = -\mathbb{E}[\ell^{(i)}\ell^{(j)}], \\[4pt]
+k = 3: \quad & \mathbb{E}[\ell^{(ijk)}] = -\Big(\mathbb{E}[\ell^{(ij)}\ell^{(k)}]
+   + \mathbb{E}[\ell^{(ik)}\ell^{(j)}] + \mathbb{E}[\ell^{(jk)}\ell^{(i)}]
+   + \mathbb{E}[\ell^{(i)}\ell^{(j)}\ell^{(k)}]\Big).
 \end{aligned}
 $$
 
@@ -316,10 +333,10 @@ applies:
 
 $$
 \begin{aligned}
-\frac{\partial \ell}{\partial \eta} &= \ell_{\theta}\,h', \\[4pt]
-\frac{\partial^{2} \ell}{\partial \eta^{2}} &= \ell_{\theta\theta}\,(h')^{2} + \ell_{\theta}\,h'', \\[4pt]
-\frac{\partial^{3} \ell}{\partial \eta^{3}} &= \ell_{\theta\theta\theta}\,(h')^{3} + 3\,\ell_{\theta\theta}\,h'h'' + \ell_{\theta}\,h''', \\[4pt]
-\frac{\partial^{4} \ell}{\partial \eta^{4}} &= \ell_{\theta\theta\theta\theta}\,(h')^{4} + 6\,\ell_{\theta\theta\theta}\,(h')^{2}h'' + \ell_{\theta\theta}\left(4h'h''' + 3(h'')^{2}\right) + \ell_{\theta}\,h''''.
+\frac{\partial \ell}{\partial \eta} &= \ell^{(\theta)}\,h', \\[4pt]
+\frac{\partial^{2} \ell}{\partial \eta^{2}} &= \ell^{(\theta\theta)}\,(h')^{2} + \ell^{(\theta)}\,h'', \\[4pt]
+\frac{\partial^{3} \ell}{\partial \eta^{3}} &= \ell^{(\theta\theta\theta)}\,(h')^{3} + 3\,\ell^{(\theta\theta)}\,h'h'' + \ell^{(\theta)}\,h''', \\[4pt]
+\frac{\partial^{4} \ell}{\partial \eta^{4}} &= \ell^{(\theta\theta\theta\theta)}\,(h')^{4} + 6\,\ell^{(\theta\theta\theta)}\,(h')^{2}h'' + \ell^{(\theta\theta)}\left(4h'h''' + 3(h'')^{2}\right) + \ell^{(\theta)}\,h''''.
 \end{aligned}
 $$
 
@@ -347,11 +364,11 @@ multiplicities $m_1, \dots, m_r$, and let $k = \sum_t m_t$. Then
 $$
 \frac{\partial^{k} \ell}{\partial \eta_{p_1}^{m_1} \cdots \partial \eta_{p_r}^{m_r}}
 = \sum_{j_1=1}^{m_1} \cdots \sum_{j_r=1}^{m_r}
-   \ell_{\,p_1^{j_1} \cdots p_r^{j_r}}
+   \ell^{(p_1^{j_1} \cdots p_r^{j_r})}
    \prod_{t=1}^{r} B_{m_t, j_t}\!\left(h_{p_t}', h_{p_t}'', \dots\right),
 $$
 
-where $\ell_{\,p_1^{j_1}\cdots p_r^{j_r}}$ denotes the parameter-scale
+where $\ell^{(p_1^{j_1}\cdots p_r^{j_r})}$ denotes the parameter-scale
 derivative taken $j_t$ times with respect to $\theta_{p_t}$.
 :::
 
@@ -364,7 +381,7 @@ therefore apply @thm-faa in the variable $\eta_{p_1}$ alone, obtaining
 
 $$
 \frac{\partial^{m_1}\ell}{\partial\eta_{p_1}^{m_1}}
-= \sum_{j_1=1}^{m_1} \ell_{\,p_1^{j_1}}\, B_{m_1,j_1}\!\left(h_{p_1}', \dots\right),
+= \sum_{j_1=1}^{m_1} \ell^{(p_1^{j_1})}\, B_{m_1,j_1}\!\left(h_{p_1}', \dots\right),
 $$
 
 in which the coefficients $B_{m_1, j_1}$ involve only the derivatives of
@@ -382,7 +399,7 @@ involves $m_1 = m_2 = 1$, each inner sum has a single term, and the formula
 collapses to a rescaling,
 
 $$
-\frac{\partial^{2}\ell}{\partial\eta_a \partial\eta_b} = \ell_{ab}\,h_a'\,h_b'
+\frac{\partial^{2}\ell}{\partial\eta_a \partial\eta_b} = \ell^{(ab)}\,h_a'\,h_b'
 \qquad (a \neq b).
 $$
 
@@ -399,7 +416,7 @@ first-order term drops out on its own.
 ## Congruence
 
 $$\mathbb{E}\!\left[\frac{\partial^{2}\ell}{\partial\eta_a\partial\eta_b}\right]
-= h_a'\,h_b'\;\mathbb{E}\!\left[\ell_{ab}\right],$$
+= h_a'\,h_b'\;\mathbb{E}\!\left[\ell^{(ab)}\right],$$
 
 or in matrix form
 $\mathbb{E}[H_\eta] = \operatorname{diag}(h')\,\mathbb{E}[H_\theta]\,\operatorname{diag}(h')$.
@@ -407,8 +424,8 @@ $\mathbb{E}[H_\eta] = \operatorname{diag}(h')\,\mathbb{E}[H_\theta]\,\operatorna
 
 ::: {.proof}
 For $a = b$, the univariate formula gives
-$\partial^2\ell/\partial\eta_a^2 = \ell_{aa}(h_a')^2 + \ell_a h_a''$. Take
-expectations: the first Bartlett identity says $\mathbb{E}[\ell_a] = 0$, so the
+$\partial^2\ell/\partial\eta_a^2 = \ell^{(aa)}(h_a')^2 + \ell^{(a)} h_a''$. Take
+expectations: the first Bartlett identity says $\mathbb{E}[\ell^{(a)}] = 0$, so the
 second term vanishes and only the congruence term survives. For $a \neq b$
 there was no first-order term to begin with. $\square$
 :::
@@ -417,7 +434,7 @@ The corollary matters beyond elegance. A congruence transform of a positive
 semi-definite matrix is positive semi-definite, so the link-scale Fisher
 information inherits the definiteness of the parameter-scale one
 automatically. Had one instead transformed the *observed* Hessian and then
-averaged numerically, the $\ell_a h_a''$ term would have survived and that
+averaged numerically, the $\ell^{(a)} h_a''$ term would have survived and that
 guarantee would have been lost.
 
 ### Where the transformation lives {#sec-link-scale-impl}
@@ -537,14 +554,14 @@ $f(y) = (2b)^{-1} e^{-|y-\mu|/b}$, is the catalogue's standing counterexample
 to regularity: its log-likelihood has a kink at $y = \mu$. Away from the kink
 one computes
 
-$$\ell_\mu = \frac{\operatorname{sign}(y-\mu)}{b}, \qquad \ell_{\mu\mu} = 0,$$
+$$\ell^{(\mu)} = \frac{\operatorname{sign}(y-\mu)}{b}, \qquad \ell^{(\mu\mu)} = 0,$$
 
 so the observed information in $\mu$ vanishes identically — the log-likelihood
 is piecewise linear in the location — and yet the Fisher information certainly
 exists. The second Bartlett identity delivers it directly: since
 $\operatorname{sign}(y-\mu)^2 = 1$ almost surely,
 
-$$\mathcal{I}_{\mu\mu} = \mathbb{E}\left[\ell_\mu^{2}\right]
+$$\mathcal{I}_{\mu\mu} = \mathbb{E}\left[(\ell^{(\mu)})^{2}\right]
 = \mathbb{E}\left[\frac{\operatorname{sign}(y-\mu)^{2}}{b^{2}}\right]
 = \frac{1}{b^{2}}.$$
 
@@ -603,7 +620,7 @@ Now the strategies disagree, and the pattern of their disagreement tells the
 whole story. The Bartlett route recovers $-1/b^{2}$ exactly, because it works
 from the score alone and never touches the second derivative. The other two
 both return zero — and for the same reason: each of them averages the observed
-$\ell_{\mu\mu}$, by quadrature in one case and over simulated draws in the
+$\ell^{(\mu\mu)}$, by quadrature in one case and over simulated draws in the
 other, and that function is identically zero away from the single point
 $y = \mu$, a set the integral cannot see and the draws almost surely never hit.
 Averaging the second derivative, however the average is taken, produces the

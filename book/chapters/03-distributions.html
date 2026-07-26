@@ -336,15 +336,21 @@ window.Quarto = {
 </section>
 <section id="sec-likelihood" class="level2" data-number="3.2">
 <h2 data-number="3.2" class="anchored" data-anchor-id="sec-likelihood"><span class="header-section-number">3.2</span> Score and information</h2>
-<p>Fix a distribution with density or mass function <span class="math inline">\(f(y;\theta)\)</span>, where <span class="math inline">\(\theta = (\theta_1, \dots, \theta_p)^\top\)</span>, and write <span class="math inline">\(\ell(\theta; y) = \log f(y;\theta)\)</span> for the log-likelihood of a single observation. Subscripts on <span class="math inline">\(\ell\)</span> will always denote differentiation with respect to parameters, so that</p>
+<p>Fix a distribution with density or mass function <span class="math inline">\(f(y;\theta)\)</span>, where <span class="math inline">\(\theta = (\theta_1, \dots, \theta_p)^\top\)</span>, and write <span class="math inline">\(\ell(\theta; y) = \log f(y;\theta)\)</span> for the log-likelihood of a single observation. Derivatives with respect to the parameters are written with parenthesized superscripts,</p>
 <p><span class="math display">\[
-\ell_i = \frac{\partial \ell}{\partial \theta_i}, \qquad
-\ell_{ij} = \frac{\partial^{2} \ell}{\partial \theta_i \partial \theta_j}, \qquad
-\ell_{ijk} = \frac{\partial^{3} \ell}{\partial \theta_i \partial \theta_j \partial \theta_k},
+\ell^{(i)} = \frac{\partial \ell}{\partial \theta_i}, \qquad
+\ell^{(ij)} = \frac{\partial^{2} \ell}{\partial \theta_i \partial \theta_j}, \qquad
+\ell^{(ijk)} = \frac{\partial^{3} \ell}{\partial \theta_i \partial \theta_j \partial \theta_k},
 \]</span></p>
-<p>and so on. The vector <span class="math inline">\((\ell_1, \dots, \ell_p)^\top\)</span> is the <strong>score</strong>; the matrix <span class="math inline">\(-[\ell_{ij}]\)</span> is the <strong>observed information</strong>; and the <strong>expected information</strong>, or Fisher information, is <span class="math inline">\(\mathcal{I}(\theta) = -\mathbb{E}[\ell_{ij}]\)</span>, the expectation being taken over <span class="math inline">\(Y \sim f(\cdot\,;\theta)\)</span> at the same parameter value.</p>
-<p>A word on sign conventions, because both conventions circulate and a sign error here is invisible inside a symmetric matrix. The package returns <em>derivatives</em>, not informations: <code>distrib_hessian()</code> gives <span class="math inline">\([\ell_{ij}]\)</span>, and <code>distrib_expected_hessian()</code> gives <span class="math inline">\(\mathbb{E}[\ell_{ij}]\)</span>, each with the sign of the derivative, so the informations are the negatives of what the functions return.</p>
-<p>Since mixed partial derivatives are symmetric, only one representative of each multi-index is stored, and components are returned as named lists keyed in a canonical order — <code>"mu_sigma2"</code> stands for <span class="math inline">\(\ell_{\mu\sigma^2} = \ell_{\sigma^2\mu}\)</span>:</p>
+<p>and so on. The choice is deliberate. A subscript on <span class="math inline">\(\ell\)</span> is left free for what subscripts usually mean in likelihood work — <span class="math inline">\(\ell_i\)</span> as the contribution of the <span class="math inline">\(i\)</span>-th observation, or, in the next chapter, <span class="math inline">\(\ell_Y\)</span> as the log-likelihood of a transformed model — while the parenthesized superscript unambiguously marks a derivative, in the same spirit as <span class="math inline">\(f^{(k)}\)</span> for the <span class="math inline">\(k\)</span>-th derivative of a function of one variable. Indeed the two usages agree: when <span class="math inline">\(\ell\)</span> depends on a single parameter <span class="math inline">\(\theta\)</span>, the <span class="math inline">\(k\)</span>-th derivative can be written either as <span class="math inline">\(\ell^{(k)}\)</span> with an integer order or as <span class="math inline">\(\ell^{(\theta\cdots\theta)}\)</span> with the label repeated, and both forms appear below where each is the clearer one.</p>
+<p><span class="math display">\[
+\ell^{(i)} = \frac{\partial \ell}{\partial \theta_i}, \qquad
+\ell^{(ij)} = \frac{\partial^{2} \ell}{\partial \theta_i \partial \theta_j}, \qquad
+\ell^{(ijk)} = \frac{\partial^{3} \ell}{\partial \theta_i \partial \theta_j \partial \theta_k},
+\]</span></p>
+<p>and so on. The vector <span class="math inline">\((\ell^{(1)}, \dots, \ell^{(p)})^\top\)</span> is the <strong>score</strong>; the matrix <span class="math inline">\(-[\ell^{(ij)}]\)</span> is the <strong>observed information</strong>; and the <strong>expected information</strong>, or Fisher information, is <span class="math inline">\(\mathcal{I}(\theta) = -\mathbb{E}[\ell^{(ij)}]\)</span>, the expectation being taken over <span class="math inline">\(Y \sim f(\cdot\,;\theta)\)</span> at the same parameter value.</p>
+<p>A word on sign conventions, because both conventions circulate and a sign error here is invisible inside a symmetric matrix. The package returns <em>derivatives</em>, not informations: <code>distrib_hessian()</code> gives <span class="math inline">\([\ell^{(ij)}]\)</span>, and <code>distrib_expected_hessian()</code> gives <span class="math inline">\(\mathbb{E}[\ell^{(ij)}]\)</span>, each with the sign of the derivative, so the informations are the negatives of what the functions return.</p>
+<p>Since mixed partial derivatives are symmetric, only one representative of each multi-index is stored, and components are returned as named lists keyed in a canonical order — <code>"mu_sigma2"</code> stands for <span class="math inline">\(\ell^{(\mu\sigma^2)} = \ell^{(\sigma^2\mu)}\)</span>:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>)</span>
@@ -364,7 +370,7 @@ window.Quarto = {
 </section>
 <section id="sec-bartlett" class="level2" data-number="3.3">
 <h2 data-number="3.3" class="anchored" data-anchor-id="sec-bartlett"><span class="header-section-number">3.3</span> The Bartlett identities</h2>
-<p>Most readers will know the identity <span class="math inline">\(\mathbb{E}[\ell_{ij}] = -\mathbb{E}[\ell_i \ell_j]\)</span>, the information matrix equality. What is less often written down is that this is only the second member of an infinite family of identities, one for each order of differentiation, and that the family taken as a whole allows an expected derivative of <em>any</em> order to be computed from expectations of products of lower-order ones. <code>distributions7</code> implements the family in full generality, so this section derives it.</p>
+<p>Most readers will know the identity <span class="math inline">\(\mathbb{E}[\ell^{(ij)}] = -\mathbb{E}[\ell^{(i)} \ell^{(j)}]\)</span>, the information matrix equality. What is less often written down is that this is only the second member of an infinite family of identities, one for each order of differentiation, and that the family taken as a whole allows an expected derivative of <em>any</em> order to be computed from expectations of products of lower-order ones. <code>distributions7</code> implements the family in full generality, so this section derives it.</p>
 <p>The starting point could hardly be simpler: a density integrates to one, and it does so <em>for every value of the parameter</em>,</p>
 <p><span class="math display">\[\int f(y;\theta)\, dy = 1 \qquad \text{for all } \theta \in \Theta.\]</span></p>
 <p>The right-hand side is constant in <span class="math inline">\(\theta\)</span>, so every derivative of the left-hand side must vanish, and regularity lets us take those derivatives under the integral sign:</p>
@@ -375,33 +381,33 @@ window.Quarto = {
 <p><span class="theorem-title"><strong>Lemma 3.1 (Derivatives of <span class="math inline">\(e^{\ell}\)</span>)</strong></span> For every <span class="math inline">\(k \geq 1\)</span>,</p>
 <p><span class="math display">\[
 \frac{\partial^{k} e^{\ell}}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}
-= e^{\ell} \sum_{\pi \in \Pi_k} \prod_{B \in \pi} \ell_B ,
+= e^{\ell} \sum_{\pi \in \Pi_k} \prod_{B \in \pi} \ell^{(B)} ,
 \]</span></p>
-<p>where <span class="math inline">\(\Pi_k\)</span> is the set of all partitions of the index set <span class="math inline">\(\{i_1, \dots, i_k\}\)</span> into non-empty blocks, and <span class="math inline">\(\ell_B\)</span> is the derivative of <span class="math inline">\(\ell\)</span> with respect to the parameters indexed by the block <span class="math inline">\(B\)</span>.</p>
+<p>where <span class="math inline">\(\Pi_k\)</span> is the set of all partitions of the index set <span class="math inline">\(\{i_1, \dots, i_k\}\)</span> into non-empty blocks, and <span class="math inline">\(\ell^{(B)}\)</span> is the derivative of <span class="math inline">\(\ell\)</span> with respect to the parameters indexed by the block <span class="math inline">\(B\)</span>.</p>
 </div>
 <div class="proof">
-<p><span class="proof-title"><em>Proof</em>. </span>We argue by induction on <span class="math inline">\(k\)</span>. For <span class="math inline">\(k = 1\)</span> the claim reads <span class="math inline">\(\partial_i e^{\ell} = e^{\ell}\ell_i\)</span>, which is the chain rule, and indeed <span class="math inline">\(\Pi_1\)</span> contains the single partition <span class="math inline">\(\{\{i\}\}\)</span>.</p>
-<p>Suppose the formula holds at order <span class="math inline">\(k\)</span>, and differentiate it with respect to a new index <span class="math inline">\(\theta_{i_{k+1}}\)</span>. By the product rule, the derivative acts either on the factor <span class="math inline">\(e^{\ell}\)</span> in front — producing an extra factor <span class="math inline">\(\ell_{i_{k+1}}\)</span> — or on one of the factors <span class="math inline">\(\ell_B\)</span> inside a partition, turning it into <span class="math inline">\(\ell_{B \cup \{i_{k+1}\}}\)</span>. In the first case, the new index ends up in a block of its own; in the second, it joins an existing block. But these two cases are precisely the two ways of building a partition of the <span class="math inline">\((k{+}1)\)</span>-element set from a partition of the <span class="math inline">\(k\)</span>-element set, and every partition of the larger set arises in exactly one of the two ways, from exactly one partition of the smaller set. The sum therefore runs over <span class="math inline">\(\Pi_{k+1}\)</span> with each term appearing once, which is the claim at order <span class="math inline">\(k+1\)</span>. <span class="math inline">\(\square\)</span></p>
+<p><span class="proof-title"><em>Proof</em>. </span>We argue by induction on <span class="math inline">\(k\)</span>. For <span class="math inline">\(k = 1\)</span> the claim reads <span class="math inline">\(\partial_i e^{\ell} = e^{\ell}\ell^{(i)}\)</span>, which is the chain rule, and indeed <span class="math inline">\(\Pi_1\)</span> contains the single partition <span class="math inline">\(\{\{i\}\}\)</span>.</p>
+<p>Suppose the formula holds at order <span class="math inline">\(k\)</span>, and differentiate it with respect to a new index <span class="math inline">\(\theta_{i_{k+1}}\)</span>. By the product rule, the derivative acts either on the factor <span class="math inline">\(e^{\ell}\)</span> in front — producing an extra factor <span class="math inline">\(\ell^{(i_{k+1})}\)</span> — or on one of the factors <span class="math inline">\(\ell^{(B)}\)</span> inside a partition, turning it into <span class="math inline">\(\ell^{(B \cup \{i_{k+1}\})}\)</span>. In the first case, the new index ends up in a block of its own; in the second, it joins an existing block. But these two cases are precisely the two ways of building a partition of the <span class="math inline">\((k{+}1)\)</span>-element set from a partition of the <span class="math inline">\(k\)</span>-element set, and every partition of the larger set arises in exactly one of the two ways, from exactly one partition of the smaller set. The sum therefore runs over <span class="math inline">\(\Pi_{k+1}\)</span> with each term appearing once, which is the claim at order <span class="math inline">\(k+1\)</span>. <span class="math inline">\(\square\)</span></p>
 </div>
 <p>Substituting the lemma into (3.1), and noticing that <span class="math inline">\(e^{\ell} = f\)</span> is exactly the density needed to turn the integral into an expectation, we arrive at the result.</p>
 <div id="thm-bartlett" class="theorem">
 <p><span class="theorem-title"><strong>Theorem 3.1 (Bartlett identities)</strong></span> Under the regularity conditions above, for every <span class="math inline">\(k \geq 1\)</span> and every choice of indices,</p>
-<p><span class="math display">\[\sum_{\pi \,\in\, \Pi_k} \mathbb{E}\!\left[\;\prod_{B \in \pi} \ell_B \right] = 0.\]</span></p>
+<p><span class="math display">\[\sum_{\pi \,\in\, \Pi_k} \mathbb{E}\!\left[\;\prod_{B \in \pi} \ell^{(B)} \right] = 0.\]</span></p>
 </div>
-<p>To use the identity, single out the partition consisting of one big block: its contribution is <span class="math inline">\(\mathbb{E}[\ell_{i_1 \cdots i_k}]\)</span>, the expected derivative of top order, and moving everything else to the other side,</p>
+<p>To use the identity, single out the partition consisting of one big block: its contribution is <span class="math inline">\(\mathbb{E}[\ell^{(i_1 \cdots i_k)}]\)</span>, the expected derivative of top order, and moving everything else to the other side,</p>
 <p><span class="math display">\[
-\mathbb{E}\!\left[\ell_{i_1\cdots i_k}\right]
+\mathbb{E}\!\left[\ell^{(i_1\cdots i_k)}\right]
 = -\sum_{\substack{\pi \in \Pi_k \\ |\pi| &gt; 1}}
-   \mathbb{E}\!\left[\prod_{B\in\pi}\ell_B\right].
+   \mathbb{E}\!\left[\prod_{B\in\pi}\ell^{(B)}\right].
 \tag{3.2}\]</span></p>
 <p>The first three cases, written out, show the family growing out of familiar ground:</p>
 <p><span class="math display">\[
 \begin{aligned}
-k = 1: \quad &amp; \mathbb{E}[\ell_i] = 0, \\[4pt]
-k = 2: \quad &amp; \mathbb{E}[\ell_{ij}] = -\mathbb{E}[\ell_i\ell_j], \\[4pt]
-k = 3: \quad &amp; \mathbb{E}[\ell_{ijk}] = -\Big(\mathbb{E}[\ell_{ij}\ell_k]
-   + \mathbb{E}[\ell_{ik}\ell_j] + \mathbb{E}[\ell_{jk}\ell_i]
-   + \mathbb{E}[\ell_i\ell_j\ell_k]\Big).
+k = 1: \quad &amp; \mathbb{E}[\ell^{(i)}] = 0, \\[4pt]
+k = 2: \quad &amp; \mathbb{E}[\ell^{(ij)}] = -\mathbb{E}[\ell^{(i)}\ell^{(j)}], \\[4pt]
+k = 3: \quad &amp; \mathbb{E}[\ell^{(ijk)}] = -\Big(\mathbb{E}[\ell^{(ij)}\ell^{(k)}]
+   + \mathbb{E}[\ell^{(ik)}\ell^{(j)}] + \mathbb{E}[\ell^{(jk)}\ell^{(i)}]
+   + \mathbb{E}[\ell^{(i)}\ell^{(j)}\ell^{(k)}]\Big).
 \end{aligned}
 \]</span></p>
 <p>The case <span class="math inline">\(k = 1\)</span> is the zero-mean property of the score; the case <span class="math inline">\(k = 2\)</span> is the information matrix equality, and read from right to left it says that the outer-product-of-gradients estimator of the information is not a separate idea but the second Bartlett identity itself. The implementation follows the mathematics directly: it enumerates the set partitions of the index set and sums products of quantities the distribution already provides. The number of terms is the Bell number <span class="math inline">\(B_k\)</span> — one, two, five and fifteen for <span class="math inline">\(k = 1, \dots, 4\)</span> — so the computation stays small at every order the stack supports.</p>
@@ -452,10 +458,10 @@ B_{4,1} = h'''' &amp; B_{4,2} = 4h'h''' + 3(h'')^{2} &amp; B_{4,3} = 6(h')^{2}h'
 <p>and substituting them into the theorem gives the four formulas that the package applies:</p>
 <p><span class="math display">\[
 \begin{aligned}
-\frac{\partial \ell}{\partial \eta} &amp;= \ell_{\theta}\,h', \\[4pt]
-\frac{\partial^{2} \ell}{\partial \eta^{2}} &amp;= \ell_{\theta\theta}\,(h')^{2} + \ell_{\theta}\,h'', \\[4pt]
-\frac{\partial^{3} \ell}{\partial \eta^{3}} &amp;= \ell_{\theta\theta\theta}\,(h')^{3} + 3\,\ell_{\theta\theta}\,h'h'' + \ell_{\theta}\,h''', \\[4pt]
-\frac{\partial^{4} \ell}{\partial \eta^{4}} &amp;= \ell_{\theta\theta\theta\theta}\,(h')^{4} + 6\,\ell_{\theta\theta\theta}\,(h')^{2}h'' + \ell_{\theta\theta}\left(4h'h''' + 3(h'')^{2}\right) + \ell_{\theta}\,h''''.
+\frac{\partial \ell}{\partial \eta} &amp;= \ell^{(\theta)}\,h', \\[4pt]
+\frac{\partial^{2} \ell}{\partial \eta^{2}} &amp;= \ell^{(\theta\theta)}\,(h')^{2} + \ell^{(\theta)}\,h'', \\[4pt]
+\frac{\partial^{3} \ell}{\partial \eta^{3}} &amp;= \ell^{(\theta\theta\theta)}\,(h')^{3} + 3\,\ell^{(\theta\theta)}\,h'h'' + \ell^{(\theta)}\,h''', \\[4pt]
+\frac{\partial^{4} \ell}{\partial \eta^{4}} &amp;= \ell^{(\theta\theta\theta\theta)}\,(h')^{4} + 6\,\ell^{(\theta\theta\theta)}\,(h')^{2}h'' + \ell^{(\theta\theta)}\left(4h'h''' + 3(h'')^{2}\right) + \ell^{(\theta)}\,h''''.
 \end{aligned}
 \]</span></p>
 <p>The first two lines are easily checked by hand — the first is the chain rule, and the second follows from differentiating it as a product — and they exhibit the property that makes the whole construction generic: each link-scale derivative is a <em>linear combination</em> of the parameter-scale derivatives of order up to <span class="math inline">\(m\)</span>, with coefficients that depend only on the link. The transformation never needs to know which distribution it is transforming, which is why it can be written once, in the body of the generic, for all distributions at once.</p>
@@ -468,22 +474,22 @@ B_{4,1} = h'''' &amp; B_{4,2} = 4h'h''' + 3(h'')^{2} &amp; B_{4,3} = 6(h')^{2}h'
 <p><span class="math display">\[
 \frac{\partial^{k} \ell}{\partial \eta_{p_1}^{m_1} \cdots \partial \eta_{p_r}^{m_r}}
 = \sum_{j_1=1}^{m_1} \cdots \sum_{j_r=1}^{m_r}
-   \ell_{\,p_1^{j_1} \cdots p_r^{j_r}}
+   \ell^{(p_1^{j_1} \cdots p_r^{j_r})}
    \prod_{t=1}^{r} B_{m_t, j_t}\!\left(h_{p_t}', h_{p_t}'', \dots\right),
 \]</span></p>
-<p>where <span class="math inline">\(\ell_{\,p_1^{j_1}\cdots p_r^{j_r}}\)</span> denotes the parameter-scale derivative taken <span class="math inline">\(j_t\)</span> times with respect to <span class="math inline">\(\theta_{p_t}\)</span>.</p>
+<p>where <span class="math inline">\(\ell^{(p_1^{j_1}\cdots p_r^{j_r})}\)</span> denotes the parameter-scale derivative taken <span class="math inline">\(j_t\)</span> times with respect to <span class="math inline">\(\theta_{p_t}\)</span>.</p>
 </div>
 <div class="proof">
 <p><span class="proof-title"><em>Proof</em>. </span>The key observation is that <span class="math inline">\(\theta_{p_t} = h_{p_t}(\eta_{p_t})\)</span> depends on its own linear predictor and on nothing else, so the operator <span class="math inline">\(\partial^{m_t}/\partial\eta_{p_t}^{m_t}\)</span> sees <span class="math inline">\(\ell\)</span> as a function of the single variable <span class="math inline">\(\theta_{p_t}\)</span>, all other parameters held fixed. We may therefore apply <a href="#thm-faa" class="quarto-xref">Theorem&nbsp;<span>3.2</span></a> in the variable <span class="math inline">\(\eta_{p_1}\)</span> alone, obtaining</p>
 <p><span class="math display">\[
 \frac{\partial^{m_1}\ell}{\partial\eta_{p_1}^{m_1}}
-= \sum_{j_1=1}^{m_1} \ell_{\,p_1^{j_1}}\, B_{m_1,j_1}\!\left(h_{p_1}', \dots\right),
+= \sum_{j_1=1}^{m_1} \ell^{(p_1^{j_1})}\, B_{m_1,j_1}\!\left(h_{p_1}', \dots\right),
 \]</span></p>
 <p>in which the coefficients <span class="math inline">\(B_{m_1, j_1}\)</span> involve only the derivatives of <span class="math inline">\(h_{p_1}\)</span> and therefore behave as constants under differentiation with respect to any <em>other</em> linear predictor. Applying the theorem again in <span class="math inline">\(\eta_{p_2}\)</span>, then <span class="math inline">\(\eta_{p_3}\)</span>, and so on — the operators commute, acting as they do on disjoint variables — each application multiplies in its own Bell polynomial factor and deepens the sum by one index, and after <span class="math inline">\(r\)</span> rounds the stated nested sum is reached. <span class="math inline">\(\square\)</span></p>
 </div>
 <p>Two special cases are worth extracting because they cover most of what happens in practice. A purely mixed second derivative across two different parameters involves <span class="math inline">\(m_1 = m_2 = 1\)</span>, each inner sum has a single term, and the formula collapses to a rescaling,</p>
 <p><span class="math display">\[
-\frac{\partial^{2}\ell}{\partial\eta_a \partial\eta_b} = \ell_{ab}\,h_a'\,h_b'
+\frac{\partial^{2}\ell}{\partial\eta_a \partial\eta_b} = \ell^{(ab)}\,h_a'\,h_b'
 \qquad (a \neq b).
 \]</span></p>
 <p>And the number of terms in the general sum is <span class="math inline">\(\prod_t m_t\)</span> — at most eight for the orders the stack supports — so the computation remains trivial even at fourth order.</p>
@@ -493,13 +499,13 @@ B_{4,1} = h'''' &amp; B_{4,2} = 4h'h''' + 3(h'')^{2} &amp; B_{4,3} = 6(h')^{2}h'
 <p>For expected second derivatives something pleasant happens: the awkward first-order term drops out on its own.</p>
 <div id="cor-congruence" class="theorem corollary">
 <p><span class="theorem-title"><strong>Corollary 3.1 (Congruence)</strong></span> <span class="math display">\[\mathbb{E}\!\left[\frac{\partial^{2}\ell}{\partial\eta_a\partial\eta_b}\right]
-= h_a'\,h_b'\;\mathbb{E}\!\left[\ell_{ab}\right],\]</span></p>
+= h_a'\,h_b'\;\mathbb{E}\!\left[\ell^{(ab)}\right],\]</span></p>
 <p>or in matrix form <span class="math inline">\(\mathbb{E}[H_\eta] = \operatorname{diag}(h')\,\mathbb{E}[H_\theta]\,\operatorname{diag}(h')\)</span>.</p>
 </div>
 <div class="proof">
-<p><span class="proof-title"><em>Proof</em>. </span>For <span class="math inline">\(a = b\)</span>, the univariate formula gives <span class="math inline">\(\partial^2\ell/\partial\eta_a^2 = \ell_{aa}(h_a')^2 + \ell_a h_a''\)</span>. Take expectations: the first Bartlett identity says <span class="math inline">\(\mathbb{E}[\ell_a] = 0\)</span>, so the second term vanishes and only the congruence term survives. For <span class="math inline">\(a \neq b\)</span> there was no first-order term to begin with. <span class="math inline">\(\square\)</span></p>
+<p><span class="proof-title"><em>Proof</em>. </span>For <span class="math inline">\(a = b\)</span>, the univariate formula gives <span class="math inline">\(\partial^2\ell/\partial\eta_a^2 = \ell^{(aa)}(h_a')^2 + \ell^{(a)} h_a''\)</span>. Take expectations: the first Bartlett identity says <span class="math inline">\(\mathbb{E}[\ell^{(a)}] = 0\)</span>, so the second term vanishes and only the congruence term survives. For <span class="math inline">\(a \neq b\)</span> there was no first-order term to begin with. <span class="math inline">\(\square\)</span></p>
 </div>
-<p>The corollary matters beyond elegance. A congruence transform of a positive semi-definite matrix is positive semi-definite, so the link-scale Fisher information inherits the definiteness of the parameter-scale one automatically. Had one instead transformed the <em>observed</em> Hessian and then averaged numerically, the <span class="math inline">\(\ell_a h_a''\)</span> term would have survived and that guarantee would have been lost.</p>
+<p>The corollary matters beyond elegance. A congruence transform of a positive semi-definite matrix is positive semi-definite, so the link-scale Fisher information inherits the definiteness of the parameter-scale one automatically. Had one instead transformed the <em>observed</em> Hessian and then averaged numerically, the <span class="math inline">\(\ell^{(a)} h_a''\)</span> term would have survived and that guarantee would have been lost.</p>
 </section>
 <section id="sec-link-scale-impl" class="level3" data-number="3.4.4">
 <h3 data-number="3.4.4" class="anchored" data-anchor-id="sec-link-scale-impl"><span class="header-section-number">3.4.4</span> Where the transformation lives</h3>
@@ -780,9 +786,9 @@ B_{4,1} = h'''' &amp; B_{4,2} = 4h'h''' + 3(h'')^{2} &amp; B_{4,3} = 6(h')^{2}h'
 <section id="sec-nonregular" class="level2" data-number="3.8">
 <h2 data-number="3.8" class="anchored" data-anchor-id="sec-nonregular"><span class="header-section-number">3.8</span> When the model is not regular</h2>
 <p>The Laplace distribution, with density <span class="math inline">\(f(y) = (2b)^{-1} e^{-|y-\mu|/b}\)</span>, is the catalogue’s standing counterexample to regularity: its log-likelihood has a kink at <span class="math inline">\(y = \mu\)</span>. Away from the kink one computes</p>
-<p><span class="math display">\[\ell_\mu = \frac{\operatorname{sign}(y-\mu)}{b}, \qquad \ell_{\mu\mu} = 0,\]</span></p>
+<p><span class="math display">\[\ell^{(\mu)} = \frac{\operatorname{sign}(y-\mu)}{b}, \qquad \ell^{(\mu\mu)} = 0,\]</span></p>
 <p>so the observed information in <span class="math inline">\(\mu\)</span> vanishes identically — the log-likelihood is piecewise linear in the location — and yet the Fisher information certainly exists. The second Bartlett identity delivers it directly: since <span class="math inline">\(\operatorname{sign}(y-\mu)^2 = 1\)</span> almost surely,</p>
-<p><span class="math display">\[\mathcal{I}_{\mu\mu} = \mathbb{E}\left[\ell_\mu^{2}\right]
+<p><span class="math display">\[\mathcal{I}_{\mu\mu} = \mathbb{E}\left[(\ell^{(\mu)})^{2}\right]
 = \mathbb{E}\left[\frac{\operatorname{sign}(y-\mu)^{2}}{b^{2}}\right]
 = \frac{1}{b^{2}}.\]</span></p>
 <p>The distribution the package ships is not affected by any of this in daily use, because <code>laplace_distrib()</code> implements the expected Hessian in closed form — the score-variance value <span class="math inline">\(-1/b^{2}\)</span> just computed — and, as always when an analytical method exists, the <code>approx</code> argument is simply ignored:</p>
@@ -828,7 +834,7 @@ B_{4,1} = h'''' &amp; B_{4,2} = 4h'h''' + 3(h'')^{2} &amp; B_{4,3} = 6(h')^{2}h'
 <span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  bartlett integrate        mc     exact </span></span>
 <span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     -0.25      0.00      0.00     -0.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Now the strategies disagree, and the pattern of their disagreement tells the whole story. The Bartlett route recovers <span class="math inline">\(-1/b^{2}\)</span> exactly, because it works from the score alone and never touches the second derivative. The other two both return zero — and for the same reason: each of them averages the observed <span class="math inline">\(\ell_{\mu\mu}\)</span>, by quadrature in one case and over simulated draws in the other, and that function is identically zero away from the single point <span class="math inline">\(y = \mu\)</span>, a set the integral cannot see and the draws almost surely never hit. Averaging the second derivative, however the average is taken, produces the expected <em>derivative</em>, which for this family is genuinely zero; it is the identification of that quantity with the information which breaks down, and only the strategy built on the score survives the breakage.</p>
+<p>Now the strategies disagree, and the pattern of their disagreement tells the whole story. The Bartlett route recovers <span class="math inline">\(-1/b^{2}\)</span> exactly, because it works from the score alone and never touches the second derivative. The other two both return zero — and for the same reason: each of them averages the observed <span class="math inline">\(\ell^{(\mu\mu)}\)</span>, by quadrature in one case and over simulated draws in the other, and that function is identically zero away from the single point <span class="math inline">\(y = \mu\)</span>, a set the integral cannot see and the draws almost surely never hit. Averaging the second derivative, however the average is taken, produces the expected <em>derivative</em>, which for this family is genuinely zero; it is the identification of that quantity with the information which breaks down, and only the strategy built on the score survives the breakage.</p>
 <p>The base class records which parameters are differentiable in the <code>params_smooth</code> property, and this single flag propagates through the stack: <code>fit_distrib()</code> works on the Laplace precisely because Fisher scoring uses the expected information, which exists, rather than the observed one, which is degenerate.</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">param_smoothness</span>(<span class="fu">laplace_distrib</span>())</span>
