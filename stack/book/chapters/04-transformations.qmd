@@ -1,0 +1,1133 @@
+# Transformations of distributions {#sec-transformations}
+
+```{r}
+#| label: setup-04
+#| include: false
+source("R/_setup.R")
+source("R/link-formulas.R")
+source("R/distribution-catalogue.R")
+source("R/transformation-certificates.R")
+```
+
+The chapters so far have dealt with fixed objects: a Gamma score is a Gamma
+score, written once and used everywhere. The present chapter is about something
+of a different nature — **operators on distributions**. The constructor
+`zero_inflated(D)` is not itself a distribution; it is a rule that turns any
+suitable $D$ into a new one, and the score of the result is assembled at run
+time out of $D$'s score, $D$'s Hessian and $D$'s density at zero, whatever $D$
+happens to be. The formulas such an operator uses must therefore be derived in
+full generality, once, for an arbitrary parent, and that is what this chapter
+does: for the change of variables, for zero-inflation, for the hurdle, for the
+zero-adjusted continuous family, and for truncation, every density, score,
+Hessian, expected Hessian and moment is derived from the definition with the
+steps written out.
+
+A small amount of shared notation keeps the derivations light. The parent
+distribution has density or mass function $f(y;\theta)$ with log-density
+$\ell(y) = \log f(y;\theta)$, and we write
+
+$$
+s_i(y) = \frac{\partial \ell(y)}{\partial\theta_i}, \qquad
+H_{ij}(y) = \frac{\partial^{2} \ell(y)}{\partial\theta_i\partial\theta_j}, \qquad
+f_0 = f(0;\theta)
+$$
+
+for its score, its Hessian and its mass at zero. One elementary identity will
+be needed again and again, so we record it once, with its one-line proof.
+
+::: {#lem-fij}
+## Second derivative of a density through its log
+
+$$\frac{1}{f}\frac{\partial^{2} f}{\partial\theta_i\partial\theta_j} = H_{ij} + s_i s_j .$$
+:::
+
+::: {.proof}
+From $\ell = \log f$ we get $s_i = f_i/f$, that is $f_i = f\,s_i$.
+Differentiating this product with respect to $\theta_j$ gives
+$f_{ij} = f_j\,s_i + f\,\partial_j s_i = f\,s_j s_i + f\,H_{ij}$, and dividing
+by $f$ finishes the proof. $\square$
+:::
+
+## Change of variables {#sec-transformation}
+
+The oldest of the operations is the classical one: given a random variable $X$
+with a known continuous distribution, describe the distribution of $Y = g(X)$.
+
+::: {#def-transformer}
+## Transformer
+
+A **transformer** is a map $g : S \to T$, defined on the support $S$ of the
+parent, which is a strictly monotone, continuously differentiable bijection
+with $g' \neq 0$ throughout. In the package it is described by $g$, by its
+inverse $g^{-1}$, by the absolute Jacobian of the inverse
+$|J(y)| = |\,\mathrm{d}g^{-1}/\mathrm{d}y\,|$, by its effect on the support
+bounds, and by a flag recording whether it is decreasing. Crucially, **a
+transformer does not depend on $\theta$**; this apparently innocent remark will
+do most of the work of the section.
+:::
+
+### The density {#sec-transform-density}
+
+::: {#thm-cov}
+## Change of variables
+
+If $Y = g(X)$ with $g$ a transformer, then
+
+$$f_Y(y;\theta) = f_X\!\left(g^{-1}(y);\theta\right)\,\left|J(y)\right|,
+\qquad y \in T .$$
+:::
+
+::: {.proof}
+Suppose first that $g$ is increasing. Then the event $g(X) \leq y$ is the same
+as the event $X \leq g^{-1}(y)$, so the distribution functions are related by
+
+$$F_Y(y) = P\!\left(X \leq g^{-1}(y)\right) = F_X\!\left(g^{-1}(y)\right),$$
+
+and differentiating in $y$ with the chain rule gives
+$f_Y(y) = f_X(g^{-1}(y))\cdot\mathrm{d}g^{-1}/\mathrm{d}y$. For an increasing
+$g$ the derivative of $g^{-1}$ is positive, so it coincides with its absolute
+value and the theorem holds.
+
+If instead $g$ is decreasing, the inequality flips: $g(X) \leq y$ exactly when
+$X \geq g^{-1}(y)$, so $F_Y(y) = 1 - F_X(g^{-1}(y))$, and differentiation now
+produces a leading minus sign, $f_Y(y) = -f_X(g^{-1}(y))\cdot\mathrm{d}g^{-1}/\mathrm{d}y$.
+But in this case $\mathrm{d}g^{-1}/\mathrm{d}y$ is negative, so the minus sign
+restores the absolute value and both cases end with the same formula. $\square$
+:::
+
+From the same two computations one reads off the cdf, and by inversion the
+quantile function and the generator: in the increasing case
+$F_Y = F_X \circ g^{-1}$ and $Q_Y(p) = g(Q_X(p))$, while in the decreasing case
+the tails swap, $F_Y = 1 - F_X \circ g^{-1}$ and $Q_Y(p) = g(Q_X(1-p))$.
+Generating a draw is simply a matter of drawing $X$ from the parent and
+applying $g$, which is exact and costs a single evaluation. The decreasing case
+is not hypothetical — the reciprocal transformer and the power transformer with
+a negative exponent are both decreasing — and a forgotten tail swap produces a
+quantile function that is wrong by $p \mapsto 1-p$, an error invisible at the
+median and largest in the tails, where one looks last.
+
+### The derivatives do not change {#sec-transform-invariance}
+
+We now come to the fact that makes this wrapper essentially free.
+
+::: {#thm-transform-invariance}
+## Invariance of the likelihood derivatives
+
+Let $Y = g(X)$ with $g$ a transformer. Then for every order $k \geq 1$ and
+every multi-index,
+
+$$
+\frac{\partial^{k}\,\ell_Y(\theta;y)}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}
+= \left.\frac{\partial^{k}\,\ell_X(\theta;x)}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}
+\right|_{x = g^{-1}(y)},
+$$
+
+and the expected derivatives of the two models coincide exactly:
+$\mathbb{E}_Y\!\left[\partial^{k}\ell_Y\right] = \mathbb{E}_X\!\left[\partial^{k}\ell_X\right]$.
+:::
+
+::: {.proof}
+Taking the logarithm of @thm-cov,
+
+$$\ell_Y(\theta;y) = \ell_X\!\left(\theta;\, g^{-1}(y)\right) + \log|J(y)| .$$
+
+Look at the two terms through the eyes of $\partial/\partial\theta$. The
+Jacobian term depends on $y$ alone — this is where the requirement that a
+transformer not depend on $\theta$ pays off — so it is a constant for the
+purposes of differentiation in $\theta$ and disappears at the first derivative,
+never to return. The first term is $\ell_X$ evaluated at the point
+$x = g^{-1}(y)$, and since this point also does not move when $\theta$ does,
+differentiating in $\theta$ simply passes through the substitution. That proves
+the first claim at every order simultaneously.
+
+For the second claim, observe that $g^{-1}(Y) = X$ holds with probability one,
+so for any function $u$ we have
+$\mathbb{E}_Y\!\left[u(g^{-1}(Y))\right] = \mathbb{E}_X[u(X)]$. Applying this
+with $u = \partial^{k}\ell_X$, and using the first claim to recognise the left
+side as $\mathbb{E}_Y[\partial^k \ell_Y]$, completes the proof. $\square$
+:::
+
+The theorem has two practical consequences, and both amount to *not* doing work
+that a less careful implementation might do. First, no simulation is ever
+needed for the expected information of a transformed distribution: the parent's
+expected Hessian already *is* the answer, exactly, and the implementation is a
+single line. Second, the link-scale machinery of @sec-link-scale is unaffected,
+because the links attach to the parameters and the parameters have not changed.
+
+The Jacobian, having dropped out of the $\theta$-derivatives, has not left the
+theory altogether: it survives in the density itself and in the derivatives
+with respect to $y$. This is why a transformer also carries
+$\partial_y \log|J|$ and $\partial^2_y \log|J|$, which feed the response
+derivatives of @sec-response-derivatives.
+
+### The twelve transformers {#sec-transformer-catalogue}
+
+```{r}
+#| label: transformer-table
+#| echo: false
+tt <- do.call(rbind, lapply(TRANSFORMERS, function(tr) data.frame(
+  transformer = sprintf("`%s`", tr$ctor),
+  `$g(x)$` = sprintf("$%s$", tr$g),
+  `$g^{-1}(y)$` = sprintf("$%s$", tr$ginv),
+  `$|J(y)|$` = sprintf("$%s$", tr$jac),
+  `domain` = sprintf("$%s$", tr$domain),
+  check.names = FALSE, stringsAsFactors = FALSE)))
+knitr::kable(tt, align = "lllll", row.names = FALSE,
+             caption = "The twelve transformers")
+```
+
+Each transformer declares which supports it is willing to act on, and the
+constructor refuses an incompatible pairing at once, rather than letting it
+surface later as a `NaN`:
+
+```{r}
+#| label: transformer-validity
+#| error: true
+transformation(gaussian_distrib(), log_transform())
+```
+
+As a closing illustration, the lognormal distribution can be reached along two
+entirely different roads — as a catalogue entry with its own density, or as the
+exponential of a Gaussian through @thm-cov — and the two agree to machine
+precision:
+
+```{r}
+#| label: lognormal-identity
+y <- seq(0.05, 12, length.out = 40)
+a <- distrib_pdf(transformation(gaussian_distrib(), exp_transform()),
+                 y, list(mu = 0.5, sigma = sqrt(1.3)), log = TRUE)
+b <- distrib_pdf(lognormal_distrib(), y, list(mu = 0.5, sigma2 = 1.3), log = TRUE)
+max(abs(a - b))
+```
+
+## Zero-inflation {#sec-zero-inflation}
+
+Count data very often contain more zeros than any standard count distribution
+can produce, and the classical remedy is to let the zeros come from two
+sources: the count process itself, and a separate mechanism that switches the
+count off entirely.
+
+::: {#def-zi}
+## Zero-inflated distribution
+
+Let $D$ be a discrete distribution with $0$ in its support and mass function
+$f(y;\theta)$, and let $\zeta \in (0,1)$. The **zero-inflated** version of $D$
+is the mixture
+
+$$
+P(Y = y;\theta,\zeta) = \zeta\,\mathbb{I}(y=0) + (1-\zeta) f(y;\theta)
+= \begin{cases}
+\zeta + (1-\zeta) f_0 & y = 0,\\[2pt]
+(1-\zeta) f(y;\theta) & y > 0 .
+\end{cases}
+$$
+:::
+
+Summing over the support gives $\zeta + (1-\zeta)\sum_y f(y) = 1$, so the
+mixture is a proper distribution. Its interpretation should be kept clearly in
+mind, because it drives every formula below: an observed zero may be
+*structural*, produced by the switching mechanism with probability $\zeta$, or
+it may be an ordinary *sampling* zero from the count process, and no individual
+zero can be attributed to either source — only their proportions are
+identified. Two derived quantities will recur constantly. The first is the
+total mass at zero,
+
+$$L_0 = \zeta + (1-\zeta)f_0,$$
+
+and the second is the conditional probability that an observed zero came from
+the count process,
+
+$$w_0 = \frac{(1-\zeta)f_0}{L_0} \in (0,1).$$
+
+Readers familiar with the EM algorithm will recognise $w_0$ as the E-step
+weight of this model, and its appearance throughout the derivatives below is no
+coincidence.
+
+Before the derivatives, the distribution functions, which follow from the
+mixture structure directly. The cdf mixes the parent's cdf with a step at zero,
+
+$$F_Y(q) = (1-\zeta)F(q;\theta) + \zeta\,\mathbb{I}(q \geq 0),$$
+
+and inverting it splits the probability axis at $L_0 = F_Y(0)$: any
+$p \leq L_0$ lands in the mass at zero, while for $p > L_0$ we solve
+$\zeta + (1-\zeta)F(q) = p$ for $F(q)$ and apply the parent's quantile
+function, obtaining
+
+$$
+Q_Y(p) = \begin{cases}
+0 & p \leq L_0,\\[4pt]
+Q\!\left(\dfrac{p - \zeta}{1-\zeta};\theta\right) & p > L_0 .
+\end{cases}
+$$
+
+Generation is even simpler: draw from the parent, then replace a
+$\mathrm{Bernoulli}(\zeta)$ fraction of the draws by structural zeros.
+
+### The score {#sec-zi-score}
+
+::: {#prp-zi-score}
+## Zero-inflated score
+
+$$
+\frac{\partial \ell_Y}{\partial \theta_i} =
+\begin{cases} w_0\, s_i(0) & y = 0 \\ s_i(y) & y > 0\end{cases}
+\qquad\qquad
+\frac{\partial \ell_Y}{\partial \zeta} =
+\begin{cases} \dfrac{1 - f_0}{L_0} & y = 0 \\[6pt] -\dfrac{1}{1-\zeta} & y > 0 .\end{cases}
+$$
+:::
+
+::: {.proof}
+Consider first an observation $y > 0$, where the log-likelihood is
+$\log(1-\zeta) + \ell(y)$. The two terms separate cleanly: the first involves
+only $\zeta$ and differentiates to $-1/(1-\zeta)$, the second involves only
+$\theta$ and differentiates to $s_i(y)$.
+
+At $y = 0$ the log-likelihood is $\log L_0$, and both parameters enter through
+$L_0$. For $\theta_i$, using $\partial_i f_0 = f_0\,s_i(0)$,
+
+$$\frac{\partial \ell_Y}{\partial\theta_i}
+= \frac{(1-\zeta)\,\partial_i f_0}{L_0}
+= \frac{(1-\zeta) f_0}{L_0}\cdot s_i(0) = w_0\,s_i(0),$$
+
+while for $\zeta$ the derivative of $L_0 = \zeta + (1-\zeta)f_0$ is simply
+$1 - f_0$, giving $(1-f_0)/L_0$. $\square$
+:::
+
+The formula is worth reading in words: away from zero, the score is the
+parent's, untouched; at the zeros, the parent's score is *down-weighted* by
+$w_0$, the probability that the zero actually came from the count process. An
+observation that is almost certainly structural contributes almost nothing to
+the estimation of $\theta$, which is exactly as it should be.
+
+### The observed Hessian {#sec-zi-hessian}
+
+::: {#prp-zi-hessian}
+## Zero-inflated observed Hessian
+
+$$
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j} =
+\begin{cases}
+w_0 H_{ij}(0) + w_0(1-w_0)\,s_i(0)s_j(0) & y = 0\\[4pt]
+H_{ij}(y) & y > 0
+\end{cases}
+$$
+
+$$
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\zeta} =
+\begin{cases} -\dfrac{f_0\,s_i(0)}{L_0^{2}} & y = 0 \\[6pt] 0 & y > 0\end{cases}
+\qquad\quad
+\frac{\partial^{2}\ell_Y}{\partial\zeta^{2}} =
+\begin{cases} -\dfrac{(1-f_0)^{2}}{L_0^{2}} & y = 0 \\[6pt] -\dfrac{1}{(1-\zeta)^{2}} & y > 0 .\end{cases}
+$$
+:::
+
+::: {.proof}
+We work block by block, and the only case requiring care is $y = 0$, since for
+$y > 0$ the separated form $\log(1-\zeta) + \ell(y)$ immediately gives
+$H_{ij}(y)$ for the $\theta\theta$ block, zero for the mixed block, and
+$-1/(1-\zeta)^2$ for the $\zeta\zeta$ block.
+
+*The $\theta\theta$ block at $y = 0$.* We differentiate the score
+$\partial_i \ell_Y = (1-\zeta)\,\partial_i f_0 / L_0$ with respect to
+$\theta_j$, applying the quotient rule and remembering that
+$\partial_j L_0 = (1-\zeta)\,\partial_j f_0$:
+
+$$
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}
+= \frac{(1-\zeta)\,\partial_{ij} f_0}{L_0}
+- \frac{(1-\zeta)^{2}\,\partial_i f_0\,\partial_j f_0}{L_0^{2}} .
+$$
+
+Each of the two pieces can now be rewritten in terms of $w_0$. For the first,
+multiply and divide by $f_0$ and invoke @lem-fij:
+
+$$\frac{(1-\zeta)\,\partial_{ij} f_0}{L_0}
+= w_0\,\frac{\partial_{ij} f_0}{f_0}
+= w_0\left(H_{ij}(0) + s_i(0)s_j(0)\right).$$
+
+For the second, note that $(1-\zeta)\,\partial_i f_0 / L_0 = w_0\,s_i(0)$, so
+the piece equals $w_0^{2}\,s_i(0)s_j(0)$. Subtracting, the pure product terms
+combine into $w_0(1 - w_0)\,s_i(0)s_j(0)$, and the stated formula emerges.
+
+*The mixed block at $y = 0$.* Differentiate the same score, this time with
+respect to $\zeta$. Both the factor $(1-\zeta)$ and the denominator $L_0$
+depend on $\zeta$, with $\partial_\zeta L_0 = 1 - f_0$, so
+
+$$
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\zeta}
+= -\frac{\partial_i f_0}{L_0}
+- \frac{(1-\zeta)\,\partial_i f_0\,(1-f_0)}{L_0^{2}}
+= -\frac{\partial_i f_0}{L_0^{2}}\Big[L_0 + (1-\zeta)(1-f_0)\Big].
+$$
+
+At this point something pleasant happens: the bracket collapses. Expanding it,
+
+$$L_0 + (1-\zeta)(1-f_0)
+= \zeta + (1-\zeta)f_0 + (1-\zeta) - (1-\zeta)f_0
+= \zeta + (1-\zeta) = 1,$$
+
+so the whole block reduces to $-\partial_i f_0 / L_0^{2} = -f_0\,s_i(0)/L_0^{2}$.
+The simplification is not cosmetic — it removes a numerical cancellation that
+the unsimplified expression would have to perform at run time.
+
+*The $\zeta\zeta$ block at $y = 0$.* Differentiating $(1-f_0)/L_0$ in $\zeta$
+once more, only the denominator moves, and
+$\partial_\zeta (1/L_0) = -(1-f_0)/L_0^{2}$ gives $-(1-f_0)^2/L_0^2$. $\square$
+:::
+
+### The expected Hessian {#sec-zi-expected}
+
+To average the observed Hessian we split the expectation according to where the
+mass sits: the point $\{0\}$ carries probability $L_0$, and each $y > 0$
+carries $(1-\zeta)f(y)$, so that for any function $u$,
+
+$$\mathbb{E}[u(Y)] = L_0\,u(0) + (1-\zeta)\sum_{y>0} f(y)\,u(y).$$
+
+::: {#prp-zi-expected}
+## Zero-inflated expected Hessian
+
+$$
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}\right]
+= L_0\Big[w_0H_{ij}(0) + w_0(1-w_0)s_i(0)s_j(0)\Big]
++ (1-\zeta)\Big(\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)\Big),
+$$
+
+$$
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\zeta}\right]
+= -\frac{f_0\,s_i(0)}{L_0},
+\qquad
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\zeta^{2}}\right]
+= -\left[\frac{(1-f_0)^{2}}{L_0} + \frac{1-L_0}{(1-\zeta)^{2}}\right].
+$$
+:::
+
+::: {.proof}
+For the $\theta\theta$ block, the zero branch of @prp-zi-hessian is a constant,
+so it contributes $L_0$ times its value. The positive branch contributes
+$(1-\zeta)\sum_{y>0} f(y) H_{ij}(y)$; since summing over the *whole* support
+would give $\mathbb{E}_f[H_{ij}]$, removing the $y = 0$ term leaves
+$\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)$, and the first formula follows. The
+mixed block vanishes on the positive branch, so only the zero branch survives,
+weighted by $L_0$, which cancels one power of the denominator:
+$L_0 \cdot (-f_0 s_i(0)/L_0^2) = -f_0 s_i(0)/L_0$. The $\zeta\zeta$ block is
+the weighted average of its two branches with weights $L_0$ and $1-L_0$.
+
+As a cross-check, the second Bartlett identity of @thm-bartlett requires this
+last quantity to equal $-\mathbb{E}[(\partial_\zeta \ell_Y)^2]$; computing that
+expectation from the two branches of the score gives
+$-\big[L_0\,((1-f_0)/L_0)^2 + (1-L_0)/(1-\zeta)^2\big]$, which is the same
+expression. $\square$
+:::
+
+### Moments {#sec-zi-moments}
+
+Since the extra component sits entirely at zero, it contributes nothing to any
+moment of positive order, and for every $k \geq 1$,
+
+$$\mathbb{E}[Y^{k}] = (1-\zeta)\,\mathbb{E}_f[Y^{k}].$$
+
+If the parent has mean $\mu$ and variance $\sigma^{2}$, this gives
+$\mathbb{E}[Y] = (1-\zeta)\mu$ at once, and for the variance we compute
+
+$$\operatorname{Var}(Y) = (1-\zeta)\left(\sigma^{2}+\mu^{2}\right) - (1-\zeta)^{2}\mu^{2}
+= (1-\zeta)\sigma^{2} + \zeta(1-\zeta)\mu^{2}.$$
+
+For a Poisson parent, where $\sigma^2 = \mu$, the variance
+$(1-\zeta)\mu + \zeta(1-\zeta)\mu^2$ strictly exceeds the mean $(1-\zeta)\mu$:
+a zero-inflated Poisson is always overdispersed, which is the second reason,
+after the zeros themselves, that the model gets reached for.
+
+## Zero-adjustment: the discrete hurdle {#sec-hurdle}
+
+Zero-inflation keeps the parent's zeros and adds more. The hurdle model takes
+the opposite view: it treats the zeros as coming from a mechanism of their own,
+removes the parent's mass at zero entirely, and puts a free parameter in its
+place.
+
+::: {#def-hurdle}
+## Hurdle distribution
+
+Let $D$ be a discrete distribution with $0$ in its support and $f_0 < 1$, and
+let $\pi \in (0,1)$. The **zero-adjusted** (hurdle) version of $D$ is
+
+$$
+P(Y=y;\theta,\pi) =
+\begin{cases}
+\pi & y = 0,\\[4pt]
+(1-\pi)\dfrac{f(y;\theta)}{1-f_0} & y > 0 .
+\end{cases}
+$$
+:::
+
+The division by $1 - f_0$ is the truncation, and it is the entire difference
+between this definition and @def-zi. Since $\sum_{y>0} f(y) = 1 - f_0$ exactly,
+the positive part sums to $1-\pi$ and the whole object is a proper
+distribution. Two structural consequences are visible before any derivative is
+taken. First, $P(Y=0) = \pi$ is completely free in $(0,1)$: where
+zero-inflation can only push the mass at zero *above* $f_0$, the hurdle can
+place it anywhere, so it also fits data with *fewer* zeros than the parent
+would produce. Second, $\theta$ has changed its meaning — it now parametrises
+the zero-truncated law rather than the original count process — and this
+matters whenever the estimates are interpreted rather than merely used.
+
+The deepest property of the model, from which everything else follows, is that
+its log-likelihood **separates**. Writing it out,
+
+$$
+\ell_Y(\theta,\pi;y) =
+\underbrace{\mathbb{I}(y=0)\log\pi + \mathbb{I}(y>0)\log(1-\pi)}_{\text{a Bernoulli likelihood in } \pi}
+\;+\; \mathbb{I}(y>0)\underbrace{\Big[\ell(y) - \log(1-f_0)\Big]}_{\text{a truncated likelihood in } \theta},
+$$
+
+and the two groups share no parameter. All mixed $\theta$–$\pi$ derivatives
+therefore vanish identically, at every order, observed and expected, and the
+two halves of the model could be fitted separately with identical results.
+
+### The score {#sec-hurdle-score}
+
+::: {#prp-hurdle-score}
+## Hurdle score
+
+$$
+\frac{\partial\ell_Y}{\partial\theta_i} =
+\begin{cases} 0 & y = 0 \\[4pt]
+s_i(y) + \dfrac{f_0}{1-f_0}\,s_i(0) & y > 0\end{cases}
+\qquad\qquad
+\frac{\partial\ell_Y}{\partial\pi} =
+\begin{cases} \dfrac{1}{\pi} & y = 0 \\[6pt] -\dfrac{1}{1-\pi} & y > 0 .\end{cases}
+$$
+:::
+
+::: {.proof}
+At $y = 0$ the log-likelihood is $\log\pi$, which does not contain $\theta$, so
+the $\theta$-score vanishes and the $\pi$-score is $1/\pi$. At $y > 0$ it is
+$\log(1-\pi) + \ell(y) - \log(1-f_0)$; the $\pi$-derivative of the first term
+is $-1/(1-\pi)$, the $\theta_i$-derivative of the second is $s_i(y)$, and for
+the third,
+
+$$-\frac{\partial}{\partial\theta_i}\log(1-f_0)
+= \frac{\partial_i f_0}{1-f_0} = \frac{f_0}{1-f_0}\,s_i(0),$$
+
+again using $\partial_i f_0 = f_0\,s_i(0)$. $\square$
+:::
+
+The extra term is the **truncation correction**, and it has a transparent
+reading: because the law has been renormalised over the positive values,
+raising the parent's probability of a zero now *lowers* the probability of
+every positive observation, and the score must account for that.
+
+### The Hessians {#sec-hurdle-hessian}
+
+::: {#prp-hurdle-hessian}
+## Hurdle Hessians
+
+Abbreviate
+
+$$
+C_{ij} = \frac{(1-f_0)\,\partial_{ij}f_0 + \partial_i f_0\,\partial_j f_0}{(1-f_0)^{2}},
+\qquad\text{where}\quad
+\partial_i f_0 = f_0\,s_i(0), \quad
+\partial_{ij} f_0 = f_0\left(H_{ij}(0) + s_i(0)s_j(0)\right).
+$$
+
+Then the observed Hessian is
+
+$$
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j} =
+\begin{cases} 0 & y=0 \\ H_{ij}(y) + C_{ij} & y>0\end{cases}
+\qquad
+\frac{\partial^{2}\ell_Y}{\partial\pi^{2}} =
+\begin{cases} -\dfrac{1}{\pi^{2}} & y=0\\[6pt] -\dfrac{1}{(1-\pi)^{2}} & y>0,\end{cases}
+$$
+
+with the mixed block identically zero, and in expectation
+
+$$
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}\right]
+= (1-\pi)\left[\frac{\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)}{1-f_0} + C_{ij}\right],
+\qquad
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\pi^{2}}\right] = -\frac{1}{\pi(1-\pi)} .
+$$
+:::
+
+::: {.proof}
+For the observed $\theta\theta$ block at $y > 0$, differentiate the score of
+@prp-hurdle-score with respect to $\theta_j$. The term $s_i(y)$ gives
+$H_{ij}(y)$. The correction term is the quotient
+$\partial_i f_0 / (1-f_0)$, and by the quotient rule — keeping in mind that
+$\partial_j(1-f_0) = -\partial_j f_0$, which turns the usual minus into a plus —
+
+$$\frac{\partial}{\partial\theta_j}\,\frac{\partial_i f_0}{1-f_0}
+= \frac{(1-f_0)\,\partial_{ij}f_0 + \partial_i f_0\,\partial_j f_0}{(1-f_0)^{2}}
+= C_{ij},$$
+
+where the expressions for $\partial_i f_0$ and $\partial_{ij} f_0$ come from
+the definition of the score and from @lem-fij respectively. At $y = 0$ the
+log-likelihood is free of $\theta$, and the $\pi$ blocks follow by
+differentiating $1/\pi$ and $-1/(1-\pi)$ once more.
+
+For the expectation of the $\theta\theta$ block, the zero branch contributes
+nothing, and each positive $y$ carries mass $(1-\pi)f(y)/(1-f_0)$, so
+
+$$\mathbb{E}\left[\partial^{2}_{ij}\ell_Y\right]
+= \frac{1-\pi}{1-f_0}\sum_{y>0} f(y)\Big(H_{ij}(y) + C_{ij}\Big).$$
+
+The conditional weights $f(y)/(1-f_0)$ sum to one over the positive values, so
+the constant $C_{ij}$ passes through with factor $(1-\pi)$, and the sum
+$\sum_{y>0} f(y)H_{ij}(y)$ is $\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)$, as in the
+zero-inflated case. Finally, averaging the two branches of the $\pi\pi$ block
+with weights $\pi$ and $1-\pi$,
+
+$$-\frac{\pi}{\pi^{2}} - \frac{1-\pi}{(1-\pi)^{2}}
+= -\frac{1}{\pi} - \frac{1}{1-\pi} = -\frac{1}{\pi(1-\pi)},$$
+
+which is the Fisher information of a single Bernoulli trial — exactly what the
+separation of the likelihood promised. $\square$
+:::
+
+For the moments, the same argument as before — the zero contributes nothing to
+positive powers — gives
+$\mathbb{E}[Y^{k}] = (1-\pi)\,\mathbb{E}_f[Y^{k}]/(1-f_0)$ for every
+$k \geq 1$, and in particular $\mathbb{E}[Y] = (1-\pi)\mu/(1-f_0)$.
+
+## Zero-adjustment for continuous distributions {#sec-za-continuous}
+
+When the parent is continuous the situation simplifies in one way and deepens
+in another. It simplifies because $P(W = 0) = 0$ already, so there is nothing
+to truncate: adjustment amounts to placing a point mass at zero next to the
+density. It deepens because the resulting object is neither continuous nor
+discrete but **mixed**, and mixed distributions require a moment of care about
+what "density" even means.
+
+::: {#def-za-continuous}
+## Zero-adjusted continuous distribution
+
+Let $W$ be continuous with density $f_W(\cdot\,;\theta)$, and let
+$\pi \in (0,1)$. Define $Y$ by
+
+$$f_Y(0) = \pi, \qquad f_Y(y) = (1-\pi)f_W(y;\theta) \quad (y \neq 0),$$
+
+where $f_Y$ is a density with respect to the measure $\nu = \delta_0 + \lambda$
+— a point mass at zero plus Lebesgue measure.
+:::
+
+Integrating against $\nu$ picks up the atom separately from the density:
+
+$$\int f_Y \,\mathrm{d}\nu = f_Y(0) + \int f_Y\,\mathrm{d}\lambda
+= \pi + (1-\pi)\cdot 1 = 1,$$
+
+so the object is a proper distribution — but note that its density integrates,
+in the ordinary Lebesgue sense, to $1 - \pi$ rather than one. This is the
+family of the zero-adjusted Gamma, inverse Gaussian and lognormal used for
+semicontinuous data, and of the zero-adjusted Beta used for proportions with
+observed zeros.
+
+Because part of the mass is invisible to ordinary integration, the package
+gives mixed distributions a way to declare their atoms: the generic
+`distrib_atoms()` returns the locations and probabilities of the point masses,
+the default returning none — the right answer for every ordinary distribution,
+since a continuous one has no atoms and a discrete one consists of nothing else
+— and only genuinely mixed objects registering more. Every routine that
+integrates a density, `check_distrib()` included, consults it.
+
+```{r}
+#| label: atoms
+zag <- zero_adjusted(gamma_distrib())
+distrib_atoms(zag, list(mu = 3, sigma2 = 2, za = 0.3))
+distrib_atoms(gamma_distrib(), list(mu = 3, sigma2 = 2))
+```
+
+The cdf jumps by $\pi$ at zero,
+
+$$F_Y(q) = (1-\pi)F_W(q;\theta) + \pi\,\mathbb{I}(q \geq 0),$$
+
+and inverting it requires three regions rather than two, because nothing forces
+the parent's support to lie above zero — a zero-adjusted Gaussian is a
+perfectly sensible "spike at zero" model whose quantile function must be able
+to return negative values. Below the jump, $Q_Y(p) = Q_W(p/(1-\pi))$; inside
+the jump, that is for $(1-\pi)F_W(0) \leq p \leq (1-\pi)F_W(0) + \pi$, the
+quantile is zero; above it, $Q_Y(p) = Q_W((p-\pi)/(1-\pi))$.
+
+The likelihood separates even more completely than the hurdle's, since there is
+no truncation constant at all:
+
+$$\ell_Y = \mathbb{I}(y=0)\log\pi
++ \mathbb{I}(y\neq 0)\Big[\log(1-\pi) + \ell_W(y)\Big].$$
+
+Reading off the branches, the score in $\theta_i$ is $s_i(y)$ off the atom and
+zero on it; the score in $\pi$ is $1/\pi$ on the atom and $-1/(1-\pi)$ off it;
+the $\theta\theta$ block of the Hessian is $H_{ij}(y)$ off the atom; the mixed
+block vanishes; and since $P(Y \neq 0) = 1-\pi$ while conditionally on
+$Y \neq 0$ the law of $Y$ is exactly that of $W$,
+
+$$
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}\right]
+= (1-\pi)\,\mathbb{E}_W[H_{ij}],
+\qquad
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\pi^{2}}\right] = -\frac{1}{\pi(1-\pi)} .
+$$
+
+There is no analogue of the $C_{ij}$ correction, because there was no
+truncation constant to differentiate — a contrast with the hurdle worth
+noticing.
+
+Expectations decompose in the way the measure $\nu$ suggests: for any $u$ with
+$\mathbb{E}_W|u(W)| < \infty$,
+
+$$\mathbb{E}[u(Y)] = \pi\,u(0) + (1-\pi)\,\mathbb{E}_W[u(W)],$$
+
+and this identity is registered as the `expectation()` method of the class, so
+that means, variances and all higher moments account for the atom
+automatically. In particular, with $\mu$ and $\sigma^2$ the parent's mean and
+variance, $\mathbb{E}[Y] = (1-\pi)\mu$ and
+$\operatorname{Var}(Y) = (1-\pi)\sigma^{2} + \pi(1-\pi)\mu^{2}$ — the same
+formulas as for zero-inflation, which is no accident, as the next section
+explains.
+
+One last point concerns derivatives in the response. Away from zero the factor
+$1-\pi$ is constant in $y$, so $\partial_y \ell_Y = \partial_y \ell_W$ exactly;
+at $y = 0$, however, the log-density jumps between $\log((1-\pi)f_W)$ and
+$\log\pi$, no derivative exists, and the methods return `NaN` rather than the
+meaningless number a finite difference across the jump would produce.
+
+```{r}
+#| label: response-at-atom
+th <- list(mu = 3, sigma2 = 2, za = 0.3)
+distrib_grad_y(zag, c(0, 1, 4), th)
+distrib_grad_y(gamma_distrib(), c(1, 4), list(mu = 3, sigma2 = 2))
+```
+
+## Truncation {#sec-truncation}
+
+The last of the operations restricts a distribution to an interval and
+renormalises what remains. It differs from the zero wrappers in a way that
+shapes its entire theory: **truncation adds no parameter**. The endpoints are
+known constants, on the same footing as a binomial's number of trials. What
+truncation adds instead is a normalising constant that depends on $\theta$, and
+differentiating that constant is all the work there is.
+
+::: {#def-truncated}
+## Truncated distribution
+
+Let $D$ have density or mass function $f(\cdot\,;\theta)$ and support $S$, and
+let $\ell < u$ be truncation points with $T = S \cap [\ell, u]$ non-empty.
+Writing
+
+$$Z(\theta) = P(\ell \leq Y \leq u) = F(u;\theta) - F(\ell^-;\theta), \qquad
+F(\ell^-) = F(\ell) - P(Y = \ell),$$
+
+the **truncated** version of $D$ is
+
+$$f_T(y;\theta) = \frac{f(y;\theta)}{Z(\theta)} \ \ (y \in T),
+\qquad 0 \text{ otherwise.}$$
+:::
+
+Both endpoints are included in the truncated support. For a continuous parent
+this is a distinction without a difference, since $P(Y = \ell) = 0$; for a
+discrete parent it is the whole point — truncating a Poisson below at
+$\ell = 1$ produces the zero-truncated Poisson on $\{1, 2, \dots\}$, and the
+mass sitting exactly at the included endpoint must be added back into $Z$,
+whence the correction $F(\ell^-) = F(\ell) - f(\ell)$.
+
+There is a subtlety here that repays attention. The correction "subtract the
+mass at $\ell$" is naturally read as belonging to the discrete case, but what
+it really belongs to is the case where the parent places an **atom** at $\ell$
+— and @sec-za-continuous has just manufactured continuous distributions that do
+exactly that. The cdf of a zero-adjusted Gamma already contains the point mass
+at zero, so for that parent $F(0) \neq F(0^-)$ even though the object is
+formally continuous, and a truncation that retained the atom but used $F(0)$ in
+$Z$ would lose precisely that mass from the normalising constant. The
+implementation therefore obtains the mass at $\ell$ from `distrib_atoms()`,
+uniformly for every kind of parent.
+
+The distribution functions follow the same pattern as before. For $q \in T$,
+
+$$F_T(q) = \frac{F(q;\theta) - F(\ell^-;\theta)}{Z(\theta)},$$
+
+clamped to $[0,1]$ outside, and solving $F_T(q) = p$ for $q$ gives the quantile
+function by delegation to the parent,
+
+$$Q_T(p) = Q\!\left(F(\ell^-;\theta) + p\,Z(\theta)\right),$$
+
+a relation that holds verbatim for the generalized inverse of a lattice cdf, so
+the discrete case needs no separate treatment. Generation is inverse transform
+through this formula, $Y = Q(F(\ell^-) + UZ)$ with $U$ uniform — exact, and
+guaranteed to finish in one pass no matter how small $Z$ is, which is where
+rejection sampling would stall.
+
+### Derivatives {#sec-trunc-derivatives}
+
+::: {#thm-truncated}
+## Derivatives of a truncated log-likelihood
+
+Let $\ell_T = \ell - \log Z$, and define, with all expectations taken under the
+**truncated** distribution itself,
+
+$$m_i = \mathbb{E}_T[s_i], \qquad
+M_{ij} = \mathbb{E}_T\!\left[H_{ij} + s_is_j\right].$$
+
+Then
+
+$$
+\frac{\partial \ell_T}{\partial\theta_i} = s_i(y) - m_i,
+\qquad
+\frac{\partial^{2}\ell_T}{\partial\theta_i\partial\theta_j}
+= H_{ij}(y) - M_{ij} + m_im_j,
+\qquad
+\mathbb{E}\!\left[\frac{\partial^{2}\ell_T}{\partial\theta_i\partial\theta_j}\right]
+= -\operatorname{Cov}_T\!\left(s_i, s_j\right).
+$$
+:::
+
+::: {.proof}
+Everything reduces to differentiating $\log Z$. The domain of the integral
+defining $Z$ is the fixed set $T$ — the endpoints are constants, and the
+parent's support does not move with $\theta$ — and this is what licenses
+differentiation under the integral sign; it is also why truncation at fixed
+points is a regular problem, where truncation at a $\theta$-dependent point
+would not be.
+
+Differentiating once, and using $\partial_i f = f\,s_i$,
+
+$$\frac{\partial Z}{\partial\theta_i}
+= \int_T \partial_i f
+= \int_T f\,s_i
+= Z \int_T \frac{f}{Z}\,s_i
+= Z\,\mathbb{E}_T[s_i] = Z\,m_i,$$
+
+where the second-to-last step divides and multiplies by $Z$ so as to recognise
+$f/Z = f_T$ inside the integral. Hence $\partial_i \log Z = m_i$, and the score
+of the truncated model is the parent's score minus its truncated mean.
+
+Differentiating $Z$ a second time, the same manoeuvre together with @lem-fij
+gives
+
+$$\frac{\partial^{2} Z}{\partial\theta_i\partial\theta_j}
+= \int_T \partial_{ij} f
+= \int_T f\left(H_{ij} + s_is_j\right)
+= Z\,M_{ij},$$
+
+and then, by the quotient rule applied to $\partial_i \log Z = \partial_i Z/Z$,
+
+$$\frac{\partial^{2}\log Z}{\partial\theta_i\partial\theta_j}
+= \frac{\partial_{ij}Z}{Z} - \frac{\partial_i Z\,\partial_j Z}{Z^{2}}
+= M_{ij} - m_im_j,$$
+
+which yields the observed Hessian as stated.
+
+For the expected Hessian, take $\mathbb{E}_T$ of the observed one. The terms
+$M_{ij}$ and $m_im_j$ do not involve $y$, so they pass through the expectation
+unchanged, and
+
+$$\mathbb{E}_T\!\left[\partial_{ij}\ell_T\right]
+= \mathbb{E}_T[H_{ij}] - M_{ij} + m_im_j .$$
+
+Substituting the definition
+$M_{ij} = \mathbb{E}_T[H_{ij}] + \mathbb{E}_T[s_is_j]$, the two occurrences of
+$\mathbb{E}_T[H_{ij}]$ cancel — a cancellation worth savouring, since it
+removes the parent's expected Hessian from the formula entirely — and what
+remains is
+
+$$-\left(\mathbb{E}_T[s_is_j] - m_im_j\right) = -\operatorname{Cov}_T(s_i, s_j). \qquad\square$$
+:::
+
+The three formulas invite three readings. The score of the truncated model is
+the parent's score *recentred* at its mean over the retained region, so the
+first Bartlett identity holds by construction. The expected information is the
+*covariance matrix of the parent's score* under truncation — which is the
+second Bartlett identity making an appearance from the other direction, and
+which guarantees positive semi-definiteness on sight. And none of the
+ingredients $m_i$, $M_{ij}$ has a closed form for a general parent: they are
+computed by quadrature or summation through `expectation()`, which makes the
+derivatives of a truncated distribution markedly more expensive than the
+parent's own, with third and fourth orders falling back to finite differences
+of the analytical Hessian.
+
+Inside $[\ell, u]$ the constant $\log Z$ does not depend on $y$, so the
+response derivatives are the parent's, unchanged; outside, the log-density is
+$-\infty$ and they are `NaN`.
+
+### Which truncations make sense {#sec-trunc-validity}
+
+The constructor `truncated(distrib, lower, upper)` accepts either endpoint or
+both, and it examines what it is given, because many syntactically valid calls
+are statistically meaningless. The guiding example: what should
+`truncated(gamma_distrib(), lower = -2)` do? The Gamma lives on $(0,\infty)$,
+so truncating at $-2$ removes no mass whatsoever and the "truncated"
+distribution would be the Gamma itself. A user who writes such a call has
+misunderstood something, and returning the parent silently would bury the
+misunderstanding; the constructor refuses instead, and explains.
+
+```{r}
+#| label: trunc-refusals
+#| error: true
+truncated(gamma_distrib(), lower = -2)
+```
+
+The same reasoning rejects a non-integer endpoint for a discrete parent, which
+is ambiguous between the two neighbouring lattice points:
+
+```{r}
+#| label: trunc-refusals-2
+#| error: true
+truncated(poisson_distrib(), lower = 1.5)
+```
+
+A discrete truncation must also leave enough support to identify the
+parameters. A distribution on $k$ points has $k-1$ free probabilities, so a
+parent with $p$ parameters needs at least $p+1$ retained points — and since
+truncation adds no parameter of its own, this is the only identifiability
+condition it ever raises:
+
+```{r}
+#| label: trunc-refusals-3
+#| error: true
+truncated(negbin_distrib(), 3, 4)
+```
+
+One further refusal connects this section to the previous ones.
+
+::: {#prp-trunc-zero}
+## Truncating away the zero of a zero wrapper destroys its parameter
+
+Let $D_\zeta$ be the zero-inflated version of $D$ and suppose
+$0 \notin [\ell, u]$. Then the truncated law of $D_\zeta$ does not depend on
+$\zeta$ at all.
+:::
+
+::: {.proof}
+For $y \in [\ell, u]$, which excludes zero, the mass function of $D_\zeta$ is
+$(1-\zeta)f(y)$, and by the same token the retained mass is
+$Z = (1-\zeta)\big(F(u) - F(\ell^-)\big)$, where $F$ is the parent's cdf. In
+the ratio $f_T = (1-\zeta)f(y)/Z$ the factor $(1-\zeta)$ cancels, leaving
+$f(y)/(F(u) - F(\ell^-))$, which is free of $\zeta$. The score with respect to
+$\zeta$ is therefore identically zero. The argument for the two zero-adjusted
+forms is the same with $(1-\pi)$ in place of $(1-\zeta)$. $\square$
+:::
+
+A parameter with an identically zero score is invisible to the likelihood, and
+an optimiser asked to estimate it will wander along a flat ridge; the
+constructor refuses the construction, while allowing truncations that keep zero
+in the interval, in which case the atom passes through, rescaled by $1/Z$:
+
+```{r}
+#| label: trunc-zero-wrapper
+#| error: true
+truncated(zero_inflated(poisson_distrib()), lower = 1)
+```
+
+```{r}
+#| label: trunc-zero-wrapper-ok
+tz <- truncated(zero_adjusted(gamma_distrib()), upper = 5)
+th <- list(mu = 3, sigma2 = 2, za = 0.3)
+distrib_atoms(tz, th)
+0.3 / distrib_cdf(zero_adjusted(gamma_distrib()), 5, th)
+```
+
+Finally, truncating an already truncated distribution is permitted and is
+collapsed into a single object over the intersection of the two intervals —
+nesting would be mathematically harmless but would pay the quadrature cost of
+$m$ and $M$ twice.
+
+```{r}
+#| label: trunc-nested
+d <- truncated(truncated(gaussian_distrib(), -1, 3), upper = 2)
+c(d@lower, d@upper)
+```
+
+To close the section, the two truncated families with textbook closed forms,
+recovered by the general machinery:
+
+```{r}
+#| label: trunc-closed-forms
+# zero-truncated Poisson: P(Y = y) = f(y)/(1 - f(0)), E[Y] = mu/(1 - exp(-mu))
+ztp <- truncated(poisson_distrib(), lower = 1)
+distrib_pdf(ztp, 1:4, list(mu = 2))
+dpois(1:4, 2) / (1 - dpois(0, 2))
+c(mean(ztp, list(mu = 2)), 2 / (1 - exp(-2)))
+
+# truncated Gaussian on [-1, 2]: E[Y] = mu + sigma (phi(a) - phi(b))/Z
+tn <- truncated(gaussian_distrib(), lower = -1, upper = 2)
+a <- (-1 - 0.5) / 1.5; b <- (2 - 0.5) / 1.5; Z <- pnorm(b) - pnorm(a)
+c(mean(tn, list(mu = 0.5, sigma = 1.5)), 0.5 + 1.5 * (dnorm(a) - dnorm(b)) / Z)
+```
+
+## Choosing among the constructions {#sec-choosing}
+
+The three families answer different questions, and the differences are easiest
+to see side by side.
+
+| | Zero-inflation | Zero-adjustment (hurdle) | Truncation |
+|---|---|---|---|
+| Effect on $P(Y=0)$ | *adds*: $\zeta + (1-\zeta)f_0 > f_0$ | *replaces*: $\pi$, free in $(0,1)$ | removes it, if $0 \notin [\ell,u]$ |
+| Parameters added | one, $\zeta$ | one, $\pi$ | none |
+| Fewer zeros than the parent? | impossible | possible | only none at all |
+| Meaning of $\theta$ | the original count process | the zero-truncated law | the restricted law |
+| Likelihood | does not separate | binary $\times$ truncated | $\ell - \log Z(\theta)$ |
+| Discrete parent required | yes | no | no |
+
+: The three constructions {.striped}
+
+The choice between the first two is a choice about the zeros themselves. When a
+zero is observable evidence of a distinct decision — no claim was filed, no
+purchase was made, no rain fell — the zeros and the positives genuinely come
+from two mechanisms, and the hurdle, whose likelihood separates along exactly
+that line, is the natural model. When the two kinds of zero cannot be told
+apart, and $\theta$ is meant to keep describing the count process that the
+ordinary observations come from, zero-inflation is the natural model instead.
+The two are not nested, and where both fit similarly they still differ in what
+their $\theta$ *means*.
+
+Truncation answers a different question altogether. It is not a model for
+surplus or deficient zeros but for **unobservable regions**: a detection limit,
+a register that only records positive counts, a measuring instrument with a
+ceiling. Part of the sample space was never available, and the model says so.
+
+One boundary between the families is worth marking explicitly, because the
+package enforces it. For a continuous parent, "zero-inflation" and
+"zero-adjustment" would denote the same object — with $P(W=0)=0$ the mixture
+$\zeta\delta_0 + (1-\zeta)f_W$ *is* @def-za-continuous with $\zeta$ in the role
+of $\pi$ — and offering both names would only invite the belief that they
+differ. The constructor therefore accepts a continuous parent only under the
+name `zero_adjusted()`, and points there when asked otherwise:
+
+```{r}
+#| label: zi-continuous-refused
+#| error: true
+zero_inflated(gamma_distrib())
+```
+
+## Identifiability {#sec-identifiability}
+
+The zero wrappers add a parameter, and adding a parameter to a family does not
+always produce an identified family. What makes this dangerous is that nothing
+at run time betrays the failure: the mass function still sums to one, every
+numerical check still passes, and an optimiser still converges — to an
+arbitrary point of a flat ridge, with standard errors to match. The only place
+the failure can be caught is the constructor, so the constructors carry the
+mathematics needed to catch it. This section derives that mathematics.
+
+### Wrappers do not stack {#sec-no-stacking}
+
+::: {#prp-no-stack-1}
+## Zero-truncation annihilates zero-inflation
+
+Let $D_\zeta$ be the zero-inflated version of $D$. Then the zero-truncated law
+of $D_\zeta$ coincides with the zero-truncated law of $D$ itself, whatever the
+value of $\zeta$.
+:::
+
+::: {.proof}
+For $y > 0$, the mass function of $D_\zeta$ is $(1-\zeta)f(y)$ and its total
+mass on the positive integers is
+$1 - L_0 = 1 - \zeta - (1-\zeta)f_0 = (1-\zeta)(1-f_0)$. Dividing,
+
+$$
+\frac{(1-\zeta)f(y)}{(1-\zeta)(1-f_0)} = \frac{f(y)}{1-f_0},
+$$
+
+and $\zeta$ has cancelled. $\square$
+:::
+
+The consequence is immediate: in `zero_adjusted(zero_inflated(D))` the
+parameter $\zeta$ appears nowhere in the resulting mass function, its score is
+identically zero, and it cannot be estimated. The reverse composition fails
+similarly — in `zero_inflated(zero_adjusted(D))` the pair $(\zeta, \pi)$ enters
+the law only through the combination $c = \zeta + (1-\zeta)\pi$, since the mass
+at zero is $c$ and the positive part carries the factor
+$(1-\zeta)(1-\pi) = 1 - c$, so every pair on the curve
+$\zeta + (1-\zeta)\pi = c$ produces exactly the same distribution. Both
+constructions are therefore refused:
+
+```{r}
+#| label: stacking-demo
+try(zero_adjusted(zero_inflated(poisson_distrib())))
+try(zero_inflated(zero_adjusted(poisson_distrib())))
+```
+
+That these refusals guard against something real, and not a theoretical
+scruple, can be seen by building the forbidden object by hand, bypassing the
+constructor, and watching the parameter vanish:
+
+```{r}
+#| label: stacking-evidence
+#| echo: false
+zip <- zero_inflated(poisson_distrib())
+stacked <- distributions7:::ZeroAdjustedDiscreteDistrib(
+  parent_distrib = zip, distrib_name = "hand-built hurdle over a ZIP",
+  dimension = "univariate", bounds = c(0, Inf),
+  params = c("mu", "zi", "za"),
+  params_interpretation = c(mu = "mean", zi = "structural zero", za = "prob. of zero"),
+  n_params = 3,
+  params_bounds = list(mu = c(0, Inf), zi = c(0, 1), za = c(0, 1)),
+  link_params = list(mu = log_link(), zi = logit_link(), za = logit_link()))
+```
+
+```{r}
+#| label: stacking-evidence-show
+distrib_pdf(stacked, 0:5, list(mu = 3, zi = 0.20, za = 0.4))
+distrib_pdf(stacked, 0:5, list(mu = 3, zi = 0.70, za = 0.4))
+distrib_gradient(stacked, 0:5, list(mu = 3, zi = 0.20, za = 0.4))$zi
+```
+
+### Counting the support {#sec-counting-rule}
+
+::: {#prp-counting}
+## The counting rule
+
+A distribution supported on $k$ points is an element of the
+$(k-1)$-dimensional probability simplex, so a family with $q$ free parameters
+can be identified only if $q \leq k-1$. Both zero wrappers have $q = p+1$
+parameters, where $p$ is the number of the parent's; hence at least
+
+$$k \geq p + 2$$
+
+support points are necessary for either wrapper to be identified.
+:::
+
+The condition is necessary but not sufficient — a badly parametrised family can
+fail to be identified with any amount of support — yet it is exactly what rules
+out the case that arises in practice: the Bernoulli, with $k = 2$ and $p = 1$.
+Zero-inflating a Bernoulli spends two parameters describing the single free
+cell of $\{0, 1\}$. Zero-adjusting one is even more striking: the truncation
+concentrates everything on $\{1\}$, so
+$f(1)/(1-f_0) = \mu/(1-(1-\mu)) = 1$ whatever $\mu$ is, and the parent's
+parameter drops out of the model completely, leaving
+$P(Y=0) = \pi,\ P(Y=1) = 1-\pi$.
+
+```{r}
+#| label: bernoulli-refused
+#| error: true
+zero_inflated(bernoulli_distrib())
+```
+
+```{r}
+#| label: bernoulli-refused-2
+#| error: true
+zero_adjusted(binomial_distrib(size = 1))
+```
+
+The same rule admits a binomial with two trials, whose three support points are
+enough for the two parameters:
+
+```{r}
+#| label: binomial-two-ok
+zero_inflated(binomial_distrib(size = 2))@params
+```
+
+A caveat to end on: the counting rule protects against structural
+non-identification, the kind that no amount of data can cure. Weak
+identification of the statistical kind — a Poisson mean so large that $f_0$
+underflows, a $\zeta$ so close to zero that the data barely see it — remains
+possible in any mixture model, and there it is the standard errors from
+`fit_distrib()` that tell the story.
+
+```{r}
+#| label: consistency-transformations
+#| include: false
+# Internal consistency gate: fails the render if any density, score, Hessian,
+# expected Hessian, moment or closed form derived in this chapter disagrees
+# with the implementation, or if check_distrib() fails on any wrapper.
+assert_transformations_ok()
+```

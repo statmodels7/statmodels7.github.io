@@ -1,0 +1,278 @@
+# Link functions {#sec-links}
+
+```{r}
+#| label: setup-02
+#| include: false
+source("R/_setup.R")
+source("R/link-formulas.R")
+```
+
+The parameters of a distribution rarely live on the whole real line. A scale
+must be positive, a probability lies between zero and one, a correlation between
+minus one and one. An optimiser, on the other hand, is happiest with an argument
+it can move freely in any direction. A link function is the bridge between the
+two worlds: it maps the natural, constrained domain of a parameter onto an
+unconstrained scale, and its inverse maps the optimiser's iterates back into the
+domain where the distribution makes sense. This chapter defines the objects
+precisely, works out the relationship between the derivatives of a link and
+those of its inverse, explains why the stack carries both to fourth order, and
+ends with the full catalogue of the sixteen link classes that `linkfunctions7`
+provides.
+
+## What a link function is {#sec-link-def}
+
+::: {#def-link}
+## Link function
+
+Let $\Theta \subseteq \mathbb{R}$ be an open interval. A **link function** on
+$\Theta$ is a map $g : \Theta \to \mathbb{R}$ which is a bijection onto its
+image $E = g(\Theta)$, itself an open interval; which is four times continuously
+differentiable on $\Theta$; and which is *regular*, meaning that
+$g'(\theta) \neq 0$ everywhere. We write $h = g^{-1} : E \to \Theta$ for the
+inverse, and throughout the book $\eta = g(\theta)$ and $\theta = h(\eta)$.
+:::
+
+Each clause of this definition is a decision with consequences, so it is worth
+pausing on all three.
+
+Notice first what the definition does *not* say: it never asks $g$ to be
+increasing. Monotonicity is a consequence rather than an assumption — a
+continuous function whose derivative never vanishes on an interval cannot change
+the sign of that derivative, so it is automatically strictly monotone — but the
+direction is left free, and this freedom is used. The link for a parameter
+bounded above, $g(\theta) = \log(u - \theta)$, is strictly *decreasing*, and it
+is a perfectly good link. Code that quietly assumes an increasing link, for
+instance when mapping quantiles through it, breaks on exactly that case, which
+is why the natural property to require, and to test, is strict monotonicity of
+either sign.
+
+Second, the image $E$ need not be the whole real line. For the square-root link
+$E = (0, \infty)$, and for the reciprocal link it is a half-line as well. In
+such cases the optimiser is not truly unconstrained — the constraint has merely
+moved from $\theta$ to $\eta$ — and it helps to know this in advance, because
+these are the links where an optimiser can step outside the domain and come back
+with `NaN`. The catalogue below therefore states $E$ explicitly for every link.
+
+Third, and most characteristically for this stack, the definition demands four
+continuous derivatives rather than the customary one or two. The link objects in
+`stats::make.link()` carry the first derivative of the inverse and nothing else,
+which is all a GLM fitted by IRLS ever needs. Here the ambitions are higher: as
+@sec-link-scale will show in detail, transporting a fourth-order derivative of a
+log-likelihood onto the unconstrained scale requires $h'$, $h''$, $h'''$ and
+$h''''$, so a link that stopped at second order would silently cap the entire
+stack at second-order methods.
+
+## The derivatives of an inverse function {#sec-ift}
+
+Every link in the catalogue implements two families of derivatives: those of $g$
+with respect to $\theta$, and those of $h$ with respect to $\eta$. The two
+families are not independent — each determines the other completely — and the
+relationship between them is worth deriving carefully, both because the formulas
+are used throughout the stack and because the derivation is a pleasant exercise
+in the disciplined use of the chain rule.
+
+::: {#thm-ift}
+## Derivatives of an inverse function
+
+Let $g$ be a link function in the sense of @def-link and let $h = g^{-1}$. Then,
+with every derivative of $g$ evaluated at $\theta = h(\eta)$,
+
+$$
+h' = \frac{1}{g'}, \qquad
+h'' = -\frac{g''}{(g')^{3}}, \qquad
+h''' = \frac{3(g'')^{2} - g'g'''}{(g')^{5}}, \qquad
+h'''' = \frac{-15(g'')^{3} + 10\,g'g''g''' - (g')^{2}g''''}{(g')^{7}}.
+$$
+:::
+
+::: {.proof}
+The whole argument flows from one identity. Since $h$ undoes $g$, we have
+$h(g(\theta)) = \theta$ for every $\theta$ in the domain, and we may
+differentiate this identity as many times as we like; each differentiation
+yields a relation between the derivatives of $h$ and those of $g$, from which
+the next unknown derivative of $h$ can be isolated. Throughout, $h^{(k)}$ is
+shorthand for $h^{(k)}(g(\theta))$.
+
+Differentiating once, the chain rule gives $h'\,g' = 1$. Since $g'$ never
+vanishes, we may divide by it, and the first formula, $h' = 1/g'$, is already in
+hand.
+
+Now differentiate $h'g' = 1$ again. The left side is a product whose two
+factors both depend on $\theta$ — the first through the composition with $g$ —
+so the product rule together with the chain rule gives
+
+$$h''\,(g')^{2} + h'\,g'' = 0 .$$
+
+Solving for $h''$ and substituting $h' = 1/g'$,
+
+$$h'' = -\frac{h'\,g''}{(g')^{2}} = -\frac{g''}{(g')^{3}},$$
+
+which is the second formula. Note the pattern that will repeat: each new
+differentiation produces an equation that is *linear* in the highest derivative
+of $h$, with coefficient a power of $g'$, so isolating it is always a division.
+
+Differentiating $h''(g')^{2} + h'g'' = 0$ once more, and collecting the terms
+carefully,
+
+$$h'''\,(g')^{3} + 3\,h''\,g'\,g'' + h'\,g''' = 0 . \tag{$\ast$}$$
+
+Substituting the expressions already obtained for $h''$ and $h'$, the middle
+term becomes $-3(g'')^{2}/(g')^{2}$ and the last becomes $g'''/g'$, so that
+
+$$h''' = -\frac{1}{(g')^{3}}\left(-\frac{3(g'')^{2}}{(g')^{2}} + \frac{g'''}{g'}\right)
+       = \frac{3(g'')^{2} - g'\,g'''}{(g')^{5}} .$$
+
+One more round. Differentiating each of the three terms of $(\ast)$,
+
+$$
+\begin{aligned}
+\frac{d}{d\theta}\!\left[h'''(g')^{3}\right] &= h''''(g')^{4} + 3h'''(g')^{2}g'', \\
+\frac{d}{d\theta}\!\left[3h''g'g''\right] &= 3h'''(g')^{2}g'' + 3h''(g'')^{2} + 3h''g'g''', \\
+\frac{d}{d\theta}\!\left[h'g'''\right] &= h''g'g''' + h'g'''' ,
+\end{aligned}
+$$
+
+and adding the three lines and setting the sum to zero,
+
+$$h''''(g')^{4} + 6h'''(g')^{2}g'' + 3h''(g'')^{2} + 4h''g'g''' + h'g'''' = 0 .$$
+
+It remains to substitute the three lower-order results and simplify. Putting
+everything except the first term over the common denominator $(g')^{3}$, the
+sum of the known terms works out to
+
+$$\frac{15(g'')^{3} - 10\,g'g''g''' + (g')^{2}g''''}{(g')^{3}},$$
+
+and dividing by $-(g')^{4}$ yields the stated expression for $h''''$. $\square$
+:::
+
+A quick example makes the formulas concrete, and catches sign errors better
+than any amount of staring. Take the log link, $g(\theta) = \log\theta$, whose
+inverse $h(\eta) = e^\eta$ has the agreeable property of being its own
+derivative to every order, so every $h^{(k)}$ should equal
+$u = e^{\eta} = \theta$. On the forward side $g' = u^{-1}$, $g'' = -u^{-2}$,
+$g''' = 2u^{-3}$ and $g'''' = -6u^{-4}$. Feeding these into the fourth formula,
+
+$$\frac{-15(-u^{-2})^{3} + 10\,u^{-1}(-u^{-2})(2u^{-3}) - u^{-2}(-6u^{-4})}{u^{-7}}
+= \frac{15u^{-6} - 20u^{-6} + 6u^{-6}}{u^{-7}} = u,$$
+
+exactly as it should.
+
+## Why the fourth order matters {#sec-why-four}
+
+It is fair to ask whether a fourth derivative of a link function is ever really
+used, or whether it is completeness for its own sake. The answer comes from the
+formula that will be derived in @sec-link-scale for the fourth derivative of a
+log-likelihood with respect to the linear predictor:
+
+$$
+\frac{\partial^{4}\ell}{\partial\eta^{4}}
+= \ell_{\theta\theta\theta\theta}(h')^{4}
++ 6\,\ell_{\theta\theta\theta}(h')^{2}h''
++ \ell_{\theta\theta}\left(4h'h''' + 3(h'')^{2}\right)
++ \ell_{\theta}\,h'''' .
+$$
+
+The last term contains $h''''$, and it does not vanish for any link except an
+affine one. A link truncated at second order would therefore not merely make
+this quantity less accurate — it would make it wrong, by an amount that has
+nothing to do with any small parameter and does not shrink as the sample grows.
+Since fourth-order likelihood derivatives are exactly what bias correction and
+higher-order asymptotics consume, the four-derivative requirement in
+@def-link is a load-bearing part of the design.
+
+## The interface {#sec-link-interface}
+
+A link is an S7 object. The base class `link` carries the name, the domain
+$\Theta$ (`link_bounds`), and any extra mathematical parameters the link needs,
+such as the exponent of the power link; each concrete link is a subclass.
+
+```{r}
+#| label: link-object
+lk <- logit_link()
+lk
+c(lk@link_name, lk@link_bounds)
+```
+
+Every link implements the same ten generics, five in each direction:
+
+| Generic | Returns |
+|---|---|
+| `linkfun(x, theta)` | $g(\theta)$ |
+| `linkinv(x, eta)` | $h(\eta)$ |
+| `dlinkfun` … `d4linkfun` | $g'(\theta)$ … $g''''(\theta)$ |
+| `dlinkinv` … `d4linkinv` | $h'(\eta)$ … $h''''(\eta)$ |
+
+: The ten generics {.striped}
+
+For interactive work, two routers select the order at run time:
+
+```{r}
+#| label: link-routers
+theta <- c(0.2, 0.5, 0.8)
+linkfun(lk, theta)
+linkderiv(lk, theta, order = 2)
+linkinvderiv(lk, linkfun(lk, theta), order = 2)
+```
+
+One practical remark about these routers. `linkderiv()` dispatches on the link
+and then calls the order-specific generic, which dispatches again; since an S7
+dispatch costs roughly five microseconds against one for a plain call, the
+second dispatch accounts for about a third of the total. In a hot loop this
+adds up — `distributions7` evaluates inverse-link derivatives once per
+parameter per order on every scoring iteration — so performance-critical code
+calls `dlinkinv()` and its siblings directly, and the routers are best regarded
+as a convenience for interactive use.
+
+## The catalogue {#sec-link-catalogue}
+
+Fourteen constructors produce sixteen classes: `bounded_link()` returns a
+lower-, an upper- or a doubly-bounded link according to which of its two
+arguments are supplied, and reduces to the identity link when neither is. For
+each entry the table gives the domain, the pair $g$ and $h$, and all eight
+derivatives; the accompanying note records whatever is worth knowing about the
+mathematics or the numerics of that particular link. Links that take a
+parameter — the power link, the softplus, the bounded family — are shown at a
+representative value.
+
+```{r}
+#| label: catalogue
+#| results: asis
+#| echo: false
+for (id in names(LINKS)) render_link_entry(id, LINKS[[id]])
+```
+
+## Validating a link {#sec-check-link}
+
+Since users can define links of their own, the package provides `check_link()`,
+which takes any link object and verifies the properties that @def-link demands:
+invertibility in both directions on a grid, strict monotonicity of either sign,
+the first-order inverse function theorem $h'(\eta)\,g'(\theta) = 1$, and the
+agreement of each analytical derivative, in both families and at every order up
+to the fourth, with a numerical one.
+
+```{r}
+#| label: check-link-demo
+invisible(check_link(cloglog_link()))
+```
+
+The derivative checks are organised as a chain, and the reason deserves a
+paragraph, because it reflects a genuine limitation of numerical
+differentiation rather than an implementation detail. One cannot verify a
+fourth derivative by differentiating $g$ itself four times numerically: each
+numerical differentiation amplifies the error of the previous one, and by the
+third order the result is noise. The validator instead compares the analytical
+derivative of order $k$ against a *single* numerical differentiation of the
+analytical derivative of order $k-1$, so that every comparison involves exactly
+one finite-difference step and retains its full accuracy. The grid, moreover,
+keeps away from the edges of the domain: the Richardson extrapolation in
+`numDeriv` evaluates the function at points up to about
+$8 \times 10^{-4}\,|x|$ away from $x$, and a grid point closer than that to a
+boundary would be differentiated using values from outside the domain.
+
+```{r}
+#| label: consistency-links
+#| include: false
+# Internal consistency gate: fails the render if any formula printed in this
+# chapter disagrees with the package.
+assert_links_ok()
+```

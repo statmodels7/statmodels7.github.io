@@ -1,0 +1,643 @@
+# Distributions {#sec-distributions}
+
+```{r}
+#| label: setup-03
+#| include: false
+source("R/_setup.R")
+source("R/link-formulas.R")
+source("R/distribution-catalogue.R")
+```
+
+This chapter develops the likelihood theory that the stack implements and then
+presents the fourteen distributions that `distributions7` ships. The theory
+comes first because it is shared: the score, the two informations, the Bartlett
+identities and the change of scale are defined once, at the level of the base
+class, and every distribution — including one a user wrote this morning —
+inherits them. The catalogue comes second, with particular attention to the
+places where the parametrisation chosen here differs from the one base R uses,
+since those are the places where a reader is most likely to be surprised.
+
+## The object and its contract {#sec-distrib-object}
+
+A distribution is an S7 object carrying its name, its dimensionality, the
+bounds of its support, the names and interpretations of its parameters, their
+individual domains, the link function attached to each of them, and a
+per-parameter flag recording whether the log-likelihood is differentiable in
+that parameter — a flag whose purpose will become clear in @sec-nonregular. Two
+subclasses, `continuous_distrib` and `discrete_distrib`, provide the defaults
+appropriate to each kind.
+
+```{r}
+#| label: object-anatomy
+d <- gamma_distrib()
+d@params
+d@params_bounds
+d@link_params$sigma2
+```
+
+Parameters travel through the API as a named list called `theta`, and every
+generic normalises this list before doing anything else. The normalisation
+reorders the entries by name, so that `list(sigma2 = 2, mu = 3)` and
+`list(mu = 3, sigma2 = 2)` mean the same thing rather than silently meaning
+different things; it strips names from the *values*, because a parameter that
+has passed through a link function comes back carrying its own name, which
+would otherwise leak into the results and label a density `"sigma2"`; and it
+validates every value against the parameter's domain.
+
+The domains are treated as **open** intervals, and the openness is a deliberate
+choice rather than a pedantic one. A Gaussian requires $\sigma > 0$, not
+$\sigma \geq 0$, and a Bernoulli requires $0 < \mu < 1$: at the closed boundary
+the log-likelihood and its derivatives cease to exist, and accepting the
+boundary value would only trade an informative error now for an unexplained
+`NaN` several calls later.
+
+```{r}
+#| label: bounds-error
+#| error: true
+distrib_pdf(gaussian_distrib(), 1, list(mu = 0, sigma = 0))
+```
+
+The generics fall into four natural groups:
+
+| Group | Generics |
+|---|---|
+| Probability | `distrib_pdf`, `distrib_cdf`, `distrib_quantile`, `distrib_rng`, `distrib_atoms` |
+| Parameter derivatives | `distrib_gradient`, `distrib_hessian`, `distrib_expected_hessian`, `distrib_deriv3`, `distrib_deriv4` |
+| Response derivatives | `distrib_grad_y`, `distrib_hess_y` |
+| Moments | `expectation`, `mean`, `variance`, `std_dev`, `skewness`, `kurtosis`, `moment` |
+
+: The generics {.striped}
+
+Of all of these, only `distrib_pdf` has no default; everything else can be
+derived from the density alone, as the Rayleigh example of @sec-extension
+showed.
+
+## Score and information {#sec-likelihood}
+
+Fix a distribution with density or mass function $f(y;\theta)$, where
+$\theta = (\theta_1, \dots, \theta_p)^\top$, and write
+$\ell(\theta; y) = \log f(y;\theta)$ for the log-likelihood of a single
+observation. Subscripts on $\ell$ will always denote differentiation with
+respect to parameters, so that
+
+$$
+\ell_i = \frac{\partial \ell}{\partial \theta_i}, \qquad
+\ell_{ij} = \frac{\partial^{2} \ell}{\partial \theta_i \partial \theta_j}, \qquad
+\ell_{ijk} = \frac{\partial^{3} \ell}{\partial \theta_i \partial \theta_j \partial \theta_k},
+$$
+
+and so on. The vector $(\ell_1, \dots, \ell_p)^\top$ is the **score**; the
+matrix $-[\ell_{ij}]$ is the **observed information**; and the **expected
+information**, or Fisher information, is
+$\mathcal{I}(\theta) = -\mathbb{E}[\ell_{ij}]$, the expectation being taken over
+$Y \sim f(\cdot\,;\theta)$ at the same parameter value.
+
+A word on sign conventions, because both conventions circulate and a sign error
+here is invisible inside a symmetric matrix. The package returns *derivatives*,
+not informations: `distrib_hessian()` gives $[\ell_{ij}]$, and
+`distrib_expected_hessian()` gives $\mathbb{E}[\ell_{ij}]$, each with the sign
+of the derivative, so the informations are the negatives of what the functions
+return.
+
+Since mixed partial derivatives are symmetric, only one representative of each
+multi-index is stored, and components are returned as named lists keyed in a
+canonical order — `"mu_sigma2"` stands for
+$\ell_{\mu\sigma^2} = \ell_{\sigma^2\mu}$:
+
+```{r}
+#| label: derivatives-demo
+d <- gamma_distrib()
+th <- list(mu = 3, sigma2 = 2)
+y <- c(1, 2.5, 7)
+
+str(distrib_gradient(d, y, th))
+str(distrib_hessian(d, y, th))
+```
+
+Everything in this section and the next two assumes the model is *regular* at
+$\theta$: the support of $f$ does not depend on $\theta$, the log-likelihood is
+four times differentiable, and derivatives may be exchanged with the integral
+sign at the orders involved. Thirteen of the fourteen distributions in the
+catalogue satisfy these conditions everywhere; the exception is the Laplace,
+whose location parameter sits at a kink of the log-likelihood, and
+@sec-nonregular is devoted to what happens then.
+
+## The Bartlett identities {#sec-bartlett}
+
+Most readers will know the identity
+$\mathbb{E}[\ell_{ij}] = -\mathbb{E}[\ell_i \ell_j]$, the information matrix
+equality. What is less often written down is that this is only the second
+member of an infinite family of identities, one for each order of
+differentiation, and that the family taken as a whole allows an expected
+derivative of *any* order to be computed from expectations of products of
+lower-order ones. `distributions7` implements the family in full generality,
+so this section derives it.
+
+The starting point could hardly be simpler: a density integrates to one, and it
+does so *for every value of the parameter*,
+
+$$\int f(y;\theta)\, dy = 1 \qquad \text{for all } \theta \in \Theta.$$
+
+The right-hand side is constant in $\theta$, so every derivative of the
+left-hand side must vanish, and regularity lets us take those derivatives under
+the integral sign:
+
+$$\int \frac{\partial^{k} f}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}\,dy = 0.
+\tag{3.1}$$
+
+Everything now depends on expressing the derivatives of $f$ through the
+derivatives of $\ell = \log f$, and the expression turns out to have a beautiful
+combinatorial structure.
+
+::: {#lem-exp-deriv}
+## Derivatives of $e^{\ell}$
+
+For every $k \geq 1$,
+
+$$
+\frac{\partial^{k} e^{\ell}}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}
+= e^{\ell} \sum_{\pi \in \Pi_k} \prod_{B \in \pi} \ell_B ,
+$$
+
+where $\Pi_k$ is the set of all partitions of the index set
+$\{i_1, \dots, i_k\}$ into non-empty blocks, and $\ell_B$ is the derivative of
+$\ell$ with respect to the parameters indexed by the block $B$.
+:::
+
+::: {.proof}
+We argue by induction on $k$. For $k = 1$ the claim reads
+$\partial_i e^{\ell} = e^{\ell}\ell_i$, which is the chain rule, and indeed
+$\Pi_1$ contains the single partition $\{\{i\}\}$.
+
+Suppose the formula holds at order $k$, and differentiate it with respect to a
+new index $\theta_{i_{k+1}}$. By the product rule, the derivative acts either
+on the factor $e^{\ell}$ in front — producing an extra factor
+$\ell_{i_{k+1}}$ — or on one of the factors $\ell_B$ inside a partition,
+turning it into $\ell_{B \cup \{i_{k+1}\}}$. In the first case, the new index
+ends up in a block of its own; in the second, it joins an existing block. But
+these two cases are precisely the two ways of building a partition of the
+$(k{+}1)$-element set from a partition of the $k$-element set, and every
+partition of the larger set arises in exactly one of the two ways, from exactly
+one partition of the smaller set. The sum therefore runs over $\Pi_{k+1}$ with
+each term appearing once, which is the claim at order $k+1$. $\square$
+:::
+
+Substituting the lemma into (3.1), and noticing that $e^{\ell} = f$ is exactly
+the density needed to turn the integral into an expectation, we arrive at the
+result.
+
+::: {#thm-bartlett}
+## Bartlett identities
+
+Under the regularity conditions above, for every $k \geq 1$ and every choice of
+indices,
+
+$$\sum_{\pi \,\in\, \Pi_k} \mathbb{E}\!\left[\;\prod_{B \in \pi} \ell_B \right] = 0.$$
+:::
+
+To use the identity, single out the partition consisting of one big block: its
+contribution is $\mathbb{E}[\ell_{i_1 \cdots i_k}]$, the expected derivative of
+top order, and moving everything else to the other side,
+
+$$
+\mathbb{E}\!\left[\ell_{i_1\cdots i_k}\right]
+= -\sum_{\substack{\pi \in \Pi_k \\ |\pi| > 1}}
+   \mathbb{E}\!\left[\prod_{B\in\pi}\ell_B\right].
+\tag{3.2}$$
+
+The first three cases, written out, show the family growing out of familiar
+ground:
+
+$$
+\begin{aligned}
+k = 1: \quad & \mathbb{E}[\ell_i] = 0, \\[4pt]
+k = 2: \quad & \mathbb{E}[\ell_{ij}] = -\mathbb{E}[\ell_i\ell_j], \\[4pt]
+k = 3: \quad & \mathbb{E}[\ell_{ijk}] = -\Big(\mathbb{E}[\ell_{ij}\ell_k]
+   + \mathbb{E}[\ell_{ik}\ell_j] + \mathbb{E}[\ell_{jk}\ell_i]
+   + \mathbb{E}[\ell_i\ell_j\ell_k]\Big).
+\end{aligned}
+$$
+
+The case $k = 1$ is the zero-mean property of the score; the case $k = 2$ is
+the information matrix equality, and read from right to left it says that the
+outer-product-of-gradients estimator of the information is not a separate idea
+but the second Bartlett identity itself. The implementation follows the
+mathematics directly: it enumerates the set partitions of the index set and
+sums products of quantities the distribution already provides. The number of
+terms is the Bell number $B_k$ — one, two, five and fifteen for
+$k = 1, \dots, 4$ — so the computation stays small at every order the stack
+supports.
+
+### Three ways to take an expectation {#sec-approx}
+
+When a distribution has no closed-form expected derivative, the expectation has
+to be approximated, and the derivative generics accept an `approx` argument
+choosing among three strategies. The strategy `"bartlett"` (also spelled
+`"opg"`) applies (3.2); at second order it needs nothing but the score, which
+makes it the cheapest option, and it is the default there. The strategy
+`"integrate"` computes $\mathbb{E}[\partial^k \ell]$ literally, by quadrature
+for continuous distributions and by summation for discrete ones; when the
+observed derivative is available in closed form this is usually the most
+accurate route, and it is the default at orders three and four. The strategy
+`"mc"` simulates from the distribution and averages the observed derivative
+over the draws; it is robust when quadrature struggles, at the price of Monte
+Carlo noise.
+
+The difference between the first strategy and the other two is deeper than a
+matter of cost. `"integrate"` and `"mc"` estimate the expected derivative
+itself, whereas `"bartlett"` estimates the quantity that the identity says the
+expected derivative *equals under regularity*. When regularity fails, the two
+quantities part company, and the one that still deserves the name
+"information" is the Bartlett one — a point @sec-nonregular makes concrete.
+
+::: {.callout-note}
+## A cautionary tale about quadrature
+
+The `expectation()` engine splits its integral at quantiles of the
+distribution, and it uses three knots rather than nine. More knots would extend
+the range of densities it can integrate at all, but they would also convert
+loud failures into silent wrong answers: at Gamma shape $0.02$, a nine-knot
+rule returns $-54.9$ for a quantity that is exactly zero, while the three-knot
+rule simply reports that the integral could not be computed. In the ordinary
+range three knots are also the more accurate choice, since every extra panel
+contributes its own quadrature error. An error is worth more than a plausible
+number.
+:::
+
+## Derivatives on the link scale {#sec-link-scale}
+
+The parameters of a distribution are constrained, and the linear predictors of
+a model are not, so every derivative generic accepts an argument
+`scale = c("parameter", "link")`. With `scale = "link"` the derivatives are
+taken with respect to
+
+$$\eta_i = g_i(\theta_i), \qquad \theta_i = h_i(\eta_i), \qquad h_i = g_i^{-1},$$
+
+where $g_i$ is the link that the distribution carries for its $i$-th parameter.
+The structural fact on which the whole section rests is that each parameter has
+*its own* link and the map is applied coordinate by coordinate, so the Jacobian
+of $\theta$ with respect to $\eta$ is **diagonal**. Diagonality is what makes
+the general multivariate chain rule collapse into a product of univariate ones,
+and we now work this out in stages, starting with a single parameter.
+
+### One parameter {#sec-faa-univariate}
+
+Composing $\ell$ with $h$ and differentiating repeatedly is the territory of
+Faà di Bruno's formula, which organises the combinatorial explosion of the
+chain rule through the *partial Bell polynomials* $B_{m,j}$.
+
+::: {#thm-faa}
+## Faà di Bruno
+
+If $\ell$ is $m$ times differentiable in $\theta$ and $h$ is $m$ times
+differentiable in $\eta$, with $\theta = h(\eta)$, then
+
+$$
+\frac{\partial^{m}}{\partial\eta^{m}}\,\ell(h(\eta))
+= \sum_{j=1}^{m} \ell^{(j)}(\theta)\;
+  B_{m,j}\!\left(h', h'', \dots, h^{(m-j+1)}\right).
+$$
+:::
+
+For the orders the stack uses, the Bell polynomials are small enough to list in
+full,
+
+$$
+\begin{array}{llll}
+B_{1,1} = h' \\
+B_{2,1} = h'' & B_{2,2} = (h')^{2} \\
+B_{3,1} = h''' & B_{3,2} = 3h'h'' & B_{3,3} = (h')^{3} \\
+B_{4,1} = h'''' & B_{4,2} = 4h'h''' + 3(h'')^{2} & B_{4,3} = 6(h')^{2}h'' & B_{4,4} = (h')^{4}
+\end{array}
+$$
+
+and substituting them into the theorem gives the four formulas that the package
+applies:
+
+$$
+\begin{aligned}
+\frac{\partial \ell}{\partial \eta} &= \ell_{\theta}\,h', \\[4pt]
+\frac{\partial^{2} \ell}{\partial \eta^{2}} &= \ell_{\theta\theta}\,(h')^{2} + \ell_{\theta}\,h'', \\[4pt]
+\frac{\partial^{3} \ell}{\partial \eta^{3}} &= \ell_{\theta\theta\theta}\,(h')^{3} + 3\,\ell_{\theta\theta}\,h'h'' + \ell_{\theta}\,h''', \\[4pt]
+\frac{\partial^{4} \ell}{\partial \eta^{4}} &= \ell_{\theta\theta\theta\theta}\,(h')^{4} + 6\,\ell_{\theta\theta\theta}\,(h')^{2}h'' + \ell_{\theta\theta}\left(4h'h''' + 3(h'')^{2}\right) + \ell_{\theta}\,h''''.
+\end{aligned}
+$$
+
+The first two lines are easily checked by hand — the first is the chain rule,
+and the second follows from differentiating it as a product — and they exhibit
+the property that makes the whole construction generic: each link-scale
+derivative is a *linear combination* of the parameter-scale derivatives of
+order up to $m$, with coefficients that depend only on the link. The
+transformation never needs to know which distribution it is transforming, which
+is why it can be written once, in the body of the generic, for all
+distributions at once.
+
+### Several parameters {#sec-faa-multivariate}
+
+With several parameters, a mixed derivative such as
+$\partial^4 \ell / \partial\eta_a^2\,\partial\eta_b^2$ must be handled, and here
+diagonality earns its keep.
+
+::: {#prp-faa-diag}
+## Faà di Bruno with a diagonal Jacobian
+
+Let the multi-index involve the distinct parameters $p_1, \dots, p_r$ with
+multiplicities $m_1, \dots, m_r$, and let $k = \sum_t m_t$. Then
+
+$$
+\frac{\partial^{k} \ell}{\partial \eta_{p_1}^{m_1} \cdots \partial \eta_{p_r}^{m_r}}
+= \sum_{j_1=1}^{m_1} \cdots \sum_{j_r=1}^{m_r}
+   \ell_{\,p_1^{j_1} \cdots p_r^{j_r}}
+   \prod_{t=1}^{r} B_{m_t, j_t}\!\left(h_{p_t}', h_{p_t}'', \dots\right),
+$$
+
+where $\ell_{\,p_1^{j_1}\cdots p_r^{j_r}}$ denotes the parameter-scale
+derivative taken $j_t$ times with respect to $\theta_{p_t}$.
+:::
+
+::: {.proof}
+The key observation is that $\theta_{p_t} = h_{p_t}(\eta_{p_t})$ depends on its
+own linear predictor and on nothing else, so the operator
+$\partial^{m_t}/\partial\eta_{p_t}^{m_t}$ sees $\ell$ as a function of the
+single variable $\theta_{p_t}$, all other parameters held fixed. We may
+therefore apply @thm-faa in the variable $\eta_{p_1}$ alone, obtaining
+
+$$
+\frac{\partial^{m_1}\ell}{\partial\eta_{p_1}^{m_1}}
+= \sum_{j_1=1}^{m_1} \ell_{\,p_1^{j_1}}\, B_{m_1,j_1}\!\left(h_{p_1}', \dots\right),
+$$
+
+in which the coefficients $B_{m_1, j_1}$ involve only the derivatives of
+$h_{p_1}$ and therefore behave as constants under differentiation with respect
+to any *other* linear predictor. Applying the theorem again in
+$\eta_{p_2}$, then $\eta_{p_3}$, and so on — the operators commute, acting as
+they do on disjoint variables — each application multiplies in its own Bell
+polynomial factor and deepens the sum by one index, and after $r$ rounds the
+stated nested sum is reached. $\square$
+:::
+
+Two special cases are worth extracting because they cover most of what happens
+in practice. A purely mixed second derivative across two different parameters
+involves $m_1 = m_2 = 1$, each inner sum has a single term, and the formula
+collapses to a rescaling,
+
+$$
+\frac{\partial^{2}\ell}{\partial\eta_a \partial\eta_b} = \ell_{ab}\,h_a'\,h_b'
+\qquad (a \neq b).
+$$
+
+And the number of terms in the general sum is $\prod_t m_t$ — at most eight for
+the orders the stack supports — so the computation remains trivial even at
+fourth order.
+
+### The expected Hessian transforms more simply {#sec-link-scale-expected}
+
+For expected second derivatives something pleasant happens: the awkward
+first-order term drops out on its own.
+
+::: {#cor-congruence}
+## Congruence
+
+$$\mathbb{E}\!\left[\frac{\partial^{2}\ell}{\partial\eta_a\partial\eta_b}\right]
+= h_a'\,h_b'\;\mathbb{E}\!\left[\ell_{ab}\right],$$
+
+or in matrix form
+$\mathbb{E}[H_\eta] = \operatorname{diag}(h')\,\mathbb{E}[H_\theta]\,\operatorname{diag}(h')$.
+:::
+
+::: {.proof}
+For $a = b$, the univariate formula gives
+$\partial^2\ell/\partial\eta_a^2 = \ell_{aa}(h_a')^2 + \ell_a h_a''$. Take
+expectations: the first Bartlett identity says $\mathbb{E}[\ell_a] = 0$, so the
+second term vanishes and only the congruence term survives. For $a \neq b$
+there was no first-order term to begin with. $\square$
+:::
+
+The corollary matters beyond elegance. A congruence transform of a positive
+semi-definite matrix is positive semi-definite, so the link-scale Fisher
+information inherits the definiteness of the parameter-scale one
+automatically. Had one instead transformed the *observed* Hessian and then
+averaged numerically, the $\ell_a h_a''$ term would have survived and that
+guarantee would have been lost.
+
+### Where the transformation lives {#sec-link-scale-impl}
+
+The change of scale is implemented once, in the body of each derivative
+generic, between the dispatch and the return: a method always computes
+parameter-scale values, and the generic transforms them if `scale = "link"` was
+requested.
+
+``` r
+distrib_gradient <- S7::new_generic(
+  "distrib_gradient", "distrib",
+  function(distrib, y, theta, scale = c("parameter", "link"), ...) {
+    ...
+    res <- S7::S7_dispatch()                    # parameter scale, always
+    if (scale == "link") to_link_scale(...) else res
+  })
+```
+
+This placement has one visible consequence for users who write their own
+derivative methods: since S7 requires a method's formal arguments to include
+the generic's named arguments, such a method must declare
+`scale = c("parameter", "link"), ...` in its signature even though it never
+touches `scale` itself. Omitting the declaration makes dispatch fail.
+
+## Derivatives with respect to the response {#sec-response-derivatives}
+
+Besides derivatives in the parameters, continuous distributions provide
+$\partial\ell/\partial y$ and $\partial^{2}\ell/\partial y^{2}$ through
+`distrib_grad_y()` and `distrib_hess_y()`; for a lattice variable there is
+nothing to differentiate, so discrete distributions have no such methods. These
+quantities feed quantile residuals and smoothness criteria further up the
+stack. The default implementation is a central finite difference of the
+log-density with a step that shrinks near the boundary of the support, so that
+$y \pm \delta$ never leaves it.
+
+```{r}
+#| label: grad-y-demo
+d <- gamma_distrib()
+th <- list(mu = 3, sigma2 = 2)
+distrib_grad_y(d, c(1, 3, 6), th)
+# closed form: with shape a = mu^2/sigma2 and rate b = mu/sigma2,
+# dl/dy = (a - 1)/y - b
+(3^2 / 2 - 1) / c(1, 3, 6) - 3 / 2
+```
+
+## The catalogue {#sec-distrib-catalogue}
+
+The table below is generated from the distribution objects themselves.
+
+```{r}
+#| label: catalogue-table
+#| echo: false
+knitr::kable(catalogue_table(), align = "lllll", row.names = FALSE,
+             caption = "The fourteen distributions")
+```
+
+The individual entries follow. Several of the parametrisations are not the ones
+the corresponding `d*` function in base R uses — the Gamma is parametrised by
+mean and variance rather than shape and rate, the Beta by mean and precision,
+the negative binomial in its NB2 form — and in each such case the entry states
+the map between the two explicitly, since this is where misreadings are
+cheapest to prevent. All fourteen distributions implement their observed
+derivatives to fourth order in closed form, as compiled Rcpp kernels; the
+continuous-integration matrix builds them with several compilers on several
+platforms, which is the only real evidence one can have about compiled
+arithmetic.
+
+```{r}
+#| label: catalogue-entries
+#| results: asis
+#| echo: false
+for (id in names(DISTRIBS)) render_distrib_entry(id, DISTRIBS[[id]])
+```
+
+## What the fallbacks provide {#sec-fallbacks}
+
+It is worth describing what a distribution receives for free when it implements
+nothing but its density, both because users rely on it and because two of the
+fallbacks contain ideas of independent interest.
+
+The cdf is obtained by quadrature for continuous distributions and by summation
+over the support for discrete ones, and the quantile function by root-finding
+on the cdf. Derivatives fall back to finite differences, each order
+differencing the analytical implementation of the order below when one exists.
+
+The random generator deserves a longer story. The obvious fallback, inverse
+transform sampling, costs one root-finding call per draw when the quantile
+function is itself numerical, which is unusably slow. The package instead uses
+a generalized **ratio-of-uniforms** scheme, which needs only the density, with
+two devices that make it reliable: the kernel is recentred at the mode of the
+density — without this, a density centred at $\mu = 1000$ produces a degenerate
+bounding box — and normalised to a maximum of one. So equipped, the method
+handles far more than one might expect: bimodal densities, a Student $t$ with
+half a degree of freedom, even a Pareto with infinite mean. Its one genuine
+failure mode is a density that diverges at an edge of its support, and that
+case is transformed away rather than given up on: if
+$f(y) \sim |y-a|^{\alpha-1}$ near the edge $a$, then the transformed variable
+$X = |Y-a|^{1/\lambda}$ has a density behaving like $x^{\lambda\alpha-1}$,
+which is bounded as soon as $\lambda\alpha > 1$. Pleasantly, the exponent
+$\alpha$ never has to be searched for: walking toward the edge in powers of ten
+raises the log-density by $(1-\alpha)\log 10$ per step, so the same probe that
+detects the divergence also measures it. For a Gamma with shape $0.4$ this
+transformation brought the cost of a draw from 27 milliseconds down to less
+than a microsecond, with the draws still exact.
+
+One caveat belongs here rather than in a footnote. A distribution that relies
+on the numerical fallbacks will pass the derivative checks of
+`check_distrib()` trivially, because the analytical and the numerical value are
+then the same computation; those checks become informative exactly when a
+closed form has been supplied.
+
+## When the model is not regular {#sec-nonregular}
+
+The Laplace distribution, with density
+$f(y) = (2b)^{-1} e^{-|y-\mu|/b}$, is the catalogue's standing counterexample
+to regularity: its log-likelihood has a kink at $y = \mu$. Away from the kink
+one computes
+
+$$\ell_\mu = \frac{\operatorname{sign}(y-\mu)}{b}, \qquad \ell_{\mu\mu} = 0,$$
+
+so the observed information in $\mu$ vanishes identically — the log-likelihood
+is piecewise linear in the location — and yet the Fisher information certainly
+exists. The second Bartlett identity delivers it directly: since
+$\operatorname{sign}(y-\mu)^2 = 1$ almost surely,
+
+$$\mathcal{I}_{\mu\mu} = \mathbb{E}\left[\ell_\mu^{2}\right]
+= \mathbb{E}\left[\frac{\operatorname{sign}(y-\mu)^{2}}{b^{2}}\right]
+= \frac{1}{b^{2}}.$$
+
+The distribution the package ships is not affected by any of this in daily
+use, because `laplace_distrib()` implements the expected Hessian in closed
+form — the score-variance value $-1/b^{2}$ just computed — and, as always when
+an analytical method exists, the `approx` argument is simply ignored:
+
+```{r}
+#| label: laplace-nonregular
+lap <- laplace_distrib()
+th <- list(mu = 0, b = 2)
+c(bartlett  = distrib_expected_hessian(lap, 0, th, approx = "bartlett")$mu_mu,
+  integrate = distrib_expected_hessian(lap, 0, th, approx = "integrate")$mu_mu,
+  exact     = -1 / th$b^2)
+```
+
+To see the three strategies of @sec-approx genuinely part company, one has to
+look at a distribution that carries *no* closed form for the expectation — the
+situation a user-defined non-regular family finds itself in. Here is a bare
+Laplace, supplying only the density, the score and the observed Hessian:
+
+```{r}
+#| label: laplace-bare
+BareLaplace <- S7::new_class("BareLaplace", parent = continuous_distrib, package = NULL)
+S7::method(distrib_pdf, BareLaplace) <- function(distrib, y, theta, log = FALSE) {
+  ld <- -log(2 * theta[[2]]) - abs(y - theta[[1]]) / theta[[2]]
+  if (log) ld else exp(ld)
+}
+S7::method(distrib_gradient, BareLaplace) <- function(distrib, y, theta,
+                                                      scale = c("parameter", "link"), ...) {
+  r <- y - theta[[1]]; b <- theta[[2]]
+  list(mu = sign(r) / b, b = (abs(r) / b - 1) / b)
+}
+S7::method(distrib_hessian, BareLaplace) <- function(distrib, y, theta,
+                                                     scale = c("parameter", "link"), ...) {
+  r <- y - theta[[1]]; b <- theta[[2]]; n <- length(y)
+  list(mu_mu = rep(0, n), b_b = (b - 2 * abs(r)) / b^3, mu_b = -sign(r) / b^2)
+}
+bare <- BareLaplace(
+  distrib_name = "bare laplace", dimension = "univariate", bounds = c(-Inf, Inf),
+  params = c("mu", "b"), params_interpretation = c(mu = "location", b = "scale"),
+  n_params = 2, params_bounds = list(mu = c(-Inf, Inf), b = c(0, Inf)),
+  link_params = list(mu = identity_link(), b = log_link()),
+  params_smooth = c(mu = FALSE, b = TRUE)
+)
+
+set.seed(1)
+c(bartlett  = distrib_expected_hessian(bare, 0, th, approx = "bartlett")$mu_mu,
+  integrate = distrib_expected_hessian(bare, 0, th, approx = "integrate")$mu_mu,
+  mc        = distrib_expected_hessian(bare, 0, th, approx = "mc")$mu_mu,
+  exact     = -1 / th$b^2)
+```
+
+Now the strategies disagree, and the pattern of their disagreement tells the
+whole story. The Bartlett route recovers $-1/b^{2}$ exactly, because it works
+from the score alone and never touches the second derivative. The other two
+both return zero — and for the same reason: each of them averages the observed
+$\ell_{\mu\mu}$, by quadrature in one case and over simulated draws in the
+other, and that function is identically zero away from the single point
+$y = \mu$, a set the integral cannot see and the draws almost surely never hit.
+Averaging the second derivative, however the average is taken, produces the
+expected *derivative*, which for this family is genuinely zero; it is the
+identification of that quantity with the information which breaks down, and
+only the strategy built on the score survives the breakage.
+
+The base class records which parameters are differentiable in the
+`params_smooth` property, and this single flag propagates through the stack:
+`fit_distrib()` works on the Laplace precisely because Fisher scoring uses the
+expected information, which exists, rather than the observed one, which is
+degenerate.
+
+```{r}
+#| label: params-smooth
+param_smoothness(laplace_distrib())
+```
+
+The flag has a second, subtler use. Comparing an analytical derivative against
+a finite difference is invalid at a kink — a central difference straddling
+$y = \mu$ converges to nothing, so it is the *reference* that is wrong, not the
+value under test. When a distribution declares a non-smooth parameter, the
+validation machinery recomputes each finite-difference reference with the step
+halved and discards the observations where the two estimates disagree, judging
+the disagreement relative to the estimates' own magnitude; observations near
+the kink are thereby excluded from the comparison, while for a smooth
+log-likelihood nothing is ever discarded and the check keeps its full strength.
+
+```{r}
+#| label: consistency-distributions
+#| include: false
+# Internal consistency gate: fails the render if any density printed in this
+# chapter disagrees with the package, if a Bartlett identity fails, if the
+# link-scale machinery disagrees with finite differences in eta, or if
+# check_distrib() fails anywhere in the catalogue.
+assert_distributions_ok()
+```

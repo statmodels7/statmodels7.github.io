@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>3&nbsp; Distributions – The statmodels7 Framework</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/04-transformations.html" rel="next">
+<link href="../chapters/02-link-functions.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e986b704c747e817427b29ebc19a759e.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a2ce0b05719297c8ab99eac5b5b92eaa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/03-distributions.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Distributions</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="../index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">The statmodels7 Framework</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-link-functions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Link functions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-distributions.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Distributions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-transformations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A1-notation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-distrib-object" id="toc-sec-distrib-object" class="nav-link active" data-scroll-target="#sec-distrib-object"><span class="header-section-number">3.1</span> The object and its contract</a></li>
+  <li><a href="#sec-likelihood" id="toc-sec-likelihood" class="nav-link" data-scroll-target="#sec-likelihood"><span class="header-section-number">3.2</span> Score and information</a></li>
+  <li><a href="#sec-bartlett" id="toc-sec-bartlett" class="nav-link" data-scroll-target="#sec-bartlett"><span class="header-section-number">3.3</span> The Bartlett identities</a>
+  <ul class="collapse">
+  <li><a href="#sec-approx" id="toc-sec-approx" class="nav-link" data-scroll-target="#sec-approx"><span class="header-section-number">3.3.1</span> Three ways to take an expectation</a></li>
+  </ul></li>
+  <li><a href="#sec-link-scale" id="toc-sec-link-scale" class="nav-link" data-scroll-target="#sec-link-scale"><span class="header-section-number">3.4</span> Derivatives on the link scale</a>
+  <ul class="collapse">
+  <li><a href="#sec-faa-univariate" id="toc-sec-faa-univariate" class="nav-link" data-scroll-target="#sec-faa-univariate"><span class="header-section-number">3.4.1</span> One parameter</a></li>
+  <li><a href="#sec-faa-multivariate" id="toc-sec-faa-multivariate" class="nav-link" data-scroll-target="#sec-faa-multivariate"><span class="header-section-number">3.4.2</span> Several parameters</a></li>
+  <li><a href="#sec-link-scale-expected" id="toc-sec-link-scale-expected" class="nav-link" data-scroll-target="#sec-link-scale-expected"><span class="header-section-number">3.4.3</span> The expected Hessian transforms more simply</a></li>
+  <li><a href="#sec-link-scale-impl" id="toc-sec-link-scale-impl" class="nav-link" data-scroll-target="#sec-link-scale-impl"><span class="header-section-number">3.4.4</span> Where the transformation lives</a></li>
+  </ul></li>
+  <li><a href="#sec-response-derivatives" id="toc-sec-response-derivatives" class="nav-link" data-scroll-target="#sec-response-derivatives"><span class="header-section-number">3.5</span> Derivatives with respect to the response</a></li>
+  <li><a href="#sec-distrib-catalogue" id="toc-sec-distrib-catalogue" class="nav-link" data-scroll-target="#sec-distrib-catalogue"><span class="header-section-number">3.6</span> The catalogue</a></li>
+  <li><a href="#sec-fallbacks" id="toc-sec-fallbacks" class="nav-link" data-scroll-target="#sec-fallbacks"><span class="header-section-number">3.7</span> What the fallbacks provide</a></li>
+  <li><a href="#sec-nonregular" id="toc-sec-nonregular" class="nav-link" data-scroll-target="#sec-nonregular"><span class="header-section-number">3.8</span> When the model is not regular</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span id="sec-distributions" class="quarto-section-identifier"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Distributions</span></span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>This chapter develops the likelihood theory that the stack implements and then presents the fourteen distributions that <code>distributions7</code> ships. The theory comes first because it is shared: the score, the two informations, the Bartlett identities and the change of scale are defined once, at the level of the base class, and every distribution — including one a user wrote this morning — inherits them. The catalogue comes second, with particular attention to the places where the parametrisation chosen here differs from the one base R uses, since those are the places where a reader is most likely to be surprised.</p>
+<section id="sec-distrib-object" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="sec-distrib-object"><span class="header-section-number">3.1</span> The object and its contract</h2>
+<p>A distribution is an S7 object carrying its name, its dimensionality, the bounds of its support, the names and interpretations of its parameters, their individual domains, the link function attached to each of them, and a per-parameter flag recording whether the log-likelihood is differentiable in that parameter — a flag whose purpose will become clear in <a href="#sec-nonregular" class="quarto-xref"><span>Section 3.8</span></a>. Two subclasses, <code>continuous_distrib</code> and <code>discrete_distrib</code>, provide the defaults appropriate to each kind.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>d<span class="sc">@</span>params</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu"     "sigma2"</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>d<span class="sc">@</span>params_bounds</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $mu</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]   0 Inf</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $sigma2</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]   0 Inf</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>d<span class="sc">@</span>link_params<span class="sc">$</span>sigma2</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; S7 Link Object: log</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   - Parameter domain (theta): (0, Inf)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Parameters travel through the API as a named list called <code>theta</code>, and every generic normalises this list before doing anything else. The normalisation reorders the entries by name, so that <code>list(sigma2 = 2, mu = 3)</code> and <code>list(mu = 3, sigma2 = 2)</code> mean the same thing rather than silently meaning different things; it strips names from the <em>values</em>, because a parameter that has passed through a link function comes back carrying its own name, which would otherwise leak into the results and label a density <code>"sigma2"</code>; and it validates every value against the parameter’s domain.</p>
+<p>The domains are treated as <strong>open</strong> intervals, and the openness is a deliberate choice rather than a pedantic one. A Gaussian requires <span class="math inline">\(\sigma &gt; 0\)</span>, not <span class="math inline">\(\sigma \geq 0\)</span>, and a Bernoulli requires <span class="math inline">\(0 &lt; \mu &lt; 1\)</span>: at the closed boundary the log-likelihood and its derivatives cease to exist, and accepting the boundary value would only trade an informative error now for an unexplained <code>NaN</code> several calls later.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(<span class="fu">gaussian_distrib</span>(), <span class="dv">1</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">0</span>, <span class="at">sigma =</span> <span class="dv">0</span>))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! Invalid parameter value(s) for the 'gaussian' distribution:</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   'sigma' = 0 is outside its domain (0, Inf)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The generics fall into four natural groups:</p>
+<table class="table-striped caption-top table">
+<caption>The generics</caption>
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Group</th>
+<th>Generics</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Probability</td>
+<td><code>distrib_pdf</code>, <code>distrib_cdf</code>, <code>distrib_quantile</code>, <code>distrib_rng</code>, <code>distrib_atoms</code></td>
+</tr>
+<tr class="even">
+<td>Parameter derivatives</td>
+<td><code>distrib_gradient</code>, <code>distrib_hessian</code>, <code>distrib_expected_hessian</code>, <code>distrib_deriv3</code>, <code>distrib_deriv4</code></td>
+</tr>
+<tr class="odd">
+<td>Response derivatives</td>
+<td><code>distrib_grad_y</code>, <code>distrib_hess_y</code></td>
+</tr>
+<tr class="even">
+<td>Moments</td>
+<td><code>expectation</code>, <code>mean</code>, <code>variance</code>, <code>std_dev</code>, <code>skewness</code>, <code>kurtosis</code>, <code>moment</code></td>
+</tr>
+</tbody>
+</table>
+<p>Of all of these, only <code>distrib_pdf</code> has no default; everything else can be derived from the density alone, as the Rayleigh example of <a href="01-introduction.html#sec-extension" class="quarto-xref"><span>Section 1.4</span></a> showed.</p>
+</section>
+<section id="sec-likelihood" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="sec-likelihood"><span class="header-section-number">3.2</span> Score and information</h2>
+<p>Fix a distribution with density or mass function <span class="math inline">\(f(y;\theta)\)</span>, where <span class="math inline">\(\theta = (\theta_1, \dots, \theta_p)^\top\)</span>, and write <span class="math inline">\(\ell(\theta; y) = \log f(y;\theta)\)</span> for the log-likelihood of a single observation. Subscripts on <span class="math inline">\(\ell\)</span> will always denote differentiation with respect to parameters, so that</p>
+<p><span class="math display">\[
+\ell_i = \frac{\partial \ell}{\partial \theta_i}, \qquad
+\ell_{ij} = \frac{\partial^{2} \ell}{\partial \theta_i \partial \theta_j}, \qquad
+\ell_{ijk} = \frac{\partial^{3} \ell}{\partial \theta_i \partial \theta_j \partial \theta_k},
+\]</span></p>
+<p>and so on. The vector <span class="math inline">\((\ell_1, \dots, \ell_p)^\top\)</span> is the <strong>score</strong>; the matrix <span class="math inline">\(-[\ell_{ij}]\)</span> is the <strong>observed information</strong>; and the <strong>expected information</strong>, or Fisher information, is <span class="math inline">\(\mathcal{I}(\theta) = -\mathbb{E}[\ell_{ij}]\)</span>, the expectation being taken over <span class="math inline">\(Y \sim f(\cdot\,;\theta)\)</span> at the same parameter value.</p>
+<p>A word on sign conventions, because both conventions circulate and a sign error here is invisible inside a symmetric matrix. The package returns <em>derivatives</em>, not informations: <code>distrib_hessian()</code> gives <span class="math inline">\([\ell_{ij}]\)</span>, and <code>distrib_expected_hessian()</code> gives <span class="math inline">\(\mathbb{E}[\ell_{ij}]\)</span>, each with the sign of the derivative, so the informations are the negatives of what the functions return.</p>
+<p>Since mixed partial derivatives are symmetric, only one representative of each multi-index is stored, and components are returned as named lists keyed in a canonical order — <code>"mu_sigma2"</code> stands for <span class="math inline">\(\ell_{\mu\sigma^2} = \ell_{\sigma^2\mu}\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">2.5</span>, <span class="dv">7</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(<span class="fu">distrib_gradient</span>(d, y, th))</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; List of 2</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ mu    : num [1:3] -1.9502 0.0487 0.8875</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ sigma2: num [1:3] 0.713 -0.224 0.834</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(<span class="fu">distrib_hessian</span>(d, y, th))</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; List of 3</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ mu_mu        : num [1:3] -1.722 -0.806 0.224</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ sigma2_sigma2: num [1:3] -0.8468 0.0898 -0.9685</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ mu_sigma2    : num [1:3] 1.154 0.155 -0.265</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Everything in this section and the next two assumes the model is <em>regular</em> at <span class="math inline">\(\theta\)</span>: the support of <span class="math inline">\(f\)</span> does not depend on <span class="math inline">\(\theta\)</span>, the log-likelihood is four times differentiable, and derivatives may be exchanged with the integral sign at the orders involved. Thirteen of the fourteen distributions in the catalogue satisfy these conditions everywhere; the exception is the Laplace, whose location parameter sits at a kink of the log-likelihood, and <a href="#sec-nonregular" class="quarto-xref"><span>Section 3.8</span></a> is devoted to what happens then.</p>
+</section>
+<section id="sec-bartlett" class="level2" data-number="3.3">
+<h2 data-number="3.3" class="anchored" data-anchor-id="sec-bartlett"><span class="header-section-number">3.3</span> The Bartlett identities</h2>
+<p>Most readers will know the identity <span class="math inline">\(\mathbb{E}[\ell_{ij}] = -\mathbb{E}[\ell_i \ell_j]\)</span>, the information matrix equality. What is less often written down is that this is only the second member of an infinite family of identities, one for each order of differentiation, and that the family taken as a whole allows an expected derivative of <em>any</em> order to be computed from expectations of products of lower-order ones. <code>distributions7</code> implements the family in full generality, so this section derives it.</p>
+<p>The starting point could hardly be simpler: a density integrates to one, and it does so <em>for every value of the parameter</em>,</p>
+<p><span class="math display">\[\int f(y;\theta)\, dy = 1 \qquad \text{for all } \theta \in \Theta.\]</span></p>
+<p>The right-hand side is constant in <span class="math inline">\(\theta\)</span>, so every derivative of the left-hand side must vanish, and regularity lets us take those derivatives under the integral sign:</p>
+<p><span class="math display">\[\int \frac{\partial^{k} f}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}\,dy = 0.
+\tag{3.1}\]</span></p>
+<p>Everything now depends on expressing the derivatives of <span class="math inline">\(f\)</span> through the derivatives of <span class="math inline">\(\ell = \log f\)</span>, and the expression turns out to have a beautiful combinatorial structure.</p>
+<div id="lem-exp-deriv" class="theorem lemma">
+<p><span class="theorem-title"><strong>Lemma 3.1 (Derivatives of <span class="math inline">\(e^{\ell}\)</span>)</strong></span> For every <span class="math inline">\(k \geq 1\)</span>,</p>
+<p><span class="math display">\[
+\frac{\partial^{k} e^{\ell}}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}
+= e^{\ell} \sum_{\pi \in \Pi_k} \prod_{B \in \pi} \ell_B ,
+\]</span></p>
+<p>where <span class="math inline">\(\Pi_k\)</span> is the set of all partitions of the index set <span class="math inline">\(\{i_1, \dots, i_k\}\)</span> into non-empty blocks, and <span class="math inline">\(\ell_B\)</span> is the derivative of <span class="math inline">\(\ell\)</span> with respect to the parameters indexed by the block <span class="math inline">\(B\)</span>.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>We argue by induction on <span class="math inline">\(k\)</span>. For <span class="math inline">\(k = 1\)</span> the claim reads <span class="math inline">\(\partial_i e^{\ell} = e^{\ell}\ell_i\)</span>, which is the chain rule, and indeed <span class="math inline">\(\Pi_1\)</span> contains the single partition <span class="math inline">\(\{\{i\}\}\)</span>.</p>
+<p>Suppose the formula holds at order <span class="math inline">\(k\)</span>, and differentiate it with respect to a new index <span class="math inline">\(\theta_{i_{k+1}}\)</span>. By the product rule, the derivative acts either on the factor <span class="math inline">\(e^{\ell}\)</span> in front — producing an extra factor <span class="math inline">\(\ell_{i_{k+1}}\)</span> — or on one of the factors <span class="math inline">\(\ell_B\)</span> inside a partition, turning it into <span class="math inline">\(\ell_{B \cup \{i_{k+1}\}}\)</span>. In the first case, the new index ends up in a block of its own; in the second, it joins an existing block. But these two cases are precisely the two ways of building a partition of the <span class="math inline">\((k{+}1)\)</span>-element set from a partition of the <span class="math inline">\(k\)</span>-element set, and every partition of the larger set arises in exactly one of the two ways, from exactly one partition of the smaller set. The sum therefore runs over <span class="math inline">\(\Pi_{k+1}\)</span> with each term appearing once, which is the claim at order <span class="math inline">\(k+1\)</span>. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>Substituting the lemma into (3.1), and noticing that <span class="math inline">\(e^{\ell} = f\)</span> is exactly the density needed to turn the integral into an expectation, we arrive at the result.</p>
+<div id="thm-bartlett" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 3.1 (Bartlett identities)</strong></span> Under the regularity conditions above, for every <span class="math inline">\(k \geq 1\)</span> and every choice of indices,</p>
+<p><span class="math display">\[\sum_{\pi \,\in\, \Pi_k} \mathbb{E}\!\left[\;\prod_{B \in \pi} \ell_B \right] = 0.\]</span></p>
+</div>
+<p>To use the identity, single out the partition consisting of one big block: its contribution is <span class="math inline">\(\mathbb{E}[\ell_{i_1 \cdots i_k}]\)</span>, the expected derivative of top order, and moving everything else to the other side,</p>
+<p><span class="math display">\[
+\mathbb{E}\!\left[\ell_{i_1\cdots i_k}\right]
+= -\sum_{\substack{\pi \in \Pi_k \\ |\pi| &gt; 1}}
+   \mathbb{E}\!\left[\prod_{B\in\pi}\ell_B\right].
+\tag{3.2}\]</span></p>
+<p>The first three cases, written out, show the family growing out of familiar ground:</p>
+<p><span class="math display">\[
+\begin{aligned}
+k = 1: \quad &amp; \mathbb{E}[\ell_i] = 0, \\[4pt]
+k = 2: \quad &amp; \mathbb{E}[\ell_{ij}] = -\mathbb{E}[\ell_i\ell_j], \\[4pt]
+k = 3: \quad &amp; \mathbb{E}[\ell_{ijk}] = -\Big(\mathbb{E}[\ell_{ij}\ell_k]
+   + \mathbb{E}[\ell_{ik}\ell_j] + \mathbb{E}[\ell_{jk}\ell_i]
+   + \mathbb{E}[\ell_i\ell_j\ell_k]\Big).
+\end{aligned}
+\]</span></p>
+<p>The case <span class="math inline">\(k = 1\)</span> is the zero-mean property of the score; the case <span class="math inline">\(k = 2\)</span> is the information matrix equality, and read from right to left it says that the outer-product-of-gradients estimator of the information is not a separate idea but the second Bartlett identity itself. The implementation follows the mathematics directly: it enumerates the set partitions of the index set and sums products of quantities the distribution already provides. The number of terms is the Bell number <span class="math inline">\(B_k\)</span> — one, two, five and fifteen for <span class="math inline">\(k = 1, \dots, 4\)</span> — so the computation stays small at every order the stack supports.</p>
+<section id="sec-approx" class="level3" data-number="3.3.1">
+<h3 data-number="3.3.1" class="anchored" data-anchor-id="sec-approx"><span class="header-section-number">3.3.1</span> Three ways to take an expectation</h3>
+<p>When a distribution has no closed-form expected derivative, the expectation has to be approximated, and the derivative generics accept an <code>approx</code> argument choosing among three strategies. The strategy <code>"bartlett"</code> (also spelled <code>"opg"</code>) applies (3.2); at second order it needs nothing but the score, which makes it the cheapest option, and it is the default there. The strategy <code>"integrate"</code> computes <span class="math inline">\(\mathbb{E}[\partial^k \ell]\)</span> literally, by quadrature for continuous distributions and by summation for discrete ones; when the observed derivative is available in closed form this is usually the most accurate route, and it is the default at orders three and four. The strategy <code>"mc"</code> simulates from the distribution and averages the observed derivative over the draws; it is robust when quadrature struggles, at the price of Monte Carlo noise.</p>
+<p>The difference between the first strategy and the other two is deeper than a matter of cost. <code>"integrate"</code> and <code>"mc"</code> estimate the expected derivative itself, whereas <code>"bartlett"</code> estimates the quantity that the identity says the expected derivative <em>equals under regularity</em>. When regularity fails, the two quantities part company, and the one that still deserves the name “information” is the Bartlett one — a point <a href="#sec-nonregular" class="quarto-xref"><span>Section 3.8</span></a> makes concrete.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>A cautionary tale about quadrature
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The <code>expectation()</code> engine splits its integral at quantiles of the distribution, and it uses three knots rather than nine. More knots would extend the range of densities it can integrate at all, but they would also convert loud failures into silent wrong answers: at Gamma shape <span class="math inline">\(0.02\)</span>, a nine-knot rule returns <span class="math inline">\(-54.9\)</span> for a quantity that is exactly zero, while the three-knot rule simply reports that the integral could not be computed. In the ordinary range three knots are also the more accurate choice, since every extra panel contributes its own quadrature error. An error is worth more than a plausible number.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-link-scale" class="level2" data-number="3.4">
+<h2 data-number="3.4" class="anchored" data-anchor-id="sec-link-scale"><span class="header-section-number">3.4</span> Derivatives on the link scale</h2>
+<p>The parameters of a distribution are constrained, and the linear predictors of a model are not, so every derivative generic accepts an argument <code>scale = c("parameter", "link")</code>. With <code>scale = "link"</code> the derivatives are taken with respect to</p>
+<p><span class="math display">\[\eta_i = g_i(\theta_i), \qquad \theta_i = h_i(\eta_i), \qquad h_i = g_i^{-1},\]</span></p>
+<p>where <span class="math inline">\(g_i\)</span> is the link that the distribution carries for its <span class="math inline">\(i\)</span>-th parameter. The structural fact on which the whole section rests is that each parameter has <em>its own</em> link and the map is applied coordinate by coordinate, so the Jacobian of <span class="math inline">\(\theta\)</span> with respect to <span class="math inline">\(\eta\)</span> is <strong>diagonal</strong>. Diagonality is what makes the general multivariate chain rule collapse into a product of univariate ones, and we now work this out in stages, starting with a single parameter.</p>
+<section id="sec-faa-univariate" class="level3" data-number="3.4.1">
+<h3 data-number="3.4.1" class="anchored" data-anchor-id="sec-faa-univariate"><span class="header-section-number">3.4.1</span> One parameter</h3>
+<p>Composing <span class="math inline">\(\ell\)</span> with <span class="math inline">\(h\)</span> and differentiating repeatedly is the territory of Faà di Bruno’s formula, which organises the combinatorial explosion of the chain rule through the <em>partial Bell polynomials</em> <span class="math inline">\(B_{m,j}\)</span>.</p>
+<div id="thm-faa" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 3.2 (Faà di Bruno)</strong></span> If <span class="math inline">\(\ell\)</span> is <span class="math inline">\(m\)</span> times differentiable in <span class="math inline">\(\theta\)</span> and <span class="math inline">\(h\)</span> is <span class="math inline">\(m\)</span> times differentiable in <span class="math inline">\(\eta\)</span>, with <span class="math inline">\(\theta = h(\eta)\)</span>, then</p>
+<p><span class="math display">\[
+\frac{\partial^{m}}{\partial\eta^{m}}\,\ell(h(\eta))
+= \sum_{j=1}^{m} \ell^{(j)}(\theta)\;
+  B_{m,j}\!\left(h', h'', \dots, h^{(m-j+1)}\right).
+\]</span></p>
+</div>
+<p>For the orders the stack uses, the Bell polynomials are small enough to list in full,</p>
+<p><span class="math display">\[
+\begin{array}{llll}
+B_{1,1} = h' \\
+B_{2,1} = h'' &amp; B_{2,2} = (h')^{2} \\
+B_{3,1} = h''' &amp; B_{3,2} = 3h'h'' &amp; B_{3,3} = (h')^{3} \\
+B_{4,1} = h'''' &amp; B_{4,2} = 4h'h''' + 3(h'')^{2} &amp; B_{4,3} = 6(h')^{2}h'' &amp; B_{4,4} = (h')^{4}
+\end{array}
+\]</span></p>
+<p>and substituting them into the theorem gives the four formulas that the package applies:</p>
+<p><span class="math display">\[
+\begin{aligned}
+\frac{\partial \ell}{\partial \eta} &amp;= \ell_{\theta}\,h', \\[4pt]
+\frac{\partial^{2} \ell}{\partial \eta^{2}} &amp;= \ell_{\theta\theta}\,(h')^{2} + \ell_{\theta}\,h'', \\[4pt]
+\frac{\partial^{3} \ell}{\partial \eta^{3}} &amp;= \ell_{\theta\theta\theta}\,(h')^{3} + 3\,\ell_{\theta\theta}\,h'h'' + \ell_{\theta}\,h''', \\[4pt]
+\frac{\partial^{4} \ell}{\partial \eta^{4}} &amp;= \ell_{\theta\theta\theta\theta}\,(h')^{4} + 6\,\ell_{\theta\theta\theta}\,(h')^{2}h'' + \ell_{\theta\theta}\left(4h'h''' + 3(h'')^{2}\right) + \ell_{\theta}\,h''''.
+\end{aligned}
+\]</span></p>
+<p>The first two lines are easily checked by hand — the first is the chain rule, and the second follows from differentiating it as a product — and they exhibit the property that makes the whole construction generic: each link-scale derivative is a <em>linear combination</em> of the parameter-scale derivatives of order up to <span class="math inline">\(m\)</span>, with coefficients that depend only on the link. The transformation never needs to know which distribution it is transforming, which is why it can be written once, in the body of the generic, for all distributions at once.</p>
+</section>
+<section id="sec-faa-multivariate" class="level3" data-number="3.4.2">
+<h3 data-number="3.4.2" class="anchored" data-anchor-id="sec-faa-multivariate"><span class="header-section-number">3.4.2</span> Several parameters</h3>
+<p>With several parameters, a mixed derivative such as <span class="math inline">\(\partial^4 \ell / \partial\eta_a^2\,\partial\eta_b^2\)</span> must be handled, and here diagonality earns its keep.</p>
+<div id="prp-faa-diag" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 3.1 (Faà di Bruno with a diagonal Jacobian)</strong></span> Let the multi-index involve the distinct parameters <span class="math inline">\(p_1, \dots, p_r\)</span> with multiplicities <span class="math inline">\(m_1, \dots, m_r\)</span>, and let <span class="math inline">\(k = \sum_t m_t\)</span>. Then</p>
+<p><span class="math display">\[
+\frac{\partial^{k} \ell}{\partial \eta_{p_1}^{m_1} \cdots \partial \eta_{p_r}^{m_r}}
+= \sum_{j_1=1}^{m_1} \cdots \sum_{j_r=1}^{m_r}
+   \ell_{\,p_1^{j_1} \cdots p_r^{j_r}}
+   \prod_{t=1}^{r} B_{m_t, j_t}\!\left(h_{p_t}', h_{p_t}'', \dots\right),
+\]</span></p>
+<p>where <span class="math inline">\(\ell_{\,p_1^{j_1}\cdots p_r^{j_r}}\)</span> denotes the parameter-scale derivative taken <span class="math inline">\(j_t\)</span> times with respect to <span class="math inline">\(\theta_{p_t}\)</span>.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>The key observation is that <span class="math inline">\(\theta_{p_t} = h_{p_t}(\eta_{p_t})\)</span> depends on its own linear predictor and on nothing else, so the operator <span class="math inline">\(\partial^{m_t}/\partial\eta_{p_t}^{m_t}\)</span> sees <span class="math inline">\(\ell\)</span> as a function of the single variable <span class="math inline">\(\theta_{p_t}\)</span>, all other parameters held fixed. We may therefore apply <a href="#thm-faa" class="quarto-xref">Theorem&nbsp;<span>3.2</span></a> in the variable <span class="math inline">\(\eta_{p_1}\)</span> alone, obtaining</p>
+<p><span class="math display">\[
+\frac{\partial^{m_1}\ell}{\partial\eta_{p_1}^{m_1}}
+= \sum_{j_1=1}^{m_1} \ell_{\,p_1^{j_1}}\, B_{m_1,j_1}\!\left(h_{p_1}', \dots\right),
+\]</span></p>
+<p>in which the coefficients <span class="math inline">\(B_{m_1, j_1}\)</span> involve only the derivatives of <span class="math inline">\(h_{p_1}\)</span> and therefore behave as constants under differentiation with respect to any <em>other</em> linear predictor. Applying the theorem again in <span class="math inline">\(\eta_{p_2}\)</span>, then <span class="math inline">\(\eta_{p_3}\)</span>, and so on — the operators commute, acting as they do on disjoint variables — each application multiplies in its own Bell polynomial factor and deepens the sum by one index, and after <span class="math inline">\(r\)</span> rounds the stated nested sum is reached. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>Two special cases are worth extracting because they cover most of what happens in practice. A purely mixed second derivative across two different parameters involves <span class="math inline">\(m_1 = m_2 = 1\)</span>, each inner sum has a single term, and the formula collapses to a rescaling,</p>
+<p><span class="math display">\[
+\frac{\partial^{2}\ell}{\partial\eta_a \partial\eta_b} = \ell_{ab}\,h_a'\,h_b'
+\qquad (a \neq b).
+\]</span></p>
+<p>And the number of terms in the general sum is <span class="math inline">\(\prod_t m_t\)</span> — at most eight for the orders the stack supports — so the computation remains trivial even at fourth order.</p>
+</section>
+<section id="sec-link-scale-expected" class="level3" data-number="3.4.3">
+<h3 data-number="3.4.3" class="anchored" data-anchor-id="sec-link-scale-expected"><span class="header-section-number">3.4.3</span> The expected Hessian transforms more simply</h3>
+<p>For expected second derivatives something pleasant happens: the awkward first-order term drops out on its own.</p>
+<div id="cor-congruence" class="theorem corollary">
+<p><span class="theorem-title"><strong>Corollary 3.1 (Congruence)</strong></span> <span class="math display">\[\mathbb{E}\!\left[\frac{\partial^{2}\ell}{\partial\eta_a\partial\eta_b}\right]
+= h_a'\,h_b'\;\mathbb{E}\!\left[\ell_{ab}\right],\]</span></p>
+<p>or in matrix form <span class="math inline">\(\mathbb{E}[H_\eta] = \operatorname{diag}(h')\,\mathbb{E}[H_\theta]\,\operatorname{diag}(h')\)</span>.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>For <span class="math inline">\(a = b\)</span>, the univariate formula gives <span class="math inline">\(\partial^2\ell/\partial\eta_a^2 = \ell_{aa}(h_a')^2 + \ell_a h_a''\)</span>. Take expectations: the first Bartlett identity says <span class="math inline">\(\mathbb{E}[\ell_a] = 0\)</span>, so the second term vanishes and only the congruence term survives. For <span class="math inline">\(a \neq b\)</span> there was no first-order term to begin with. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>The corollary matters beyond elegance. A congruence transform of a positive semi-definite matrix is positive semi-definite, so the link-scale Fisher information inherits the definiteness of the parameter-scale one automatically. Had one instead transformed the <em>observed</em> Hessian and then averaged numerically, the <span class="math inline">\(\ell_a h_a''\)</span> term would have survived and that guarantee would have been lost.</p>
+</section>
+<section id="sec-link-scale-impl" class="level3" data-number="3.4.4">
+<h3 data-number="3.4.4" class="anchored" data-anchor-id="sec-link-scale-impl"><span class="header-section-number">3.4.4</span> Where the transformation lives</h3>
+<p>The change of scale is implemented once, in the body of each derivative generic, between the dispatch and the return: a method always computes parameter-scale values, and the generic transforms them if <code>scale = "link"</code> was requested.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>distrib_gradient <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_generic</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"distrib_gradient"</span>, <span class="st">"distrib"</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">function</span>(distrib, y, theta, <span class="at">scale =</span> <span class="fu">c</span>(<span class="st">"parameter"</span>, <span class="st">"link"</span>), ...) {</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    ...</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    res <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">S7_dispatch</span>()                    <span class="co"># parameter scale, always</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (scale <span class="sc">==</span> <span class="st">"link"</span>) <span class="fu">to_link_scale</span>(...) <span class="cf">else</span> res</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  })</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This placement has one visible consequence for users who write their own derivative methods: since S7 requires a method’s formal arguments to include the generic’s named arguments, such a method must declare <code>scale = c("parameter", "link"), ...</code> in its signature even though it never touches <code>scale</code> itself. Omitting the declaration makes dispatch fail.</p>
+</section>
+</section>
+<section id="sec-response-derivatives" class="level2" data-number="3.5">
+<h2 data-number="3.5" class="anchored" data-anchor-id="sec-response-derivatives"><span class="header-section-number">3.5</span> Derivatives with respect to the response</h2>
+<p>Besides derivatives in the parameters, continuous distributions provide <span class="math inline">\(\partial\ell/\partial y\)</span> and <span class="math inline">\(\partial^{2}\ell/\partial y^{2}\)</span> through <code>distrib_grad_y()</code> and <code>distrib_hess_y()</code>; for a lattice variable there is nothing to differentiate, so discrete distributions have no such methods. These quantities feed quantile residuals and smoothness criteria further up the stack. The default implementation is a central finite difference of the log-density with a step that shrinks near the boundary of the support, so that <span class="math inline">\(y \pm \delta\)</span> never leaves it.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_grad_y</span>(d, <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">6</span>), th)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  2.0000000 -0.3333333 -0.9166667</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co"># closed form: with shape a = mu^2/sigma2 and rate b = mu/sigma2,</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># dl/dy = (a - 1)/y - b</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>(<span class="dv">3</span><span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> <span class="dv">2</span> <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">6</span>) <span class="sc">-</span> <span class="dv">3</span> <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  2.0000000 -0.3333333 -0.9166667</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-distrib-catalogue" class="level2" data-number="3.6">
+<h2 data-number="3.6" class="anchored" data-anchor-id="sec-distrib-catalogue"><span class="header-section-number">3.6</span> The catalogue</h2>
+<p>The table below is generated from the distribution objects themselves.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>The fourteen distributions</caption>
+<colgroup>
+<col style="width: 25%">
+<col style="width: 11%">
+<col style="width: 21%">
+<col style="width: 21%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">distribution</th>
+<th style="text-align: left;">kind</th>
+<th style="text-align: left;">support</th>
+<th style="text-align: left;">parameters</th>
+<th style="text-align: left;">links</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Gaussian</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((-\infty, \infty)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>sigma</code></td>
+<td style="text-align: left;">identity, log</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Cauchy</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((-\infty, \infty)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>sigma</code></td>
+<td style="text-align: left;">identity, log</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Logistic</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((-\infty, \infty)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>sigma</code></td>
+<td style="text-align: left;">identity, log</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Student t</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((-\infty, \infty)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>sigma</code>, <code>nu</code></td>
+<td style="text-align: left;">identity, log, log</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Laplace</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((-\infty, \infty)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>b</code></td>
+<td style="text-align: left;">identity, log</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Pseudo-Huber</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((-\infty, \infty)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>sigma</code>, <code>nu</code></td>
+<td style="text-align: left;">identity, log, log</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Gamma</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((0, \infty)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>sigma2</code></td>
+<td style="text-align: left;">log, log</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Inverse Gaussian</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((0, \infty)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>phi</code></td>
+<td style="text-align: left;">log, log</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Lognormal</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((0, \infty)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>sigma2</code></td>
+<td style="text-align: left;">identity, log</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Beta</td>
+<td style="text-align: left;">continuous</td>
+<td style="text-align: left;"><span class="math inline">\((0, 1)\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>phi</code></td>
+<td style="text-align: left;">logit, log</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Bernoulli</td>
+<td style="text-align: left;">discrete</td>
+<td style="text-align: left;"><span class="math inline">\(\{0, \dots, 1\}\)</span></td>
+<td style="text-align: left;"><code>mu</code></td>
+<td style="text-align: left;">logit</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Binomial</td>
+<td style="text-align: left;">discrete</td>
+<td style="text-align: left;"><span class="math inline">\(\{0, \dots, 10\}\)</span></td>
+<td style="text-align: left;"><code>mu</code></td>
+<td style="text-align: left;">logit</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Poisson</td>
+<td style="text-align: left;">discrete</td>
+<td style="text-align: left;"><span class="math inline">\(\{0, 1, \dots\}\)</span></td>
+<td style="text-align: left;"><code>mu</code></td>
+<td style="text-align: left;">log</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Negative binomial (NB2)</td>
+<td style="text-align: left;">discrete</td>
+<td style="text-align: left;"><span class="math inline">\(\{0, 1, \dots\}\)</span></td>
+<td style="text-align: left;"><code>mu</code>, <code>theta</code></td>
+<td style="text-align: left;">log, log</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The individual entries follow. Several of the parametrisations are not the ones the corresponding <code>d*</code> function in base R uses — the Gamma is parametrised by mean and variance rather than shape and rate, the Beta by mean and precision, the negative binomial in its NB2 form — and in each such case the entry states the map between the two explicitly, since this is where misreadings are cheapest to prevent. All fourteen distributions implement their observed derivatives to fourth order in closed form, as compiled Rcpp kernels; the continuous-integration matrix builds them with several compilers on several platforms, which is the only real evidence one can have about compiled arithmetic.</p>
+<div class="cell" data-layout-align="center">
+<section id="sec-dist-gaussian" class="level3" data-number="3.6.1">
+<h3 data-number="3.6.1" class="anchored" data-anchor-id="sec-dist-gaussian"><span class="header-section-number">3.6.1</span> Gaussian</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gaussian_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \mathbb{R}\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{1}{\sigma\sqrt{2\pi}}\exp\!\left\{-\frac{(y-\mu)^{2}}{2\sigma^{2}}\right\}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu, \qquad \operatorname{Var}(Y) = \sigma^{2}\]</span></p>
+<p>The reference case: <span class="math inline">\(\sigma\)</span> is the standard deviation, as in <code>dnorm(y, mu, sigma)</code>.</p>
+</section>
+<section id="sec-dist-cauchy" class="level3" data-number="3.6.2">
+<h3 data-number="3.6.2" class="anchored" data-anchor-id="sec-dist-cauchy"><span class="header-section-number">3.6.2</span> Cauchy</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cauchy_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \mathbb{R}\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{1}{\pi\sigma\left[1 + \left(\frac{y-\mu}{\sigma}\right)^{2}\right]}\]</span></p>
+<p><span class="math display">\[no moments exist\]</span></p>
+<p>Neither the mean nor the variance exists, which is why <code>check_distrib()</code> validates the generator against the <strong>cdf</strong> rather than against the first two moments: a moment-based check would have nothing to compare here, and the cdf is both always available and the stronger claim.</p>
+</section>
+<section id="sec-dist-logistic" class="level3" data-number="3.6.3">
+<h3 data-number="3.6.3" class="anchored" data-anchor-id="sec-dist-logistic"><span class="header-section-number">3.6.3</span> Logistic</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logistic_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \mathbb{R}\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{e^{-z}}{\sigma\left(1+e^{-z}\right)^{2}}, \qquad z = \frac{y-\mu}{\sigma}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu, \qquad \operatorname{Var}(Y) = \pi^{2}\sigma^{2}/3\]</span></p>
+<p>Writing <span class="math inline">\(t = \sigma(z) = (1+e^{-z})^{-1}\)</span> and <span class="math inline">\(u = 1-t\)</span>, the log-density is <span class="math inline">\(-\log\sigma + \log t + \log u\)</span> and every observed derivative is a polynomial in <span class="math inline">\(t\)</span>: with <span class="math inline">\(g_1 = 1-2t\)</span>, <span class="math inline">\(g_2 = -2tu\)</span>, <span class="math inline">\(g_3 = g_2 g_1\)</span>, <span class="math inline">\(g_4 = g_2(1-6tu)\)</span>, the recursions <span class="math inline">\(\partial_\mu[A/\sigma^{k}] = -A'/\sigma^{k+1}\)</span> and <span class="math inline">\(\partial_\sigma[A/\sigma^{k}] = -(zA' + kA)/\sigma^{k+1}\)</span> generate all of them, overflow-free out to <span class="math inline">\(|z| = 4000\)</span>. The <strong>expected</strong> derivatives were rederived here because symbolic algebra systems return, for this family, expressions containing polylogarithms, the imaginary unit and a dependence on <span class="math inline">\(\mu\)</span> — which is impossible for a location-scale family and is a useful reminder that a computer-algebra answer is not automatically a correct one. Seven of the nine expected third-order components are known exactly (<span class="math inline">\(\mathbb{E}[\ell_{\mu\mu\sigma}] = 1/(2\sigma^{3})\)</span>, <span class="math inline">\(\mathbb{E}[\ell_{\sigma\sigma\sigma}] = (\pi^{2}+2)/(2\sigma^{3})\)</span>, <span class="math inline">\(\mathbb{E}[\ell_{\mu^{4}}] = 1/(15\sigma^{4})\)</span>, the rest zero by symmetry); the two that remain require <span class="math inline">\(\int w^{k}\operatorname{sech}^{4}w\tanh^{2}w\,dw\)</span> for <span class="math inline">\(k = 2, 4\)</span> and are <strong>open</strong>. In the meantime <code>approx = "integrate"</code> supplies them to within Monte Carlo noise.</p>
+</section>
+<section id="sec-dist-student-t" class="level3" data-number="3.6.4">
+<h3 data-number="3.6.4" class="anchored" data-anchor-id="sec-dist-student-t"><span class="header-section-number">3.6.4</span> Student t</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">student_t_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \mathbb{R}\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{\Gamma\!\left(\frac{\nu+1}{2}\right)}{\sigma\sqrt{\nu\pi}\,\Gamma\!\left(\frac{\nu}{2}\right)}\left(1+\frac{z^{2}}{\nu}\right)^{-\frac{\nu+1}{2}}, \qquad z = \frac{y-\mu}{\sigma}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu\ (\nu&gt;1), \qquad \operatorname{Var}(Y) = \sigma^{2}\nu/(\nu-2)\ (\nu&gt;2)\]</span></p>
+<p>A location-scale family built on the standard <span class="math inline">\(t\)</span>: <span class="math inline">\(\sigma\)</span> is a scale, <strong>not</strong> the standard deviation, which is <span class="math inline">\(\sigma\sqrt{\nu/(\nu-2)}\)</span> and exists only for <span class="math inline">\(\nu &gt; 2\)</span>. The degrees of freedom <span class="math inline">\(\nu\)</span> are continuous and estimable.</p>
+</section>
+<section id="sec-dist-laplace" class="level3" data-number="3.6.5">
+<h3 data-number="3.6.5" class="anchored" data-anchor-id="sec-dist-laplace"><span class="header-section-number">3.6.5</span> Laplace</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">laplace_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \mathbb{R}\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{1}{2b}\exp\!\left\{-\frac{|y-\mu|}{b}\right\}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu, \qquad \operatorname{Var}(Y) = 2b^{2}\]</span></p>
+<p>The one non-regular member of the catalogue: <span class="math inline">\(\ell\)</span> has a kink at <span class="math inline">\(y = \mu\)</span>, the observed information in <span class="math inline">\(\mu\)</span> is identically zero, and the Fisher information <span class="math inline">\(1/b^{2}\)</span> can only be recovered from the score. See <a href="#sec-nonregular" class="quarto-xref"><span>Section 3.8</span></a>. <code>params_smooth</code> records this, and it is the reason that property exists at all.</p>
+</section>
+<section id="sec-dist-pseudohuber" class="level3" data-number="3.6.6">
+<h3 data-number="3.6.6" class="anchored" data-anchor-id="sec-dist-pseudohuber"><span class="header-section-number">3.6.6</span> Pseudo-Huber</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">pseudohuber_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \mathbb{R}\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{\exp(-D)}{2\sigma\sqrt{\nu}\,K_{1}(\sqrt{\nu})}, \qquad D = \sqrt{\nu + \left(\frac{y-\mu}{\sigma}\right)^{2}}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu; variance has no elementary closed form\]</span></p>
+<p>The normalising constant is exact, not approximate: <span class="math inline">\(\int_{-\infty}^{\infty} e^{-\sqrt{a^{2}+z^{2}}}\,dz = 2aK_{1}(a)\)</span>, so with <span class="math inline">\(a = \sqrt{\nu}\)</span> and <span class="math inline">\(dy = \sigma\,dz\)</span> the constant is <span class="math inline">\(2\sigma\sqrt{\nu}K_{1}(\sqrt{\nu})\)</span>. The Bessel terms are degree-homogeneous, which is why the <strong>exponentially scaled</strong> <code>besselK(x, nu, expon.scaled = TRUE)</code> may be used: the scaling cancels between numerator and denominator, so it is exact rather than approximate, and it avoids overflow out to <span class="math inline">\(\nu = 2000\)</span>. <span class="math inline">\(\nu \to \infty\)</span> gives a Gaussian limit and small <span class="math inline">\(\nu\)</span> a Laplace-like one, so the family interpolates between the two — with, unlike the Laplace, a genuinely smooth log-density everywhere.</p>
+</section>
+<section id="sec-dist-gamma" class="level3" data-number="3.6.7">
+<h3 data-number="3.6.7" class="anchored" data-anchor-id="sec-dist-gamma"><span class="header-section-number">3.6.7</span> Gamma</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gamma_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in (0, \infty)\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{\beta^{\alpha}}{\Gamma(\alpha)}y^{\alpha-1}e^{-\beta y}, \qquad \alpha = \frac{\mu^{2}}{\sigma^{2}}, \quad \beta = \frac{\mu}{\sigma^{2}}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu, \qquad \operatorname{Var}(Y) = \sigma^{2}\]</span></p>
+<p><strong>Not</strong> the base-R parametrisation. <code>dgamma()</code> takes a shape and a rate; this object takes the <strong>mean and the variance</strong> directly, which is what a modelling framework wants, since it is <span class="math inline">\(\mu\)</span> that gets a linear predictor. The map is <span class="math inline">\(\alpha = \mu^{2}/\sigma^{2}\)</span>, <span class="math inline">\(\beta = \mu/\sigma^{2}\)</span>, whence <span class="math inline">\(\alpha/\beta = \mu\)</span> and <span class="math inline">\(\alpha/\beta^{2} = \sigma^{2}\)</span> as claimed.</p>
+</section>
+<section id="sec-dist-invgauss" class="level3" data-number="3.6.8">
+<h3 data-number="3.6.8" class="anchored" data-anchor-id="sec-dist-invgauss"><span class="header-section-number">3.6.8</span> Inverse Gaussian</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">invgauss_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in (0, \infty)\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{1}{\sqrt{2\pi\phi y^{3}}}\exp\!\left\{-\frac{(y-\mu)^{2}}{2\phi\mu^{2}y}\right\}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu, \qquad \operatorname{Var}(Y) = \phi\mu^{3}\]</span></p>
+<p>In the <strong>dispersion</strong> parametrisation, <span class="math inline">\(\phi = 1/\lambda\)</span> where <span class="math inline">\(\lambda\)</span> is the shape used by some references. The variance function <span class="math inline">\(\phi\mu^{3}\)</span> is what makes the inverse-square link canonical here (see <a href="02-link-functions.html#sec-link-inverse-sq" class="quarto-xref"><span>Section 2.5.5</span></a>).</p>
+</section>
+<section id="sec-dist-lognormal" class="level3" data-number="3.6.9">
+<h3 data-number="3.6.9" class="anchored" data-anchor-id="sec-dist-lognormal"><span class="header-section-number">3.6.9</span> Lognormal</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">lognormal_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in (0, \infty)\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{1}{y\sqrt{2\pi\sigma^{2}}}\exp\!\left\{-\frac{(\log y - \mu)^{2}}{2\sigma^{2}}\right\}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = e^{\mu + \sigma^{2}/2}, \qquad \operatorname{Var}(Y) = \left(e^{\sigma^{2}}-1\right)e^{2\mu+\sigma^{2}}\]</span></p>
+<p><span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma^{2}\)</span> are the mean and <strong>variance on the log scale</strong>, not of <span class="math inline">\(Y\)</span> itself: <code>dlnorm()</code> takes <code>sdlog</code>, and this object takes its square. The same law can also be built as <code>transformation(gaussian_distrib(), exp_transform())</code>, by the change of variables of <a href="04-transformations.html#sec-transformation" class="quarto-xref"><span>Section 4.1</span></a>, and the two constructions coincide.</p>
+</section>
+<section id="sec-dist-beta" class="level3" data-number="3.6.10">
+<h3 data-number="3.6.10" class="anchored" data-anchor-id="sec-dist-beta"><span class="header-section-number">3.6.10</span> Beta</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">beta_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in (0, 1)\)</span>.</p>
+<p><span class="math display">\[f(y) = \frac{y^{a-1}(1-y)^{b-1}}{B(a,b)}, \qquad a = \mu\phi, \quad b = (1-\mu)\phi\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu, \qquad \operatorname{Var}(Y) = \dfrac{\mu(1-\mu)}{1+\phi}\]</span></p>
+<p>The <strong>mean-precision</strong> parametrisation of beta regression, not the <code>shape1</code>/<code>shape2</code> one: <span class="math inline">\(a = \mu\phi\)</span>, <span class="math inline">\(b = (1-\mu)\phi\)</span>, so <span class="math inline">\(a/(a+b) = \mu\)</span> and <span class="math inline">\(a+b = \phi\)</span>. Larger <span class="math inline">\(\phi\)</span> means less dispersion.</p>
+</section>
+<section id="sec-dist-bernoulli" class="level3" data-number="3.6.11">
+<h3 data-number="3.6.11" class="anchored" data-anchor-id="sec-dist-bernoulli"><span class="header-section-number">3.6.11</span> Bernoulli</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bernoulli_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \{0, 1\}\)</span>.</p>
+<p><span class="math display">\[P(Y=y) = \mu^{y}(1-\mu)^{1-y}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu, \qquad \operatorname{Var}(Y) = \mu(1-\mu)\]</span></p>
+<p>Its support has two points, which is the whole content of <a href="04-transformations.html#sec-identifiability" class="quarto-xref"><span>Section 4.7</span></a>: a Bernoulli has exactly one free probability, so neither zero-inflating nor zero-adjusting it produces an identified model.</p>
+</section>
+<section id="sec-dist-binomial" class="level3" data-number="3.6.12">
+<h3 data-number="3.6.12" class="anchored" data-anchor-id="sec-dist-binomial"><span class="header-section-number">3.6.12</span> Binomial</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">10</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \{0, 1, \dots, n\}\)</span>.</p>
+<p><span class="math display">\[P(Y=y) = \binom{n}{y}\mu^{y}(1-\mu)^{n-y}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = n\mu, \qquad \operatorname{Var}(Y) = n\mu(1-\mu)\]</span></p>
+<p>The number of trials <span class="math inline">\(n\)</span> is a <strong>property of the object</strong>, not a parameter: it is known, not estimated, so it belongs with <code>size</code> rather than in <code>theta</code>. Shown at <span class="math inline">\(n = 10\)</span>.</p>
+</section>
+<section id="sec-dist-poisson" class="level3" data-number="3.6.13">
+<h3 data-number="3.6.13" class="anchored" data-anchor-id="sec-dist-poisson"><span class="header-section-number">3.6.13</span> Poisson</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">poisson_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \{0, 1, 2, \dots\}\)</span>.</p>
+<p><span class="math display">\[P(Y=y) = \frac{e^{-\mu}\mu^{y}}{y!}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu, \qquad \operatorname{Var}(Y) = \mu\]</span></p>
+<p>Equidispersed by construction, which is what makes it the natural parent for the zero-inflation and hurdle wrappers of <a href="04-transformations.html" class="quarto-xref"><span>Chapter 4</span></a>: excess zeros are one of the two standard ways real count data depart from it.</p>
+</section>
+<section id="sec-dist-negbin" class="level3" data-number="3.6.14">
+<h3 data-number="3.6.14" class="anchored" data-anchor-id="sec-dist-negbin"><span class="header-section-number">3.6.14</span> Negative binomial (NB2)</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">negbin_distrib</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Support: <span class="math inline">\(y \in \{0, 1, 2, \dots\}\)</span>.</p>
+<p><span class="math display">\[P(Y=y) = \frac{\Gamma(y+\theta)}{\Gamma(\theta)\,y!}\left(\frac{\theta}{\theta+\mu}\right)^{\theta}\left(\frac{\mu}{\theta+\mu}\right)^{y}\]</span></p>
+<p><span class="math display">\[\mathbb{E}[Y] = \mu, \qquad \operatorname{Var}(Y) = \mu + \dfrac{\mu^{2}}{\theta}\]</span></p>
+<p>The NB2 parametrisation: <span class="math inline">\(\theta\)</span> is the size, and dispersion <strong>decreases</strong> as <span class="math inline">\(\theta\)</span> grows, with the Poisson recovered as <span class="math inline">\(\theta \to \infty\)</span>. The excess kurtosis is <span class="math inline">\(6/\theta + \theta/(\mu(\theta+\mu))\)</span>. That expression is worth stating explicitly because the predecessor package this one replaces had <span class="math inline">\(6/\theta + (\theta+\mu)/(\mu\theta)\)</span>, which is wrong; it was found by numerical comparison, not by reading. Every formula inherited from that package was subsequently treated as unverified until checked.</p>
+</section>
+</div>
+</section>
+<section id="sec-fallbacks" class="level2" data-number="3.7">
+<h2 data-number="3.7" class="anchored" data-anchor-id="sec-fallbacks"><span class="header-section-number">3.7</span> What the fallbacks provide</h2>
+<p>It is worth describing what a distribution receives for free when it implements nothing but its density, both because users rely on it and because two of the fallbacks contain ideas of independent interest.</p>
+<p>The cdf is obtained by quadrature for continuous distributions and by summation over the support for discrete ones, and the quantile function by root-finding on the cdf. Derivatives fall back to finite differences, each order differencing the analytical implementation of the order below when one exists.</p>
+<p>The random generator deserves a longer story. The obvious fallback, inverse transform sampling, costs one root-finding call per draw when the quantile function is itself numerical, which is unusably slow. The package instead uses a generalized <strong>ratio-of-uniforms</strong> scheme, which needs only the density, with two devices that make it reliable: the kernel is recentred at the mode of the density — without this, a density centred at <span class="math inline">\(\mu = 1000\)</span> produces a degenerate bounding box — and normalised to a maximum of one. So equipped, the method handles far more than one might expect: bimodal densities, a Student <span class="math inline">\(t\)</span> with half a degree of freedom, even a Pareto with infinite mean. Its one genuine failure mode is a density that diverges at an edge of its support, and that case is transformed away rather than given up on: if <span class="math inline">\(f(y) \sim |y-a|^{\alpha-1}\)</span> near the edge <span class="math inline">\(a\)</span>, then the transformed variable <span class="math inline">\(X = |Y-a|^{1/\lambda}\)</span> has a density behaving like <span class="math inline">\(x^{\lambda\alpha-1}\)</span>, which is bounded as soon as <span class="math inline">\(\lambda\alpha &gt; 1\)</span>. Pleasantly, the exponent <span class="math inline">\(\alpha\)</span> never has to be searched for: walking toward the edge in powers of ten raises the log-density by <span class="math inline">\((1-\alpha)\log 10\)</span> per step, so the same probe that detects the divergence also measures it. For a Gamma with shape <span class="math inline">\(0.4\)</span> this transformation brought the cost of a draw from 27 milliseconds down to less than a microsecond, with the draws still exact.</p>
+<p>One caveat belongs here rather than in a footnote. A distribution that relies on the numerical fallbacks will pass the derivative checks of <code>check_distrib()</code> trivially, because the analytical and the numerical value are then the same computation; those checks become informative exactly when a closed form has been supplied.</p>
+</section>
+<section id="sec-nonregular" class="level2" data-number="3.8">
+<h2 data-number="3.8" class="anchored" data-anchor-id="sec-nonregular"><span class="header-section-number">3.8</span> When the model is not regular</h2>
+<p>The Laplace distribution, with density <span class="math inline">\(f(y) = (2b)^{-1} e^{-|y-\mu|/b}\)</span>, is the catalogue’s standing counterexample to regularity: its log-likelihood has a kink at <span class="math inline">\(y = \mu\)</span>. Away from the kink one computes</p>
+<p><span class="math display">\[\ell_\mu = \frac{\operatorname{sign}(y-\mu)}{b}, \qquad \ell_{\mu\mu} = 0,\]</span></p>
+<p>so the observed information in <span class="math inline">\(\mu\)</span> vanishes identically — the log-likelihood is piecewise linear in the location — and yet the Fisher information certainly exists. The second Bartlett identity delivers it directly: since <span class="math inline">\(\operatorname{sign}(y-\mu)^2 = 1\)</span> almost surely,</p>
+<p><span class="math display">\[\mathcal{I}_{\mu\mu} = \mathbb{E}\left[\ell_\mu^{2}\right]
+= \mathbb{E}\left[\frac{\operatorname{sign}(y-\mu)^{2}}{b^{2}}\right]
+= \frac{1}{b^{2}}.\]</span></p>
+<p>The distribution the package ships is not affected by any of this in daily use, because <code>laplace_distrib()</code> implements the expected Hessian in closed form — the score-variance value <span class="math inline">\(-1/b^{2}\)</span> just computed — and, as always when an analytical method exists, the <code>approx</code> argument is simply ignored:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>lap <span class="ot">&lt;-</span> <span class="fu">laplace_distrib</span>()</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">0</span>, <span class="at">b =</span> <span class="dv">2</span>)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">bartlett  =</span> <span class="fu">distrib_expected_hessian</span>(lap, <span class="dv">0</span>, th, <span class="at">approx =</span> <span class="st">"bartlett"</span>)<span class="sc">$</span>mu_mu,</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">integrate =</span> <span class="fu">distrib_expected_hessian</span>(lap, <span class="dv">0</span>, th, <span class="at">approx =</span> <span class="st">"integrate"</span>)<span class="sc">$</span>mu_mu,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">exact     =</span> <span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> th<span class="sc">$</span>b<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  bartlett integrate     exact </span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     -0.25     -0.25     -0.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>To see the three strategies of <a href="#sec-approx" class="quarto-xref"><span>Section 3.3.1</span></a> genuinely part company, one has to look at a distribution that carries <em>no</em> closed form for the expectation — the situation a user-defined non-regular family finds itself in. Here is a bare Laplace, supplying only the density, the score and the observed Hessian:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>BareLaplace <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"BareLaplace"</span>, <span class="at">parent =</span> continuous_distrib, <span class="at">package =</span> <span class="cn">NULL</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_pdf, BareLaplace) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta, <span class="at">log =</span> <span class="cn">FALSE</span>) {</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  ld <span class="ot">&lt;-</span> <span class="sc">-</span><span class="fu">log</span>(<span class="dv">2</span> <span class="sc">*</span> theta[[<span class="dv">2</span>]]) <span class="sc">-</span> <span class="fu">abs</span>(y <span class="sc">-</span> theta[[<span class="dv">1</span>]]) <span class="sc">/</span> theta[[<span class="dv">2</span>]]</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (log) ld <span class="cf">else</span> <span class="fu">exp</span>(ld)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_gradient, BareLaplace) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta,</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>                                                      <span class="at">scale =</span> <span class="fu">c</span>(<span class="st">"parameter"</span>, <span class="st">"link"</span>), ...) {</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> y <span class="sc">-</span> theta[[<span class="dv">1</span>]]; b <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">sign</span>(r) <span class="sc">/</span> b, <span class="at">b =</span> (<span class="fu">abs</span>(r) <span class="sc">/</span> b <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> b)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_hessian, BareLaplace) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta,</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>                                                     <span class="at">scale =</span> <span class="fu">c</span>(<span class="st">"parameter"</span>, <span class="st">"link"</span>), ...) {</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> y <span class="sc">-</span> theta[[<span class="dv">1</span>]]; b <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]; n <span class="ot">&lt;-</span> <span class="fu">length</span>(y)</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">mu_mu =</span> <span class="fu">rep</span>(<span class="dv">0</span>, n), <span class="at">b_b =</span> (b <span class="sc">-</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">abs</span>(r)) <span class="sc">/</span> b<span class="sc">^</span><span class="dv">3</span>, <span class="at">mu_b =</span> <span class="sc">-</span><span class="fu">sign</span>(r) <span class="sc">/</span> b<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>bare <span class="ot">&lt;-</span> <span class="fu">BareLaplace</span>(</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">distrib_name =</span> <span class="st">"bare laplace"</span>, <span class="at">dimension =</span> <span class="st">"univariate"</span>, <span class="at">bounds =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, <span class="cn">Inf</span>),</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">params =</span> <span class="fu">c</span>(<span class="st">"mu"</span>, <span class="st">"b"</span>), <span class="at">params_interpretation =</span> <span class="fu">c</span>(<span class="at">mu =</span> <span class="st">"location"</span>, <span class="at">b =</span> <span class="st">"scale"</span>),</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_params =</span> <span class="dv">2</span>, <span class="at">params_bounds =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, <span class="cn">Inf</span>), <span class="at">b =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>)),</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">link_params =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">identity_link</span>(), <span class="at">b =</span> <span class="fu">log_link</span>()),</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">params_smooth =</span> <span class="fu">c</span>(<span class="at">mu =</span> <span class="cn">FALSE</span>, <span class="at">b =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">bartlett  =</span> <span class="fu">distrib_expected_hessian</span>(bare, <span class="dv">0</span>, th, <span class="at">approx =</span> <span class="st">"bartlett"</span>)<span class="sc">$</span>mu_mu,</span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">integrate =</span> <span class="fu">distrib_expected_hessian</span>(bare, <span class="dv">0</span>, th, <span class="at">approx =</span> <span class="st">"integrate"</span>)<span class="sc">$</span>mu_mu,</span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>  <span class="at">mc        =</span> <span class="fu">distrib_expected_hessian</span>(bare, <span class="dv">0</span>, th, <span class="at">approx =</span> <span class="st">"mc"</span>)<span class="sc">$</span>mu_mu,</span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a>  <span class="at">exact     =</span> <span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> th<span class="sc">$</span>b<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  bartlett integrate        mc     exact </span></span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     -0.25      0.00      0.00     -0.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Now the strategies disagree, and the pattern of their disagreement tells the whole story. The Bartlett route recovers <span class="math inline">\(-1/b^{2}\)</span> exactly, because it works from the score alone and never touches the second derivative. The other two both return zero — and for the same reason: each of them averages the observed <span class="math inline">\(\ell_{\mu\mu}\)</span>, by quadrature in one case and over simulated draws in the other, and that function is identically zero away from the single point <span class="math inline">\(y = \mu\)</span>, a set the integral cannot see and the draws almost surely never hit. Averaging the second derivative, however the average is taken, produces the expected <em>derivative</em>, which for this family is genuinely zero; it is the identification of that quantity with the information which breaks down, and only the strategy built on the score survives the breakage.</p>
+<p>The base class records which parameters are differentiable in the <code>params_smooth</code> property, and this single flag propagates through the stack: <code>fit_distrib()</code> works on the Laplace precisely because Fisher scoring uses the expected information, which exists, rather than the observed one, which is degenerate.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">param_smoothness</span>(<span class="fu">laplace_distrib</span>())</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    mu     b </span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; FALSE  TRUE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The flag has a second, subtler use. Comparing an analytical derivative against a finite difference is invalid at a kink — a central difference straddling <span class="math inline">\(y = \mu\)</span> converges to nothing, so it is the <em>reference</em> that is wrong, not the value under test. When a distribution declares a non-smooth parameter, the validation machinery recomputes each finite-difference reference with the step halved and discards the observations where the two estimates disagree, judging the disagreement relative to the estimates’ own magnitude; observations near the kink are thereby excluded from the comparison, while for a smooth log-likelihood nothing is ever discarded and the check keeps its full strength.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/02-link-functions.html" class="pagination-link" aria-label="Link functions">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Link functions</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/04-transformations.html" class="pagination-link" aria-label="Transformations of distributions">
+        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>The statmodels7 Framework</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

@@ -50,7 +50,7 @@ followed by 7*, which happens to spell `...s7` — `linkfunction**s7**`,
 
 | package | what it provides |
 |---|---|
-| `linkfunctions7` | 14 link functions with exact analytical derivatives to 4th order, both directions |
+| `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions |
 | `distributions7` | 14 distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE |
 
 **Planned** — `modelterms7`, `basis7`, `penalties7`, and eventually the `statmodels7`
@@ -77,9 +77,14 @@ user-defined components.*
 C:\Users\giova\Desktop\labstatr\statmodels7\
     linkfunctions7\
     distributions7\
+    book\            the Quarto book (see §9); `quarto render` from inside it
     logo\            hex logos: make-logos.R draws them, run from this directory
     site\            the portal, its own repository (statmodels7.github.io)
 ```
+
+⚠️ `book/` has **no repository yet**. Like this file and `logo/`, it is not
+covered by any of the three repos, so it needs a home — the natural one is `site/`,
+which would also let the rendered book be served from the portal.
 
 GitHub: `github.com/statmodels7/{linkfunctions7,distributions7}`. The repositories were
 transferred from `giovannitinervia9/*` on 2026-07-22; GitHub keeps redirects, so
@@ -202,8 +207,27 @@ derivatives by finite differences. See `vignettes/defining-a-distribution.Rmd`.
 invgauss, lognormal, beta, bernoulli, binomial, poisson, negbin. All have closed-form
 observed derivatives to 4th order (Rcpp kernels in `src/*_hd.cpp`).
 
-**Wrappers**: `zero_inflated()`, `zero_adjusted()`, `transformation()` (12 transformers:
-log, exp, sqrt, inverse, power, box-cox, yeo-johnson, softplus, asinh, logit, expit, affine).
+**Wrappers**: `zero_inflated()`, `zero_adjusted()`, `truncated()`, `transformation()`
+(12 transformers: log, exp, sqrt, inverse, power, box-cox, yeo-johnson, softplus, asinh,
+logit, expit, affine). All propagate `params_smooth`; all validate their parent in the
+constructor (see §7). `zero_adjusted()` of a **continuous** parent is a **mixed**
+distribution — a density plus an atom — and declares that atom through
+`distrib_atoms()`, which `check_distrib()` consults.
+
+`truncated(distrib, lower, upper)` restricts to an interval, either side optional, both
+endpoints **included**. It is the odd one out: it adds **no parameter** (the endpoints
+are constants, like a binomial's `size`), and instead adds a θ-dependent normalising
+constant `Z(θ) = F(u) − F(ℓ⁻)`. With `m_i = E_T[s_i]` and `M_ij = E_T[H_ij + s_i s_j]`,
+both expectations under the *truncated* law,
+
+```
+d_i   l_T = s_i(y) - m_i                      (the parent's score, recentred)
+d_ij  l_T = H_ij(y) - M_ij + m_i m_j
+E[d_ij l_T] = -Cov_T(s_i, s_j)                (2nd Bartlett identity)
+```
+
+`m` and `M` have no closed form in general and go through `expectation()`, so truncated
+derivatives are much dearer than the parent's and orders 3–4 use the FD fallback.
 
 **Link scale.** `scale = "link"` gives derivatives with respect to the unconstrained
 parameters, to 4th order, via Faà di Bruno with a diagonal Jacobian and partial Bell
@@ -246,7 +270,7 @@ and `plot()` on the fit.
 | | |
 |---|---|
 | `linkfunctions7` | 711 tests, `R CMD check` OK, CI green |
-| `distributions7` | 1010 tests, `R CMD check` OK, CI green |
+| `distributions7` | 1168 tests, `R CMD check` OK (2026-07-26, local), CI green |
 
 Both repositories run `R-CMD-check` on macOS, Windows and three Linux/R combinations
 (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix matters for
@@ -284,13 +308,85 @@ This section is the reason the file exists. Each item cost real time to discover
   `E[l_σσσ] = (π²+2)/(2σ³)`, `E[l_μ⁴] = 1/(15σ⁴)`, rest zero by symmetry); the two open
   ones need `∫ wᵏ sech⁴w tanh²w dw` for k = 2, 4.
 - **Non-regular models.** The Laplace location has a kink: its observed Hessian is
-  degenerate while the Fisher information is `-1/b²`. Only `approx = "bartlett"` recovers
-  it — `"integrate"` returns 0 because quadrature misses the delta at the kink, and `"mc"`
-  recovers it noisily by smearing over the finite-difference step. The base class carries
-  `params_smooth` to record which parameters are differentiable. `fit_distrib` works on
-  the Laplace *because* Fisher scoring uses the expected information.
+  degenerate while the Fisher information is `-1/b²`. Precision matters here, because a
+  sloppy version of this note put a false claim in the book (caught by Giovanni,
+  2026-07-26). The measured facts:
+  - the **shipped** `laplace_distrib()` implements `distrib_expected_hessian` in closed
+    form, so `approx` is **ignored** and bartlett/integrate/mc all print `-1/b²`;
+  - on a **bare** Laplace (density + analytic score + analytic Hessian, no expected
+    method), `"bartlett"` recovers `-1/b²`; `"integrate"` **and** `"mc"` both return
+    exactly 0, because both average the observed `l_μμ`, which is 0 a.e. — mc is only
+    "noisy" when the observed Hessian is itself the FD fallback smearing the kink;
+  - the deeper point: averaging the second derivative gives `E[∂²l]`, which for this
+    family genuinely *is* zero; what fails is its identification with `-I(θ)` (the
+    second Bartlett identity). Only the score-based route survives.
+  The base class carries `params_smooth` to record which parameters are differentiable.
+  `fit_distrib` works on the Laplace *because* Fisher scoring uses the expected
+  information. Terminology trap fixed in docs/vignette the same day: the score-variance
+  identity `I = E[ss']` is the **second** Bartlett identity, not the first (the first is
+  `E[s] = 0`); the information for a non-regular family is *defined* as `Var(score)`.
+  When prose describes what code returns, **run the code first** — the book's hidden
+  gates now pin these three claims.
 - **Pseudo-Huber Bessel terms** are degree-homogeneous, so the exponentially scaled
   `bessel_k(x, nu, 2)` is exact and avoids overflow (verified to nu = 2000).
+
+### The two zero wrappers
+
+The derivative formulas in `zero_inflated.R` and `zero_adjusted.R` were re-derived and
+confirmed correct (2026-07-26), including the neat collapse in the ZI mixed block, where
+`-f'(0)/L0 - (1-ζ)f'(0)(1-f0)/L0²` simplifies to `-f'(0)/L0²` because the bracket is
+exactly 1. What was wrong was everything around them.
+
+- **They are different models, not two spellings of one.** Zero-inflation *adds* to the
+  mass the parent already puts at zero, so `P(Y=0) = ζ + (1-ζ)f(0) > f(0)`: it can only
+  ever produce more zeros, and no single zero can be attributed to a mechanism.
+  Zero-adjustment *replaces* it — the parent is truncated away from zero — so `π` is
+  free to be smaller than `f(0)` too, and the likelihood factorises into a binary part
+  and a positive part. Hence: inflation needs a discrete parent **with mass at zero**
+  (a continuous one has `P(Y=0)=0` and nothing to inflate — that request is
+  `zero_adjusted()`); adjustment takes either, and for a continuous parent needs no
+  truncation at all.
+- **Neither wrapper can be stacked.** `zero_adjusted(zero_inflated(pois))` was accepted
+  and is not a model: truncating at zero cancels `(1-ζ)` between the numerator and the
+  truncation constant, so `ζ` leaves the likelihood entirely and its score is
+  *identically* zero. `zero_inflated(zero_adjusted(pois))` keeps only `ζ + (1-ζ)π`.
+  Both verified numerically; the constructors now refuse.
+- **The identifiability rule is a counting rule.** A lattice distribution on `k` points
+  has `k-1` free probabilities and the wrapper spends `n_params + 1` of them, so
+  `k >= n_params + 2` is necessary — the same bound for inflation and for adjustment.
+  It rules out exactly the Bernoulli and `binomial_distrib(size = 1)`. Zero-adjusting a
+  Bernoulli leaves the truncated part on `{1}`, and `mu` disappears: the pmf is
+  literally the same for `mu = 0.2` and `mu = 0.9`. None of this is visible at run time
+  — the pmf sums to one, `check_distrib()` passes, `fit_distrib()` converges somewhere
+  on the ridge — so the constructor is the only place it can be caught.
+- **`params_smooth` was silently dropped** by all three wrappers, so
+  `zero_adjusted(laplace_distrib())` claimed `mu` was smooth and the finite-difference
+  guard in `check_distrib()` switched itself off. One line each.
+- Parsing a Hessian component name with `strsplit(nm, "_")` and taking the first and
+  last piece is wrong for a parameter whose own name contains an underscore. Use the
+  internal `hess_pairs(params)`, which inverts `hess_names()` from the parameter vector.
+
+### Truncation
+
+- **"Subtract the mass at ℓ" is not the discrete case, it is the *atom* case.** The
+  lower endpoint is included in the truncated support, so `F(ℓ⁻) = F(ℓ) − P(Y = ℓ)`.
+  Branching that correction on `discrete_distrib` looks right and is wrong: the cdf of
+  `zero_adjusted(gamma)` already contains the point mass at zero, so `F(0) ≠ F(0⁻)`
+  even though the object is a `continuous_distrib`. Truncating it from above then drops
+  exactly that mass out of `Z`, and the density integrates to something other than one
+  while every formula still reads correctly. `parent_mass_at()` asks `distrib_atoms()`
+  instead of asking the class. Caught only because `check_distrib()` is atom-aware —
+  6 of 7 truncation cases passed and this one failed 5 checks.
+- **Truncating zero away from a zero wrapper is the stacking defect again.** For
+  `y ∈ [ℓ,u]` with 0 excluded, the `(1−ζ)` factor cancels between numerator and `Z`, so
+  ζ leaves the likelihood exactly as in `zero_adjusted(zero_inflated(D))`. Refused.
+  Truncating a zero wrapper *elsewhere* is fine and the atom is carried through.
+- The support of the truncated law must **not depend on θ** — that is what licenses
+  differentiating `Z` under the integral sign and makes truncation at *fixed* points a
+  regular problem. Truncating at a θ-dependent point would not be one.
+- Truncation composes with itself harmlessly, so the constructor **collapses** nested
+  truncation to the intersection rather than nesting: nesting is correct but pays the
+  quadrature cost twice.
 
 ### Numerics
 
@@ -350,6 +446,11 @@ This section is the reason the file exists. Each item cost real time to discover
   roxygen block and its `new_class()` call silently reattaches the documentation to the
   helper. If the helper is `@noRd`, the class ends up undocumented and every `\link{}` to
   it breaks. Internal helpers go *after* the class definition.
+  This had already happened to `check_distrib()`: `fd_is_reliable()` sat between its
+  roxygen block and the function, so the next `roxygenise()` deleted `check_distrib.Rd`
+  and wrote `fd_is_reliable.Rd` instead. The stale Rd had been surviving in `man/`
+  because nobody had regenerated since. If a documentation trap is not visible, it is
+  because roxygen has not run — run it after touching any file with roxygen in it.
 
 ### Documentation build
 
@@ -386,6 +487,16 @@ This section is the reason the file exists. Each item cost real time to discover
   round-trip stays self-consistent however wrong the cdf is. A cdf shifted by a constant
   passed all twelve checks. Always also confirm that an *un*broken reference still passes,
   so the checks cannot be trivially failing.
+- **A validator that does not know about mixed distributions rejects correct code.**
+  `check_distrib()` treated `zero_adjusted(gamma_distrib())` as purely continuous and
+  reported four failures on a wrapper that is exactly right: the density integrates to
+  `1 - π`, the quantile round-trip cannot hold inside the jump of the cdf, and a central
+  difference in `y` across the atom has no derivative to converge to. That is worse than
+  a missing check — a user validating their own mixed distribution had no way to tell a
+  real defect from this one. The fix is the `distrib_atoms()` generic: the default
+  returns nothing (right for both ordinary cases), and the four affected checks ask for
+  the atoms and adjust. All four wrappers now pass all thirteen checks, and a gradient
+  made 5% wrong is still caught — the guard did not blunt anything.
 - **Sweep parameters randomly**, not one fixed value per distribution. That is what
   surfaced the divergence of `expectation()` for Gamma shape below 0.5 and a spurious
   negative eigenvalue in the pseudo-Huber information.
@@ -418,6 +529,10 @@ This section is the reason the file exists. Each item cost real time to discover
   them within Monte Carlo noise).
 - Publishing `linkfunctions7` to CRAN, which unblocks `distributions7`.
 - Next packages: `modelterms7`, `basis7`, `penalties7`.
+- Truncated distributions have no closed-form 3rd/4th derivatives (the FD fallback of
+  the analytical Hessian is used). Deriving `d^3 log Z` and `d^4 log Z` from the
+  moment-to-cumulant relations would close that, and would also give the zero wrappers
+  their missing orders.
 - No `NEWS.md` on either package.
 - **Logos** exist but are competent rather than designed — drawn by a script, not by
   someone with visual judgement. Worth redoing with a designer if the identity matters.
@@ -429,3 +544,54 @@ This section is the reason the file exists. Each item cost real time to discover
   the mode of the density with a dot, and he was right to have it removed.
 - The portal is hand-written HTML. If the stack grows past a handful of packages it may
   deserve a generator, but not yet.
+- **`book/` is not versioned anywhere.** It needs a repository — `site/` is the obvious
+  one, since it already hosts the stack-wide files and could serve the rendered book
+  from the portal. Decide before the book accumulates history worth keeping.
+- The book covers links, distributions and the transformation wrappers. `fit_distrib`
+  (Fisher scoring, Newton, BFGS, delta-method standard errors, intervals built on the
+  link scale and mapped back) has no chapter yet, and neither do the numerical
+  fallbacks beyond the summary in §3.7 of the book.
+
+---
+
+## 9. The book
+
+`book/` is a **Quarto book** (`quarto render` from inside it; Quarto CLI 1.8.24 is on
+PATH, and no new R packages are needed — knitr and numDeriv suffice). It is the
+mathematical companion Giovanni asked for on 2026-07-26: every formula the stack
+implements, derived from the definitions with the steps written out. Chapters:
+preface, introduction, link functions, distributions, transformations, plus a
+notation appendix. English, on purpose — it is the public document of a stack aiming
+at CRAN.
+
+**Editorial line (Giovanni, 2026-07-26, explicit):** the book takes it for granted
+that the formulas shown are the ones the packages run. The book-vs-package
+consistency checking is *ours* and must not be discussed in the text — no
+certification tables, no "verdict" columns, no meta-narrative about verification.
+And the prose must be flowing, discursive, book-like — not strings of short
+sentences — with the mathematics explained step by step.
+
+**How consistency is enforced without being mentioned:** each chapter ends with a
+hidden chunk (`include: false`) calling `assert_links_ok()`,
+`assert_distributions_ok()` or `assert_transformations_ok()` (defined in
+`book/R/*.R`). These evaluate every printed formula against the running package,
+the structural identities (inverse function theorem, Bartlett, expected-vs-observed
+Hessian), and `check_distrib()` on everything — and **stop the render** on any
+disagreement. Verified by injection: a 5% corruption of a printed derivative or
+density is caught and kills the build. The reader never sees any of it.
+
+The mechanism that makes this cheap: `book/R/link-formulas.R` and
+`distribution-catalogue.R` keep the printed LaTeX and an independent R
+transcription of it **in the same record**, and the chapters generate the displayed
+formulas from those records. Editing a formula edits both the equation the reader
+sees and the thing under test. Do not split them.
+
+Numerical-differentiation rule (also in `check_link()`): **never nest numDeriv** to
+reach high orders — by order 3 the reference is noise (the identity link's exactly
+zero third derivative comes back as O(1)). Compare order k against ONE numerical
+differentiation of the analytical order k−1.
+
+Loading is from **source** via `pkgload` on `../linkfunctions7` and
+`../distributions7`, so the book documents the working tree. `execute-dir: project`
+keeps the working directory at `book/`. The palette in `assets/theme.scss` is the
+stack's: chalkboard green `#3D6B4C`, rust `#9C3E11`, chalk `#F7F4D4`.

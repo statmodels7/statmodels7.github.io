@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>4&nbsp; Transformations of distributions – The statmodels7 Framework</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/A1-notation.html" rel="next">
+<link href="../chapters/03-distributions.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e986b704c747e817427b29ebc19a759e.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a2ce0b05719297c8ab99eac5b5b92eaa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/04-transformations.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="../index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">The statmodels7 Framework</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-link-functions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Link functions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Distributions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-transformations.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A1-notation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-transformation" id="toc-sec-transformation" class="nav-link active" data-scroll-target="#sec-transformation"><span class="header-section-number">4.1</span> Change of variables</a>
+  <ul class="collapse">
+  <li><a href="#sec-transform-density" id="toc-sec-transform-density" class="nav-link" data-scroll-target="#sec-transform-density"><span class="header-section-number">4.1.1</span> The density</a></li>
+  <li><a href="#sec-transform-invariance" id="toc-sec-transform-invariance" class="nav-link" data-scroll-target="#sec-transform-invariance"><span class="header-section-number">4.1.2</span> The derivatives do not change</a></li>
+  <li><a href="#sec-transformer-catalogue" id="toc-sec-transformer-catalogue" class="nav-link" data-scroll-target="#sec-transformer-catalogue"><span class="header-section-number">4.1.3</span> The twelve transformers</a></li>
+  </ul></li>
+  <li><a href="#sec-zero-inflation" id="toc-sec-zero-inflation" class="nav-link" data-scroll-target="#sec-zero-inflation"><span class="header-section-number">4.2</span> Zero-inflation</a>
+  <ul class="collapse">
+  <li><a href="#sec-zi-score" id="toc-sec-zi-score" class="nav-link" data-scroll-target="#sec-zi-score"><span class="header-section-number">4.2.1</span> The score</a></li>
+  <li><a href="#sec-zi-hessian" id="toc-sec-zi-hessian" class="nav-link" data-scroll-target="#sec-zi-hessian"><span class="header-section-number">4.2.2</span> The observed Hessian</a></li>
+  <li><a href="#sec-zi-expected" id="toc-sec-zi-expected" class="nav-link" data-scroll-target="#sec-zi-expected"><span class="header-section-number">4.2.3</span> The expected Hessian</a></li>
+  <li><a href="#sec-zi-moments" id="toc-sec-zi-moments" class="nav-link" data-scroll-target="#sec-zi-moments"><span class="header-section-number">4.2.4</span> Moments</a></li>
+  </ul></li>
+  <li><a href="#sec-hurdle" id="toc-sec-hurdle" class="nav-link" data-scroll-target="#sec-hurdle"><span class="header-section-number">4.3</span> Zero-adjustment: the discrete hurdle</a>
+  <ul class="collapse">
+  <li><a href="#sec-hurdle-score" id="toc-sec-hurdle-score" class="nav-link" data-scroll-target="#sec-hurdle-score"><span class="header-section-number">4.3.1</span> The score</a></li>
+  <li><a href="#sec-hurdle-hessian" id="toc-sec-hurdle-hessian" class="nav-link" data-scroll-target="#sec-hurdle-hessian"><span class="header-section-number">4.3.2</span> The Hessians</a></li>
+  </ul></li>
+  <li><a href="#sec-za-continuous" id="toc-sec-za-continuous" class="nav-link" data-scroll-target="#sec-za-continuous"><span class="header-section-number">4.4</span> Zero-adjustment for continuous distributions</a></li>
+  <li><a href="#sec-truncation" id="toc-sec-truncation" class="nav-link" data-scroll-target="#sec-truncation"><span class="header-section-number">4.5</span> Truncation</a>
+  <ul class="collapse">
+  <li><a href="#sec-trunc-derivatives" id="toc-sec-trunc-derivatives" class="nav-link" data-scroll-target="#sec-trunc-derivatives"><span class="header-section-number">4.5.1</span> Derivatives</a></li>
+  <li><a href="#sec-trunc-validity" id="toc-sec-trunc-validity" class="nav-link" data-scroll-target="#sec-trunc-validity"><span class="header-section-number">4.5.2</span> Which truncations make sense</a></li>
+  </ul></li>
+  <li><a href="#sec-choosing" id="toc-sec-choosing" class="nav-link" data-scroll-target="#sec-choosing"><span class="header-section-number">4.6</span> Choosing among the constructions</a></li>
+  <li><a href="#sec-identifiability" id="toc-sec-identifiability" class="nav-link" data-scroll-target="#sec-identifiability"><span class="header-section-number">4.7</span> Identifiability</a>
+  <ul class="collapse">
+  <li><a href="#sec-no-stacking" id="toc-sec-no-stacking" class="nav-link" data-scroll-target="#sec-no-stacking"><span class="header-section-number">4.7.1</span> Wrappers do not stack</a></li>
+  <li><a href="#sec-counting-rule" id="toc-sec-counting-rule" class="nav-link" data-scroll-target="#sec-counting-rule"><span class="header-section-number">4.7.2</span> Counting the support</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span id="sec-transformations" class="quarto-section-identifier"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The chapters so far have dealt with fixed objects: a Gamma score is a Gamma score, written once and used everywhere. The present chapter is about something of a different nature — <strong>operators on distributions</strong>. The constructor <code>zero_inflated(D)</code> is not itself a distribution; it is a rule that turns any suitable <span class="math inline">\(D\)</span> into a new one, and the score of the result is assembled at run time out of <span class="math inline">\(D\)</span>’s score, <span class="math inline">\(D\)</span>’s Hessian and <span class="math inline">\(D\)</span>’s density at zero, whatever <span class="math inline">\(D\)</span> happens to be. The formulas such an operator uses must therefore be derived in full generality, once, for an arbitrary parent, and that is what this chapter does: for the change of variables, for zero-inflation, for the hurdle, for the zero-adjusted continuous family, and for truncation, every density, score, Hessian, expected Hessian and moment is derived from the definition with the steps written out.</p>
+<p>A small amount of shared notation keeps the derivations light. The parent distribution has density or mass function <span class="math inline">\(f(y;\theta)\)</span> with log-density <span class="math inline">\(\ell(y) = \log f(y;\theta)\)</span>, and we write</p>
+<p><span class="math display">\[
+s_i(y) = \frac{\partial \ell(y)}{\partial\theta_i}, \qquad
+H_{ij}(y) = \frac{\partial^{2} \ell(y)}{\partial\theta_i\partial\theta_j}, \qquad
+f_0 = f(0;\theta)
+\]</span></p>
+<p>for its score, its Hessian and its mass at zero. One elementary identity will be needed again and again, so we record it once, with its one-line proof.</p>
+<div id="lem-fij" class="theorem lemma">
+<p><span class="theorem-title"><strong>Lemma 4.1 (Second derivative of a density through its log)</strong></span> <span class="math display">\[\frac{1}{f}\frac{\partial^{2} f}{\partial\theta_i\partial\theta_j} = H_{ij} + s_i s_j .\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>From <span class="math inline">\(\ell = \log f\)</span> we get <span class="math inline">\(s_i = f_i/f\)</span>, that is <span class="math inline">\(f_i = f\,s_i\)</span>. Differentiating this product with respect to <span class="math inline">\(\theta_j\)</span> gives <span class="math inline">\(f_{ij} = f_j\,s_i + f\,\partial_j s_i = f\,s_j s_i + f\,H_{ij}\)</span>, and dividing by <span class="math inline">\(f\)</span> finishes the proof. <span class="math inline">\(\square\)</span></p>
+</div>
+<section id="sec-transformation" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="sec-transformation"><span class="header-section-number">4.1</span> Change of variables</h2>
+<p>The oldest of the operations is the classical one: given a random variable <span class="math inline">\(X\)</span> with a known continuous distribution, describe the distribution of <span class="math inline">\(Y = g(X)\)</span>.</p>
+<div id="def-transformer" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.1 (Transformer)</strong></span> A <strong>transformer</strong> is a map <span class="math inline">\(g : S \to T\)</span>, defined on the support <span class="math inline">\(S\)</span> of the parent, which is a strictly monotone, continuously differentiable bijection with <span class="math inline">\(g' \neq 0\)</span> throughout. In the package it is described by <span class="math inline">\(g\)</span>, by its inverse <span class="math inline">\(g^{-1}\)</span>, by the absolute Jacobian of the inverse <span class="math inline">\(|J(y)| = |\,\mathrm{d}g^{-1}/\mathrm{d}y\,|\)</span>, by its effect on the support bounds, and by a flag recording whether it is decreasing. Crucially, <strong>a transformer does not depend on <span class="math inline">\(\theta\)</span></strong>; this apparently innocent remark will do most of the work of the section.</p>
+</div>
+<section id="sec-transform-density" class="level3" data-number="4.1.1">
+<h3 data-number="4.1.1" class="anchored" data-anchor-id="sec-transform-density"><span class="header-section-number">4.1.1</span> The density</h3>
+<div id="thm-cov" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 4.1 (Change of variables)</strong></span> If <span class="math inline">\(Y = g(X)\)</span> with <span class="math inline">\(g\)</span> a transformer, then</p>
+<p><span class="math display">\[f_Y(y;\theta) = f_X\!\left(g^{-1}(y);\theta\right)\,\left|J(y)\right|,
+\qquad y \in T .\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>Suppose first that <span class="math inline">\(g\)</span> is increasing. Then the event <span class="math inline">\(g(X) \leq y\)</span> is the same as the event <span class="math inline">\(X \leq g^{-1}(y)\)</span>, so the distribution functions are related by</p>
+<p><span class="math display">\[F_Y(y) = P\!\left(X \leq g^{-1}(y)\right) = F_X\!\left(g^{-1}(y)\right),\]</span></p>
+<p>and differentiating in <span class="math inline">\(y\)</span> with the chain rule gives <span class="math inline">\(f_Y(y) = f_X(g^{-1}(y))\cdot\mathrm{d}g^{-1}/\mathrm{d}y\)</span>. For an increasing <span class="math inline">\(g\)</span> the derivative of <span class="math inline">\(g^{-1}\)</span> is positive, so it coincides with its absolute value and the theorem holds.</p>
+<p>If instead <span class="math inline">\(g\)</span> is decreasing, the inequality flips: <span class="math inline">\(g(X) \leq y\)</span> exactly when <span class="math inline">\(X \geq g^{-1}(y)\)</span>, so <span class="math inline">\(F_Y(y) = 1 - F_X(g^{-1}(y))\)</span>, and differentiation now produces a leading minus sign, <span class="math inline">\(f_Y(y) = -f_X(g^{-1}(y))\cdot\mathrm{d}g^{-1}/\mathrm{d}y\)</span>. But in this case <span class="math inline">\(\mathrm{d}g^{-1}/\mathrm{d}y\)</span> is negative, so the minus sign restores the absolute value and both cases end with the same formula. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>From the same two computations one reads off the cdf, and by inversion the quantile function and the generator: in the increasing case <span class="math inline">\(F_Y = F_X \circ g^{-1}\)</span> and <span class="math inline">\(Q_Y(p) = g(Q_X(p))\)</span>, while in the decreasing case the tails swap, <span class="math inline">\(F_Y = 1 - F_X \circ g^{-1}\)</span> and <span class="math inline">\(Q_Y(p) = g(Q_X(1-p))\)</span>. Generating a draw is simply a matter of drawing <span class="math inline">\(X\)</span> from the parent and applying <span class="math inline">\(g\)</span>, which is exact and costs a single evaluation. The decreasing case is not hypothetical — the reciprocal transformer and the power transformer with a negative exponent are both decreasing — and a forgotten tail swap produces a quantile function that is wrong by <span class="math inline">\(p \mapsto 1-p\)</span>, an error invisible at the median and largest in the tails, where one looks last.</p>
+</section>
+<section id="sec-transform-invariance" class="level3" data-number="4.1.2">
+<h3 data-number="4.1.2" class="anchored" data-anchor-id="sec-transform-invariance"><span class="header-section-number">4.1.2</span> The derivatives do not change</h3>
+<p>We now come to the fact that makes this wrapper essentially free.</p>
+<div id="thm-transform-invariance" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 4.2 (Invariance of the likelihood derivatives)</strong></span> Let <span class="math inline">\(Y = g(X)\)</span> with <span class="math inline">\(g\)</span> a transformer. Then for every order <span class="math inline">\(k \geq 1\)</span> and every multi-index,</p>
+<p><span class="math display">\[
+\frac{\partial^{k}\,\ell_Y(\theta;y)}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}
+= \left.\frac{\partial^{k}\,\ell_X(\theta;x)}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}
+\right|_{x = g^{-1}(y)},
+\]</span></p>
+<p>and the expected derivatives of the two models coincide exactly: <span class="math inline">\(\mathbb{E}_Y\!\left[\partial^{k}\ell_Y\right] = \mathbb{E}_X\!\left[\partial^{k}\ell_X\right]\)</span>.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>Taking the logarithm of <a href="#thm-cov" class="quarto-xref">Theorem&nbsp;<span>4.1</span></a>,</p>
+<p><span class="math display">\[\ell_Y(\theta;y) = \ell_X\!\left(\theta;\, g^{-1}(y)\right) + \log|J(y)| .\]</span></p>
+<p>Look at the two terms through the eyes of <span class="math inline">\(\partial/\partial\theta\)</span>. The Jacobian term depends on <span class="math inline">\(y\)</span> alone — this is where the requirement that a transformer not depend on <span class="math inline">\(\theta\)</span> pays off — so it is a constant for the purposes of differentiation in <span class="math inline">\(\theta\)</span> and disappears at the first derivative, never to return. The first term is <span class="math inline">\(\ell_X\)</span> evaluated at the point <span class="math inline">\(x = g^{-1}(y)\)</span>, and since this point also does not move when <span class="math inline">\(\theta\)</span> does, differentiating in <span class="math inline">\(\theta\)</span> simply passes through the substitution. That proves the first claim at every order simultaneously.</p>
+<p>For the second claim, observe that <span class="math inline">\(g^{-1}(Y) = X\)</span> holds with probability one, so for any function <span class="math inline">\(u\)</span> we have <span class="math inline">\(\mathbb{E}_Y\!\left[u(g^{-1}(Y))\right] = \mathbb{E}_X[u(X)]\)</span>. Applying this with <span class="math inline">\(u = \partial^{k}\ell_X\)</span>, and using the first claim to recognise the left side as <span class="math inline">\(\mathbb{E}_Y[\partial^k \ell_Y]\)</span>, completes the proof. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>The theorem has two practical consequences, and both amount to <em>not</em> doing work that a less careful implementation might do. First, no simulation is ever needed for the expected information of a transformed distribution: the parent’s expected Hessian already <em>is</em> the answer, exactly, and the implementation is a single line. Second, the link-scale machinery of <a href="03-distributions.html#sec-link-scale" class="quarto-xref"><span>Section 3.4</span></a> is unaffected, because the links attach to the parameters and the parameters have not changed.</p>
+<p>The Jacobian, having dropped out of the <span class="math inline">\(\theta\)</span>-derivatives, has not left the theory altogether: it survives in the density itself and in the derivatives with respect to <span class="math inline">\(y\)</span>. This is why a transformer also carries <span class="math inline">\(\partial_y \log|J|\)</span> and <span class="math inline">\(\partial^2_y \log|J|\)</span>, which feed the response derivatives of <a href="03-distributions.html#sec-response-derivatives" class="quarto-xref"><span>Section 3.5</span></a>.</p>
+</section>
+<section id="sec-transformer-catalogue" class="level3" data-number="4.1.3">
+<h3 data-number="4.1.3" class="anchored" data-anchor-id="sec-transformer-catalogue"><span class="header-section-number">4.1.3</span> The twelve transformers</h3>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>The twelve transformers</caption>
+<colgroup>
+<col style="width: 13%">
+<col style="width: 41%">
+<col style="width: 15%">
+<col style="width: 19%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">transformer</th>
+<th style="text-align: left;"><span class="math inline">\(g(x)\)</span></th>
+<th style="text-align: left;"><span class="math inline">\(g^{-1}(y)\)</span></th>
+<th style="text-align: left;"><span class="math inline">\(&amp;#124;J(y)&amp;#124;\)</span></th>
+<th style="text-align: left;">domain</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>log_transform()</code></td>
+<td style="text-align: left;"><span class="math inline">\(\log x\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(e^{y}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(e^{y}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x &gt; 0\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>exp_transform()</code></td>
+<td style="text-align: left;"><span class="math inline">\(e^{x}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\log y\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(1/y\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x \in \mathbb{R}\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>sqrt_transform()</code></td>
+<td style="text-align: left;"><span class="math inline">\(\sqrt{x}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(y^{2}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(2y\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x \geq 0\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>inverse_transform()</code></td>
+<td style="text-align: left;"><span class="math inline">\(1/x\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(1/y\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(1/y^{2}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(0 \notin \operatorname{supp}\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>power_transform(p = 2)</code></td>
+<td style="text-align: left;"><span class="math inline">\(x^{p}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\operatorname{sign}(y)\,&amp;#124;y&amp;#124;^{1/p}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\dfrac{&amp;#124;y&amp;#124;^{1/p - 1}}{&amp;#124;p&amp;#124;}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(p\text{-dependent}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>bc_transform(lambda = 0.5)</code></td>
+<td style="text-align: left;"><span class="math inline">\(\dfrac{x^{\lambda}-1}{\lambda}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\((\lambda y + 1)^{1/\lambda}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\((\lambda y + 1)^{1/\lambda - 1}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x \geq 0\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>yj_transform(lambda = 0.5)</code></td>
+<td style="text-align: left;"><span class="math inline">\(\begin{cases}\frac{(x+1)^{\lambda}-1}{\lambda} &amp; x \geq 0\\ -\frac{(1-x)^{2-\lambda}-1}{2-\lambda} &amp; x &lt; 0\end{cases}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\text{piecewise inverse}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\((&amp;#124;x&amp;#124;+1)^{\operatorname{sign}(x)(\lambda-1)}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x \in \mathbb{R}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>softplus_transform(a = 1)</code></td>
+<td style="text-align: left;"><span class="math inline">\(\tfrac{1}{a}\log\!\left(e^{ax}-1\right)\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\tfrac{1}{a}\log\!\left(1+e^{ay}\right)\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\sigma(ay)\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x \geq 0\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>asinh_transform()</code></td>
+<td style="text-align: left;"><span class="math inline">\(\operatorname{arsinh} x\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\sinh y\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\cosh y\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x \in \mathbb{R}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>logit_transform()</code></td>
+<td style="text-align: left;"><span class="math inline">\(\log\dfrac{x}{1-x}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\sigma(y)\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\sigma(y)(1-\sigma(y))\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x \in (0,1)\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>expit_transform()</code></td>
+<td style="text-align: left;"><span class="math inline">\(\sigma(x)\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\log\dfrac{y}{1-y}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\dfrac{1}{y(1-y)}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x \in \mathbb{R}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>affine_transform(loc = 1, scale = 2)</code></td>
+<td style="text-align: left;"><span class="math inline">\(c + s\,x\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\dfrac{y-c}{s}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(1/&amp;#124;s&amp;#124;\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(x \in \mathbb{R}\)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Each transformer declares which supports it is willing to act on, and the constructor refuses an incompatible pairing at once, rather than letting it surface later as a <code>NaN</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">transformation</span>(<span class="fu">gaussian_distrib</span>(), <span class="fu">log_transform</span>())</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! The 'log' transformation is not valid for the support of the 'gaussian' distribution.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>As a closing illustration, the lognormal distribution can be reached along two entirely different roads — as a catalogue entry with its own density, or as the exponential of a Gaussian through <a href="#thm-cov" class="quarto-xref">Theorem&nbsp;<span>4.1</span></a> — and the two agree to machine precision:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fl">0.05</span>, <span class="dv">12</span>, <span class="at">length.out =</span> <span class="dv">40</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">distrib_pdf</span>(<span class="fu">transformation</span>(<span class="fu">gaussian_distrib</span>(), <span class="fu">exp_transform</span>()),</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                 y, <span class="fu">list</span>(<span class="at">mu =</span> <span class="fl">0.5</span>, <span class="at">sigma =</span> <span class="fu">sqrt</span>(<span class="fl">1.3</span>)), <span class="at">log =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">distrib_pdf</span>(<span class="fu">lognormal_distrib</span>(), y, <span class="fu">list</span>(<span class="at">mu =</span> <span class="fl">0.5</span>, <span class="at">sigma2 =</span> <span class="fl">1.3</span>), <span class="at">log =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(a <span class="sc">-</span> b))</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 8.881784e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-zero-inflation" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="sec-zero-inflation"><span class="header-section-number">4.2</span> Zero-inflation</h2>
+<p>Count data very often contain more zeros than any standard count distribution can produce, and the classical remedy is to let the zeros come from two sources: the count process itself, and a separate mechanism that switches the count off entirely.</p>
+<div id="def-zi" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.2 (Zero-inflated distribution)</strong></span> Let <span class="math inline">\(D\)</span> be a discrete distribution with <span class="math inline">\(0\)</span> in its support and mass function <span class="math inline">\(f(y;\theta)\)</span>, and let <span class="math inline">\(\zeta \in (0,1)\)</span>. The <strong>zero-inflated</strong> version of <span class="math inline">\(D\)</span> is the mixture</p>
+<p><span class="math display">\[
+P(Y = y;\theta,\zeta) = \zeta\,\mathbb{I}(y=0) + (1-\zeta) f(y;\theta)
+= \begin{cases}
+\zeta + (1-\zeta) f_0 &amp; y = 0,\\[2pt]
+(1-\zeta) f(y;\theta) &amp; y &gt; 0 .
+\end{cases}
+\]</span></p>
+</div>
+<p>Summing over the support gives <span class="math inline">\(\zeta + (1-\zeta)\sum_y f(y) = 1\)</span>, so the mixture is a proper distribution. Its interpretation should be kept clearly in mind, because it drives every formula below: an observed zero may be <em>structural</em>, produced by the switching mechanism with probability <span class="math inline">\(\zeta\)</span>, or it may be an ordinary <em>sampling</em> zero from the count process, and no individual zero can be attributed to either source — only their proportions are identified. Two derived quantities will recur constantly. The first is the total mass at zero,</p>
+<p><span class="math display">\[L_0 = \zeta + (1-\zeta)f_0,\]</span></p>
+<p>and the second is the conditional probability that an observed zero came from the count process,</p>
+<p><span class="math display">\[w_0 = \frac{(1-\zeta)f_0}{L_0} \in (0,1).\]</span></p>
+<p>Readers familiar with the EM algorithm will recognise <span class="math inline">\(w_0\)</span> as the E-step weight of this model, and its appearance throughout the derivatives below is no coincidence.</p>
+<p>Before the derivatives, the distribution functions, which follow from the mixture structure directly. The cdf mixes the parent’s cdf with a step at zero,</p>
+<p><span class="math display">\[F_Y(q) = (1-\zeta)F(q;\theta) + \zeta\,\mathbb{I}(q \geq 0),\]</span></p>
+<p>and inverting it splits the probability axis at <span class="math inline">\(L_0 = F_Y(0)\)</span>: any <span class="math inline">\(p \leq L_0\)</span> lands in the mass at zero, while for <span class="math inline">\(p &gt; L_0\)</span> we solve <span class="math inline">\(\zeta + (1-\zeta)F(q) = p\)</span> for <span class="math inline">\(F(q)\)</span> and apply the parent’s quantile function, obtaining</p>
+<p><span class="math display">\[
+Q_Y(p) = \begin{cases}
+0 &amp; p \leq L_0,\\[4pt]
+Q\!\left(\dfrac{p - \zeta}{1-\zeta};\theta\right) &amp; p &gt; L_0 .
+\end{cases}
+\]</span></p>
+<p>Generation is even simpler: draw from the parent, then replace a <span class="math inline">\(\mathrm{Bernoulli}(\zeta)\)</span> fraction of the draws by structural zeros.</p>
+<section id="sec-zi-score" class="level3" data-number="4.2.1">
+<h3 data-number="4.2.1" class="anchored" data-anchor-id="sec-zi-score"><span class="header-section-number">4.2.1</span> The score</h3>
+<div id="prp-zi-score" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.1 (Zero-inflated score)</strong></span> <span class="math display">\[
+\frac{\partial \ell_Y}{\partial \theta_i} =
+\begin{cases} w_0\, s_i(0) &amp; y = 0 \\ s_i(y) &amp; y &gt; 0\end{cases}
+\qquad\qquad
+\frac{\partial \ell_Y}{\partial \zeta} =
+\begin{cases} \dfrac{1 - f_0}{L_0} &amp; y = 0 \\[6pt] -\dfrac{1}{1-\zeta} &amp; y &gt; 0 .\end{cases}
+\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>Consider first an observation <span class="math inline">\(y &gt; 0\)</span>, where the log-likelihood is <span class="math inline">\(\log(1-\zeta) + \ell(y)\)</span>. The two terms separate cleanly: the first involves only <span class="math inline">\(\zeta\)</span> and differentiates to <span class="math inline">\(-1/(1-\zeta)\)</span>, the second involves only <span class="math inline">\(\theta\)</span> and differentiates to <span class="math inline">\(s_i(y)\)</span>.</p>
+<p>At <span class="math inline">\(y = 0\)</span> the log-likelihood is <span class="math inline">\(\log L_0\)</span>, and both parameters enter through <span class="math inline">\(L_0\)</span>. For <span class="math inline">\(\theta_i\)</span>, using <span class="math inline">\(\partial_i f_0 = f_0\,s_i(0)\)</span>,</p>
+<p><span class="math display">\[\frac{\partial \ell_Y}{\partial\theta_i}
+= \frac{(1-\zeta)\,\partial_i f_0}{L_0}
+= \frac{(1-\zeta) f_0}{L_0}\cdot s_i(0) = w_0\,s_i(0),\]</span></p>
+<p>while for <span class="math inline">\(\zeta\)</span> the derivative of <span class="math inline">\(L_0 = \zeta + (1-\zeta)f_0\)</span> is simply <span class="math inline">\(1 - f_0\)</span>, giving <span class="math inline">\((1-f_0)/L_0\)</span>. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>The formula is worth reading in words: away from zero, the score is the parent’s, untouched; at the zeros, the parent’s score is <em>down-weighted</em> by <span class="math inline">\(w_0\)</span>, the probability that the zero actually came from the count process. An observation that is almost certainly structural contributes almost nothing to the estimation of <span class="math inline">\(\theta\)</span>, which is exactly as it should be.</p>
+</section>
+<section id="sec-zi-hessian" class="level3" data-number="4.2.2">
+<h3 data-number="4.2.2" class="anchored" data-anchor-id="sec-zi-hessian"><span class="header-section-number">4.2.2</span> The observed Hessian</h3>
+<div id="prp-zi-hessian" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.2 (Zero-inflated observed Hessian)</strong></span> <span class="math display">\[
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j} =
+\begin{cases}
+w_0 H_{ij}(0) + w_0(1-w_0)\,s_i(0)s_j(0) &amp; y = 0\\[4pt]
+H_{ij}(y) &amp; y &gt; 0
+\end{cases}
+\]</span></p>
+<p><span class="math display">\[
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\zeta} =
+\begin{cases} -\dfrac{f_0\,s_i(0)}{L_0^{2}} &amp; y = 0 \\[6pt] 0 &amp; y &gt; 0\end{cases}
+\qquad\quad
+\frac{\partial^{2}\ell_Y}{\partial\zeta^{2}} =
+\begin{cases} -\dfrac{(1-f_0)^{2}}{L_0^{2}} &amp; y = 0 \\[6pt] -\dfrac{1}{(1-\zeta)^{2}} &amp; y &gt; 0 .\end{cases}
+\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>We work block by block, and the only case requiring care is <span class="math inline">\(y = 0\)</span>, since for <span class="math inline">\(y &gt; 0\)</span> the separated form <span class="math inline">\(\log(1-\zeta) + \ell(y)\)</span> immediately gives <span class="math inline">\(H_{ij}(y)\)</span> for the <span class="math inline">\(\theta\theta\)</span> block, zero for the mixed block, and <span class="math inline">\(-1/(1-\zeta)^2\)</span> for the <span class="math inline">\(\zeta\zeta\)</span> block.</p>
+<p><em>The <span class="math inline">\(\theta\theta\)</span> block at <span class="math inline">\(y = 0\)</span>.</em> We differentiate the score <span class="math inline">\(\partial_i \ell_Y = (1-\zeta)\,\partial_i f_0 / L_0\)</span> with respect to <span class="math inline">\(\theta_j\)</span>, applying the quotient rule and remembering that <span class="math inline">\(\partial_j L_0 = (1-\zeta)\,\partial_j f_0\)</span>:</p>
+<p><span class="math display">\[
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}
+= \frac{(1-\zeta)\,\partial_{ij} f_0}{L_0}
+- \frac{(1-\zeta)^{2}\,\partial_i f_0\,\partial_j f_0}{L_0^{2}} .
+\]</span></p>
+<p>Each of the two pieces can now be rewritten in terms of <span class="math inline">\(w_0\)</span>. For the first, multiply and divide by <span class="math inline">\(f_0\)</span> and invoke <a href="#lem-fij" class="quarto-xref">Lemma&nbsp;<span>4.1</span></a>:</p>
+<p><span class="math display">\[\frac{(1-\zeta)\,\partial_{ij} f_0}{L_0}
+= w_0\,\frac{\partial_{ij} f_0}{f_0}
+= w_0\left(H_{ij}(0) + s_i(0)s_j(0)\right).\]</span></p>
+<p>For the second, note that <span class="math inline">\((1-\zeta)\,\partial_i f_0 / L_0 = w_0\,s_i(0)\)</span>, so the piece equals <span class="math inline">\(w_0^{2}\,s_i(0)s_j(0)\)</span>. Subtracting, the pure product terms combine into <span class="math inline">\(w_0(1 - w_0)\,s_i(0)s_j(0)\)</span>, and the stated formula emerges.</p>
+<p><em>The mixed block at <span class="math inline">\(y = 0\)</span>.</em> Differentiate the same score, this time with respect to <span class="math inline">\(\zeta\)</span>. Both the factor <span class="math inline">\((1-\zeta)\)</span> and the denominator <span class="math inline">\(L_0\)</span> depend on <span class="math inline">\(\zeta\)</span>, with <span class="math inline">\(\partial_\zeta L_0 = 1 - f_0\)</span>, so</p>
+<p><span class="math display">\[
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\zeta}
+= -\frac{\partial_i f_0}{L_0}
+- \frac{(1-\zeta)\,\partial_i f_0\,(1-f_0)}{L_0^{2}}
+= -\frac{\partial_i f_0}{L_0^{2}}\Big[L_0 + (1-\zeta)(1-f_0)\Big].
+\]</span></p>
+<p>At this point something pleasant happens: the bracket collapses. Expanding it,</p>
+<p><span class="math display">\[L_0 + (1-\zeta)(1-f_0)
+= \zeta + (1-\zeta)f_0 + (1-\zeta) - (1-\zeta)f_0
+= \zeta + (1-\zeta) = 1,\]</span></p>
+<p>so the whole block reduces to <span class="math inline">\(-\partial_i f_0 / L_0^{2} = -f_0\,s_i(0)/L_0^{2}\)</span>. The simplification is not cosmetic — it removes a numerical cancellation that the unsimplified expression would have to perform at run time.</p>
+<p><em>The <span class="math inline">\(\zeta\zeta\)</span> block at <span class="math inline">\(y = 0\)</span>.</em> Differentiating <span class="math inline">\((1-f_0)/L_0\)</span> in <span class="math inline">\(\zeta\)</span> once more, only the denominator moves, and <span class="math inline">\(\partial_\zeta (1/L_0) = -(1-f_0)/L_0^{2}\)</span> gives <span class="math inline">\(-(1-f_0)^2/L_0^2\)</span>. <span class="math inline">\(\square\)</span></p>
+</div>
+</section>
+<section id="sec-zi-expected" class="level3" data-number="4.2.3">
+<h3 data-number="4.2.3" class="anchored" data-anchor-id="sec-zi-expected"><span class="header-section-number">4.2.3</span> The expected Hessian</h3>
+<p>To average the observed Hessian we split the expectation according to where the mass sits: the point <span class="math inline">\(\{0\}\)</span> carries probability <span class="math inline">\(L_0\)</span>, and each <span class="math inline">\(y &gt; 0\)</span> carries <span class="math inline">\((1-\zeta)f(y)\)</span>, so that for any function <span class="math inline">\(u\)</span>,</p>
+<p><span class="math display">\[\mathbb{E}[u(Y)] = L_0\,u(0) + (1-\zeta)\sum_{y&gt;0} f(y)\,u(y).\]</span></p>
+<div id="prp-zi-expected" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.3 (Zero-inflated expected Hessian)</strong></span> <span class="math display">\[
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}\right]
+= L_0\Big[w_0H_{ij}(0) + w_0(1-w_0)s_i(0)s_j(0)\Big]
++ (1-\zeta)\Big(\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)\Big),
+\]</span></p>
+<p><span class="math display">\[
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\zeta}\right]
+= -\frac{f_0\,s_i(0)}{L_0},
+\qquad
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\zeta^{2}}\right]
+= -\left[\frac{(1-f_0)^{2}}{L_0} + \frac{1-L_0}{(1-\zeta)^{2}}\right].
+\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>For the <span class="math inline">\(\theta\theta\)</span> block, the zero branch of <a href="#prp-zi-hessian" class="quarto-xref">Proposition&nbsp;<span>4.2</span></a> is a constant, so it contributes <span class="math inline">\(L_0\)</span> times its value. The positive branch contributes <span class="math inline">\((1-\zeta)\sum_{y&gt;0} f(y) H_{ij}(y)\)</span>; since summing over the <em>whole</em> support would give <span class="math inline">\(\mathbb{E}_f[H_{ij}]\)</span>, removing the <span class="math inline">\(y = 0\)</span> term leaves <span class="math inline">\(\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)\)</span>, and the first formula follows. The mixed block vanishes on the positive branch, so only the zero branch survives, weighted by <span class="math inline">\(L_0\)</span>, which cancels one power of the denominator: <span class="math inline">\(L_0 \cdot (-f_0 s_i(0)/L_0^2) = -f_0 s_i(0)/L_0\)</span>. The <span class="math inline">\(\zeta\zeta\)</span> block is the weighted average of its two branches with weights <span class="math inline">\(L_0\)</span> and <span class="math inline">\(1-L_0\)</span>.</p>
+<p>As a cross-check, the second Bartlett identity of <a href="03-distributions.html#thm-bartlett" class="quarto-xref">Theorem&nbsp;<span>3.1</span></a> requires this last quantity to equal <span class="math inline">\(-\mathbb{E}[(\partial_\zeta \ell_Y)^2]\)</span>; computing that expectation from the two branches of the score gives <span class="math inline">\(-\big[L_0\,((1-f_0)/L_0)^2 + (1-L_0)/(1-\zeta)^2\big]\)</span>, which is the same expression. <span class="math inline">\(\square\)</span></p>
+</div>
+</section>
+<section id="sec-zi-moments" class="level3" data-number="4.2.4">
+<h3 data-number="4.2.4" class="anchored" data-anchor-id="sec-zi-moments"><span class="header-section-number">4.2.4</span> Moments</h3>
+<p>Since the extra component sits entirely at zero, it contributes nothing to any moment of positive order, and for every <span class="math inline">\(k \geq 1\)</span>,</p>
+<p><span class="math display">\[\mathbb{E}[Y^{k}] = (1-\zeta)\,\mathbb{E}_f[Y^{k}].\]</span></p>
+<p>If the parent has mean <span class="math inline">\(\mu\)</span> and variance <span class="math inline">\(\sigma^{2}\)</span>, this gives <span class="math inline">\(\mathbb{E}[Y] = (1-\zeta)\mu\)</span> at once, and for the variance we compute</p>
+<p><span class="math display">\[\operatorname{Var}(Y) = (1-\zeta)\left(\sigma^{2}+\mu^{2}\right) - (1-\zeta)^{2}\mu^{2}
+= (1-\zeta)\sigma^{2} + \zeta(1-\zeta)\mu^{2}.\]</span></p>
+<p>For a Poisson parent, where <span class="math inline">\(\sigma^2 = \mu\)</span>, the variance <span class="math inline">\((1-\zeta)\mu + \zeta(1-\zeta)\mu^2\)</span> strictly exceeds the mean <span class="math inline">\((1-\zeta)\mu\)</span>: a zero-inflated Poisson is always overdispersed, which is the second reason, after the zeros themselves, that the model gets reached for.</p>
+</section>
+</section>
+<section id="sec-hurdle" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="sec-hurdle"><span class="header-section-number">4.3</span> Zero-adjustment: the discrete hurdle</h2>
+<p>Zero-inflation keeps the parent’s zeros and adds more. The hurdle model takes the opposite view: it treats the zeros as coming from a mechanism of their own, removes the parent’s mass at zero entirely, and puts a free parameter in its place.</p>
+<div id="def-hurdle" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.3 (Hurdle distribution)</strong></span> Let <span class="math inline">\(D\)</span> be a discrete distribution with <span class="math inline">\(0\)</span> in its support and <span class="math inline">\(f_0 &lt; 1\)</span>, and let <span class="math inline">\(\pi \in (0,1)\)</span>. The <strong>zero-adjusted</strong> (hurdle) version of <span class="math inline">\(D\)</span> is</p>
+<p><span class="math display">\[
+P(Y=y;\theta,\pi) =
+\begin{cases}
+\pi &amp; y = 0,\\[4pt]
+(1-\pi)\dfrac{f(y;\theta)}{1-f_0} &amp; y &gt; 0 .
+\end{cases}
+\]</span></p>
+</div>
+<p>The division by <span class="math inline">\(1 - f_0\)</span> is the truncation, and it is the entire difference between this definition and <a href="#def-zi" class="quarto-xref">Definition&nbsp;<span>4.2</span></a>. Since <span class="math inline">\(\sum_{y&gt;0} f(y) = 1 - f_0\)</span> exactly, the positive part sums to <span class="math inline">\(1-\pi\)</span> and the whole object is a proper distribution. Two structural consequences are visible before any derivative is taken. First, <span class="math inline">\(P(Y=0) = \pi\)</span> is completely free in <span class="math inline">\((0,1)\)</span>: where zero-inflation can only push the mass at zero <em>above</em> <span class="math inline">\(f_0\)</span>, the hurdle can place it anywhere, so it also fits data with <em>fewer</em> zeros than the parent would produce. Second, <span class="math inline">\(\theta\)</span> has changed its meaning — it now parametrises the zero-truncated law rather than the original count process — and this matters whenever the estimates are interpreted rather than merely used.</p>
+<p>The deepest property of the model, from which everything else follows, is that its log-likelihood <strong>separates</strong>. Writing it out,</p>
+<p><span class="math display">\[
+\ell_Y(\theta,\pi;y) =
+\underbrace{\mathbb{I}(y=0)\log\pi + \mathbb{I}(y&gt;0)\log(1-\pi)}_{\text{a Bernoulli likelihood in } \pi}
+\;+\; \mathbb{I}(y&gt;0)\underbrace{\Big[\ell(y) - \log(1-f_0)\Big]}_{\text{a truncated likelihood in } \theta},
+\]</span></p>
+<p>and the two groups share no parameter. All mixed <span class="math inline">\(\theta\)</span>–<span class="math inline">\(\pi\)</span> derivatives therefore vanish identically, at every order, observed and expected, and the two halves of the model could be fitted separately with identical results.</p>
+<section id="sec-hurdle-score" class="level3" data-number="4.3.1">
+<h3 data-number="4.3.1" class="anchored" data-anchor-id="sec-hurdle-score"><span class="header-section-number">4.3.1</span> The score</h3>
+<div id="prp-hurdle-score" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.4 (Hurdle score)</strong></span> <span class="math display">\[
+\frac{\partial\ell_Y}{\partial\theta_i} =
+\begin{cases} 0 &amp; y = 0 \\[4pt]
+s_i(y) + \dfrac{f_0}{1-f_0}\,s_i(0) &amp; y &gt; 0\end{cases}
+\qquad\qquad
+\frac{\partial\ell_Y}{\partial\pi} =
+\begin{cases} \dfrac{1}{\pi} &amp; y = 0 \\[6pt] -\dfrac{1}{1-\pi} &amp; y &gt; 0 .\end{cases}
+\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>At <span class="math inline">\(y = 0\)</span> the log-likelihood is <span class="math inline">\(\log\pi\)</span>, which does not contain <span class="math inline">\(\theta\)</span>, so the <span class="math inline">\(\theta\)</span>-score vanishes and the <span class="math inline">\(\pi\)</span>-score is <span class="math inline">\(1/\pi\)</span>. At <span class="math inline">\(y &gt; 0\)</span> it is <span class="math inline">\(\log(1-\pi) + \ell(y) - \log(1-f_0)\)</span>; the <span class="math inline">\(\pi\)</span>-derivative of the first term is <span class="math inline">\(-1/(1-\pi)\)</span>, the <span class="math inline">\(\theta_i\)</span>-derivative of the second is <span class="math inline">\(s_i(y)\)</span>, and for the third,</p>
+<p><span class="math display">\[-\frac{\partial}{\partial\theta_i}\log(1-f_0)
+= \frac{\partial_i f_0}{1-f_0} = \frac{f_0}{1-f_0}\,s_i(0),\]</span></p>
+<p>again using <span class="math inline">\(\partial_i f_0 = f_0\,s_i(0)\)</span>. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>The extra term is the <strong>truncation correction</strong>, and it has a transparent reading: because the law has been renormalised over the positive values, raising the parent’s probability of a zero now <em>lowers</em> the probability of every positive observation, and the score must account for that.</p>
+</section>
+<section id="sec-hurdle-hessian" class="level3" data-number="4.3.2">
+<h3 data-number="4.3.2" class="anchored" data-anchor-id="sec-hurdle-hessian"><span class="header-section-number">4.3.2</span> The Hessians</h3>
+<div id="prp-hurdle-hessian" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.5 (Hurdle Hessians)</strong></span> Abbreviate</p>
+<p><span class="math display">\[
+C_{ij} = \frac{(1-f_0)\,\partial_{ij}f_0 + \partial_i f_0\,\partial_j f_0}{(1-f_0)^{2}},
+\qquad\text{where}\quad
+\partial_i f_0 = f_0\,s_i(0), \quad
+\partial_{ij} f_0 = f_0\left(H_{ij}(0) + s_i(0)s_j(0)\right).
+\]</span></p>
+<p>Then the observed Hessian is</p>
+<p><span class="math display">\[
+\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j} =
+\begin{cases} 0 &amp; y=0 \\ H_{ij}(y) + C_{ij} &amp; y&gt;0\end{cases}
+\qquad
+\frac{\partial^{2}\ell_Y}{\partial\pi^{2}} =
+\begin{cases} -\dfrac{1}{\pi^{2}} &amp; y=0\\[6pt] -\dfrac{1}{(1-\pi)^{2}} &amp; y&gt;0,\end{cases}
+\]</span></p>
+<p>with the mixed block identically zero, and in expectation</p>
+<p><span class="math display">\[
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}\right]
+= (1-\pi)\left[\frac{\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)}{1-f_0} + C_{ij}\right],
+\qquad
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\pi^{2}}\right] = -\frac{1}{\pi(1-\pi)} .
+\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>For the observed <span class="math inline">\(\theta\theta\)</span> block at <span class="math inline">\(y &gt; 0\)</span>, differentiate the score of <a href="#prp-hurdle-score" class="quarto-xref">Proposition&nbsp;<span>4.4</span></a> with respect to <span class="math inline">\(\theta_j\)</span>. The term <span class="math inline">\(s_i(y)\)</span> gives <span class="math inline">\(H_{ij}(y)\)</span>. The correction term is the quotient <span class="math inline">\(\partial_i f_0 / (1-f_0)\)</span>, and by the quotient rule — keeping in mind that <span class="math inline">\(\partial_j(1-f_0) = -\partial_j f_0\)</span>, which turns the usual minus into a plus —</p>
+<p><span class="math display">\[\frac{\partial}{\partial\theta_j}\,\frac{\partial_i f_0}{1-f_0}
+= \frac{(1-f_0)\,\partial_{ij}f_0 + \partial_i f_0\,\partial_j f_0}{(1-f_0)^{2}}
+= C_{ij},\]</span></p>
+<p>where the expressions for <span class="math inline">\(\partial_i f_0\)</span> and <span class="math inline">\(\partial_{ij} f_0\)</span> come from the definition of the score and from <a href="#lem-fij" class="quarto-xref">Lemma&nbsp;<span>4.1</span></a> respectively. At <span class="math inline">\(y = 0\)</span> the log-likelihood is free of <span class="math inline">\(\theta\)</span>, and the <span class="math inline">\(\pi\)</span> blocks follow by differentiating <span class="math inline">\(1/\pi\)</span> and <span class="math inline">\(-1/(1-\pi)\)</span> once more.</p>
+<p>For the expectation of the <span class="math inline">\(\theta\theta\)</span> block, the zero branch contributes nothing, and each positive <span class="math inline">\(y\)</span> carries mass <span class="math inline">\((1-\pi)f(y)/(1-f_0)\)</span>, so</p>
+<p><span class="math display">\[\mathbb{E}\left[\partial^{2}_{ij}\ell_Y\right]
+= \frac{1-\pi}{1-f_0}\sum_{y&gt;0} f(y)\Big(H_{ij}(y) + C_{ij}\Big).\]</span></p>
+<p>The conditional weights <span class="math inline">\(f(y)/(1-f_0)\)</span> sum to one over the positive values, so the constant <span class="math inline">\(C_{ij}\)</span> passes through with factor <span class="math inline">\((1-\pi)\)</span>, and the sum <span class="math inline">\(\sum_{y&gt;0} f(y)H_{ij}(y)\)</span> is <span class="math inline">\(\mathbb{E}_f[H_{ij}] - f_0 H_{ij}(0)\)</span>, as in the zero-inflated case. Finally, averaging the two branches of the <span class="math inline">\(\pi\pi\)</span> block with weights <span class="math inline">\(\pi\)</span> and <span class="math inline">\(1-\pi\)</span>,</p>
+<p><span class="math display">\[-\frac{\pi}{\pi^{2}} - \frac{1-\pi}{(1-\pi)^{2}}
+= -\frac{1}{\pi} - \frac{1}{1-\pi} = -\frac{1}{\pi(1-\pi)},\]</span></p>
+<p>which is the Fisher information of a single Bernoulli trial — exactly what the separation of the likelihood promised. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>For the moments, the same argument as before — the zero contributes nothing to positive powers — gives <span class="math inline">\(\mathbb{E}[Y^{k}] = (1-\pi)\,\mathbb{E}_f[Y^{k}]/(1-f_0)\)</span> for every <span class="math inline">\(k \geq 1\)</span>, and in particular <span class="math inline">\(\mathbb{E}[Y] = (1-\pi)\mu/(1-f_0)\)</span>.</p>
+</section>
+</section>
+<section id="sec-za-continuous" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="sec-za-continuous"><span class="header-section-number">4.4</span> Zero-adjustment for continuous distributions</h2>
+<p>When the parent is continuous the situation simplifies in one way and deepens in another. It simplifies because <span class="math inline">\(P(W = 0) = 0\)</span> already, so there is nothing to truncate: adjustment amounts to placing a point mass at zero next to the density. It deepens because the resulting object is neither continuous nor discrete but <strong>mixed</strong>, and mixed distributions require a moment of care about what “density” even means.</p>
+<div id="def-za-continuous" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.4 (Zero-adjusted continuous distribution)</strong></span> Let <span class="math inline">\(W\)</span> be continuous with density <span class="math inline">\(f_W(\cdot\,;\theta)\)</span>, and let <span class="math inline">\(\pi \in (0,1)\)</span>. Define <span class="math inline">\(Y\)</span> by</p>
+<p><span class="math display">\[f_Y(0) = \pi, \qquad f_Y(y) = (1-\pi)f_W(y;\theta) \quad (y \neq 0),\]</span></p>
+<p>where <span class="math inline">\(f_Y\)</span> is a density with respect to the measure <span class="math inline">\(\nu = \delta_0 + \lambda\)</span> — a point mass at zero plus Lebesgue measure.</p>
+</div>
+<p>Integrating against <span class="math inline">\(\nu\)</span> picks up the atom separately from the density:</p>
+<p><span class="math display">\[\int f_Y \,\mathrm{d}\nu = f_Y(0) + \int f_Y\,\mathrm{d}\lambda
+= \pi + (1-\pi)\cdot 1 = 1,\]</span></p>
+<p>so the object is a proper distribution — but note that its density integrates, in the ordinary Lebesgue sense, to <span class="math inline">\(1 - \pi\)</span> rather than one. This is the family of the zero-adjusted Gamma, inverse Gaussian and lognormal used for semicontinuous data, and of the zero-adjusted Beta used for proportions with observed zeros.</p>
+<p>Because part of the mass is invisible to ordinary integration, the package gives mixed distributions a way to declare their atoms: the generic <code>distrib_atoms()</code> returns the locations and probabilities of the point masses, the default returning none — the right answer for every ordinary distribution, since a continuous one has no atoms and a discrete one consists of nothing else — and only genuinely mixed objects registering more. Every routine that integrates a density, <code>check_distrib()</code> included, consults it.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>zag <span class="ot">&lt;-</span> <span class="fu">zero_adjusted</span>(<span class="fu">gamma_distrib</span>())</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(zag, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>, <span class="at">za =</span> <span class="fl">0.3</span>))</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(<span class="fu">gamma_distrib</span>(), <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>))</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; numeric(0)</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; numeric(0)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The cdf jumps by <span class="math inline">\(\pi\)</span> at zero,</p>
+<p><span class="math display">\[F_Y(q) = (1-\pi)F_W(q;\theta) + \pi\,\mathbb{I}(q \geq 0),\]</span></p>
+<p>and inverting it requires three regions rather than two, because nothing forces the parent’s support to lie above zero — a zero-adjusted Gaussian is a perfectly sensible “spike at zero” model whose quantile function must be able to return negative values. Below the jump, <span class="math inline">\(Q_Y(p) = Q_W(p/(1-\pi))\)</span>; inside the jump, that is for <span class="math inline">\((1-\pi)F_W(0) \leq p \leq (1-\pi)F_W(0) + \pi\)</span>, the quantile is zero; above it, <span class="math inline">\(Q_Y(p) = Q_W((p-\pi)/(1-\pi))\)</span>.</p>
+<p>The likelihood separates even more completely than the hurdle’s, since there is no truncation constant at all:</p>
+<p><span class="math display">\[\ell_Y = \mathbb{I}(y=0)\log\pi
++ \mathbb{I}(y\neq 0)\Big[\log(1-\pi) + \ell_W(y)\Big].\]</span></p>
+<p>Reading off the branches, the score in <span class="math inline">\(\theta_i\)</span> is <span class="math inline">\(s_i(y)\)</span> off the atom and zero on it; the score in <span class="math inline">\(\pi\)</span> is <span class="math inline">\(1/\pi\)</span> on the atom and <span class="math inline">\(-1/(1-\pi)\)</span> off it; the <span class="math inline">\(\theta\theta\)</span> block of the Hessian is <span class="math inline">\(H_{ij}(y)\)</span> off the atom; the mixed block vanishes; and since <span class="math inline">\(P(Y \neq 0) = 1-\pi\)</span> while conditionally on <span class="math inline">\(Y \neq 0\)</span> the law of <span class="math inline">\(Y\)</span> is exactly that of <span class="math inline">\(W\)</span>,</p>
+<p><span class="math display">\[
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\theta_i\partial\theta_j}\right]
+= (1-\pi)\,\mathbb{E}_W[H_{ij}],
+\qquad
+\mathbb{E}\left[\frac{\partial^{2}\ell_Y}{\partial\pi^{2}}\right] = -\frac{1}{\pi(1-\pi)} .
+\]</span></p>
+<p>There is no analogue of the <span class="math inline">\(C_{ij}\)</span> correction, because there was no truncation constant to differentiate — a contrast with the hurdle worth noticing.</p>
+<p>Expectations decompose in the way the measure <span class="math inline">\(\nu\)</span> suggests: for any <span class="math inline">\(u\)</span> with <span class="math inline">\(\mathbb{E}_W|u(W)| &lt; \infty\)</span>,</p>
+<p><span class="math display">\[\mathbb{E}[u(Y)] = \pi\,u(0) + (1-\pi)\,\mathbb{E}_W[u(W)],\]</span></p>
+<p>and this identity is registered as the <code>expectation()</code> method of the class, so that means, variances and all higher moments account for the atom automatically. In particular, with <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma^2\)</span> the parent’s mean and variance, <span class="math inline">\(\mathbb{E}[Y] = (1-\pi)\mu\)</span> and <span class="math inline">\(\operatorname{Var}(Y) = (1-\pi)\sigma^{2} + \pi(1-\pi)\mu^{2}\)</span> — the same formulas as for zero-inflation, which is no accident, as the next section explains.</p>
+<p>One last point concerns derivatives in the response. Away from zero the factor <span class="math inline">\(1-\pi\)</span> is constant in <span class="math inline">\(y\)</span>, so <span class="math inline">\(\partial_y \ell_Y = \partial_y \ell_W\)</span> exactly; at <span class="math inline">\(y = 0\)</span>, however, the log-density jumps between <span class="math inline">\(\log((1-\pi)f_W)\)</span> and <span class="math inline">\(\log\pi\)</span>, no derivative exists, and the methods return <code>NaN</code> rather than the meaningless number a finite difference across the jump would produce.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>, <span class="at">za =</span> <span class="fl">0.3</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_grad_y</span>(zag, <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">4</span>), th)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]    NaN  2.000 -0.625</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_grad_y</span>(<span class="fu">gamma_distrib</span>(), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">4</span>), <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>))</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  2.000 -0.625</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-truncation" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="sec-truncation"><span class="header-section-number">4.5</span> Truncation</h2>
+<p>The last of the operations restricts a distribution to an interval and renormalises what remains. It differs from the zero wrappers in a way that shapes its entire theory: <strong>truncation adds no parameter</strong>. The endpoints are known constants, on the same footing as a binomial’s number of trials. What truncation adds instead is a normalising constant that depends on <span class="math inline">\(\theta\)</span>, and differentiating that constant is all the work there is.</p>
+<div id="def-truncated" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.5 (Truncated distribution)</strong></span> Let <span class="math inline">\(D\)</span> have density or mass function <span class="math inline">\(f(\cdot\,;\theta)\)</span> and support <span class="math inline">\(S\)</span>, and let <span class="math inline">\(\ell &lt; u\)</span> be truncation points with <span class="math inline">\(T = S \cap [\ell, u]\)</span> non-empty. Writing</p>
+<p><span class="math display">\[Z(\theta) = P(\ell \leq Y \leq u) = F(u;\theta) - F(\ell^-;\theta), \qquad
+F(\ell^-) = F(\ell) - P(Y = \ell),\]</span></p>
+<p>the <strong>truncated</strong> version of <span class="math inline">\(D\)</span> is</p>
+<p><span class="math display">\[f_T(y;\theta) = \frac{f(y;\theta)}{Z(\theta)} \ \ (y \in T),
+\qquad 0 \text{ otherwise.}\]</span></p>
+</div>
+<p>Both endpoints are included in the truncated support. For a continuous parent this is a distinction without a difference, since <span class="math inline">\(P(Y = \ell) = 0\)</span>; for a discrete parent it is the whole point — truncating a Poisson below at <span class="math inline">\(\ell = 1\)</span> produces the zero-truncated Poisson on <span class="math inline">\(\{1, 2, \dots\}\)</span>, and the mass sitting exactly at the included endpoint must be added back into <span class="math inline">\(Z\)</span>, whence the correction <span class="math inline">\(F(\ell^-) = F(\ell) - f(\ell)\)</span>.</p>
+<p>There is a subtlety here that repays attention. The correction “subtract the mass at <span class="math inline">\(\ell\)</span>” is naturally read as belonging to the discrete case, but what it really belongs to is the case where the parent places an <strong>atom</strong> at <span class="math inline">\(\ell\)</span> — and <a href="#sec-za-continuous" class="quarto-xref"><span>Section 4.4</span></a> has just manufactured continuous distributions that do exactly that. The cdf of a zero-adjusted Gamma already contains the point mass at zero, so for that parent <span class="math inline">\(F(0) \neq F(0^-)\)</span> even though the object is formally continuous, and a truncation that retained the atom but used <span class="math inline">\(F(0)\)</span> in <span class="math inline">\(Z\)</span> would lose precisely that mass from the normalising constant. The implementation therefore obtains the mass at <span class="math inline">\(\ell\)</span> from <code>distrib_atoms()</code>, uniformly for every kind of parent.</p>
+<p>The distribution functions follow the same pattern as before. For <span class="math inline">\(q \in T\)</span>,</p>
+<p><span class="math display">\[F_T(q) = \frac{F(q;\theta) - F(\ell^-;\theta)}{Z(\theta)},\]</span></p>
+<p>clamped to <span class="math inline">\([0,1]\)</span> outside, and solving <span class="math inline">\(F_T(q) = p\)</span> for <span class="math inline">\(q\)</span> gives the quantile function by delegation to the parent,</p>
+<p><span class="math display">\[Q_T(p) = Q\!\left(F(\ell^-;\theta) + p\,Z(\theta)\right),\]</span></p>
+<p>a relation that holds verbatim for the generalized inverse of a lattice cdf, so the discrete case needs no separate treatment. Generation is inverse transform through this formula, <span class="math inline">\(Y = Q(F(\ell^-) + UZ)\)</span> with <span class="math inline">\(U\)</span> uniform — exact, and guaranteed to finish in one pass no matter how small <span class="math inline">\(Z\)</span> is, which is where rejection sampling would stall.</p>
+<section id="sec-trunc-derivatives" class="level3" data-number="4.5.1">
+<h3 data-number="4.5.1" class="anchored" data-anchor-id="sec-trunc-derivatives"><span class="header-section-number">4.5.1</span> Derivatives</h3>
+<div id="thm-truncated" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 4.3 (Derivatives of a truncated log-likelihood)</strong></span> Let <span class="math inline">\(\ell_T = \ell - \log Z\)</span>, and define, with all expectations taken under the <strong>truncated</strong> distribution itself,</p>
+<p><span class="math display">\[m_i = \mathbb{E}_T[s_i], \qquad
+M_{ij} = \mathbb{E}_T\!\left[H_{ij} + s_is_j\right].\]</span></p>
+<p>Then</p>
+<p><span class="math display">\[
+\frac{\partial \ell_T}{\partial\theta_i} = s_i(y) - m_i,
+\qquad
+\frac{\partial^{2}\ell_T}{\partial\theta_i\partial\theta_j}
+= H_{ij}(y) - M_{ij} + m_im_j,
+\qquad
+\mathbb{E}\!\left[\frac{\partial^{2}\ell_T}{\partial\theta_i\partial\theta_j}\right]
+= -\operatorname{Cov}_T\!\left(s_i, s_j\right).
+\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>Everything reduces to differentiating <span class="math inline">\(\log Z\)</span>. The domain of the integral defining <span class="math inline">\(Z\)</span> is the fixed set <span class="math inline">\(T\)</span> — the endpoints are constants, and the parent’s support does not move with <span class="math inline">\(\theta\)</span> — and this is what licenses differentiation under the integral sign; it is also why truncation at fixed points is a regular problem, where truncation at a <span class="math inline">\(\theta\)</span>-dependent point would not be.</p>
+<p>Differentiating once, and using <span class="math inline">\(\partial_i f = f\,s_i\)</span>,</p>
+<p><span class="math display">\[\frac{\partial Z}{\partial\theta_i}
+= \int_T \partial_i f
+= \int_T f\,s_i
+= Z \int_T \frac{f}{Z}\,s_i
+= Z\,\mathbb{E}_T[s_i] = Z\,m_i,\]</span></p>
+<p>where the second-to-last step divides and multiplies by <span class="math inline">\(Z\)</span> so as to recognise <span class="math inline">\(f/Z = f_T\)</span> inside the integral. Hence <span class="math inline">\(\partial_i \log Z = m_i\)</span>, and the score of the truncated model is the parent’s score minus its truncated mean.</p>
+<p>Differentiating <span class="math inline">\(Z\)</span> a second time, the same manoeuvre together with <a href="#lem-fij" class="quarto-xref">Lemma&nbsp;<span>4.1</span></a> gives</p>
+<p><span class="math display">\[\frac{\partial^{2} Z}{\partial\theta_i\partial\theta_j}
+= \int_T \partial_{ij} f
+= \int_T f\left(H_{ij} + s_is_j\right)
+= Z\,M_{ij},\]</span></p>
+<p>and then, by the quotient rule applied to <span class="math inline">\(\partial_i \log Z = \partial_i Z/Z\)</span>,</p>
+<p><span class="math display">\[\frac{\partial^{2}\log Z}{\partial\theta_i\partial\theta_j}
+= \frac{\partial_{ij}Z}{Z} - \frac{\partial_i Z\,\partial_j Z}{Z^{2}}
+= M_{ij} - m_im_j,\]</span></p>
+<p>which yields the observed Hessian as stated.</p>
+<p>For the expected Hessian, take <span class="math inline">\(\mathbb{E}_T\)</span> of the observed one. The terms <span class="math inline">\(M_{ij}\)</span> and <span class="math inline">\(m_im_j\)</span> do not involve <span class="math inline">\(y\)</span>, so they pass through the expectation unchanged, and</p>
+<p><span class="math display">\[\mathbb{E}_T\!\left[\partial_{ij}\ell_T\right]
+= \mathbb{E}_T[H_{ij}] - M_{ij} + m_im_j .\]</span></p>
+<p>Substituting the definition <span class="math inline">\(M_{ij} = \mathbb{E}_T[H_{ij}] + \mathbb{E}_T[s_is_j]\)</span>, the two occurrences of <span class="math inline">\(\mathbb{E}_T[H_{ij}]\)</span> cancel — a cancellation worth savouring, since it removes the parent’s expected Hessian from the formula entirely — and what remains is</p>
+<p><span class="math display">\[-\left(\mathbb{E}_T[s_is_j] - m_im_j\right) = -\operatorname{Cov}_T(s_i, s_j). \qquad\square\]</span></p>
+</div>
+<p>The three formulas invite three readings. The score of the truncated model is the parent’s score <em>recentred</em> at its mean over the retained region, so the first Bartlett identity holds by construction. The expected information is the <em>covariance matrix of the parent’s score</em> under truncation — which is the second Bartlett identity making an appearance from the other direction, and which guarantees positive semi-definiteness on sight. And none of the ingredients <span class="math inline">\(m_i\)</span>, <span class="math inline">\(M_{ij}\)</span> has a closed form for a general parent: they are computed by quadrature or summation through <code>expectation()</code>, which makes the derivatives of a truncated distribution markedly more expensive than the parent’s own, with third and fourth orders falling back to finite differences of the analytical Hessian.</p>
+<p>Inside <span class="math inline">\([\ell, u]\)</span> the constant <span class="math inline">\(\log Z\)</span> does not depend on <span class="math inline">\(y\)</span>, so the response derivatives are the parent’s, unchanged; outside, the log-density is <span class="math inline">\(-\infty\)</span> and they are <code>NaN</code>.</p>
+</section>
+<section id="sec-trunc-validity" class="level3" data-number="4.5.2">
+<h3 data-number="4.5.2" class="anchored" data-anchor-id="sec-trunc-validity"><span class="header-section-number">4.5.2</span> Which truncations make sense</h3>
+<p>The constructor <code>truncated(distrib, lower, upper)</code> accepts either endpoint or both, and it examines what it is given, because many syntactically valid calls are statistically meaningless. The guiding example: what should <code>truncated(gamma_distrib(), lower = -2)</code> do? The Gamma lives on <span class="math inline">\((0,\infty)\)</span>, so truncating at <span class="math inline">\(-2\)</span> removes no mass whatsoever and the “truncated” distribution would be the Gamma itself. A user who writes such a call has misunderstood something, and returning the parent silently would bury the misunderstanding; the constructor refuses instead, and explains.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">gamma_distrib</span>(), <span class="at">lower =</span> <span class="sc">-</span><span class="dv">2</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! truncated() was given lower = -2, which is at or below the lower bound of the</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   support of 'gamma' (0). Truncating there removes no probability mass and the</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   result would be the parent distribution. Choose a point strictly inside the</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   support, or omit 'lower'.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The same reasoning rejects a non-integer endpoint for a discrete parent, which is ambiguous between the two neighbouring lattice points:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">poisson_distrib</span>(), <span class="at">lower =</span> <span class="fl">1.5</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! 'lower' = 1.5 is not a lattice point. A discrete distribution is supported on</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   the integers, so a non-integer truncation point is ambiguous: use 1 or 2.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A discrete truncation must also leave enough support to identify the parameters. A distribution on <span class="math inline">\(k\)</span> points has <span class="math inline">\(k-1\)</span> free probabilities, so a parent with <span class="math inline">\(p\)</span> parameters needs at least <span class="math inline">\(p+1\)</span> retained points — and since truncation adds no parameter of its own, this is the only identifiability condition it ever raises:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">negbin_distrib</span>(), <span class="dv">3</span>, <span class="dv">4</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! Truncating 'negative binomial' to [3, 4] leaves 2 support point(s), carrying 1 free</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probabilities, while the distribution has 2 parameter(s). They would not be</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified. At least 3 support points are required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>One further refusal connects this section to the previous ones.</p>
+<div id="prp-trunc-zero" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.6 (Truncating away the zero of a zero wrapper destroys its parameter)</strong></span> Let <span class="math inline">\(D_\zeta\)</span> be the zero-inflated version of <span class="math inline">\(D\)</span> and suppose <span class="math inline">\(0 \notin [\ell, u]\)</span>. Then the truncated law of <span class="math inline">\(D_\zeta\)</span> does not depend on <span class="math inline">\(\zeta\)</span> at all.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>For <span class="math inline">\(y \in [\ell, u]\)</span>, which excludes zero, the mass function of <span class="math inline">\(D_\zeta\)</span> is <span class="math inline">\((1-\zeta)f(y)\)</span>, and by the same token the retained mass is <span class="math inline">\(Z = (1-\zeta)\big(F(u) - F(\ell^-)\big)\)</span>, where <span class="math inline">\(F\)</span> is the parent’s cdf. In the ratio <span class="math inline">\(f_T = (1-\zeta)f(y)/Z\)</span> the factor <span class="math inline">\((1-\zeta)\)</span> cancels, leaving <span class="math inline">\(f(y)/(F(u) - F(\ell^-))\)</span>, which is free of <span class="math inline">\(\zeta\)</span>. The score with respect to <span class="math inline">\(\zeta\)</span> is therefore identically zero. The argument for the two zero-adjusted forms is the same with <span class="math inline">\((1-\pi)\)</span> in place of <span class="math inline">\((1-\zeta)\)</span>. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>A parameter with an identically zero score is invisible to the likelihood, and an optimiser asked to estimate it will wander along a flat ridge; the constructor refuses the construction, while allowing truncations that keep zero in the interval, in which case the atom passes through, rescaled by <span class="math inline">\(1/Z\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>()), <span class="at">lower =</span> <span class="dv">1</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! truncated() cannot remove 0 from the support of 'zero-inflated poisson', which models the</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability of a zero. The truncation constant cancels that parameter out of</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   the likelihood, leaving an identically zero score. Truncate elsewhere, or</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   truncate the underlying distribution before wrapping it.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>tz <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">zero_adjusted</span>(<span class="fu">gamma_distrib</span>()), <span class="at">upper =</span> <span class="dv">5</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>, <span class="at">za =</span> <span class="fl">0.3</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(tz, th)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3203948</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="fl">0.3</span> <span class="sc">/</span> <span class="fu">distrib_cdf</span>(<span class="fu">zero_adjusted</span>(<span class="fu">gamma_distrib</span>()), <span class="dv">5</span>, th)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3203948</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Finally, truncating an already truncated distribution is permitted and is collapsed into a single object over the intersection of the two intervals — nesting would be mathematically harmless but would pay the quadrature cost of <span class="math inline">\(m\)</span> and <span class="math inline">\(M\)</span> twice.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">truncated</span>(<span class="fu">gaussian_distrib</span>(), <span class="sc">-</span><span class="dv">1</span>, <span class="dv">3</span>), <span class="at">upper =</span> <span class="dv">2</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(d<span class="sc">@</span>lower, d<span class="sc">@</span>upper)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -1  2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>To close the section, the two truncated families with textbook closed forms, recovered by the general machinery:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># zero-truncated Poisson: P(Y = y) = f(y)/(1 - f(0)), E[Y] = mu/(1 - exp(-mu))</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>ztp <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">poisson_distrib</span>(), <span class="at">lower =</span> <span class="dv">1</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(ztp, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">2</span>))</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3130353 0.3130353 0.2086902 0.1043451</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="fu">dpois</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">2</span>) <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">dpois</span>(<span class="dv">0</span>, <span class="dv">2</span>))</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3130353 0.3130353 0.2086902 0.1043451</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">mean</span>(ztp, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">2</span>)), <span class="dv">2</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="dv">2</span>)))</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.313035 2.313035</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co"># truncated Gaussian on [-1, 2]: E[Y] = mu + sigma (phi(a) - phi(b))/Z</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>tn <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">gaussian_distrib</span>(), <span class="at">lower =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">upper =</span> <span class="dv">2</span>)</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> (<span class="sc">-</span><span class="dv">1</span> <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">/</span> <span class="fl">1.5</span>; b <span class="ot">&lt;-</span> (<span class="dv">2</span> <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">/</span> <span class="fl">1.5</span>; Z <span class="ot">&lt;-</span> <span class="fu">pnorm</span>(b) <span class="sc">-</span> <span class="fu">pnorm</span>(a)</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">mean</span>(tn, <span class="fu">list</span>(<span class="at">mu =</span> <span class="fl">0.5</span>, <span class="at">sigma =</span> <span class="fl">1.5</span>)), <span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> (<span class="fu">dnorm</span>(a) <span class="sc">-</span> <span class="fu">dnorm</span>(b)) <span class="sc">/</span> Z)</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.5 0.5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-choosing" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="sec-choosing"><span class="header-section-number">4.6</span> Choosing among the constructions</h2>
+<p>The three families answer different questions, and the differences are easiest to see side by side.</p>
+<table class="table-striped caption-top table">
+<caption>The three constructions</caption>
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Zero-inflation</th>
+<th>Zero-adjustment (hurdle)</th>
+<th>Truncation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Effect on <span class="math inline">\(P(Y=0)\)</span></td>
+<td><em>adds</em>: <span class="math inline">\(\zeta + (1-\zeta)f_0 &gt; f_0\)</span></td>
+<td><em>replaces</em>: <span class="math inline">\(\pi\)</span>, free in <span class="math inline">\((0,1)\)</span></td>
+<td>removes it, if <span class="math inline">\(0 \notin [\ell,u]\)</span></td>
+</tr>
+<tr class="even">
+<td>Parameters added</td>
+<td>one, <span class="math inline">\(\zeta\)</span></td>
+<td>one, <span class="math inline">\(\pi\)</span></td>
+<td>none</td>
+</tr>
+<tr class="odd">
+<td>Fewer zeros than the parent?</td>
+<td>impossible</td>
+<td>possible</td>
+<td>only none at all</td>
+</tr>
+<tr class="even">
+<td>Meaning of <span class="math inline">\(\theta\)</span></td>
+<td>the original count process</td>
+<td>the zero-truncated law</td>
+<td>the restricted law</td>
+</tr>
+<tr class="odd">
+<td>Likelihood</td>
+<td>does not separate</td>
+<td>binary <span class="math inline">\(\times\)</span> truncated</td>
+<td><span class="math inline">\(\ell - \log Z(\theta)\)</span></td>
+</tr>
+<tr class="even">
+<td>Discrete parent required</td>
+<td>yes</td>
+<td>no</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>The choice between the first two is a choice about the zeros themselves. When a zero is observable evidence of a distinct decision — no claim was filed, no purchase was made, no rain fell — the zeros and the positives genuinely come from two mechanisms, and the hurdle, whose likelihood separates along exactly that line, is the natural model. When the two kinds of zero cannot be told apart, and <span class="math inline">\(\theta\)</span> is meant to keep describing the count process that the ordinary observations come from, zero-inflation is the natural model instead. The two are not nested, and where both fit similarly they still differ in what their <span class="math inline">\(\theta\)</span> <em>means</em>.</p>
+<p>Truncation answers a different question altogether. It is not a model for surplus or deficient zeros but for <strong>unobservable regions</strong>: a detection limit, a register that only records positive counts, a measuring instrument with a ceiling. Part of the sample space was never available, and the model says so.</p>
+<p>One boundary between the families is worth marking explicitly, because the package enforces it. For a continuous parent, “zero-inflation” and “zero-adjustment” would denote the same object — with <span class="math inline">\(P(W=0)=0\)</span> the mixture <span class="math inline">\(\zeta\delta_0 + (1-\zeta)f_W\)</span> <em>is</em> <a href="#def-za-continuous" class="quarto-xref">Definition&nbsp;<span>4.4</span></a> with <span class="math inline">\(\zeta\)</span> in the role of <span class="math inline">\(\pi\)</span> — and offering both names would only invite the belief that they differ. The constructor therefore accepts a continuous parent only under the name <code>zero_adjusted()</code>, and points there when asked otherwise:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">gamma_distrib</span>())</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() requires a discrete distribution: a continuous one has</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   P(Y = 0) = 0, so there is no mass at zero to inflate. To place a point mass</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   at zero alongside a density, use zero_adjusted().</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-identifiability" class="level2" data-number="4.7">
+<h2 data-number="4.7" class="anchored" data-anchor-id="sec-identifiability"><span class="header-section-number">4.7</span> Identifiability</h2>
+<p>The zero wrappers add a parameter, and adding a parameter to a family does not always produce an identified family. What makes this dangerous is that nothing at run time betrays the failure: the mass function still sums to one, every numerical check still passes, and an optimiser still converges — to an arbitrary point of a flat ridge, with standard errors to match. The only place the failure can be caught is the constructor, so the constructors carry the mathematics needed to catch it. This section derives that mathematics.</p>
+<section id="sec-no-stacking" class="level3" data-number="4.7.1">
+<h3 data-number="4.7.1" class="anchored" data-anchor-id="sec-no-stacking"><span class="header-section-number">4.7.1</span> Wrappers do not stack</h3>
+<div id="prp-no-stack-1" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.7 (Zero-truncation annihilates zero-inflation)</strong></span> Let <span class="math inline">\(D_\zeta\)</span> be the zero-inflated version of <span class="math inline">\(D\)</span>. Then the zero-truncated law of <span class="math inline">\(D_\zeta\)</span> coincides with the zero-truncated law of <span class="math inline">\(D\)</span> itself, whatever the value of <span class="math inline">\(\zeta\)</span>.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>For <span class="math inline">\(y &gt; 0\)</span>, the mass function of <span class="math inline">\(D_\zeta\)</span> is <span class="math inline">\((1-\zeta)f(y)\)</span> and its total mass on the positive integers is <span class="math inline">\(1 - L_0 = 1 - \zeta - (1-\zeta)f_0 = (1-\zeta)(1-f_0)\)</span>. Dividing,</p>
+<p><span class="math display">\[
+\frac{(1-\zeta)f(y)}{(1-\zeta)(1-f_0)} = \frac{f(y)}{1-f_0},
+\]</span></p>
+<p>and <span class="math inline">\(\zeta\)</span> has cancelled. <span class="math inline">\(\square\)</span></p>
+</div>
+<p>The consequence is immediate: in <code>zero_adjusted(zero_inflated(D))</code> the parameter <span class="math inline">\(\zeta\)</span> appears nowhere in the resulting mass function, its score is identically zero, and it cannot be estimated. The reverse composition fails similarly — in <code>zero_inflated(zero_adjusted(D))</code> the pair <span class="math inline">\((\zeta, \pi)\)</span> enters the law only through the combination <span class="math inline">\(c = \zeta + (1-\zeta)\pi\)</span>, since the mass at zero is <span class="math inline">\(c\)</span> and the positive part carries the factor <span class="math inline">\((1-\zeta)(1-\pi) = 1 - c\)</span>, so every pair on the curve <span class="math inline">\(\zeta + (1-\zeta)\pi = c\)</span> produces exactly the same distribution. Both constructions are therefore refused:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_adjusted</span>(<span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>())))</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_adjusted() cannot wrap 'zero-inflated poisson', which already models the probability of a zero.</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_inflated</span>(<span class="fu">zero_adjusted</span>(<span class="fu">poisson_distrib</span>())))</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_inflated() cannot wrap 'zero-adjusted poisson', which already models the probability of a zero.</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>That these refusals guard against something real, and not a theoretical scruple, can be seen by building the forbidden object by hand, bypassing the constructor, and watching the parameter vanish:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.70</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_gradient</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))<span class="sc">$</span>zi</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0 0 0 0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-counting-rule" class="level3" data-number="4.7.2">
+<h3 data-number="4.7.2" class="anchored" data-anchor-id="sec-counting-rule"><span class="header-section-number">4.7.2</span> Counting the support</h3>
+<div id="prp-counting" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.8 (The counting rule)</strong></span> A distribution supported on <span class="math inline">\(k\)</span> points is an element of the <span class="math inline">\((k-1)\)</span>-dimensional probability simplex, so a family with <span class="math inline">\(q\)</span> free parameters can be identified only if <span class="math inline">\(q \leq k-1\)</span>. Both zero wrappers have <span class="math inline">\(q = p+1\)</span> parameters, where <span class="math inline">\(p\)</span> is the number of the parent’s; hence at least</p>
+<p><span class="math display">\[k \geq p + 2\]</span></p>
+<p>support points are necessary for either wrapper to be identified.</p>
+</div>
+<p>The condition is necessary but not sufficient — a badly parametrised family can fail to be identified with any amount of support — yet it is exactly what rules out the case that arises in practice: the Bernoulli, with <span class="math inline">\(k = 2\)</span> and <span class="math inline">\(p = 1\)</span>. Zero-inflating a Bernoulli spends two parameters describing the single free cell of <span class="math inline">\(\{0, 1\}\)</span>. Zero-adjusting one is even more striking: the truncation concentrates everything on <span class="math inline">\(\{1\}\)</span>, so <span class="math inline">\(f(1)/(1-f_0) = \mu/(1-(1-\mu)) = 1\)</span> whatever <span class="math inline">\(\mu\)</span> is, and the parent’s parameter drops out of the model completely, leaving <span class="math inline">\(P(Y=0) = \pi,\ P(Y=1) = 1-\pi\)</span>.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">bernoulli_distrib</span>())</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() cannot wrap 'bernoulli': its support has 2 points, so the family has 1 free</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability, while the wrapped distribution would have 2 parameters. They are not</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified -- different parameter values give exactly the same distribution.</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   A support of at least 3 points is required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_adjusted</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">1</span>))</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_adjusted() cannot wrap 'binomial': its support has 2 points, so the family has 1 free</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability, while the wrapped distribution would have 2 parameters. They are not</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified -- different parameter values give exactly the same distribution.</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   A support of at least 3 points is required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The same rule admits a binomial with two trials, whose three support points are enough for the two parameters:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">2</span>))<span class="sc">@</span>params</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu" "zi"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A caveat to end on: the counting rule protects against structural non-identification, the kind that no amount of data can cure. Weak identification of the statistical kind — a Poisson mean so large that <span class="math inline">\(f_0\)</span> underflows, a <span class="math inline">\(\zeta\)</span> so close to zero that the data barely see it — remains possible in any mixture model, and there it is the standard errors from <code>fit_distrib()</code> that tell the story.</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/03-distributions.html" class="pagination-link" aria-label="Distributions">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Distributions</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/A1-notation.html" class="pagination-link" aria-label="Notation">
+        <span class="nav-page-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>The statmodels7 Framework</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
