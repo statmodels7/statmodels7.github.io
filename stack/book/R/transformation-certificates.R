@@ -465,5 +465,37 @@ assert_transformations_ok <- function() {
   if (any(zc$checks != zc$passed) || any(tcc$checks != tcc$passed)) {
     stop("check_distrib() failed on a wrapper model.", call. = FALSE)
   }
+
+  # Third and fourth derivatives: the partition machinery against finite
+  # differences, and the closed form for the pure zi component at zero.
+  hi <- list(
+    list(d = transformation(gaussian_distrib(), exp_transform()),
+         th = list(mu = 0.5, sigma = 1.1), y = c(0.6, 1.4, 3.0)),
+    list(d = zero_inflated(negbin_distrib()),
+         th = list(mu = 4, theta = 1.5, zi = 0.3), y = c(0, 2, 6)),
+    list(d = zero_adjusted(poisson_distrib()),
+         th = list(mu = 3, za = 0.4), y = c(0, 1, 5)),
+    list(d = zero_adjusted(gamma_distrib()),
+         th = list(mu = 3, sigma2 = 2, za = 0.3), y = c(0, 1.2, 5)),
+    list(d = truncated(gaussian_distrib(), -1, 3),
+         th = list(mu = 0.5, sigma = 1.5), y = c(-0.5, 0.3, 2.4)),
+    list(d = truncated(poisson_distrib(), lower = 1), th = list(mu = 2.5), y = c(1, 3, 6))
+  )
+  for (cs in hi) {
+    for (k in 3:4) {
+      a <- if (k == 3) distrib_deriv3(cs$d, cs$y, cs$th) else distrib_deriv4(cs$d, cs$y, cs$th)
+      n <- if (k == 3) numerical_deriv3(cs$d, cs$y, cs$th) else numerical_deriv4(cs$d, cs$y, cs$th)
+      e <- max(vapply(names(n), function(j) rel_err(a[[j]], n[[j]]), numeric(1)))
+      if (!is.finite(e) || e > 1e-4) {
+        stop(sprintf("order-%d derivatives of '%s' disagree with finite differences (%.2e).",
+                     k, cs$d@distrib_name, e), call. = FALSE)
+      }
+    }
+  }
+  zd <- zero_inflated(poisson_distrib())
+  f0 <- dpois(0, 3); L0 <- 0.25 + 0.75 * f0; r <- (1 - f0) / L0
+  if (abs(distrib_deriv3(zd, 0, list(mu = 3, zi = 0.25))[["zi_zi_zi"]] - 2 * r^3) > 1e-10) {
+    stop("The closed form for the pure zi third derivative no longer matches.", call. = FALSE)
+  }
   invisible(TRUE)
 }

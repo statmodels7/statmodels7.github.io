@@ -961,6 +961,138 @@ a <- (-1 - 0.5) / 1.5; b <- (2 - 0.5) / 1.5; Z <- pnorm(b) - pnorm(a)
 c(mean(tn, list(mu = 0.5, sigma = 1.5)), 0.5 + 1.5 * (dnorm(a) - dnorm(b)) / Z)
 ```
 
+## The higher orders, all at once {#sec-higher-orders}
+
+Everything derived so far has stopped at the second derivative, which is where
+a fitting routine stops. The stack promises four orders, though, and the
+promise is worth keeping for the wrappers as well as for the distributions they
+wrap. What makes that cheap is a structural observation: **every wrapper's
+log-likelihood has the same shape**. Setting the branches side by side,
+
+$$
+\begin{aligned}
+\text{zero-inflated, } y = 0:\quad & \ell_Y = \log L_0, \qquad L_0 = \zeta + (1-\zeta)f_0,\\
+\text{hurdle, } y > 0:\quad & \ell_Y = \ell(y) - \log(1-f_0) + \log(1-\pi),\\
+\text{zero-adjusted continuous, } y \neq 0:\quad & \ell_Y = \ell_W(y) + \log(1-\pi),\\
+\text{truncated}:\quad & \ell_T = \ell(y) - \log Z,
+\end{aligned}
+$$
+
+each is the parent's log-density plus, or instead of, **the logarithm of some
+quantity that depends on $\theta$**. So one derivation covers all four, provided
+we can differentiate a logarithm to arbitrary order — and we can, using nothing
+that has not already appeared in this book.
+
+### Two facts, both sums over partitions {#sec-two-facts}
+
+The first is @lem-exp-deriv, read in the direction opposite to the one
+@sec-bartlett used it. There it turned $\partial^k f$ into something whose
+expectation vanishes; here it simply says how to get the derivatives of a
+density from those of its logarithm:
+
+$$\frac{\partial^{I} f}{f} \;=\; \sum_{\pi \in \Pi_I} \prod_{B \in \pi} \ell^{(B)},$$
+
+the complete Bell polynomial in the parent's derivatives, where $\Pi_I$ runs
+over the set partitions of the multi-index $I$.
+
+The second is its inverse, and is the classical relation between moments and
+cumulants.
+
+::: {#prp-log-deriv}
+## Derivatives of a logarithm
+
+For a positive function $L$ of the parameters and a multi-index $I$,
+
+$$\partial^{I} \log L \;=\; \sum_{\pi \in \Pi_I} (-1)^{|\pi|-1}\,(|\pi|-1)!
+   \prod_{B \in \pi} \frac{\partial^{B} L}{L}.$$
+:::
+
+::: {.proof}
+Both sides are determined by their values on the algebra of partitions, so it
+suffices to check that the two expansions invert one another. Substituting the
+first fact into the second with $L = f$ gives, on the right, a sum over pairs
+$(\pi, \sigma)$ with $\sigma$ refining $\pi$, weighted by
+$(-1)^{|\pi|-1}(|\pi|-1)!$. For a fixed $\sigma$ the inner sum over the $\pi$
+it refines is $\sum_{\pi \geq \sigma}(-1)^{|\pi|-1}(|\pi|-1)!$, which is the
+Möbius function of the partition lattice and vanishes unless $\sigma$ is the
+single-block partition. What survives is $\ell^{(I)}$, which is what
+$\partial^I \log f$ should be. $\square$
+:::
+
+Only the *ratios* $\partial^B L / L$ are ever needed, never $L$'s derivatives
+on their own — which matters because for the truncated wrapper those ratios are
+exactly the truncated expectations already met in @thm-truncated:
+
+$$\frac{\partial^{B} Z}{Z} = \mathbb{E}_T\!\left[\frac{\partial^{B}f}{f}\right].$$
+
+At second order this is $M_{ij}$, and @prp-log-deriv reduces to
+$\partial_{ij}\log Z = M_{ij} - m_i m_j$ — the formula derived by hand earlier.
+The same collapse happens everywhere: putting $|I| = 1$ or $2$ into the two
+facts reproduces every score and Hessian in this chapter, including the
+$w_0(1-w_0)$ of @prp-zi-hessian and the truncation correction $C_{ij}$ of
+@prp-hurdle-hessian. The general machinery and the hand derivations are two
+routes to the same formulas, and each is a check on the other.
+
+### What each wrapper needs {#sec-higher-per-wrapper}
+
+With the two facts in hand, each wrapper is a matter of naming its $L$ and its
+ratios.
+
+For a **transformed** distribution there is nothing to do at all: by
+@thm-transform-invariance the derivatives are the parent's at $x = g^{-1}(y)$,
+at every order.
+
+For **zero-inflation** at $y = 0$ we have $L = L_0$, which is *affine* in
+$\zeta$ — a fact that does most of the work, since it kills every block
+containing two or more $\zeta$'s. Writing $A$ for the $\theta$-part of a block
+and counting its $\zeta$'s,
+
+$$
+\frac{\partial^{B}L_0}{L_0} =
+\begin{cases}
+w_0 \cdot \dfrac{\partial^{A} f_0}{f_0} & \text{no } \zeta,\\[8pt]
+-f_0\,\dfrac{\partial^{A} f_0}{f_0}\Big/L_0 & \text{one } \zeta,\ A \neq \emptyset,\\[8pt]
+(1-f_0)/L_0 & \text{one } \zeta,\ A = \emptyset,\\[4pt]
+0 & \text{two or more } \zeta.
+\end{cases}
+$$
+
+Above zero the likelihood separates, so mixed components vanish and the pure
+ones are the parent's and $\partial^k\log(1-\zeta) = -(k-1)!/(1-\zeta)^k$.
+
+For the **hurdle** the separation is complete at every order, so all mixed
+components are identically zero; the $\theta$ part above zero is the parent's
+derivative minus that of $\log(1-f_0)$, whose ratios are
+$-f_0(\partial^B f_0/f_0)/(1-f_0)$. The **zero-adjusted continuous** case is the
+same without the truncation constant. And **truncation** is $\ell$ minus
+$\log Z$ with the expectations above.
+
+As a small closed form to end on, the pure $\zeta$ derivatives at zero: since
+$\ell_Y = \log\big(f_0 + \zeta(1-f_0)\big)$ is a logarithm of an affine
+function,
+
+$$\frac{\partial^{k}\ell_Y}{\partial\zeta^{k}}\bigg|_{y=0}
+= (-1)^{k-1}(k-1)!\left(\frac{1-f_0}{L_0}\right)^{k}.$$
+
+```{r}
+#| label: zi-pure-zeta
+d <- zero_inflated(poisson_distrib())
+f0 <- dpois(0, 3); L0 <- 0.25 + 0.75 * f0; r <- (1 - f0) / L0
+c(package = distrib_deriv3(d, 0, list(mu = 3, zi = 0.25))[["zi_zi_zi"]],
+  closed  = 2 * r^3)
+```
+
+### What it costs {#sec-higher-cost}
+
+For the zero wrappers, nothing to speak of: the ratios are algebraic in $f_0$
+and the parent's derivatives, and the partition sums have at most fifteen terms
+at fourth order. For truncation each *distinct block* costs one quadrature or
+summation, so a fourth-order component with two parameters needs a handful —
+memoised across the partition sum, since a partition of four indices asks for
+the same small blocks repeatedly. It is the same trade the second order already
+made, and the reason the closed forms of a future `distrib_grad_cdf` would pay
+for themselves.
+
 ## Choosing among the constructions {#sec-choosing}
 
 The three families answer different questions, and the differences are easiest
