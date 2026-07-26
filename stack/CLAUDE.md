@@ -571,6 +571,25 @@ certification tables, no "verdict" columns, no meta-narrative about verification
 And the prose must be flowing, discursive, book-like — not strings of short
 sentences — with the mathematics explained step by step.
 
+**Notation, fixed 2026-07-26 (Giovanni).** Derivatives of the log-likelihood use
+**parenthesized superscripts** — `l^(i)`, `l^(ij)`, `l^(ijk)` — never subscripts. A
+subscript on `l` means what it conventionally means in likelihood work: the
+contribution of one observation, or the model the log-likelihood belongs to (`l_Y`,
+`l_T`). Chapter 4 previously used `s_i`/`H_ij` for the same quantities; unified. Note
+this is *not* Einstein/McCullagh convention — there, partial derivatives are covariant
+(lower) indices and a bare superscript `l^rs` denotes the *inverse* information. The
+parentheses are what disambiguate, as in `f^(k)`.
+
+**Truncation points are `L` and `U`**, not `l` and `u`: the lower point collided with
+the log-likelihood symbol, and both appeared in the same comparison table. The uniform
+draw in the inverse-transform formula is `V` for the same reason.
+
+**Pipes break tables.** A `|` inside math in a markdown table splits the cell; kable
+escapes it to `&#124;` and MathJax prints that verbatim (visible in the transformer
+table until 2026-07-26). Always `\lvert ... \rvert`. After every render:
+`grep -c '&#124;' _book/chapters/*.html` must be all zeros — this is not covered by the
+R gates, which run before rendering.
+
 **How consistency is enforced without being mentioned:** each chapter ends with a
 hidden chunk (`include: false`) calling `assert_links_ok()`,
 `assert_distributions_ok()` or `assert_transformations_ok()` (defined in

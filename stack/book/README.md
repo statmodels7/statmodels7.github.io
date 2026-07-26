@@ -15,6 +15,16 @@ quarto render
 
 Output goes to `_book/`. Open `_book/index.html`.
 
+After rendering, check that no pipe escaped into a formula:
+
+``` bash
+grep -c '&#124;' _book/chapters/*.html
+```
+
+Every count must be zero. A `|` written inside a math expression that sits in a
+markdown table breaks the cell, and kable escapes it to `&#124;`, which MathJax
+prints verbatim. Use `\lvert ... \rvert` for absolute values everywhere.
+
 The two packages are loaded **from source** with `pkgload`, from `../linkfunctions7`
 and `../distributions7`, so the book always documents the working tree rather than
 an installed snapshot. Nothing needs to be installed first.
@@ -39,12 +49,23 @@ book/
   assets/theme.scss      the stack's palette
 ```
 
+## Notation
+
+Derivatives of the log-likelihood carry parenthesized superscripts —
+`\ell^{(i)}`, `\ell^{(ij)}`, `\ell^{(ijk)}` — never subscripts. A subscript on
+`\ell` is reserved for what subscripts conventionally mean in likelihood work:
+the contribution of one observation, or the model a log-likelihood belongs to
+(`\ell_Y`, `\ell_T`). Truncation points are `L` and `U`, not `\ell` and `u`.
+
 ## The one rule
 
 Every formula printed in the book is checked against the implementation while the
-book renders. The `R/` files keep the printed LaTeX and a machine-readable
-transcription of it **in the same record**, so the text cannot drift away from
-what is tested without the certification table reporting `DISAGREE`.
+book renders, by the hidden `assert_*_ok()` gates at the end of each chapter. The
+`R/` files keep the printed LaTeX and a machine-readable transcription of it **in
+the same record**, so the text cannot drift away from what is tested without the
+render failing. None of this is mentioned in the book itself: the reader is
+entitled to assume the formulas shown are the ones that run, and the checking is
+ours to do.
 
 If you edit a formula in `R/link-formulas.R` or `R/distribution-catalogue.R`, you
 are editing both the equation the reader sees and the thing that gets tested.

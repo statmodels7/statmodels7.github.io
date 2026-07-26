@@ -30,8 +30,8 @@ TRANSFORMERS <- list(
        domain = "0 \\notin \\operatorname{supp}", decreasing = TRUE),
   list(id = "power", title = "Power", ctor = "power_transform(p = 2)",
        obj = function() power_transform(2),
-       g = "x^{p}", ginv = "\\operatorname{sign}(y)\\,|y|^{1/p}",
-       jac = "\\dfrac{|y|^{1/p - 1}}{|p|}",
+       g = "x^{p}", ginv = "\\operatorname{sign}(y)\\,\\lvert y\\rvert^{1/p}",
+       jac = "\\dfrac{\\lvert y\\rvert^{1/p - 1}}{\\lvert p\\rvert}",
        domain = "p\\text{-dependent}", decreasing = FALSE),
   list(id = "bc", title = "Box-Cox", ctor = "bc_transform(lambda = 0.5)",
        obj = function() bc_transform(0.5),
@@ -41,7 +41,7 @@ TRANSFORMERS <- list(
   list(id = "yj", title = "Yeo-Johnson", ctor = "yj_transform(lambda = 0.5)",
        obj = function() yj_transform(0.5),
        g = "\\begin{cases}\\frac{(x+1)^{\\lambda}-1}{\\lambda} & x \\geq 0\\\\ -\\frac{(1-x)^{2-\\lambda}-1}{2-\\lambda} & x < 0\\end{cases}",
-       ginv = "\\text{piecewise inverse}", jac = "(|x|+1)^{\\operatorname{sign}(x)(\\lambda-1)}",
+       ginv = "\\text{piecewise inverse}", jac = "(\\lvert x\\rvert+1)^{\\operatorname{sign}(x)(\\lambda-1)}",
        domain = "x \\in \\mathbb{R}", decreasing = FALSE),
   list(id = "softplus", title = "Softplus", ctor = "softplus_transform(a = 1)",
        obj = function() softplus_transform(1),
@@ -62,7 +62,7 @@ TRANSFORMERS <- list(
        domain = "x \\in \\mathbb{R}", decreasing = FALSE),
   list(id = "affine", title = "Affine", ctor = "affine_transform(loc = 1, scale = 2)",
        obj = function() affine_transform(1, 2),
-       g = "c + s\\,x", ginv = "\\dfrac{y-c}{s}", jac = "1/|s|",
+       g = "c + s\\,x", ginv = "\\dfrac{y-c}{s}", jac = "1/\\lvert s\\rvert",
        domain = "x \\in \\mathbb{R}", decreasing = FALSE)
 )
 
