@@ -1,0 +1,166 @@
+# Introduction {#sec-introduction}
+
+```{r}
+#| label: setup-01
+#| include: false
+source("R/_setup.R")
+```
+
+## One Gamma, written many times {#sec-rewritten}
+
+Open almost any R modelling package and somewhere in its internals you will find
+a Gamma distribution — not *the* Gamma distribution, but that package's own
+private copy of it, written as a handful of helper functions: a `switch` on a
+character string that returns a density, a closure that computes a score, a
+block inside a fitting routine that produces whatever second derivative the
+routine happens to need. The same is true of link functions. Every package that
+fits something positive carries its own log link, and every package that fits a
+probability carries its own logit.
+
+None of these objects can be reused, because none of them is really an object.
+They are code paths, private to the package that owns them, and they contain
+only what their author's routine happened to call for — usually the density and
+the score, sometimes the Hessian, almost never anything beyond. A package that
+needs a third derivative writes its own Gamma from scratch; a package that wants
+derivatives with respect to an unconstrained parameter does the same. The result
+is that the R ecosystem contains dozens of Gamma distributions, each partial,
+each written under deadline, and each capable of being wrong in its own way.
+
+The observation the stack is built on is that all of this is unnecessary,
+because a Gamma distribution is a fixed mathematical object. It does not vary
+from package to package. Its density, its score, its information, its third and
+fourth derivatives, its derivatives with respect to the response, its behaviour
+under any reparametrisation — all of these are determined once and for all by
+the definition, and they can therefore be written down once, correctly and
+completely, for everyone to build on.
+
+That is what `statmodels7` is: infrastructure meant to be reused, rather than
+another modelling package. The measure of its success is not how well it fits
+models but whether somebody else's modelling package can be built on top of it.
+
+## What "completely" means {#sec-completely}
+
+A distribution in this stack supplies, or can derive, everything a modelling
+routine might reasonably ask of it: the density or mass function together with
+the cdf, the quantile function and a random generator; the score and the
+observed information; the expected information; third and fourth derivatives of
+the log-likelihood, both observed and expected; derivatives with respect to the
+response as well as the parameters; and every one of these quantities with
+respect to the unconstrained parameters as well as the natural ones.
+
+The last two items are the ones usually missing from other implementations, and
+they are precisely the ones a modelling framework depends on. Derivatives in the
+response are what quantile-type residuals and smoothness penalties are made of.
+Derivatives on the unconstrained scale are what an optimiser wants: a Gamma
+variance must stay positive, and an algorithm forced to respect that constraint
+is doing constrained optimisation, whereas an algorithm working with
+$\eta = \log \sigma^2$ moves freely over the whole real line. Third and fourth
+derivatives, finally, are the raw material of higher-order asymptotics and bias
+correction, and their presence is the reason the change of scale developed in
+@sec-link-scale has to be carried to fourth order rather than stopping, as the
+chain rule usually does in practice, at the second.
+
+## The stack {#sec-stack}
+
+The name encodes a convention: every package is a plural noun followed by `7`,
+the `7` being the S7 object system everything is built on.
+
+| Package | What it provides |
+|---|---|
+| `linkfunctions7` | 16 link classes with exact analytical derivatives to fourth order, in both directions |
+| `distributions7` | 14 distributions with exact score, information and third/fourth derivatives, plus wrappers, transformations and maximum likelihood |
+| `modelterms7` | *planned* — model terms usable directly in formulas |
+| `basis7` | *planned* — spline and other bases |
+| `penalties7` | *planned* — penalties |
+| `statmodels7` | *planned* — the modelling framework itself |
+
+: The stack {.striped}
+
+The destination is the last row: a framework in the spirit of GAMLSS in which
+every parameter of a distribution can be modelled rather than just the mean, the
+optimiser is pluggable, estimation can be frequentist or Bayesian, and users can
+define new model terms and drop them straight into formulas. Everything below it
+exists to make that possible, and one design pressure has shaped it all: *exact
+derivatives, on the unconstrained scale, for components the framework has never
+seen before*.
+
+## Only the density is required {#sec-extension}
+
+A stack that worked only for the fourteen distributions it ships with would have
+solved nothing; it would simply be one more closed catalogue, larger than the
+others. What matters is what happens when a user brings a distribution the
+authors never considered, and here the contract is deliberately minimal: **a new
+distribution needs nothing but its density**. Everything else has a fallback —
+the cdf is computed by quadrature, the quantile function by root-finding, the
+random generator by a ratio-of-uniforms scheme that needs only the density, and
+every derivative by finite differences. Whatever the user later supplies in
+closed form simply replaces the corresponding fallback, with no registration
+step and no separate interface for the "advanced" case.
+
+To see what this means in practice, here is a complete definition of the
+Rayleigh distribution, which has density
+$f(y;\sigma) = (y/\sigma^2)\, e^{-y^2/2\sigma^2}$ on $(0, \infty)$:
+
+```{r}
+#| label: minimal-distribution
+Rayleigh <- S7::new_class("Rayleigh", parent = continuous_distrib, package = NULL)
+
+S7::method(distrib_pdf, Rayleigh) <- function(distrib, y, theta, log = FALSE) {
+  s <- theta[[1]]
+  ld <- log(y) - 2 * log(s) - y^2 / (2 * s^2)
+  if (log) ld else exp(ld)
+}
+
+rayleigh <- Rayleigh(
+  distrib_name = "rayleigh", dimension = "univariate", bounds = c(0, Inf),
+  params = "sigma", params_interpretation = c(sigma = "scale"), n_params = 1,
+  params_bounds = list(sigma = c(0, Inf)),
+  link_params = list(sigma = log_link())
+)
+```
+
+Nothing above mentions a cdf, a quantile function, a generator or a derivative,
+and yet all of them are immediately available. The median of a Rayleigh is
+$\sigma\sqrt{2\log 2}$, its score is $y^2/\sigma^3 - 2/\sigma$, and its expected
+information is $4/\sigma^2$; the fallbacks recover each of these from the
+density alone:
+
+```{r}
+#| label: minimal-distribution-use
+theta <- list(sigma = 2)
+
+distrib_quantile(rayleigh, 0.5, theta)     # by root-finding on the numerical cdf
+2 * sqrt(2 * log(2))                       # the closed form
+
+distrib_gradient(rayleigh, c(1, 3), theta) # by finite differences
+c(1, 3)^2 / 2^3 - 2 / 2                    # the closed form
+
+distrib_expected_hessian(rayleigh, 1, theta)$sigma_sigma   # -4/sigma^2
+```
+
+The twenty lines above are a first-class citizen of the stack: the object can be
+zero-inflated, truncated, transformed, and fitted by Fisher scoring exactly like
+the distributions the package ships with.
+
+## Checking one's own work {#sec-validators}
+
+Because users are expected to write their own distributions and links, the
+packages ship the tools to validate them. `check_link()` verifies that a link is
+invertible in both directions, strictly monotone, consistent with the inverse
+function theorem, and that each analytical derivative agrees with a numerical
+one; `check_distrib()` runs the analogous battery on a distribution — the
+density integrates to one, the cdf and the quantile function invert each other
+and agree with the density, the random generator matches the cdf, every
+derivative matches a finite-difference computation, and the expected information
+matches a Monte Carlo estimate of the variance of the score.
+
+```{r}
+#| label: check-rayleigh
+res <- check_distrib(rayleigh, theta = list(sigma = 2), orders = 1:2,
+                     nsim = 5e4, verbose = FALSE)
+res[, c("check", "status")]
+```
+
+These validators run on any object, including one written five minutes ago, and
+they are used systematically on everything the packages contain. The chapters
+that follow present the mathematics behind all of it.
