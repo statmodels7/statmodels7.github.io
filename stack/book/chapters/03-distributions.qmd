@@ -481,6 +481,98 @@ distrib_grad_y(d, c(1, 3, 6), th)
 (3^2 / 2 - 1) / c(1, 3, 6) - 3 / 2
 ```
 
+## Derivatives of the distribution function {#sec-cdf-derivatives}
+
+Everything so far has differentiated the *density*. There is a second family of
+derivatives that a modelling framework needs and that is almost never provided:
+those of the **distribution function** with respect to the parameters. The
+reason they matter is censoring. An observation known only to be at most $q$
+contributes $\log F(q;\theta)$ to the log-likelihood rather than
+$\log f(y;\theta)$; one known only to exceed $q$ contributes
+$\log\big(1 - F(q;\theta)\big)$; and an interval-censored one contributes
+$\log\big(F(b;\theta) - F(a;\theta)\big)$. Without $\partial F/\partial\theta$
+none of these can be fitted by any method that uses a score, which rules out
+survival models, tobit models and every problem with a detection limit.
+
+The mathematics is a single exchange of derivative and integral, and it is worth
+seeing how little it costs. The region of integration is $(-\infty, q]$, fixed,
+not depending on $\theta$ — the same condition that made truncation a regular
+problem in @thm-truncated — so
+
+$$
+\frac{\partial F(q;\theta)}{\partial\theta_i}
+= \int_{-\infty}^{q}\frac{\partial f}{\partial\theta_i}\,\mathrm{d}y
+= \int_{-\infty}^{q} f\,\ell^{(i)}\,\mathrm{d}y
+= F(q)\;\mathbb{E}\!\left[\ell^{(i)} \,\middle|\, Y \leq q\right],
+$$
+
+using $\partial_i f = f\,\ell^{(i)}$ in the middle step and dividing by $F(q)$
+in the last to recognise the conditional density. So the gradient of the *log*
+distribution function is a **partial mean of the score**:
+$\partial_i \log F(q) = \mathbb{E}[\ell^{(i)} \mid Y \le q]$.
+
+The second order follows the same way, with @lem-fij supplying the integrand:
+
+$$
+\frac{\partial^{2} F(q)}{\partial\theta_i\partial\theta_j}
+= F(q)\;\mathbb{E}\!\left[\ell^{(ij)} + \ell^{(i)}\ell^{(j)} \,\middle|\, Y \leq q\right],
+$$
+
+and the log scale from $\partial_{ij}\log P = \partial_{ij}P/P - (\partial_iP/P)(\partial_jP/P)$.
+
+Two things follow for the implementation, and they pull in opposite directions.
+For a **discrete** distribution the expectation is a finite sum over the support
+up to $q$, so the identity is not an approximation at all and can be evaluated
+as it stands. For a **continuous** one it is an integral over a semi-infinite
+region, and evaluating it by quadrature is both slower and less accurate than
+simply differencing the distribution function, which for every family in the
+catalogue is an analytic expression. The package does each where it belongs.
+
+Some families need neither. For a location-scale family, $F(y) = G(z)$ with
+$z = (y-\mu)/\sigma$, and differentiating the composition gives the whole set in
+terms of quantities the distribution already provides:
+
+$$
+\frac{\partial F}{\partial\mu} = -f(y), \qquad
+\frac{\partial F}{\partial\sigma} = -z\,f(y), \qquad
+\frac{\partial^{2} F}{\partial\mu^{2}} = f(y)\,\frac{\partial \ell}{\partial y},
+$$
+
+and similarly for the remaining second derivatives. The first of these is worth
+pausing on: the sensitivity of the distribution function to a shift in location
+is minus the density at that point — obvious once seen, since shifting the
+distribution to the right by $\mathrm{d}\mu$ removes exactly $f(q)\,\mathrm{d}\mu$
+of mass from below $q$.
+
+```{r}
+#| label: cdf-derivatives
+d <- gaussian_distrib()
+th <- list(mu = 1.2, sigma = 1.7)
+q <- c(0, 1.2, 3)
+
+distrib_grad_cdf(d, q, th, log = FALSE)$mu
+-dnorm(q, 1.2, 1.7)
+```
+
+Putting it to work on a censored sample takes one line per kind of observation:
+
+```{r}
+#| label: censored-score
+set.seed(1)
+y <- distrib_rng(d, 200, list(mu = 1, sigma = 2))
+cens <- y > 2.5          # everything above 2.5 is only known to be above it
+y[cens] <- 2.5
+
+# the score in mu: ordinary observations contribute the usual score, censored
+# ones the derivative of log(1 - F)
+sum(distrib_gradient(d, y[!cens], th)$mu) +
+  sum(distrib_grad_cdf(d, y[cens], th, lower.tail = FALSE, log = TRUE)$mu)
+```
+
+An interval-censored observation is assembled from the unlogged derivatives at
+the two endpoints, $\partial\log(F(b)-F(a)) = (\partial F(b) - \partial F(a))/(F(b)-F(a))$,
+which is why the generic offers `log = FALSE` as well.
+
 ## The catalogue {#sec-distrib-catalogue}
 
 The table below is generated from the distribution objects themselves.
