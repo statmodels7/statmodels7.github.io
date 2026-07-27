@@ -281,14 +281,51 @@ a *partial* expectation of the same complete-Bell quantity the wrappers use. Two
 implementations follow from it: for a **discrete** parent the expectation is a finite
 sum, so the identity is exact and is used directly; for a **continuous** one it is a
 semi-infinite integral, and differencing the (analytic) cdf is both cheaper and more
-accurate, so that is the fallback. Location-scale families get closed forms from
-`dF/dmu = -f`, `dF/dsigma = -z f`, and at second order everything in terms of `f` and
-`l_y` — registered for gaussian, logistic, cauchy, laplace.
+accurate, so that is the fallback. **Closed-form coverage (2026-07-27).** 12 of 14 distributions have a closed-form
+gradient; the exceptions are **gamma** and **beta**, and that is a mathematical fact,
+not an omission — see below.
 
-⚠️ **Test independence.** Because the two implementations differ by kind, a test must
-use the route the implementation does *not*: continuous against the partial-expectation
-integral, discrete against FD of the cdf. Checking discrete against the partial sum
-gives 0.00e+00 and proves nothing — it is the same sum twice.
+| family | route | note |
+|---|---|---|
+| gaussian, cauchy, logistic, laplace | closed, both orders | location-scale: `dF/dmu = -f`, `dF/dsigma = -z f`; 2nd order via `f` and `l_y` |
+| lognormal | closed (grad) | location-scale on the log scale; `dF/dmu = -y f(y)`, `dF/ds2 = -y f z/(2 sigma)` |
+| invgauss | closed (grad) | its cdf is elementary in `Phi`; the `exp(2/(phi mu))` factor must be combined with `Phi(b)` **on the log scale** or it overflows |
+| student_t, pseudohuber | closed in `(mu, sigma)`, FD in `nu` | for pseudohuber this is a real **accuracy** gain, not just speed: its cdf is itself a quadrature, so differencing it is poor (1e-6) while `-f` is exact |
+| poisson | closed | the sum telescopes: `dF(k)/dmu = -f(k)` |
+| binomial, bernoulli | closed | `dF(k)/dp = -n dbinom(k, n-1, p)` |
+| negbin | closed in `mu`, exact sum in `theta` | `dF(k)/dmu = -f(k)(k+theta)/(theta+mu)`, → Poisson as `theta → inf` |
+| **gamma, beta** | FD of the analytic cdf | **no elementary closed form exists** |
+
+On gamma and beta: the shape direction is a derivative of the incomplete gamma/beta
+*in its parameter*, which is hypergeometric — there is no elementary expression. For
+the gamma the **rate** direction is elementary (`dF/dbeta = y f(y)/beta`), but the
+package parametrises by `(mu, sigma2)` and both of those involve the shape, so neither
+is closed form. What does survive is an exact identity, worth keeping as a test:
+
+```
+dF/dmu + (2 sigma2/mu) dF/dsigma2 = -y f(y) / mu
+```
+
+the shape direction cancelling from the combination. The FD fallback delivers ~2e-10
+against the exact partial-expectation integral, so this is not a practical loss.
+
+⚠️ **Test independence.** Because the implementations differ by kind, a test must use
+the route the implementation does *not*: continuous-with-fallback against the
+partial-expectation integral, discrete against FD of the cdf, closed forms against the
+partial expectation. Checking discrete against the partial sum gives 0.00e+00 and
+proves nothing — it is the same sum twice.
+
+**Truncation uses the cdf derivatives where they are exact.** `d^B Z = d^B F(U) -
+d^B F(L^-)` replaces one quadrature per component with two calls on the parent, taking
+the truncated Gaussian Hessian from ~8 ms to 0.85 ms. But the route is **gated**: it is
+taken only when the parent has a genuine closed form, or is a lattice family (whose cdf
+derivatives are an exact sum). The reason is a regression it caused when applied
+unconditionally — with a FD-based parent the Hessian picks up ~1e-8 of noise, and
+`numerical_deriv4()` differentiates that Hessian, so the *reference* of the fourth-order
+check degrades and the check fails on correct code. Detecting "does the parent have a
+closed form" uses the documented S7 trick: `attr(m, "signature")[[1]]` is the class the
+method was registered on. `E[H_T] = -Cov_T(score)` still needs one quadrature per
+component; the cdf derivatives cannot separate `E_T[l^(ij)]` from `E_T[l^(i)l^(j)]`.
 
 **User-facing tools**: `check_distrib()` (thirteen numerical checks on a continuous
 distribution, twelve on a discrete one; catches deliberately broken components),
@@ -318,7 +355,7 @@ and `plot()` on the fit.
 | | |
 |---|---|
 | `linkfunctions7` | 711 tests, `R CMD check` OK, CI green |
-| `distributions7` | 1421 tests, `R CMD check` OK (2026-07-27, local), CI green |
+| `distributions7` | 1447 tests, `R CMD check` OK (2026-07-27, local), CI green |
 
 Both repositories run `R-CMD-check` on macOS, Windows and three Linux/R combinations
 (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix matters for
@@ -580,12 +617,16 @@ exactly 1. What was wrong was everything around them.
 - **A censored-likelihood front end.** `distrib_grad_cdf()` supplies the pieces, but
   nothing yet assembles them: a `fit_distrib(..., censored = )` taking a status vector,
   or a `Surv()`-like object. That is the step that turns the capability into a feature.
-- **Closed-form cdf derivatives beyond location-scale.** Gamma, beta, negbin and the
-  rest fall back to differencing (discrete ones are exact by summation). The shape
-  derivatives need incomplete-gamma/beta derivatives, which is real work.
-- **Truncation could use the cdf derivatives.** `d^B Z / Z` are differences of cdf
-  derivatives, so orders 1-2 of a truncated distribution could stop going through
-  quadrature. Needs orders 3-4 of the cdf derivatives first to cover everything.
+- **Second-order closed forms** for the families that only have the gradient
+  (lognormal, invgauss, student t, pseudohuber). Mechanical but fiddly; the FD fallback
+  is ~1e-8 and adequate.
+- **Gamma and beta shape derivatives** would need the series representation of
+  `d/da P(a,x)` (a convergent alternating sum, badly cancelling for large x) or a
+  Meijer-G evaluation. Probably *not* worth it: the FD of pgamma/pbeta already gives
+  ~2e-10, and a hand-rolled series would likely be worse in some regime. Revisit only
+  if profiling shows it matters.
+- **Third and fourth cdf derivatives** would let truncation drop quadrature at orders
+  3-4 as well.
 - No `NEWS.md` on either package.
 - **Logos** exist but are competent rather than designed — drawn by a script, not by
   someone with visual judgement. Worth redoing with a designer if the identity matters.
