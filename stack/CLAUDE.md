@@ -267,6 +267,29 @@ a method's formals to include the generic's named arguments.
 **OPG is the order-2 Bartlett identity**; the general identity is implemented by
 enumerating set partitions, so any order follows from products of lower orders.
 
+**CDF derivatives** (`R/cdf_derivatives.R`, 2026-07-27): `distrib_grad_cdf()` /
+`distrib_hess_cdf()`, with `lower.tail` and `log` arguments. This is what makes
+**censored likelihoods** possible — right, left and interval — and what a quantile
+residual's delta-method SE needs. The governing identity is one exchange of derivative
+and integral, the region not depending on θ:
+
+```
+d^I F(q) / F(q) = E[ d^I f / f | Y <= q ]
+```
+
+a *partial* expectation of the same complete-Bell quantity the wrappers use. Two
+implementations follow from it: for a **discrete** parent the expectation is a finite
+sum, so the identity is exact and is used directly; for a **continuous** one it is a
+semi-infinite integral, and differencing the (analytic) cdf is both cheaper and more
+accurate, so that is the fallback. Location-scale families get closed forms from
+`dF/dmu = -f`, `dF/dsigma = -z f`, and at second order everything in terms of `f` and
+`l_y` — registered for gaussian, logistic, cauchy, laplace.
+
+⚠️ **Test independence.** Because the two implementations differ by kind, a test must
+use the route the implementation does *not*: continuous against the partial-expectation
+integral, discrete against FD of the cdf. Checking discrete against the partial sum
+gives 0.00e+00 and proves nothing — it is the same sum twice.
+
 **User-facing tools**: `check_distrib()` (thirteen numerical checks on a continuous
 distribution, twelve on a discrete one; catches deliberately broken components),
 `fit_distrib()` (MLE on the link scale, Fisher scoring / Newton / BFGS, delta-method SEs,
@@ -295,7 +318,7 @@ and `plot()` on the fit.
 | | |
 |---|---|
 | `linkfunctions7` | 711 tests, `R CMD check` OK, CI green |
-| `distributions7` | 1345 tests, `R CMD check` OK (2026-07-27, local), CI green |
+| `distributions7` | 1421 tests, `R CMD check` OK (2026-07-27, local), CI green |
 
 Both repositories run `R-CMD-check` on macOS, Windows and three Linux/R combinations
 (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix matters for
@@ -554,15 +577,15 @@ exactly 1. What was wrong was everything around them.
   them within Monte Carlo noise).
 - Publishing `linkfunctions7` to CRAN, which unblocks `distributions7`.
 - Next packages: `modelterms7`, `basis7`, `penalties7`.
-- **Derivatives of the log-cdf** (`d log F / d theta`) are the natural next addition, and
-  Giovanni raised it 2026-07-27. The key relation is `d_i F(t) = F(t) E[l^(i) | Y <= t]`,
-  a partial expectation of the score. It would serve three things at once: censored
-  likelihoods (right/left/interval — survival, tobit, detection limits), which are
-  currently impossible; quantile residuals and their delta-method SEs; and **truncation**,
-  whose `d^B Z / Z` are literally differences of log-cdf derivatives and are today
-  computed by quadrature. Suggested shape: `distrib_grad_cdf` / `distrib_hess_cdf`
-  generics, numerical fallback via that conditional expectation, closed forms where they
-  exist.
+- **A censored-likelihood front end.** `distrib_grad_cdf()` supplies the pieces, but
+  nothing yet assembles them: a `fit_distrib(..., censored = )` taking a status vector,
+  or a `Surv()`-like object. That is the step that turns the capability into a feature.
+- **Closed-form cdf derivatives beyond location-scale.** Gamma, beta, negbin and the
+  rest fall back to differencing (discrete ones are exact by summation). The shape
+  derivatives need incomplete-gamma/beta derivatives, which is real work.
+- **Truncation could use the cdf derivatives.** `d^B Z / Z` are differences of cdf
+  derivatives, so orders 1-2 of a truncated distribution could stop going through
+  quadrature. Needs orders 3-4 of the cdf derivatives first to cover everything.
 - No `NEWS.md` on either package.
 - **Logos** exist but are competent rather than designed — drawn by a script, not by
   someone with visual judgement. Worth redoing with a designer if the identity matters.

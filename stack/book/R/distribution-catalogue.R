@@ -378,6 +378,44 @@ assert_distributions_ok <- function() {
          call. = FALSE)
   }
 
+  # The cdf-derivative section: each family checked against the route the
+  # implementation does not use, so neither comparison is tautological.
+  for (id in c("gaussian", "logistic", "gamma", "beta")) {
+    rec <- DISTRIBS[[id]]; d <- rec$obj(); th <- rec$theta
+    q <- rec$grid(th)[c(10, 20, 30)]
+    a <- distrib_grad_cdf(d, q, th, log = FALSE)
+    for (p in d@params) {
+      b <- vapply(q, function(qq) stats::integrate(
+        function(y) distrib_pdf(d, y, th) * distrib_gradient(d, y, th)[[p]],
+        d@bounds[1], qq, rel.tol = 1e-10)$value, numeric(1))
+      if (rel_err(a[[p]], b) > 1e-6) {
+        stop(sprintf("cdf gradient of '%s' in %s disagrees with the partial score.", id, p),
+             call. = FALSE)
+      }
+    }
+  }
+  for (id in c("poisson", "negbin")) {
+    rec <- DISTRIBS[[id]]; d <- rec$obj(); th <- rec$theta
+    q <- c(1, 4, 9)
+    a <- distrib_grad_cdf(d, q, th, log = FALSE)
+    for (p in d@params) {
+      j <- match(p, d@params); hh <- 1e-5 * max(1, abs(th[[j]]))
+      tp <- tm <- th; tp[[j]] <- th[[j]] + hh; tm[[j]] <- th[[j]] - hh
+      b <- (distrib_cdf(d, q, tp) - distrib_cdf(d, q, tm)) / (2 * hh)
+      if (rel_err(a[[p]], b) > 1e-5) {
+        stop(sprintf("cdf gradient of '%s' in %s disagrees with finite differences.", id, p),
+             call. = FALSE)
+      }
+    }
+  }
+  # dF/dmu = -f for a location-scale family
+  gg <- gaussian_distrib()
+  qq <- c(0, 1.2, 3)
+  if (rel_err(distrib_grad_cdf(gg, qq, list(mu = 1.2, sigma = 1.7), log = FALSE)$mu,
+              -dnorm(qq, 1.2, 1.7)) > 1e-12) {
+    stop("The location-scale closed form for dF/dmu no longer holds.", call. = FALSE)
+  }
+
   # The non-regular section makes three specific numerical claims; pin them.
   # (a) the shipped Laplace has a closed-form E[H], so approx is ignored and all
   #     strategies return -1/b^2;
