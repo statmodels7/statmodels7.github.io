@@ -269,6 +269,124 @@ keeps away from the edges of the domain: the Richardson extrapolation in
 $8 \times 10^{-4}\,|x|$ away from $x$, and a grid point closer than that to a
 boundary would be differentiated using values from outside the domain.
 
+## What a link gets for free {#sec-link-fallbacks}
+
+The ten generics of @sec-link-interface are what a link *may* implement. Only
+two of them are compulsory. A link that supplies $g$ and $h$ and stops there
+still answers every derivative, because the base class carries numerical
+fallbacks for the eight it was not given, and the routers reach them like any
+other method.
+
+```{r}
+#| label: bare-link
+BareLog <- S7::new_class("BareLog", parent = link, package = NULL)
+S7::method(linkfun, BareLog) <- function(x, theta) log(theta)
+S7::method(linkinv, BareLog) <- function(x, eta)   exp(eta)
+
+bare <- BareLog(link_name = "bare log", link_bounds = c(0, Inf), link_params = NULL)
+
+linkderiv(bare, 2, order = 3)   # third derivative, never written down
+2 / 2^3                         # the closed form
+```
+
+This is the same bargain `distributions7` offers a distribution that supplies
+only its density, and it exists for the same reason: the person most likely to
+need it is the one experimenting with a transformation nobody has implemented,
+and asking them to differentiate it by hand four times before anything runs is
+asking them not to bother.
+
+### One differentiation, never four {#sec-link-fallback-chain}
+
+How a fallback computes its answer matters more here than one might expect, and
+the design follows the same rule @sec-check-link imposes on the validator:
+**never differentiate numerically more than once in a row**.
+
+A fallback could be written recursively — the second derivative as a difference
+of the first, the third as a difference of the second — and it would be much the
+simplest thing to write. It would also be useless at the top, because each
+numerical differentiation multiplies the error of the one below it. The identity
+link makes the point with no arithmetic at all: its third derivative is exactly
+zero, and three nested differences return a number of order one.
+
+What the fallbacks do instead is ask how many orders are actually missing. Each
+one finds the highest order $m$ the link implements analytically, and applies a
+**single** central stencil of order $k - m$ to that derivative:
+
+$$
+f' \approx \frac{f_{+1} - f_{-1}}{2h}, \qquad
+f'' \approx \frac{f_{+1} - 2f_{0} + f_{-1}}{h^{2}},
+$$
+$$
+f''' \approx \frac{f_{+2} - 2f_{+1} + 2f_{-1} - f_{-2}}{2h^{3}}, \qquad
+f'''' \approx \frac{f_{+2} - 4f_{+1} + 6f_{0} - 4f_{-1} + f_{-2}}{h^{4}},
+$$
+
+writing $f_{\pm j}$ for $f(x \pm jh)$. A link analytic to the second order
+therefore reaches the third with one difference and the fourth with two, rather
+than standing on three differences of its own — and the difference this makes is
+not marginal:
+
+```{r}
+#| label: fallback-accuracy
+HalfLog <- S7::new_class("HalfLog", parent = link, package = NULL)
+S7::method(linkfun,   HalfLog) <- function(x, theta) log(theta)
+S7::method(linkinv,   HalfLog) <- function(x, eta)   exp(eta)
+S7::method(dlinkfun,  HalfLog) <- function(x, theta) 1 / theta
+S7::method(d2linkfun, HalfLog) <- function(x, theta) -1 / theta^2
+S7::method(dlinkinv,  HalfLog) <- function(x, eta) exp(eta)
+S7::method(d2linkinv, HalfLog) <- function(x, eta) exp(eta)
+
+half <- HalfLog(link_name = "half log", link_bounds = c(0, Inf), link_params = NULL)
+
+theta <- c(0.5, 1, 2, 5)
+exact4 <- -6 / theta^4
+rel <- function(a, b) max(abs(a - b) / abs(b))
+
+c(nothing_analytic = rel(linkderiv(bare, theta, order = 4), exact4),
+  two_orders_given = rel(linkderiv(half, theta, order = 4), exact4))
+```
+
+Two analytical orders, which is a couple of lines of algebra, buy several digits
+at the fourth. The step itself is $\varepsilon^{1/(k+2)}\max(1, \lvert x\rvert)$
+for a stencil of order $k$, balancing truncation against rounding, and it is
+shrunk near the ends of the domain: a link's domain is open, and the third- and
+fourth-order stencils reach $2h$, so it is that reach and not $h$ that has to
+fit inside it. Differentiating the log link at $\theta = 10^{-8}$ would
+otherwise evaluate a logarithm at a negative number.
+
+### The catch, stated plainly {#sec-link-fallback-catch}
+
+A convenience of this kind comes with a hazard, and it is the same one
+@sec-fallbacks records for distributions. `check_link()` verifies an analytical
+derivative by comparing it against a numerical one. If the analytical derivative
+*is* the numerical one, the comparison is between a quantity and itself: it
+agrees perfectly, and it has established nothing.
+
+The validator therefore does not report such an order as passing. It reports it
+as numerical, and it says how far the exactness actually goes.
+
+```{r}
+#| label: check-link-honest
+invisible(check_link(bare))
+invisible(check_link(half))
+```
+
+Neither link is wrong; both are simply less checked than a reader of a bare
+`[PASSED]` would assume, and the summary says so. `link_fallback_orders()`
+answers the same question programmatically, which is the form a script wants:
+
+```{r}
+#| label: fallback-orders
+link_fallback_orders(half)
+link_fallback_orders(logit_link())
+```
+
+Everything in the catalogue reports four and four. The fallbacks exist for links
+that do not yet, and the honest description of them is that they make an
+incomplete link *usable* rather than *exact* — which is why the catalogue does
+not rely on them, and why a link intended for serious use should end up not
+needing them either.
+
 ```{r}
 #| label: consistency-links
 #| include: false

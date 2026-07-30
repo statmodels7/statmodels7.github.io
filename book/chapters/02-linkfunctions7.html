@@ -232,6 +232,11 @@ window.Quarto = {
   <li><a href="#sec-link-interface" id="toc-sec-link-interface" class="nav-link" data-scroll-target="#sec-link-interface"><span class="header-section-number">2.4</span> The interface</a></li>
   <li><a href="#sec-link-catalogue" id="toc-sec-link-catalogue" class="nav-link" data-scroll-target="#sec-link-catalogue"><span class="header-section-number">2.5</span> The catalogue</a></li>
   <li><a href="#sec-check-link" id="toc-sec-check-link" class="nav-link" data-scroll-target="#sec-check-link"><span class="header-section-number">2.6</span> Validating a link</a></li>
+  <li><a href="#sec-link-fallbacks" id="toc-sec-link-fallbacks" class="nav-link" data-scroll-target="#sec-link-fallbacks"><span class="header-section-number">2.7</span> What a link gets for free</a>
+  <ul>
+  <li><a href="#sec-link-fallback-chain" id="toc-sec-link-fallback-chain" class="nav-link" data-scroll-target="#sec-link-fallback-chain"><span class="header-section-number">2.7.1</span> One differentiation, never four</a></li>
+  <li><a href="#sec-link-fallback-catch" id="toc-sec-link-fallback-catch" class="nav-link" data-scroll-target="#sec-link-fallback-catch"><span class="header-section-number">2.7.2</span> The catch, stated plainly</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -1065,8 +1070,99 @@ h'''' = \frac{-15(g'')^{3} + 10\,g'g''g''' - (g')^{2}g''''}{(g')^{7}}.
 <span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [PASSED]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The derivative checks are organised as a chain, and the reason deserves a paragraph, because it reflects a genuine limitation of numerical differentiation rather than an implementation detail. One cannot verify a fourth derivative by differentiating <span class="math inline">\(g\)</span> itself four times numerically: each numerical differentiation amplifies the error of the previous one, and by the third order the result is noise. The validator instead compares the analytical derivative of order <span class="math inline">\(k\)</span> against a <em>single</em> numerical differentiation of the analytical derivative of order <span class="math inline">\(k-1\)</span>, so that every comparison involves exactly one finite-difference step and retains its full accuracy. The grid, moreover, keeps away from the edges of the domain: the Richardson extrapolation in <code>numDeriv</code> evaluates the function at points up to about <span class="math inline">\(8 \times 10^{-4}\,|x|\)</span> away from <span class="math inline">\(x\)</span>, and a grid point closer than that to a boundary would be differentiated using values from outside the domain.</p>
+</section>
+<section id="sec-link-fallbacks" class="level2" data-number="2.7">
+<h2 data-number="2.7" class="anchored" data-anchor-id="sec-link-fallbacks"><span class="header-section-number">2.7</span> What a link gets for free</h2>
+<p>The ten generics of <a href="#sec-link-interface" class="quarto-xref"><span>Section 2.4</span></a> are what a link <em>may</em> implement. Only two of them are compulsory. A link that supplies <span class="math inline">\(g\)</span> and <span class="math inline">\(h\)</span> and stops there still answers every derivative, because the base class carries numerical fallbacks for the eight it was not given, and the routers reach them like any other method.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>BareLog <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"BareLog"</span>, <span class="at">parent =</span> link, <span class="at">package =</span> <span class="cn">NULL</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkfun, BareLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) <span class="fu">log</span>(theta)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkinv, BareLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta)   <span class="fu">exp</span>(eta)</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>bare <span class="ot">&lt;-</span> <span class="fu">BareLog</span>(<span class="at">link_name =</span> <span class="st">"bare log"</span>, <span class="at">link_bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>), <span class="at">link_params =</span> <span class="cn">NULL</span>)</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="fu">linkderiv</span>(bare, <span class="dv">2</span>, <span class="at">order =</span> <span class="dv">3</span>)   <span class="co"># third derivative, never written down</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.2500004</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="dv">2</span> <span class="sc">/</span> <span class="dv">2</span><span class="sc">^</span><span class="dv">3</span>                         <span class="co"># the closed form</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>This is the same bargain <code>distributions7</code> offers a distribution that supplies only its density, and it exists for the same reason: the person most likely to need it is the one experimenting with a transformation nobody has implemented, and asking them to differentiate it by hand four times before anything runs is asking them not to bother.</p>
+<section id="sec-link-fallback-chain" class="level3" data-number="2.7.1">
+<h3 data-number="2.7.1" class="anchored" data-anchor-id="sec-link-fallback-chain"><span class="header-section-number">2.7.1</span> One differentiation, never four</h3>
+<p>How a fallback computes its answer matters more here than one might expect, and the design follows the same rule <a href="#sec-check-link" class="quarto-xref"><span>Section 2.6</span></a> imposes on the validator: <strong>never differentiate numerically more than once in a row</strong>.</p>
+<p>A fallback could be written recursively — the second derivative as a difference of the first, the third as a difference of the second — and it would be much the simplest thing to write. It would also be useless at the top, because each numerical differentiation multiplies the error of the one below it. The identity link makes the point with no arithmetic at all: its third derivative is exactly zero, and three nested differences return a number of order one.</p>
+<p>What the fallbacks do instead is ask how many orders are actually missing. Each one finds the highest order <span class="math inline">\(m\)</span> the link implements analytically, and applies a <strong>single</strong> central stencil of order <span class="math inline">\(k - m\)</span> to that derivative:</p>
+<p><span class="math display">\[
+f' \approx \frac{f_{+1} - f_{-1}}{2h}, \qquad
+f'' \approx \frac{f_{+1} - 2f_{0} + f_{-1}}{h^{2}},
+\]</span> <span class="math display">\[
+f''' \approx \frac{f_{+2} - 2f_{+1} + 2f_{-1} - f_{-2}}{2h^{3}}, \qquad
+f'''' \approx \frac{f_{+2} - 4f_{+1} + 6f_{0} - 4f_{-1} + f_{-2}}{h^{4}},
+\]</span></p>
+<p>writing <span class="math inline">\(f_{\pm j}\)</span> for <span class="math inline">\(f(x \pm jh)\)</span>. A link analytic to the second order therefore reaches the third with one difference and the fourth with two, rather than standing on three differences of its own — and the difference this makes is not marginal:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>HalfLog <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"HalfLog"</span>, <span class="at">parent =</span> link, <span class="at">package =</span> <span class="cn">NULL</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkfun,   HalfLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) <span class="fu">log</span>(theta)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkinv,   HalfLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta)   <span class="fu">exp</span>(eta)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(dlinkfun,  HalfLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) <span class="dv">1</span> <span class="sc">/</span> theta</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(d2linkfun, HalfLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) <span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> theta<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(dlinkinv,  HalfLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta) <span class="fu">exp</span>(eta)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(d2linkinv, HalfLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta) <span class="fu">exp</span>(eta)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>half <span class="ot">&lt;-</span> <span class="fu">HalfLog</span>(<span class="at">link_name =</span> <span class="st">"half log"</span>, <span class="at">link_bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>), <span class="at">link_params =</span> <span class="cn">NULL</span>)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">5</span>)</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>exact4 <span class="ot">&lt;-</span> <span class="sc">-</span><span class="dv">6</span> <span class="sc">/</span> theta<span class="sc">^</span><span class="dv">4</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>rel <span class="ot">&lt;-</span> <span class="cf">function</span>(a, b) <span class="fu">max</span>(<span class="fu">abs</span>(a <span class="sc">-</span> b) <span class="sc">/</span> <span class="fu">abs</span>(b))</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">nothing_analytic =</span> <span class="fu">rel</span>(<span class="fu">linkderiv</span>(bare, theta, <span class="at">order =</span> <span class="dv">4</span>), exact4),</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">two_orders_given =</span> <span class="fu">rel</span>(<span class="fu">linkderiv</span>(half, theta, <span class="at">order =</span> <span class="dv">4</span>), exact4))</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; nothing_analytic two_orders_given </span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     8.079000e-05     9.934107e-08</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Two analytical orders, which is a couple of lines of algebra, buy several digits at the fourth. The step itself is <span class="math inline">\(\varepsilon^{1/(k+2)}\max(1, \lvert x\rvert)\)</span> for a stencil of order <span class="math inline">\(k\)</span>, balancing truncation against rounding, and it is shrunk near the ends of the domain: a link’s domain is open, and the third- and fourth-order stencils reach <span class="math inline">\(2h\)</span>, so it is that reach and not <span class="math inline">\(h\)</span> that has to fit inside it. Differentiating the log link at <span class="math inline">\(\theta = 10^{-8}\)</span> would otherwise evaluate a logarithm at a negative number.</p>
+</section>
+<section id="sec-link-fallback-catch" class="level3" data-number="2.7.2">
+<h3 data-number="2.7.2" class="anchored" data-anchor-id="sec-link-fallback-catch"><span class="header-section-number">2.7.2</span> The catch, stated plainly</h3>
+<p>A convenience of this kind comes with a hazard, and it is the same one <a href="03-distributions7.html#sec-fallbacks" class="quarto-xref"><span>Section 3.4</span></a> records for distributions. <code>check_link()</code> verifies an analytical derivative by comparing it against a numerical one. If the analytical derivative <em>is</em> the numerical one, the comparison is between a quantity and itself: it agrees perfectly, and it has established nothing.</p>
+<p>The validator therefore does not report such an order as passing. It reports it as numerical, and it says how far the exactness actually goes.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">check_link</span>(bare))</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Checking S7 Link Object: bare log </span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [1] Invertibility (Theta space): [PASSED] </span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [2] Invertibility (Eta space):   [PASSED] </span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [3] Strict Monotonicity:         [PASSED] </span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [4] Inverse Function Theorem:    [PASSED] </span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [5] Link Derivatives:            [numerical] </span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [numerical]</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">check_link</span>(half))</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Checking S7 Link Object: half log </span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [1] Invertibility (Theta space): [PASSED] </span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [2] Invertibility (Eta space):   [PASSED] </span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [3] Strict Monotonicity:         [PASSED] </span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [4] Inverse Function Theorem:    [PASSED] </span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [5] Link Derivatives:            [PASSED to order 2, 2 numerical] </span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [PASSED to order 2, 2 numerical]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Neither link is wrong; both are simply less checked than a reader of a bare <code>[PASSED]</code> would assume, and the summary says so. <code>link_fallback_orders()</code> answers the same question programmatically, which is the form a script wants:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">link_fallback_orders</span>(half)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $forward</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $inverse</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="fu">link_fallback_orders</span>(<span class="fu">logit_link</span>())</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $forward</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $inverse</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Everything in the catalogue reports four and four. The fallbacks exist for links that do not yet, and the honest description of them is that they make an incomplete link <em>usable</em> rather than <em>exact</em> — which is why the catalogue does not rely on them, and why a link intended for serious use should end up not needing them either.</p>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
