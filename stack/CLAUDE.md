@@ -728,10 +728,15 @@ exactly 1. What was wrong was everything around them.
   the mode of the density with a dot, and he was right to have it removed.
 - The portal is hand-written HTML. If the stack grows past a handful of packages it may
   deserve a generator, but not yet.
-- The book covers links, distributions and the transformation wrappers. `fit_distrib`
-  (Fisher scoring, Newton, BFGS, delta-method standard errors, intervals built on the
-  link scale and mapped back) has no chapter yet, and neither do the numerical
-  fallbacks beyond the summary in §3.7 of the book.
+- The book now covers links, distributions, the transformation wrappers and fitting
+  (chapter 5, added 2026-07-30: the link scale as the place to optimise, Fisher
+  scoring versus Newton and why the congruence corollary makes the expected
+  information the right matrix to invert, step halving, the delta method as the same
+  congruence applied to the inverse, and intervals built on the link scale and mapped
+  back). What it still lacks is a treatment of the **numerical fallbacks** beyond the
+  summary in §3.7 — the ratio-of-uniforms sampler, the two-sided divergence map, the
+  discrete cumulative table — and anything on **censored likelihoods**, which waits on
+  the front end that does not exist yet.
 
 ---
 
@@ -741,9 +746,25 @@ exactly 1. What was wrong was everything around them.
 PATH, and no new R packages are needed — knitr and numDeriv suffice). It is the
 mathematical companion Giovanni asked for on 2026-07-26: every formula the stack
 implements, derived from the definitions with the steps written out. Chapters:
-preface, introduction, link functions, distributions, transformations, plus a
-notation appendix. English, on purpose — it is the public document of a stack aiming
-at CRAN.
+preface, introduction, link functions, distributions, transformations, fitting,
+plus a notation appendix. English, on purpose — it is the public document of a
+stack aiming at CRAN.
+
+⚠️ **`quarto render` needs R on PATH.** Quarto resolves R from the registry and
+finds `R-4.5.1`, the empty directory of §3, then stops with *"Unable to locate an
+installed version of R"*. Prefix the call:
+`PATH="/c/Program Files/R/R-4.6.0/bin:$PATH" quarto render`.
+
+⚠️ **`freeze` is `false`, deliberately, and must stay that way** (2026-07-30).
+Quarto's freeze cache is keyed on the `.qmd` and does not see the R files a
+chapter `source()`s — which is exactly where the printed formulas and their
+transcriptions live, and where the packages themselves sit one directory up. With
+`freeze: auto`, editing a formula in `R/link-formulas.R` and re-rendering left the
+old text in the output, and, far worse, **the consistency gate for that chapter did
+not re-run either**: a full render finished in seconds and reported success without
+having checked anything. The verification story of this section is only true when
+every chapter actually executes. The cost is a render of twenty-odd minutes; it is
+already a manual step, so when it is run it should be real.
 
 **Editorial line (Giovanni, 2026-07-26, explicit):** the book takes it for granted
 that the formulas shown are the ones the packages run. The book-vs-package
@@ -756,7 +777,11 @@ sentences — with the mathematics explained step by step.
 **parenthesized superscripts** — `l^(i)`, `l^(ij)`, `l^(ijk)` — never subscripts. A
 subscript on `l` means what it conventionally means in likelihood work: the
 contribution of one observation, or the model the log-likelihood belongs to (`l_Y`,
-`l_T`). Chapter 4 previously used `s_i`/`H_ij` for the same quantities; unified. Note
+`l_T`). Chapter 4 previously used `s_i`/`H_ij` for the same quantities; unified —
+but that unification was **incomplete until 2026-07-30**, four `s_i s_j` surviving in
+@thm-truncated and its proof, where they contradicted the notation appendix on the
+same page. They survive a careless grep because `s_is_j` has no word boundary between
+the two symbols: search for `s_is_j` as well as for `s_i`. Note
 this is *not* Einstein/McCullagh convention — there, partial derivatives are covariant
 (lower) indices and a bare superscript `l^rs` denotes the *inverse* information. The
 parentheses are what disambiguate, as in `f^(k)`.
@@ -769,16 +794,35 @@ draw in the inverse-transform formula is `V` for the same reason.
 escapes it to `&#124;` and MathJax prints that verbatim (visible in the transformer
 table until 2026-07-26). Always `\lvert ... \rvert`. After every render:
 `grep -c '&#124;' _book/chapters/*.html` must be all zeros — this is not covered by the
-R gates, which run before rendering.
+R gates, which run before rendering. As of 2026-07-30 all zeros, and no `|` in math
+sits in a table row; the eight that remain are all in prose, where they are harmless
+but still off-convention.
+
+**`date: today` makes the output churn.** Every render stamps a new date into the
+HTML, so `sync-stack-files.sh` produces a diff in `site/` even when nothing changed.
+Harmless, but do not read a diff after a re-render as evidence that something did.
 
 **How consistency is enforced without being mentioned:** each chapter ends with a
 hidden chunk (`include: false`) calling `assert_links_ok()`,
-`assert_distributions_ok()` or `assert_transformations_ok()` (defined in
-`book/R/*.R`). These evaluate every printed formula against the running package,
-the structural identities (inverse function theorem, Bartlett, expected-vs-observed
-Hessian), and `check_distrib()` on everything — and **stop the render** on any
-disagreement. Verified by injection: a 5% corruption of a printed derivative or
-density is caught and kills the build. The reader never sees any of it.
+`assert_distributions_ok()`, `assert_transformations_ok()` or `assert_fit_ok()`
+(defined in `book/R/*.R`). These evaluate every printed formula against the running
+package, the structural identities (inverse function theorem, Bartlett,
+expected-vs-observed Hessian), and `check_distrib()` on everything — and **stop the
+render** on any disagreement. Verified by injection: a 5% corruption of a printed
+derivative or density is caught and kills the build. The reader never sees any of
+it — every setup and gate chunk is `include: false`, which matters more than it
+looks, since one of the files sourced is named `transformation-certificates.R` and
+a visible `source()` line would leak the whole apparatus.
+
+`assert_fit_ok()` (chapter 5, `book/R/fit-certificates.R`) checks the four things
+that chapter claims, each against a route the chapter does not itself use: that the
+link-scale score really vanishes at the reported optimum, that
+`V_theta = diag(h') V_eta diag(h')` with `h'` taken fresh from linkfunctions7, that
+no interval escapes its parameter's domain or comes back inverted, and that Fisher
+scoring, Newton and BFGS agree on the maximised log-likelihood. Injection-checked
+too: at the optimum the score is 4e-13 per observation against a 1e-4 threshold and
+2e-1 when displaced by 0.05, and the delta-method check is exact against 1e-1 for a
+Jacobian 5% wrong.
 
 The mechanism that makes this cheap: `book/R/link-formulas.R` and
 `distribution-catalogue.R` keep the printed LaTeX and an independent R
