@@ -1,4 +1,4 @@
-# Distributions {#sec-distributions}
+## Distributions {#sec-distributions}
 
 ```{r}
 #| label: setup-03
@@ -8,7 +8,7 @@ source("R/link-formulas.R")
 source("R/distribution-catalogue.R")
 ```
 
-This chapter develops the likelihood theory that the stack implements and then
+This chapter develops the likelihood theory that the toolkit implements and then
 presents the fourteen distributions that `distributions7` ships. The theory
 comes first because it is shared: the score, the two informations, the Bartlett
 identities and the change of scale are defined once, at the level of the base
@@ -17,7 +17,7 @@ inherits them. The catalogue comes second, with particular attention to the
 places where the parametrisation chosen here differs from the one base R uses,
 since those are the places where a reader is most likely to be surprised.
 
-## The object and its contract {#sec-distrib-object}
+### The object and its contract {#sec-distrib-object}
 
 A distribution is an S7 object carrying its name, its dimensionality, the
 bounds of its support, the names and interpretations of its parameters, their
@@ -72,7 +72,7 @@ Of all of these, only `distrib_pdf` has no default; everything else can be
 derived from the density alone, as the Rayleigh example of @sec-extension
 showed.
 
-## Score and information {#sec-likelihood}
+### Score and information {#sec-likelihood}
 
 Fix a distribution with density or mass function $f(y;\theta)$, where
 $\theta = (\theta_1, \dots, \theta_p)^\top$, and write
@@ -133,7 +133,7 @@ catalogue satisfy these conditions everywhere; the exception is the Laplace,
 whose location parameter sits at a kink of the log-likelihood, and
 @sec-nonregular is devoted to what happens then.
 
-## The Bartlett identities {#sec-bartlett}
+### The Bartlett identities {#sec-bartlett}
 
 Most readers will know the identity
 $\mathbb{E}[\ell^{(ij)}] = -\mathbb{E}[\ell^{(i)} \ell^{(j)}]$, the information matrix
@@ -236,10 +236,10 @@ but the second Bartlett identity itself. The implementation follows the
 mathematics directly: it enumerates the set partitions of the index set and
 sums products of quantities the distribution already provides. The number of
 terms is the Bell number $B_k$ — one, two, five and fifteen for
-$k = 1, \dots, 4$ — so the computation stays small at every order the stack
+$k = 1, \dots, 4$ — so the computation stays small at every order the toolkit
 supports.
 
-### Three ways to take an expectation {#sec-approx}
+#### Three ways to take an expectation {#sec-approx}
 
 When a distribution has no closed-form expected derivative, the expectation has
 to be approximated, and the derivative generics accept an `approx` argument
@@ -275,7 +275,7 @@ contributes its own quadrature error. An error is worth more than a plausible
 number.
 :::
 
-## Derivatives on the link scale {#sec-link-scale}
+### Derivatives on the link scale {#sec-link-scale}
 
 The parameters of a distribution are constrained, and the linear predictors of
 a model are not, so every derivative generic accepts an argument
@@ -291,7 +291,7 @@ of $\theta$ with respect to $\eta$ is **diagonal**. Diagonality is what makes
 the general multivariate chain rule collapse into a product of univariate ones,
 and we now work this out in stages, starting with a single parameter.
 
-### One parameter {#sec-faa-univariate}
+#### One parameter {#sec-faa-univariate}
 
 Composing $\ell$ with $h$ and differentiating repeatedly is the territory of
 Faà di Bruno's formula, which organises the combinatorial explosion of the
@@ -310,7 +310,7 @@ $$
 $$
 :::
 
-For the orders the stack uses, the Bell polynomials are small enough to list in
+For the orders the toolkit uses, the Bell polynomials are small enough to list in
 full,
 
 $$
@@ -343,7 +343,7 @@ transformation never needs to know which distribution it is transforming, which
 is why it can be written once, in the body of the generic, for all
 distributions at once.
 
-### Several parameters {#sec-faa-multivariate}
+#### Several parameters {#sec-faa-multivariate}
 
 With several parameters, a mixed derivative such as
 $\partial^4 \ell / \partial\eta_a^2\,\partial\eta_b^2$ must be handled, and here
@@ -398,10 +398,10 @@ $$
 $$
 
 And the number of terms in the general sum is $\prod_t m_t$ — at most eight for
-the orders the stack supports — so the computation remains trivial even at
+the orders the toolkit supports — so the computation remains trivial even at
 fourth order.
 
-### The expected Hessian transforms more simply {#sec-link-scale-expected}
+#### The expected Hessian transforms more simply {#sec-link-scale-expected}
 
 For expected second derivatives something pleasant happens: the awkward
 first-order term drops out on its own.
@@ -431,7 +431,7 @@ automatically. Had one instead transformed the *observed* Hessian and then
 averaged numerically, the $\ell^{(a)} h_a''$ term would have survived and that
 guarantee would have been lost.
 
-### Where the transformation lives {#sec-link-scale-impl}
+#### Where the transformation lives {#sec-link-scale-impl}
 
 The change of scale is implemented once, in the body of each derivative
 generic, between the dispatch and the return: a method always computes
@@ -454,14 +454,14 @@ the generic's named arguments, such a method must declare
 `scale = c("parameter", "link"), ...` in its signature even though it never
 touches `scale` itself. Omitting the declaration makes dispatch fail.
 
-## Derivatives with respect to the response {#sec-response-derivatives}
+### Derivatives with respect to the response {#sec-response-derivatives}
 
 Besides derivatives in the parameters, continuous distributions provide
 $\partial\ell/\partial y$ and $\partial^{2}\ell/\partial y^{2}$ through
 `distrib_grad_y()` and `distrib_hess_y()`; for a lattice variable there is
 nothing to differentiate, so discrete distributions have no such methods. These
 quantities feed quantile residuals and smoothness criteria further up the
-stack. The default implementation is a central finite difference of the
+toolkit. The default implementation is a central finite difference of the
 log-density with a step that shrinks near the boundary of the support, so that
 $y \pm \delta$ never leaves it.
 
@@ -475,7 +475,7 @@ distrib_grad_y(d, c(1, 3, 6), th)
 (3^2 / 2 - 1) / c(1, 3, 6) - 3 / 2
 ```
 
-## Derivatives of the distribution function {#sec-cdf-derivatives}
+### Derivatives of the distribution function {#sec-cdf-derivatives}
 
 Everything so far has differentiated the *density*. There is a second family of
 derivatives that a modelling framework needs and that is almost never provided:
@@ -567,7 +567,7 @@ An interval-censored observation is assembled from the unlogged derivatives at
 the two endpoints, $\partial\log(F(b)-F(a)) = (\partial F(b) - \partial F(a))/(F(b)-F(a))$,
 which is why the generic offers `log = FALSE` as well.
 
-## The catalogue {#sec-distrib-catalogue}
+### The catalogue {#sec-distrib-catalogue}
 
 The table below is generated from the distribution objects themselves.
 
@@ -596,44 +596,7 @@ arithmetic.
 for (id in names(DISTRIBS)) render_distrib_entry(id, DISTRIBS[[id]])
 ```
 
-## What the fallbacks provide {#sec-fallbacks}
-
-It is worth describing what a distribution receives for free when it implements
-nothing but its density, both because users rely on it and because two of the
-fallbacks contain ideas of independent interest.
-
-The cdf is obtained by quadrature for continuous distributions and by summation
-over the support for discrete ones, and the quantile function by root-finding
-on the cdf. Derivatives fall back to finite differences, each order
-differencing the analytical implementation of the order below when one exists.
-
-The random generator deserves a longer story. The obvious fallback, inverse
-transform sampling, costs one root-finding call per draw when the quantile
-function is itself numerical, which is unusably slow. The package instead uses
-a generalized **ratio-of-uniforms** scheme, which needs only the density, with
-two devices that make it reliable: the kernel is recentred at the mode of the
-density — without this, a density centred at $\mu = 1000$ produces a degenerate
-bounding box — and normalised to a maximum of one. So equipped, the method
-handles far more than one might expect: bimodal densities, a Student $t$ with
-half a degree of freedom, even a Pareto with infinite mean. Its one genuine
-failure mode is a density that diverges at an edge of its support, and that
-case is transformed away rather than given up on: if
-$f(y) \sim |y-a|^{\alpha-1}$ near the edge $a$, then the transformed variable
-$X = |Y-a|^{1/\lambda}$ has a density behaving like $x^{\lambda\alpha-1}$,
-which is bounded as soon as $\lambda\alpha > 1$. Pleasantly, the exponent
-$\alpha$ never has to be searched for: walking toward the edge in powers of ten
-raises the log-density by $(1-\alpha)\log 10$ per step, so the same probe that
-detects the divergence also measures it. For a Gamma with shape $0.4$ this
-transformation brought the cost of a draw from 27 milliseconds down to less
-than a microsecond, with the draws still exact.
-
-One caveat belongs here rather than in a footnote. A distribution that relies
-on the numerical fallbacks will pass the derivative checks of
-`check_distrib()` trivially, because the analytical and the numerical value are
-then the same computation; those checks become informative exactly when a
-closed form has been supplied.
-
-## When the model is not regular {#sec-nonregular}
+### When the model is not regular {#sec-nonregular}
 
 The Laplace distribution, with density
 $f(y) = (2b)^{-1} e^{-|y-\mu|/b}$, is the catalogue's standing counterexample
@@ -715,7 +678,7 @@ identification of that quantity with the information which breaks down, and
 only the strategy built on the score survives the breakage.
 
 The base class records which parameters are differentiable in the
-`params_smooth` property, and this single flag propagates through the stack:
+`params_smooth` property, and this single flag propagates through the toolkit:
 `fit_distrib()` works on the Laplace precisely because Fisher scoring uses the
 expected information, which exists, rather than the observed one, which is
 degenerate.

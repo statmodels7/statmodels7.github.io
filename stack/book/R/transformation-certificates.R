@@ -1,6 +1,6 @@
 # Certificates for Chapter 4.
 #
-# The wrappers are the part of the stack that cannot be checked against a
+# The wrappers are the part of the toolkit that cannot be checked against a
 # reference implementation, because they compose: the Hessian of a zero-inflated
 # distribution is assembled at run time from whatever parent it was handed. So
 # every check here is either structural (an identity that must hold between two

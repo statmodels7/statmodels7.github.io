@@ -12,12 +12,12 @@ suppressPackageStartupMessages({
 
 # _quarto.yml sets execute-dir: project, so the working directory is always
 # statmodels7/book and the two packages sit one level up.
-.stack_root <- normalizePath("..", mustWork = TRUE)
+.toolkit_root <- normalizePath("..", mustWork = TRUE)
 
 # Load both packages from source, quietly.
 suppressMessages({
-  pkgload::load_all(file.path(.stack_root, "linkfunctions7"), quiet = TRUE, export_all = FALSE)
-  pkgload::load_all(file.path(.stack_root, "distributions7"), quiet = TRUE, export_all = FALSE)
+  pkgload::load_all(file.path(.toolkit_root, "linkfunctions7"), quiet = TRUE, export_all = FALSE)
+  pkgload::load_all(file.path(.toolkit_root, "distributions7"), quiet = TRUE, export_all = FALSE)
 })
 
 knitr::opts_chunk$set(
