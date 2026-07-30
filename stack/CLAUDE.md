@@ -30,10 +30,10 @@ score, sometimes the Hessian, and nothing beyond.
 A Gamma is a fixed mathematical object. It should be written once, correctly, with
 everything a modelling routine could want already computed — third and fourth
 derivatives, derivatives with respect to the response, derivatives with respect to the
-unconstrained parameters — and then everyone builds on top. That is what this stack is:
+unconstrained parameters — and then everyone builds on top. That is what this toolkit is:
 infrastructure to be reused, not another modelling package.
 
-Extension matters just as much in the telling: a stack that only worked for the fourteen
+Extension matters just as much in the telling: a toolkit that only worked for the fourteen
 distributions it ships with would have solved nothing.
 
 Giovanni corrected an earlier draft that led with the link scale and the optimisation
@@ -41,7 +41,7 @@ story. Lead with the reuse argument.
 
 ## 1. What this is
 
-`statmodels7` is an umbrella for a statistical modelling stack built entirely on the
+`statmodels7` is an umbrella for a statistical modelling toolkit built entirely on the
 **S7** object system. The name carries the convention: every package is a *plural noun
 followed by 7*, which happens to spell `...s7` — `linkfunction**s7**`,
 `distribution**s7**`, `statmodel**s7**`. The 7 is S7; the s is the plural, not decoration.
@@ -379,7 +379,7 @@ linkfunctions7, 81 in distributions7. All of them now carry roxygen with
 `@keywords internal` and *without* `@noRd`, so a page is generated and reachable
 through `?name` and the site while staying out of the index. That is the convention
 distributions7 had already chosen for its distribution classes; it is now the whole
-stack's. `.onLoad` is the one exception and keeps `@noRd`, a man page for an R load
+toolkit's. `.onLoad` is the one exception and keeps `@noRd`, a man page for an R load
 hook being noise CRAN would query.
 
 Two things that only bite at submission and that `R CMD check` does not raise locally:
@@ -723,20 +723,21 @@ exactly 1. What was wrong was everything around them.
   `logo/make-logos.R` regenerates them; the curves are the real `plogis()` and `dgamma()`.
   The palette is deliberately taken from Giovanni's earlier `mvreg` sticker — chalkboard
   green `#3D6B4C`, rust border `#9C3E11`, chalk `#F7F4D4`, monospace wordmark — so the
-  stack reads as one family with his existing work. Keep it if you add a package.
+  toolkit reads as one family with his existing work. Keep it if you add a package.
   A decoration that carries no information does not belong: an earlier version marked
   the mode of the density with a dot, and he was right to have it removed.
-- The portal is hand-written HTML. If the stack grows past a handful of packages it may
+- The portal is hand-written HTML. If the toolkit grows past a handful of packages it may
   deserve a generator, but not yet.
 - The book now covers links, distributions, the transformation wrappers and fitting
   (chapter 5, added 2026-07-30: the link scale as the place to optimise, Fisher
   scoring versus Newton and why the congruence corollary makes the expected
   information the right matrix to invert, step halving, the delta method as the same
   congruence applied to the inverse, and intervals built on the link scale and mapped
-  back). What it still lacks is a treatment of the **numerical fallbacks** beyond the
-  summary in §3.7 — the ratio-of-uniforms sampler, the two-sided divergence map, the
-  discrete cumulative table — and anything on **censored likelihoods**, which waits on
-  the front end that does not exist yet.
+  back), and §3.4 on the numerical fallbacks — the ratio-of-uniforms theorem with its
+  proof, the mode recentring, the divergence transform at one edge and at two, the
+  discrete cumulative table, and the two warnings that belong with them. What it still
+  lacks is anything on **censored likelihoods**, which waits on the front end that does
+  not exist yet, and it will need a chapter per package as the others arrive.
 
 ---
 
@@ -744,11 +745,35 @@ exactly 1. What was wrong was everything around them.
 
 `book/` is a **Quarto book** (`quarto render` from inside it; Quarto CLI 1.8.24 is on
 PATH, and no new R packages are needed — knitr and numDeriv suffice). It is the
-mathematical companion Giovanni asked for on 2026-07-26: every formula the stack
-implements, derived from the definitions with the steps written out. Chapters:
-preface, introduction, link functions, distributions, transformations, fitting,
-plus a notation appendix. English, on purpose — it is the public document of a
-stack aiming at CRAN.
+mathematical companion Giovanni asked for on 2026-07-26: every formula the toolkit
+implements, derived from the definitions with the steps written out. English, on
+purpose — it is the public document of a toolkit aiming at CRAN.
+
+**Structure: one chapter per package** (Giovanni, 2026-07-30, explicit). The book
+is about `statmodels7`, not about distributions, and the earlier arrangement — a
+chapter each for links, distributions, transformations, fitting — read as a book
+on distributions with a chapter on links attached. Now:
+
+```
+Preface / 1 Introduction / 2 The linkfunctions7 package /
+3 The distributions7 package  (3.1 Distributions, 3.2 Transformations,
+                               3.3 Fitting, 3.4 Fallbacks) / A Notation
+```
+
+When `modelterms7` and the rest arrive they arrive as chapters, and nothing
+already written moves. Quarto numbers chapters per *file*, so a package chapter is
+one `.qmd` that pulls its sections in with `{{< include >}}` from `_`-prefixed
+files that are **not** listed in `_quarto.yml`; that keeps 3.1, 3.2 numbering
+without a two-thousand-line file. `toc-depth` is 4, `number-depth` 3.
+
+⚠️ **Demoting headings when reorganising:** shift `#` levels only outside fenced
+code (where `#` is an R comment) and outside `:::` divs — a `##` inside
+`::: {#thm-x}` is the *theorem's title*, which Quarto reads as the block's name,
+not a section heading.
+
+**The word is "toolkit", never "stack"** (Giovanni, 2026-07-30) — in the book, the
+portal and both package READMEs. Careful with the verb: "wrappers do not stack"
+is the other sense and must survive, as must the `sec-no-stacking` label.
 
 ⚠️ **`quarto render` needs R on PATH.** Quarto resolves R from the registry and
 finds `R-4.5.1`, the empty directory of §3, then stops with *"Unable to locate an
@@ -838,4 +863,4 @@ differentiation of the analytical order k−1.
 Loading is from **source** via `pkgload` on `../linkfunctions7` and
 `../distributions7`, so the book documents the working tree. `execute-dir: project`
 keeps the working directory at `book/`. The palette in `assets/theme.scss` is the
-stack's: chalkboard green `#3D6B4C`, rust `#9C3E11`, chalk `#F7F4D4`.
+toolkit's: chalkboard green `#3D6B4C`, rust `#9C3E11`, chalk `#F7F4D4`.
