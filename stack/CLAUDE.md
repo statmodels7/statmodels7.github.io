@@ -603,6 +603,22 @@ exactly 1. What was wrong was everything around them.
 - `identical()` on a method object does **not** work for asking "is this the inherited
   fallback?" — S7 wraps it. Use `attr(m, "signature")[[1]]`, which is the class the method
   was registered on.
+- **...and then do not compare that class with `identical()` either** (2026-07-30).
+  `identical()` on an S7 class is *object identity*, so it is `FALSE` for a class
+  re-created from the same definition — which is what happens whenever a package's code
+  is re-evaluated rather than loaded, i.e. under `covr`. Compare `attr(cls, "name")` and
+  `attr(cls, "package")`, keeping identity as a fast path; both packages now have a
+  helper for it (`is_base_link_class()`, `is_class()`).
+  The failure this caused is worth remembering for its shape rather than its size. In
+  linkfunctions7 the base numerical fallback was mistaken for an analytic method, so
+  every fallback differentiated the order below it and the chain degenerated into the
+  nested first differences the design exists to forbid: the log link's fourth derivative
+  came back wrong **by a factor of 900**. The local suite passed, `R CMD check --as-cran`
+  passed, and the five-platform matrix passed. **Only the coverage job failed**, because
+  `covr` is the one context that re-evaluates the code. Two lessons: a green
+  `R-CMD-check` does not clear a change that depends on how code was loaded, and the
+  reason the failure was legible at all is that the new tests assert on *accuracy*
+  rather than on finiteness.
 - Reading an S7 property costs ~2.2 µs against 0.87 for a plain attribute. In hot paths,
   read properties once into locals.
 - S7 dispatch itself is ~5 µs against ~0.9 for a plain call. Irreducible.
