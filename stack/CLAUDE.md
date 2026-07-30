@@ -354,8 +354,8 @@ and `plot()` on the fit.
 
 | | |
 |---|---|
-| `linkfunctions7` | 711 tests, `R CMD check` OK, CI green |
-| `distributions7` | 1447 tests, `R CMD check` OK (2026-07-27, local), CI green |
+| `linkfunctions7` | 781 tests, `R CMD check` OK, CI green |
+| `distributions7` | 1512 tests, `R CMD check` OK (2026-07-30, local), CI green |
 
 Both repositories run `R-CMD-check` on macOS, Windows and three Linux/R combinations
 (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix matters for
@@ -370,6 +370,23 @@ Vignettes: `defining-a-distribution`, `fitting-a-model`,
 new submission, version `0.0.0.9000`, the `Remotes:` field, and linkfunctions7 not being
 on CRAN. **The real CRAN blocker is that linkfunctions7 must be published first.**
 Both names, and `modelterms7` / `basis7` / `penalties7`, are free on CRAN.
+linkfunctions7 is now in the same state: two notes, both the dev version string and
+pandoc missing from the check environment.
+
+**Everything is documented, exported or not** (2026-07-30). Both packages had full
+coverage of their exported surface and none at all of their internals — 19 objects in
+linkfunctions7, 81 in distributions7. All of them now carry roxygen with
+`@keywords internal` and *without* `@noRd`, so a page is generated and reachable
+through `?name` and the site while staying out of the index. That is the convention
+distributions7 had already chosen for its distribution classes; it is now the whole
+stack's. `.onLoad` is the one exception and keeps `@noRd`, a man page for an R load
+hook being noise CRAN would query.
+
+Two things that only bite at submission and that `R CMD check` does not raise locally:
+**`\value` on every exported topic** and **an executable example on every exported
+function**. Both were missing throughout linkfunctions7 and are the two most common
+reasons a first submission comes back. Closed there; worth checking before any future
+package is submitted.
 
 ---
 
@@ -450,6 +467,24 @@ exactly 1. What was wrong was everything around them.
 - Parsing a Hessian component name with `strsplit(nm, "_")` and taking the first and
   last piece is wrong for a parameter whose own name contains an underscore. Use the
   internal `hess_pairs(params)`, which inverts `hess_names()` from the parameter vector.
+- **That fix did not propagate, and the three sites it missed were the worst ones**
+  (found 2026-07-30). `numerical_deriv3()`, `numerical_deriv4()` and
+  `expected_by_bartlett()` still recovered their multi-index by splitting the name, so
+  a distribution with a parameter called `log_scale` could not obtain a third
+  derivative, a fourth, or an expected Hessian by the *default* `approx` — all three
+  stopped with an error. Those are precisely the **fallbacks**, the machinery a
+  distribution gets when it does *not* implement its own derivatives, so the failure
+  was reachable only from a user-defined distribution, which is the whole point of the
+  package. None of the fourteen shipped has such a name, which is why nothing noticed.
+  `deriv_indices(params, order)` now generates the indices from the same enumeration
+  that generates the names, and `deriv_names()` is defined in terms of it, so the two
+  cannot disagree. `order_indices()` in `wrapper_derivatives.R` was a third copy of
+  that enumeration and delegates too. **`deriv_index_list()` in `link_scale.R` is
+  deliberately not merged in** — its order-2 case is ordered for `hess_names()`,
+  diagonal first, not lexicographically, and merging them attaches `"mu_sigma"` to the
+  index `(sigma, sigma)`. All four now say which is which in their documentation.
+  General lesson: when a defect is a *shape of mistake* rather than one line, grep for
+  the shape across the package before closing it.
 
 ### Truncation
 
@@ -496,6 +531,30 @@ exactly 1. What was wrong was everything around them.
 - **In R, `NA^0` is 1.** So `theta^(lambda - 2)` silently turns a missing parameter into a
   number as soon as lambda is 2. Any derivative that reduces to a constant must propagate
   missingness explicitly (`const_like()` / `na_from()` in linkfunctions7).
+- **A guard clamp is a number, and it has to be derived rather than reached for**
+  (2026-07-30). The exponential links floored `exp(eta)` at `.Machine$double.eps`, which
+  is not a lower bound on anything relevant — it is the resolution of a double *near 1*,
+  not the smallest one that exists. The constraint that actually binds is that the log
+  link's fourth forward derivative `-6/theta^4` must not overflow, giving
+  `(24/double.xmax)^0.25 ≈ 1.9e-77`. The old value was 61 orders of magnitude higher
+  than necessary and corrupted theta for **every** `eta < -36`: `linkinv(log_link(), -40)`
+  returned `2.2e-16` instead of `4.2e-18`, and the round trip came back `-36.04`. It also
+  did not protect what it claimed to, since the forward derivatives take theta from the
+  caller and were never floored at all. Same clamp, same mistake, in `cloglog` and the
+  lower-bounded link. Note the near-miss: `double.xmin` looks like the obvious
+  replacement and is wrong too — it keeps theta exact further down but lets `1/theta^2`
+  overflow. Derive the bound from the expression that binds; do not pick a famous
+  constant.
+- **`expm1(z)` is `Inf` past z = 709, and a derivative dividing by `val^k` fails long
+  before that.** The softplus link was written in `val = expm1(a*theta)`, so
+  `d4linkfun` was `NaN` from `theta = 177` with `a = 1`, and from `theta = 24` with
+  `a = 30` — an entirely ordinary value for a steep softplus. Rewriting in
+  `u = -expm1(-a*theta)` via `log(expm1(z)) = z + log(-expm1(-z))` removes it: the
+  identity is exact at both ends, and every derivative follows by dividing through by a
+  power of `exp(z)`, which turns each growing quantity into a decaying one. Verify such
+  a rewrite by pinning it to the expression it replaces over the range where that one
+  still works — agreement to 2e-16 there, plus finiteness beyond, is a much stronger
+  statement than agreement with `numDeriv` alone.
 
 ### Random number generation
 
@@ -536,6 +595,17 @@ exactly 1. What was wrong was everything around them.
   and wrote `fd_is_reliable.Rd` instead. The stale Rd had been surviving in `man/`
   because nobody had regenerated since. If a documentation trap is not visible, it is
   because roxygen has not run — run it after touching any file with roxygen in it.
+- **An `@include` block not terminated by `NULL` is the same hazard by another route**
+  (2026-07-30). It attaches to the next object in the file, which is harmless for as
+  long as that object is undocumented — and silently swallows its documentation the
+  moment it is not. `cdf_derivatives.R` and `numerical_fallbacks.R` were both like
+  this, so `cdf_tail_scale` and `find_pdf_anchor` were written, roxygenised, and
+  produced no page at all. It surfaced only as a `checking Rd cross-references`
+  warning about links to topics that did not exist, never as anything at the point of
+  the mistake. Most files here already end the block with `NULL`; the ones that do not
+  are fine only by accident. Also: a `\link{}` to a function carrying `@noRd` is a
+  check warning, so documenting a helper that others link to means dropping its
+  `@noRd`, not just writing the block.
 
 ### Documentation build
 
@@ -572,6 +642,21 @@ exactly 1. What was wrong was everything around them.
   round-trip stays self-consistent however wrong the cdf is. A cdf shifted by a constant
   passed all twelve checks. Always also confirm that an *un*broken reference still passes,
   so the checks cannot be trivially failing.
+- **Inject the *missing* case too, not only the wrong one** (2026-07-30). `check_link()`
+  caught a derivative that was 5% out and reported `[PASSED]` on all four orders for a
+  link that implemented only its first: an unimplemented derivative raised, which left
+  `NA` and broke the loop, and the summary reduced with `na.rm = TRUE`. Absent and
+  wrong are different failure modes and a validator needs a probe for each — the more
+  so here, since `check_link()` exists for whoever is writing a link of their own, and
+  an omission is exactly what they are likeliest to have. Pair the two probes in the
+  tests: one asserting the missing case now fails, one asserting the 5%-wrong case
+  still does, so the first cannot be satisfied by weakening the check.
+- **Test grids sit inside the domain; the defects sit at the edges.** Every derivative
+  test in linkfunctions7 evaluated well inside the domain, deliberately, so that
+  numerical differentiation stayed there — and that is precisely why the softplus
+  overflow and the exponential clamp survived 711 passing tests. A separate file that
+  goes to the tails costs little and is where the bodies are buried
+  (`tests/testthat/test-extremes.R`).
 - **A validator that does not know about mixed distributions rejects correct code.**
   `check_distrib()` treated `zero_adjusted(gamma_distrib())` as purely continuous and
   reported four failures on a wrapper that is exactly right: the density integrates to
@@ -628,6 +713,11 @@ exactly 1. What was wrong was everything around them.
 - **Third and fourth cdf derivatives** would let truncation drop quadrature at orders
   3-4 as well.
 - No `NEWS.md` on either package.
+- **`expected_by_bartlett()` recomputes too much.** Inside the integrand it calls
+  `observed_deriv()` for a whole order and keeps one component, once per block per
+  partition per component — and the integrand runs at every quadrature node. Memoising
+  per integrand call looks worth it at orders 3 and 4, but `"bartlett"` is only the
+  default at order 2, where the score is all it needs, so measure before touching it.
 - **Logos** exist but are competent rather than designed — drawn by a script, not by
   someone with visual judgement. Worth redoing with a designer if the identity matters.
   `logo/make-logos.R` regenerates them; the curves are the real `plogis()` and `dgamma()`.
