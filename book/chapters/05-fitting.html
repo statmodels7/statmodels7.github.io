@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>5&nbsp; Fitting a distribution – The statmodels7 Framework</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/A1-notation.html" rel="next">
+<link href="../chapters/04-transformations.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e986b704c747e817427b29ebc19a759e.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a2ce0b05719297c8ab99eac5b5b92eaa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/05-fitting.html"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Fitting a distribution</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="../index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">The statmodels7 Framework</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-link-functions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Link functions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Distributions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-transformations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-fitting.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Fitting a distribution</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A1-notation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-fit-scale" id="toc-sec-fit-scale" class="nav-link active" data-scroll-target="#sec-fit-scale"><span class="header-section-number">5.1</span> Maximising on the unconstrained scale</a></li>
+  <li><a href="#sec-fit-scoring" id="toc-sec-fit-scoring" class="nav-link" data-scroll-target="#sec-fit-scoring"><span class="header-section-number">5.2</span> Fisher scoring, and why it is the default</a></li>
+  <li><a href="#sec-fit-starts" id="toc-sec-fit-starts" class="nav-link" data-scroll-target="#sec-fit-starts"><span class="header-section-number">5.3</span> Starting values and what happens when they fail</a></li>
+  <li><a href="#sec-fit-delta" id="toc-sec-fit-delta" class="nav-link" data-scroll-target="#sec-fit-delta"><span class="header-section-number">5.4</span> From the link scale back to the parameter scale</a></li>
+  <li><a href="#sec-fit-example" id="toc-sec-fit-example" class="nav-link" data-scroll-target="#sec-fit-example"><span class="header-section-number">5.5</span> A fit end to end</a></li>
+  <li><a href="#sec-fit-scope" id="toc-sec-fit-scope" class="nav-link" data-scroll-target="#sec-fit-scope"><span class="header-section-number">5.6</span> What is deliberately absent</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span id="sec-fitting" class="quarto-section-identifier"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Fitting a distribution</span></span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The three chapters so far have built objects and derived what can be computed from them: links carrying four derivatives in both directions, distributions carrying scores, informations and derivatives to fourth order, and operators that turn one distribution into another while keeping all of it. Nothing so far has <em>estimated</em> anything. This chapter closes that gap. It is shorter than the others, and deliberately so: almost everything it needs has already been derived, and the pleasure of the exercise is watching the earlier machinery fall into place with very little new mathematics.</p>
+<p>The task is the simplest one in which the machinery is exercised end to end. Given a sample <span class="math inline">\(y_1, \dots, y_n\)</span> assumed independent and identically distributed from a member of one of the families in the catalogue, estimate the parameter by maximum likelihood, and report an uncertainty for it. There is no regression here — no covariates, no design matrix — and that is the point: <code>fit_distrib()</code> is the smallest complete consumer of the stack, and every component it uses is a component that a regression front end will use in the same way.</p>
+<section id="sec-fit-scale" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="sec-fit-scale"><span class="header-section-number">5.1</span> Maximising on the unconstrained scale</h2>
+<p>Write the total log-likelihood of the sample as</p>
+<p><span class="math display">\[\ell(\theta) = \sum_{i=1}^{n} \log f(y_i; \theta),\]</span></p>
+<p>a function of the <span class="math inline">\(p\)</span>-vector <span class="math inline">\(\theta\)</span>, each of whose components is confined to its own open interval <span class="math inline">\(\Theta_j\)</span>. Maximising a function over a product of open intervals is an awkward problem to hand to a general optimiser. Every proposal must be checked for admissibility; a step that overshoots must be shortened rather than taken; and near a boundary the objective is unbounded or undefined, so the optimiser spends its effort fighting the constraint rather than climbing the likelihood.</p>
+<p>The stack disposes of this by never optimising in <span class="math inline">\(\theta\)</span> at all. Each parameter carries a link, and the estimation is carried out in</p>
+<p><span class="math display">\[\eta = \big(g_1(\theta_1), \dots, g_p(\theta_p)\big) \in \mathbb{R}^{p},\]</span></p>
+<p>which is unconstrained by construction. The reparameterisation costs nothing, because maximum likelihood is invariant under a reparameterisation: if <span class="math inline">\(\hat\eta\)</span> maximises <span class="math inline">\(\ell(h(\eta))\)</span> then <span class="math inline">\(h(\hat\eta)\)</span> maximises <span class="math inline">\(\ell(\theta)\)</span>, the two problems having the same stationary points wherever <span class="math inline">\(h\)</span> is a diffeomorphism — which <a href="02-link-functions.html#def-link" class="quarto-xref">Definition&nbsp;<span>2.1</span></a> guarantees, <span class="math inline">\(h'\)</span> never vanishing. The gain is that admissibility becomes automatic. Whatever the optimiser proposes, <span class="math inline">\(h(\eta)\)</span> lands inside the domain, because that is what the inverse link is: a bijection onto <span class="math inline">\(\Theta\)</span>. There is no rejection step and no boundary to guard.</p>
+<p>What the change of scale does cost is derivatives, and those have already been paid for. The score and the Hessian with respect to <span class="math inline">\(\eta\)</span> are exactly what <a href="03-distributions.html#sec-link-scale" class="quarto-xref"><span>Section 3.4</span></a> computed, and <code>fit_distrib()</code> obtains them by asking for them:</p>
+<p><span class="math display">\[
+U(\eta) = \sum_{i=1}^{n} \frac{\partial \ell_i}{\partial \eta}, \qquad
+H(\eta) = \sum_{i=1}^{n} \frac{\partial^{2} \ell_i}{\partial \eta \,\partial \eta^\top},
+\]</span></p>
+<p>each summed over observations because the sample is independent and the total log-likelihood is the sum of the individual ones.</p>
+</section>
+<section id="sec-fit-scoring" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="sec-fit-scoring"><span class="header-section-number">5.2</span> Fisher scoring, and why it is the default</h2>
+<p>All three optimisers offered are variations on one idea: approximate the log-likelihood near the current point by a quadratic and step to the maximum of that quadratic. Writing <span class="math inline">\(I\)</span> for the matrix that plays the role of the negative curvature, the update is</p>
+<p><span class="math display">\[\eta^{(t+1)} = \eta^{(t)} + I^{-1} U\big(\eta^{(t)}\big),\]</span></p>
+<p>and the three methods differ only in what they use for <span class="math inline">\(I\)</span>. <strong>Newton–Raphson</strong> uses the observed information <span class="math inline">\(-H(\eta)\)</span>; <strong>Fisher scoring</strong> uses the expected information <span class="math inline">\(-\mathbb{E}[H(\eta)]\)</span>; <strong>BFGS</strong> uses neither, building an approximation from successive gradients instead.</p>
+<p>The default is Fisher scoring, for a reason that <a href="03-distributions.html#cor-congruence" class="quarto-xref">Corollary&nbsp;<span>3.1</span></a> supplied two chapters ago and that is worth restating because it is easy to mistake for a mere convenience. On the link scale the expected information is</p>
+<p><span class="math display">\[\mathbb{E}[I_\eta] = \operatorname{diag}(h')\,\mathbb{E}[I_\theta]\,\operatorname{diag}(h'),\]</span></p>
+<p>a congruence transform. A congruence transform of a positive definite matrix is positive definite, so if the model is identified on the parameter scale then the matrix Fisher scoring inverts is positive definite on the link scale as well, and the step it computes is guaranteed to be an ascent direction. The observed Hessian carries no such guarantee: away from the optimum <span class="math inline">\(-H\)</span> can fail to be positive definite, and the Newton step can then point downhill. This is not a statement about which estimator is better — at the optimum the two informations agree in expectation — but about which iteration is better behaved on the way there.</p>
+<p>Ascent being a direction rather than a distance, the step itself is halved until it earns its keep: the candidate <span class="math inline">\(\eta + s\,\Delta\)</span> is tried with <span class="math inline">\(s = 1\)</span>, and <span class="math inline">\(s\)</span> is halved until the log-likelihood does not decrease. Since the direction is an ascent direction, some sufficiently small <span class="math inline">\(s\)</span> always succeeds, so the iteration is monotone in the log-likelihood by construction, and a step that would leap into a region where the density overflows is simply not taken.</p>
+<p>Convergence is declared when the score is numerically zero or the log-likelihood has stopped moving, whichever comes first,</p>
+<p><span class="math display">\[\max_j \lvert U_j \rvert &lt; \texttt{tol}
+\qquad\text{or}\qquad
+\lvert \Delta \ell \rvert &lt; \texttt{tol}\,(\lvert \ell \rvert + \texttt{tol}),\]</span></p>
+<p>the second criterion measured relative to the log-likelihood’s own magnitude, since an absolute threshold means something quite different for a sample of ten and one of ten million.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>The non-regular case, revisited
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><a href="03-distributions.html#sec-nonregular" class="quarto-xref"><span>Section 3.9</span></a> showed that the Laplace location sits at a kink: its observed second derivative <span class="math inline">\(\ell^{(\mu\mu)}\)</span> is zero almost everywhere, while the information, defined as the variance of the score, is <span class="math inline">\(1/b^{2}\)</span>. The consequence for estimation is immediate and rather striking. Newton–Raphson on a Laplace has nothing to invert — the observed information in <span class="math inline">\(\mu\)</span> vanishes identically — whereas Fisher scoring has <span class="math inline">\(1/b^{2}\)</span> and proceeds without noticing anything unusual. That the default method is the one that works here is not a coincidence: the same property that makes the expected information the right object for a non-regular family makes it the right matrix to invert.</p>
+</div>
+</div>
+</section>
+<section id="sec-fit-starts" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="sec-fit-starts"><span class="header-section-number">5.3</span> Starting values and what happens when they fail</h2>
+<p>A likelihood need not be concave, and a fit started in the wrong place can converge to a local maximum, to a boundary, or not at all. Two devices handle this without troubling the user.</p>
+<p>When no starting value is supplied, several are drawn at random from the admissible region with <code>generate_random_theta()</code> and tried in turn, the first that converges being kept. And if the chosen method fails from a given start — whether by exceeding the iteration budget, by producing a step that is not finite, or by raising an error outright, which a numerically approximated expected information can do when its quadrature diverges at an awkward parameter value — the fit falls back to BFGS from that same start before moving on to the next. BFGS is slower and uses no second-order information, but it is unfussy, and a slow answer is better than none.</p>
+<p>Only when every start has failed by every route does <code>fit_distrib()</code> give up, and it then says so and asks for a starting value rather than returning something unusable.</p>
+</section>
+<section id="sec-fit-delta" class="level2" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="sec-fit-delta"><span class="header-section-number">5.4</span> From the link scale back to the parameter scale</h2>
+<p>The optimiser returns <span class="math inline">\(\hat\eta\)</span> and the information <span class="math inline">\(I_{\hat\eta}\)</span>, from which the asymptotic variance on the link scale is the usual inverse, <span class="math inline">\(V_\eta = I_{\hat\eta}^{-1}\)</span>. What the user wants, though, is an uncertainty for <span class="math inline">\(\hat\theta = h(\hat\eta)\)</span>, and here the diagonal Jacobian does its last piece of work. The delta method gives</p>
+<p><span class="math display">\[V_\theta = \operatorname{diag}(h')\,V_\eta\,\operatorname{diag}(h'),\]</span></p>
+<p>with <span class="math inline">\(h'\)</span> evaluated at <span class="math inline">\(\hat\eta\)</span> componentwise — the same congruence that <a href="03-distributions.html#cor-congruence" class="quarto-xref">Corollary&nbsp;<span>3.1</span></a> applied to the information, now applied to its inverse. The two statements are the same statement: if <span class="math inline">\(I_\eta = \operatorname{diag}(h')^{-1} I_\theta \operatorname{diag}(h')^{-1}\)</span> then inverting both sides gives exactly the display above. It is a small pleasure that the transformation appearing in the derivative calculus of <a href="03-distributions.html#sec-link-scale" class="quarto-xref"><span>Section 3.4</span></a> and the one appearing in the delta method are not two facts to remember but one.</p>
+<p>Intervals are built where the normal approximation is most nearly true — on the unconstrained scale — and mapped back afterwards:</p>
+<p><span class="math display">\[
+\big[\hat\eta_j - z_{1-\alpha/2}\,\mathrm{se}(\hat\eta_j),\;
+      \hat\eta_j + z_{1-\alpha/2}\,\mathrm{se}(\hat\eta_j)\big]
+\;\longmapsto\;
+h_j\big(\,\cdot\,\big).
+\]</span></p>
+<p>Two properties follow, and both are the reason for doing it in this order. The mapped interval <strong>cannot leave the parameter’s domain</strong>, since <span class="math inline">\(h_j\)</span> maps onto <span class="math inline">\(\Theta_j\)</span> and nowhere else: a variance never acquires a negative lower limit, a probability never an upper limit above one, however small the sample. And the interval is <strong>not symmetric</strong> about <span class="math inline">\(\hat\theta_j\)</span>, which is as it should be — symmetry on the <span class="math inline">\(\theta\)</span> scale is an artefact of a linear approximation, not a property of the likelihood.</p>
+<p>One detail of the implementation is a direct consequence of <a href="02-link-functions.html#def-link" class="quarto-xref">Definition&nbsp;<span>2.1</span></a> having declined to require that links increase. A decreasing link — the upper-bounded <span class="math inline">\(g(\theta) = \log(u - \theta)\)</span> is the catalogue’s example — sends the lower end of the <span class="math inline">\(\eta\)</span>-interval to the <em>upper</em> end of the <span class="math inline">\(\theta\)</span>-interval, so the two mapped endpoints are sorted before being reported. Code that assumed an increasing link would return an interval with its ends the wrong way round, and would do so silently.</p>
+</section>
+<section id="sec-fit-example" class="level2" data-number="5.5">
+<h2 data-number="5.5" class="anchored" data-anchor-id="sec-fit-example"><span class="header-section-number">5.5</span> A fit end to end</h2>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">20260730</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">500</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">sigma2 =</span> <span class="dv">6</span>))</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, y)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>fit</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: gamma</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 500   Log-likelihood: -1090   AIC: 2184   BIC: 2192</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring (converged in 5 iterations)</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameter scale (95% CI mapped from the link scale):</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       4.0937     0.1088 3.8859 4.3127</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   5.9233     0.4744 5.0628 6.9301</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Link scale (log, log):</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       1.4095     0.0266</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   1.7789     0.0801</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The estimates sit near the values the sample was generated from, and the interval for <code>sigma2</code> is visibly asymmetric — longer to the right, as a variance estimated on a log scale should be. The pieces of the fit are all available individually, on either scale:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.093717 5.923300</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">vcov</span>(fit)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                mu     sigma2</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     0.01184660 0.03428227</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 0.03428227 0.22506371</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>fit<span class="sc">@</span>eta                 <span class="co"># the estimates on the link scale</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.409453 1.778894</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>fit<span class="sc">@</span>ci                  <span class="co"># intervals on the parameter scale</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           lower    upper</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     3.885854 4.312700</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 5.062783 6.930078</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>That the two variance matrices are related by the diagonal Jacobian, exactly as <a href="#sec-fit-delta" class="quarto-xref"><span>Section 5.4</span></a> claims, can be seen directly:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>J <span class="ot">&lt;-</span> <span class="fu">vapply</span>(<span class="fu">seq_along</span>(d<span class="sc">@</span>params), <span class="cf">function</span>(i) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  linkfunctions7<span class="sc">::</span><span class="fu">dlinkinv</span>(d<span class="sc">@</span>link_params[[d<span class="sc">@</span>params[i]]], fit<span class="sc">@</span>eta[i])</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">diag</span>(J) <span class="sc">%*%</span> fit<span class="sc">@</span>vcov_eta <span class="sc">%*%</span> <span class="fu">diag</span>(J)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            [,1]       [,2]</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] 0.01184660 0.03428227</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] 0.03428227 0.22506371</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The maximised log-likelihood, the information criteria, the number of iterations and the method actually used — which may not be the one requested, if the fallback was taken — are all carried on the fitted object, and <code>simulate()</code> and <code>plot()</code> methods compare the fitted distribution against the data it came from.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="05-fitting_files/figure-html/fit-plot-1.png" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>The fitted Gamma against the sample it was estimated from.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="sec-fit-scope" class="level2" data-number="5.6">
+<h2 data-number="5.6" class="anchored" data-anchor-id="sec-fit-scope"><span class="header-section-number">5.6</span> What is deliberately absent</h2>
+<p>It is worth being explicit about the boundary of this chapter, because the apparatus assembled here is capable of a good deal more than it is asked to do.</p>
+<p>There are no covariates. Every observation shares one <span class="math inline">\(\theta\)</span>, so the link scale is a <span class="math inline">\(p\)</span>-vector rather than a set of linear predictors, and the score is a <span class="math inline">\(p\)</span>-vector rather than a <span class="math inline">\(\mathrm{X}^\top\)</span>-weighted sum. Adding covariates changes the bookkeeping and not the mathematics: the chain rule acquires one more link in the chain, <span class="math inline">\(\eta = X\beta\)</span>, whose Jacobian is <span class="math inline">\(X\)</span> rather than <span class="math inline">\(\operatorname{diag}(h')\)</span>, and everything in <a href="#sec-fit-delta" class="quarto-xref"><span>Section 5.4</span></a> goes through with the two composed. That is the subject of the model layer, not of this one.</p>
+<p>Nor is censoring handled here, although <a href="03-distributions.html#sec-cdf-derivatives" class="quarto-xref"><span>Section 3.6</span></a> supplied the derivatives that a censored likelihood needs. Assembling them into a likelihood requires a status vector alongside the response, and an interface for saying which observations are censored and how — a front end that does not yet exist.</p>
+<p>Finally, the optimisers are the three above and the user cannot supply another. The stack’s stated ambition is that optimisers should be pluggable and that the user should be able to choose a Bayesian treatment instead; that too belongs to the model layer.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/04-transformations.html" class="pagination-link" aria-label="Transformations of distributions">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/A1-notation.html" class="pagination-link" aria-label="Notation">
+        <span class="nav-page-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>The statmodels7 Framework</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
