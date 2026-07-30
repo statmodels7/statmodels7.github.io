@@ -50,7 +50,7 @@ followed by 7*, which happens to spell `...s7` — `linkfunction**s7**`,
 
 | package | what it provides |
 |---|---|
-| `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions |
+| `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
 | `distributions7` | 14 distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE |
 
 **Planned** — `modelterms7`, `basis7`, `penalties7`, and eventually the `statmodels7`
@@ -175,6 +175,26 @@ generic — so performance-critical code calls `dlinkinv()` and friends directly
 
 `check_link(x)` is the built-in validator: invertibility both ways, monotonicity, the
 inverse function theorem, and all derivative orders against `numDeriv`.
+
+**Numerical fallbacks** (added 2026-07-30). Only `linkfun` and `linkinv` are
+compulsory; the base class supplies the eight derivative generics a link does not
+implement, so a user-defined link runs immediately — the same bargain distributions7
+offers a density-only distribution. The rule they obey is the one `check_link()`
+already enforced: each fallback finds the highest order `m` implemented analytically
+and applies **one** central stencil of order `k - m` to it, never a chain of first
+differences. It is worth several digits: on a log link defined with nothing, the
+fourth derivative is good to ~2e-5, and supplying just the analytic first and second
+takes it to ~2e-8.
+
+Consequence for the validator, and the reason it changed: an order that comes from a
+fallback would be compared against a numerical differentiation of the order below —
+the same arithmetic twice, agreeing however wrong the link is. `check_link()`
+therefore leaves such orders `NA`, meaning **not checked**, and prints
+`[numerical]` or `[PASSED to order k, n numerical]` instead of a bare `[PASSED]`.
+`link_fallback_orders(x)` answers the same question programmatically, and the result
+of `check_link()` carries it as the attribute `"analytic_orders"` — an attribute
+rather than a seventh list element, so that every element of the result stays a
+logical vector and callers can still reduce over it.
 
 14 constructors: identity, log, logit, probit, cloglog, loglog, cauchit, rhobit, sqrt,
 inverse, inverse_sq, power(lambda), softplus(a), bounded(lwr, upr). The last one returns
@@ -354,7 +374,7 @@ and `plot()` on the fit.
 
 | | |
 |---|---|
-| `linkfunctions7` | 781 tests, `R CMD check` OK, CI green |
+| `linkfunctions7` | 815 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1512 tests, `R CMD check` OK (2026-07-30, local), CI green |
 
 Both repositories run `R-CMD-check` on macOS, Windows and three Linux/R combinations
