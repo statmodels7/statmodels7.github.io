@@ -1,6 +1,6 @@
 # The statmodels7 book
 
-The accountability document for the stack: every formula the packages implement,
+The accountability document for the toolkit: every formula the packages implement,
 derived from the definition, and checked against the running code while the book
 renders.
 
@@ -31,22 +31,32 @@ an installed snapshot. Nothing needs to be installed first.
 
 ## Layout
 
+**One chapter per package.** The sections of a package chapter live in their own
+files, prefixed with `_` so Quarto does not promote them to chapters, and are
+pulled in with `{{< include >}}` by the chapter that owns them. That is what keeps
+the numbering at 3.1, 3.2, ... without putting two thousand lines in one file, and
+it is how the next package will be added.
+
 ```
 book/
   _quarto.yml          project and format configuration
   index.qmd            preface: what the book is and the rule it follows
   chapters/
-    01-introduction.qmd      what the framework is for
-    02-link-functions.qmd    theory, the inverse function theorem, 16 links
-    03-distributions.qmd     likelihood theory, Bartlett, link scale, 14 distributions
-    04-transformations.qmd   change of variables, zero-inflation, zero-adjustment
-    A1-notation.qmd          notation, session info
+    01-introduction.qmd        what the toolkit is for
+    02-linkfunctions7.qmd      the inverse function theorem, 16 links
+    03-distributions7.qmd      the distributions7 chapter; includes the four below
+    _03a-distributions.qmd       likelihood theory, Bartlett, link scale, 14 families
+    _03b-transformations.qmd     change of variables, zero wrappers, truncation
+    _03c-fitting.qmd             maximum likelihood, Fisher scoring, delta method
+    _03d-fallbacks.qmd           what a density-only distribution gets for free
+    A1-notation.qmd            notation, session info
   R/
     _setup.R                       shared setup and the certification helpers
     link-formulas.R                the 16 link records + their certificates
     distribution-catalogue.R       the 14 distribution records + certificates
     transformation-certificates.R  transformer and zero-wrapper certificates
-  assets/theme.scss      the stack's palette
+    fit-certificates.R             the fitting chapter's certificates
+  assets/theme.scss      the toolkit's palette
 ```
 
 ## Notation
@@ -71,9 +81,10 @@ If you edit a formula in `R/link-formulas.R` or `R/distribution-catalogue.R`, yo
 are editing both the equation the reader sees and the thing that gets tested.
 That is deliberate.
 
-## Adding a chapter
+## Adding a chapter or a section
 
-Add the `.qmd` under `chapters/`, list it in `_quarto.yml`, and start it with
+A **chapter** is a package. Add the `.qmd` under `chapters/`, list it in
+`_quarto.yml`, and start it with
 
 ``` r
 source("R/_setup.R")
@@ -81,3 +92,24 @@ source("R/_setup.R")
 
 in an `include: false` chunk. The working directory is always `book/`
 (`execute-dir: project`).
+
+A **section** of an existing package chapter is a `_`-prefixed file starting at
+`##`, added to that chapter with `{{< include >}}` and *not* listed in
+`_quarto.yml`. It needs its own `source("R/_setup.R")` chunk with a label unique
+across the whole book.
+
+## Rendering
+
+`quarto render`, from this directory, with R on `PATH` — Quarto resolves R from
+the registry, finds an empty `R-4.5.1`, and stops with "Unable to locate an
+installed version of R" otherwise.
+
+`freeze` is **off**, deliberately. Quarto keys its cache on the `.qmd` and does
+not see the files a chapter `source()`s, which is exactly where the formulas and
+their transcriptions live; with `freeze: auto` a render finished in seconds
+carrying stale text and, worse, without re-running a single gate. Renders take
+twenty minutes and mean something. Do not turn it back on.
+
+After rendering, `grep -c '&#124;' _book/chapters/*.html` must be all zeros: a
+`|` inside math in a table splits the cell, so absolute values are written
+`\lvert ... \rvert`.

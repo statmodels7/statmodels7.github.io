@@ -1,4 +1,4 @@
-# Fitting a distribution {#sec-fitting}
+## Fitting a distribution {#sec-fitting}
 
 ```{r}
 #| label: setup-05
@@ -21,11 +21,11 @@ Given a sample $y_1, \dots, y_n$ assumed independent and identically
 distributed from a member of one of the families in the catalogue, estimate the
 parameter by maximum likelihood, and report an uncertainty for it. There is no
 regression here — no covariates, no design matrix — and that is the point:
-`fit_distrib()` is the smallest complete consumer of the stack, and every
+`fit_distrib()` is the smallest complete consumer of the toolkit, and every
 component it uses is a component that a regression front end will use in the
 same way.
 
-## Maximising on the unconstrained scale {#sec-fit-scale}
+### Maximising on the unconstrained scale {#sec-fit-scale}
 
 Write the total log-likelihood of the sample as
 
@@ -39,7 +39,7 @@ rather than taken; and near a boundary the objective is unbounded or undefined,
 so the optimiser spends its effort fighting the constraint rather than climbing
 the likelihood.
 
-The stack disposes of this by never optimising in $\theta$ at all. Each
+The toolkit disposes of this by never optimising in $\theta$ at all. Each
 parameter carries a link, and the estimation is carried out in
 
 $$\eta = \big(g_1(\theta_1), \dots, g_p(\theta_p)\big) \in \mathbb{R}^{p},$$
@@ -65,7 +65,7 @@ $$
 each summed over observations because the sample is independent and the total
 log-likelihood is the sum of the individual ones.
 
-## Fisher scoring, and why it is the default {#sec-fit-scoring}
+### Fisher scoring, and why it is the default {#sec-fit-scoring}
 
 All three optimisers offered are variations on one idea: approximate the
 log-likelihood near the current point by a quadratic and step to the maximum of
@@ -127,7 +127,7 @@ coincidence: the same property that makes the expected information the right
 object for a non-regular family makes it the right matrix to invert.
 :::
 
-## Starting values and what happens when they fail {#sec-fit-starts}
+### Starting values and what happens when they fail {#sec-fit-starts}
 
 A likelihood need not be concave, and a fit started in the wrong place can
 converge to a local maximum, to a boundary, or not at all. Two devices handle
@@ -147,7 +147,7 @@ Only when every start has failed by every route does `fit_distrib()` give up,
 and it then says so and asks for a starting value rather than returning
 something unusable.
 
-## From the link scale back to the parameter scale {#sec-fit-delta}
+### From the link scale back to the parameter scale {#sec-fit-delta}
 
 The optimiser returns $\hat\eta$ and the information $I_{\hat\eta}$, from which
 the asymptotic variance on the link scale is the usual inverse,
@@ -191,7 +191,7 @@ mapped endpoints are sorted before being reported. Code that assumed an
 increasing link would return an interval with its ends the wrong way round, and
 would do so silently.
 
-## A fit end to end {#sec-fit-example}
+### A fit end to end {#sec-fit-example}
 
 ```{r}
 #| label: fit-demo
@@ -238,7 +238,7 @@ fallback was taken — are all carried on the fitted object, and `simulate()` an
 plot(fit)
 ```
 
-## What is deliberately absent {#sec-fit-scope}
+### What is deliberately absent {#sec-fit-scope}
 
 It is worth being explicit about the boundary of this chapter, because the
 apparatus assembled here is capable of a good deal more than it is asked to do.
@@ -257,7 +257,7 @@ requires a status vector alongside the response, and an interface for saying
 which observations are censored and how — a front end that does not yet exist.
 
 Finally, the optimisers are the three above and the user cannot supply another.
-The stack's stated ambition is that optimisers should be pluggable and that the
+The toolkit's stated ambition is that optimisers should be pluggable and that the
 user should be able to choose a Bayesian treatment instead; that too belongs to
 the model layer.
 

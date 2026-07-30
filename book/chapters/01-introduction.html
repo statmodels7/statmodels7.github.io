@@ -65,7 +65,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../chapters/02-link-functions.html" rel="next">
+<link href="../chapters/02-linkfunctions7.html" rel="next">
 <link href="../index.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -189,26 +189,14 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../chapters/02-link-functions.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Link functions</span></span></a>
+  <a href="../chapters/02-linkfunctions7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">The linkfunctions7 package</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../chapters/03-distributions.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Distributions</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../chapters/04-transformations.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../chapters/05-fitting.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Fitting a distribution</span></span></a>
+  <a href="../chapters/03-distributions7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">The distributions7 package</span></span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
@@ -240,8 +228,8 @@ window.Quarto = {
   <ul>
   <li><a href="#sec-rewritten" id="toc-sec-rewritten" class="nav-link active" data-scroll-target="#sec-rewritten"><span class="header-section-number">1.1</span> One Gamma, written many times</a></li>
   <li><a href="#sec-completely" id="toc-sec-completely" class="nav-link" data-scroll-target="#sec-completely"><span class="header-section-number">1.2</span> What “completely” means</a></li>
-  <li><a href="#sec-stack" id="toc-sec-stack" class="nav-link" data-scroll-target="#sec-stack"><span class="header-section-number">1.3</span> The stack</a></li>
-  <li><a href="#sec-extension" id="toc-sec-extension" class="nav-link" data-scroll-target="#sec-extension"><span class="header-section-number">1.4</span> Only the density is required</a></li>
+  <li><a href="#sec-toolkit" id="toc-sec-toolkit" class="nav-link" data-scroll-target="#sec-toolkit"><span class="header-section-number">1.3</span> The toolkit</a></li>
+  <li><a href="#sec-extension" id="toc-sec-extension" class="nav-link" data-scroll-target="#sec-extension"><span class="header-section-number">1.4</span> Extension is the point</a></li>
   <li><a href="#sec-validators" id="toc-sec-validators" class="nav-link" data-scroll-target="#sec-validators"><span class="header-section-number">1.5</span> Checking one’s own work</a></li>
   </ul>
 </nav>
@@ -272,19 +260,22 @@ window.Quarto = {
 <h2 data-number="1.1" class="anchored" data-anchor-id="sec-rewritten"><span class="header-section-number">1.1</span> One Gamma, written many times</h2>
 <p>Open almost any R modelling package and somewhere in its internals you will find a Gamma distribution — not <em>the</em> Gamma distribution, but that package’s own private copy of it, written as a handful of helper functions: a <code>switch</code> on a character string that returns a density, a closure that computes a score, a block inside a fitting routine that produces whatever second derivative the routine happens to need. The same is true of link functions. Every package that fits something positive carries its own log link, and every package that fits a probability carries its own logit.</p>
 <p>None of these objects can be reused, because none of them is really an object. They are code paths, private to the package that owns them, and they contain only what their author’s routine happened to call for — usually the density and the score, sometimes the Hessian, almost never anything beyond. A package that needs a third derivative writes its own Gamma from scratch; a package that wants derivatives with respect to an unconstrained parameter does the same. The result is that the R ecosystem contains dozens of Gamma distributions, each partial, each written under deadline, and each capable of being wrong in its own way.</p>
-<p>The observation the stack is built on is that all of this is unnecessary, because a Gamma distribution is a fixed mathematical object. It does not vary from package to package. Its density, its score, its information, its third and fourth derivatives, its derivatives with respect to the response, its behaviour under any reparametrisation — all of these are determined once and for all by the definition, and they can therefore be written down once, correctly and completely, for everyone to build on.</p>
+<p>The observation the toolkit is built on is that all of this is unnecessary, because a Gamma distribution is a fixed mathematical object. It does not vary from package to package. Its density, its score, its information, its third and fourth derivatives, its derivatives with respect to the response, its behaviour under any reparametrisation — all of these are determined once and for all by the definition, and they can therefore be written down once, correctly and completely, for everyone to build on.</p>
 <p>That is what <code>statmodels7</code> is: infrastructure meant to be reused, rather than another modelling package. The measure of its success is not how well it fits models but whether somebody else’s modelling package can be built on top of it.</p>
 </section>
 <section id="sec-completely" class="level2" data-number="1.2">
 <h2 data-number="1.2" class="anchored" data-anchor-id="sec-completely"><span class="header-section-number">1.2</span> What “completely” means</h2>
-<p>A distribution in this stack supplies, or can derive, everything a modelling routine might reasonably ask of it: the density or mass function together with the cdf, the quantile function and a random generator; the score and the observed information; the expected information; third and fourth derivatives of the log-likelihood, both observed and expected; derivatives with respect to the response as well as the parameters; and every one of these quantities with respect to the unconstrained parameters as well as the natural ones.</p>
-<p>The last two items are the ones usually missing from other implementations, and they are precisely the ones a modelling framework depends on. Derivatives in the response are what quantile-type residuals and smoothness penalties are made of. Derivatives on the unconstrained scale are what an optimiser wants: a Gamma variance must stay positive, and an algorithm forced to respect that constraint is doing constrained optimisation, whereas an algorithm working with <span class="math inline">\(\eta = \log \sigma^2\)</span> moves freely over the whole real line. Third and fourth derivatives, finally, are the raw material of higher-order asymptotics and bias correction, and their presence is the reason the change of scale developed in <a href="03-distributions.html#sec-link-scale" class="quarto-xref"><span>Section 3.4</span></a> has to be carried to fourth order rather than stopping, as the chain rule usually does in practice, at the second.</p>
+<p>The principle applies to both kinds of object the toolkit currently provides, and it is worth stating for each, because what counts as complete differs.</p>
+<p>A <strong>link function</strong> is a map between a constrained parameter and an unconstrained one, and what a modelling routine can ask of it is its value and its derivatives — in both directions. Almost every implementation in R carries the first derivative of the inverse link and stops there, which is exactly what a GLM fitted by iterative least squares needs and nothing more. A link in this toolkit carries four derivatives of the forward map and four of the inverse, so that it can serve a routine working to any order up to the fourth, and it knows its own domain so that the routine does not have to.</p>
+<p>A <strong>distribution</strong> supplies, or can derive, the density or mass function together with the cdf, the quantile function and a random generator; the score and the observed information; the expected information; third and fourth derivatives of the log-likelihood, both observed and expected; derivatives with respect to the response as well as the parameters; derivatives of the distribution function, which is what a censored observation contributes; and every one of these with respect to the unconstrained parameters as well as the natural ones.</p>
+<p>The items at the end of each list are the ones usually missing elsewhere, and they are precisely the ones a modelling framework depends on. Derivatives in the response are what quantile-type residuals and smoothness penalties are made of. Derivatives on the unconstrained scale are what an optimiser wants: a Gamma variance must stay positive, and an algorithm forced to respect that constraint is doing constrained optimisation, whereas an algorithm working with <span class="math inline">\(\eta = \log \sigma^2\)</span> moves freely over the whole real line. Third and fourth derivatives, finally, are the raw material of higher-order asymptotics and bias correction.</p>
+<p>This is also where the two packages meet, and why neither would be much use alone. Transporting a fourth derivative of a log-likelihood from the natural scale to the unconstrained one is an application of Faà di Bruno’s formula, and it consumes exactly the four derivatives of the inverse link that <code>linkfunctions7</code> carries — <a href="03-distributions7.html#sec-link-scale" class="quarto-xref"><span>Section 3.1.4</span></a> works this out in detail. A link stopping at second order would silently cap the whole toolkit at second-order methods, however much the distributions knew about themselves.</p>
 </section>
-<section id="sec-stack" class="level2" data-number="1.3">
-<h2 data-number="1.3" class="anchored" data-anchor-id="sec-stack"><span class="header-section-number">1.3</span> The stack</h2>
+<section id="sec-toolkit" class="level2" data-number="1.3">
+<h2 data-number="1.3" class="anchored" data-anchor-id="sec-toolkit"><span class="header-section-number">1.3</span> The toolkit</h2>
 <p>The name encodes a convention: every package is a plural noun followed by <code>7</code>, the <code>7</code> being the S7 object system everything is built on.</p>
 <table class="table-striped caption-top table">
-<caption>The stack</caption>
+<caption>The toolkit</caption>
 <colgroup>
 <col style="width: 50%">
 <col style="width: 50%">
@@ -325,66 +316,94 @@ window.Quarto = {
 <p>The destination is the last row: a framework in the spirit of GAMLSS in which every parameter of a distribution can be modelled rather than just the mean, the optimiser is pluggable, estimation can be frequentist or Bayesian, and users can define new model terms and drop them straight into formulas. Everything below it exists to make that possible, and one design pressure has shaped it all: <em>exact derivatives, on the unconstrained scale, for components the framework has never seen before</em>.</p>
 </section>
 <section id="sec-extension" class="level2" data-number="1.4">
-<h2 data-number="1.4" class="anchored" data-anchor-id="sec-extension"><span class="header-section-number">1.4</span> Only the density is required</h2>
-<p>A stack that worked only for the fourteen distributions it ships with would have solved nothing; it would simply be one more closed catalogue, larger than the others. What matters is what happens when a user brings a distribution the authors never considered, and here the contract is deliberately minimal: <strong>a new distribution needs nothing but its density</strong>. Everything else has a fallback — the cdf is computed by quadrature, the quantile function by root-finding, the random generator by a ratio-of-uniforms scheme that needs only the density, and every derivative by finite differences. Whatever the user later supplies in closed form simply replaces the corresponding fallback, with no registration step and no separate interface for the “advanced” case.</p>
+<h2 data-number="1.4" class="anchored" data-anchor-id="sec-extension"><span class="header-section-number">1.4</span> Extension is the point</h2>
+<p>A toolkit that worked only for the sixteen links and fourteen distributions it ships with would have solved nothing; it would simply be one more closed catalogue, larger than the others. What matters is what happens when a user brings an object the authors never considered, and in both packages the answer is that it is treated exactly like the ones that came with them — there is no registration step, and no separate interface for the “advanced” case.</p>
+<p>For a link the requirement is only that the ten generics be implemented, and since a link is a formula and its derivatives, that is a dozen lines. Nothing distinguishes the result from a built-in one: it can be handed to any distribution as the link for any parameter, and the fourth-order machinery will use it without knowing where it came from.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>NegLog <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"NegLog"</span>, <span class="at">parent =</span> link, <span class="at">package =</span> <span class="cn">NULL</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkfun,   NegLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) <span class="sc">-</span><span class="fu">log</span>(theta)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkinv,   NegLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta)   <span class="fu">exp</span>(<span class="sc">-</span>eta)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(dlinkfun,  NegLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) <span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> theta</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(d2linkfun, NegLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta)  <span class="dv">1</span> <span class="sc">/</span> theta<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(dlinkinv,  NegLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta)   <span class="sc">-</span><span class="fu">exp</span>(<span class="sc">-</span>eta)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(d2linkinv, NegLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta)    <span class="fu">exp</span>(<span class="sc">-</span>eta)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>neglog <span class="ot">&lt;-</span> <span class="fu">NegLog</span>(<span class="at">link_name =</span> <span class="st">"neglog"</span>, <span class="at">link_bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>), <span class="at">link_params =</span> <span class="cn">NULL</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">linkinv</span>(neglog, <span class="fu">linkfun</span>(neglog, <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="dv">2</span>)))</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.5 2.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>For a distribution the contract is even smaller, and it is the one that decides whether the package is infrastructure or a catalogue: <strong>a new distribution needs nothing but its density</strong>. Everything else has a fallback — the cdf is computed by quadrature, the quantile function by root-finding, the random generator by a ratio-of-uniforms scheme that needs only the density, and every derivative by finite differences. Whatever the user later supplies in closed form simply replaces the corresponding fallback, with no registration step and no separate interface for the “advanced” case.</p>
 <p>To see what this means in practice, here is a complete definition of the Rayleigh distribution, which has density <span class="math inline">\(f(y;\sigma) = (y/\sigma^2)\, e^{-y^2/2\sigma^2}\)</span> on <span class="math inline">\((0, \infty)\)</span>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Rayleigh <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"Rayleigh"</span>, <span class="at">parent =</span> continuous_distrib, <span class="at">package =</span> <span class="cn">NULL</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_pdf, Rayleigh) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta, <span class="at">log =</span> <span class="cn">FALSE</span>) {</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  s <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  ld <span class="ot">&lt;-</span> <span class="fu">log</span>(y) <span class="sc">-</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">log</span>(s) <span class="sc">-</span> y<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> s<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (log) ld <span class="cf">else</span> <span class="fu">exp</span>(ld)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>rayleigh <span class="ot">&lt;-</span> <span class="fu">Rayleigh</span>(</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">distrib_name =</span> <span class="st">"rayleigh"</span>, <span class="at">dimension =</span> <span class="st">"univariate"</span>, <span class="at">bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>),</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">params =</span> <span class="st">"sigma"</span>, <span class="at">params_interpretation =</span> <span class="fu">c</span>(<span class="at">sigma =</span> <span class="st">"scale"</span>), <span class="at">n_params =</span> <span class="dv">1</span>,</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">params_bounds =</span> <span class="fu">list</span>(<span class="at">sigma =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>)),</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">link_params =</span> <span class="fu">list</span>(<span class="at">sigma =</span> <span class="fu">log_link</span>())</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>Rayleigh <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"Rayleigh"</span>, <span class="at">parent =</span> continuous_distrib, <span class="at">package =</span> <span class="cn">NULL</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_pdf, Rayleigh) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta, <span class="at">log =</span> <span class="cn">FALSE</span>) {</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  s <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  ld <span class="ot">&lt;-</span> <span class="fu">log</span>(y) <span class="sc">-</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">log</span>(s) <span class="sc">-</span> y<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> s<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (log) ld <span class="cf">else</span> <span class="fu">exp</span>(ld)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>rayleigh <span class="ot">&lt;-</span> <span class="fu">Rayleigh</span>(</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">distrib_name =</span> <span class="st">"rayleigh"</span>, <span class="at">dimension =</span> <span class="st">"univariate"</span>, <span class="at">bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>),</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">params =</span> <span class="st">"sigma"</span>, <span class="at">params_interpretation =</span> <span class="fu">c</span>(<span class="at">sigma =</span> <span class="st">"scale"</span>), <span class="at">n_params =</span> <span class="dv">1</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">params_bounds =</span> <span class="fu">list</span>(<span class="at">sigma =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>)),</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">link_params =</span> <span class="fu">list</span>(<span class="at">sigma =</span> <span class="fu">log_link</span>())</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Nothing above mentions a cdf, a quantile function, a generator or a derivative, and yet all of them are immediately available. The median of a Rayleigh is <span class="math inline">\(\sigma\sqrt{2\log 2}\)</span>, its score is <span class="math inline">\(y^2/\sigma^3 - 2/\sigma\)</span>, and its expected information is <span class="math inline">\(4/\sigma^2\)</span>; the fallbacks recover each of these from the density alone:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">sigma =</span> <span class="dv">2</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_quantile</span>(rayleigh, <span class="fl">0.5</span>, theta)     <span class="co"># by root-finding on the numerical cdf</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.35482</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="dv">2</span> <span class="sc">*</span> <span class="fu">sqrt</span>(<span class="dv">2</span> <span class="sc">*</span> <span class="fu">log</span>(<span class="dv">2</span>))                       <span class="co"># the closed form</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.35482</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_gradient</span>(rayleigh, <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>), theta) <span class="co"># by finite differences</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $sigma</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -0.875  0.125</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> <span class="dv">2</span><span class="sc">^</span><span class="dv">3</span> <span class="sc">-</span> <span class="dv">2</span> <span class="sc">/</span> <span class="dv">2</span>                    <span class="co"># the closed form</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -0.875  0.125</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_expected_hessian</span>(rayleigh, <span class="dv">1</span>, theta)<span class="sc">$</span>sigma_sigma   <span class="co"># -4/sigma^2</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">sigma =</span> <span class="dv">2</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_quantile</span>(rayleigh, <span class="fl">0.5</span>, theta)     <span class="co"># by root-finding on the numerical cdf</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.35482</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="dv">2</span> <span class="sc">*</span> <span class="fu">sqrt</span>(<span class="dv">2</span> <span class="sc">*</span> <span class="fu">log</span>(<span class="dv">2</span>))                       <span class="co"># the closed form</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.35482</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_gradient</span>(rayleigh, <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>), theta) <span class="co"># by finite differences</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $sigma</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -0.875  0.125</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> <span class="dv">2</span><span class="sc">^</span><span class="dv">3</span> <span class="sc">-</span> <span class="dv">2</span> <span class="sc">/</span> <span class="dv">2</span>                    <span class="co"># the closed form</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -0.875  0.125</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_expected_hessian</span>(rayleigh, <span class="dv">1</span>, theta)<span class="sc">$</span>sigma_sigma   <span class="co"># -4/sigma^2</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The twenty lines above are a first-class citizen of the stack: the object can be zero-inflated, truncated, transformed, and fitted by Fisher scoring exactly like the distributions the package ships with.</p>
+<p>The twenty lines above are a first-class citizen of the toolkit: the object can be zero-inflated, truncated, transformed, and fitted by Fisher scoring exactly like the distributions the package ships with.</p>
 </section>
 <section id="sec-validators" class="level2" data-number="1.5">
 <h2 data-number="1.5" class="anchored" data-anchor-id="sec-validators"><span class="header-section-number">1.5</span> Checking one’s own work</h2>
 <p>Because users are expected to write their own distributions and links, the packages ship the tools to validate them. <code>check_link()</code> verifies that a link is invertible in both directions, strictly monotone, consistent with the inverse function theorem, and that each analytical derivative agrees with a numerical one; <code>check_distrib()</code> runs the analogous battery on a distribution — the density integrates to one, the cdf and the quantile function invert each other and agree with the density, the random generator matches the cdf, every derivative matches a finite-difference computation, and the expected information matches a Monte Carlo estimate of the variance of the score.</p>
+<p>Both run on any object, including one written five minutes ago — here, on the two defined above:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">check_distrib</span>(rayleigh, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">sigma =</span> <span class="dv">2</span>), <span class="at">orders =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>,</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">nsim =</span> <span class="fl">5e4</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>res[, <span class="fu">c</span>(<span class="st">"check"</span>, <span class="st">"status"</span>)]</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                                         check status</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1                     density integrates to 1     OK</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2                     density is non-negative     OK</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3             cdf in [0,1] and non-decreasing     OK</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4                 cdf agrees with the density     OK</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5                     quantile/cdf round-trip     OK</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6                         rng matches the cdf     OK</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7              gradient vs finite differences     OK</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8               hessian vs finite differences     OK</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9         expected information vs Monte Carlo     OK</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 10 response derivatives vs finite differences     OK</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 11  link-scale gradient vs finite differences     OK</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">check_link</span>(neglog))</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Checking S7 Link Object: neglog </span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [1] Invertibility (Theta space): [PASSED] </span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [2] Invertibility (Eta space):   [PASSED] </span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [3] Strict Monotonicity:         [PASSED] </span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [4] Inverse Function Theorem:    [PASSED] </span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [5] Link Derivatives:            [FAILED] </span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [FAILED]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>These validators run on any object, including one written five minutes ago, and they are used systematically on everything the packages contain. The chapters that follow present the mathematics behind all of it.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">check_distrib</span>(rayleigh, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">sigma =</span> <span class="dv">2</span>), <span class="at">orders =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>,</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">nsim =</span> <span class="fl">5e4</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>res[, <span class="fu">c</span>(<span class="st">"check"</span>, <span class="st">"status"</span>)]</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                                         check status</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1                     density integrates to 1     OK</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2                     density is non-negative     OK</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3             cdf in [0,1] and non-decreasing     OK</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4                 cdf agrees with the density     OK</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5                     quantile/cdf round-trip     OK</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6                         rng matches the cdf     OK</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7              gradient vs finite differences     OK</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8               hessian vs finite differences     OK</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9         expected information vs Monte Carlo     OK</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 10 response derivatives vs finite differences     OK</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 11  link-scale gradient vs finite differences     OK</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The link above declares only two derivative orders of the four, and the validator says so rather than passing what it was not given.</p>
+<p>They are used systematically on everything the packages contain. The two chapters that follow present the mathematics behind all of it, one per package: <a href="02-linkfunctions7.html" class="quarto-xref"><span>Chapter 2</span></a> for <code>linkfunctions7</code> and <a href="03-distributions7.html" class="quarto-xref"><span>Chapter 3</span></a> for <code>distributions7</code>.</p>
 
 
 </section>
@@ -797,8 +816,8 @@ window.Quarto = {
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../chapters/02-link-functions.html" class="pagination-link" aria-label="Link functions">
-        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Link functions</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../chapters/02-linkfunctions7.html" class="pagination-link" aria-label="The linkfunctions7 package">
+        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">The linkfunctions7 package</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
