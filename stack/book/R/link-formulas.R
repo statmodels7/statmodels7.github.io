@@ -65,9 +65,13 @@ LINKS$log <- list(
   grid_theta = exp(seq(log(0.05), log(20), length.out = 25)),
   grid_eta = seq(-3, 3, length.out = 25),
   note = "In general $g^{(k)}(\\theta) = (-1)^{k-1}(k-1)!\\,\\theta^{-k}$, and the
-  inverse is its own derivative to every order. The implementation floors
-  $h$ and its derivatives at `.Machine$double.eps`: without it, a large negative
-  $\\eta$ underflows to exactly zero and the subsequent $1/\\theta$ returns `Inf`."
+  inverse is its own derivative to every order. The implementation floors $h$ and
+  its derivatives at a small positive value, since a large negative $\\eta$ would
+  otherwise underflow to exactly zero and the subsequent $1/\\theta$ return
+  `Inf`. Where to put that floor is decided by the highest forward derivative
+  carried, $-6/\\theta^{4}$: the floor is the smallest value keeping it finite,
+  which is near $10^{-77}$ rather than anywhere near machine epsilon, so $\\theta$
+  stays exact down to $\\eta \\approx -177$."
 )
 
 # -------------------------------------------------------------------- sqrt --
@@ -410,7 +414,13 @@ LINKS$softplus <- list(
   A smooth positivity constraint that, unlike the log link, is asymptotically the
   identity: $h(\\eta) \\to \\eta$ as $\\eta \\to \\infty$, so a large parameter is
   not compressed. The inverse derivatives are the logistic ones scaled by
-  $a^{k-1}$."
+  $a^{k-1}$. The forward ones are not evaluated in $v$: it overflows once
+  $a\\theta$ passes about $709$, and since the derivatives divide by $v^{k}$ the
+  higher orders fail well before that. Writing
+  $\\log v = a\\theta + \\log\\!\\left(1-e^{-a\\theta}\\right)$ and dividing each
+  derivative through by the matching power of $e^{a\\theta}$ expresses everything
+  in $u = 1-e^{-a\\theta} \\in (0,1)$ instead, which is bounded for every
+  $\\theta$; the two forms are algebraically identical wherever both are finite."
 )
 
 # --------------------------------------------------- bounded: doubly bound --

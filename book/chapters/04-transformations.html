@@ -65,7 +65,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../chapters/A1-notation.html" rel="next">
+<link href="../chapters/05-fitting.html" rel="next">
 <link href="../chapters/03-distributions.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -203,6 +203,12 @@ window.Quarto = {
   <div class="sidebar-item-container"> 
   <a href="../chapters/04-transformations.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-fitting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Fitting a distribution</span></span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
@@ -770,7 +776,7 @@ F(L^-) = F(L) - P(Y = L),\]</span></p>
 <div id="thm-truncated" class="theorem">
 <p><span class="theorem-title"><strong>Theorem 4.3 (Derivatives of a truncated log-likelihood)</strong></span> Let <span class="math inline">\(\ell_T = \ell - \log Z\)</span>, and define, with all expectations taken under the <strong>truncated</strong> distribution itself,</p>
 <p><span class="math display">\[m_i = \mathbb{E}_T[\ell^{(i)}], \qquad
-M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + s_is_j\right].\]</span></p>
+M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + \ell^{(i)}\ell^{(j)}\right].\]</span></p>
 <p>Then</p>
 <p><span class="math display">\[
 \frac{\partial \ell_T}{\partial\theta_i} = \ell^{(i)}(y) - m_i,
@@ -794,7 +800,7 @@ M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + s_is_j\right].\]</span></p>
 <p>Differentiating <span class="math inline">\(Z\)</span> a second time, the same manoeuvre together with <a href="#lem-fij" class="quarto-xref">Lemma&nbsp;<span>4.1</span></a> gives</p>
 <p><span class="math display">\[\frac{\partial^{2} Z}{\partial\theta_i\partial\theta_j}
 = \int_T \partial_{ij} f
-= \int_T f\left(\ell^{(ij)} + s_is_j\right)
+= \int_T f\left(\ell^{(ij)} + \ell^{(i)}\ell^{(j)}\right)
 = Z\,M_{ij},\]</span></p>
 <p>and then, by the quotient rule applied to <span class="math inline">\(\partial_i \log Z = \partial_i Z/Z\)</span>,</p>
 <p><span class="math display">\[\frac{\partial^{2}\log Z}{\partial\theta_i\partial\theta_j}
@@ -804,8 +810,8 @@ M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + s_is_j\right].\]</span></p>
 <p>For the expected Hessian, take <span class="math inline">\(\mathbb{E}_T\)</span> of the observed one. The terms <span class="math inline">\(M_{ij}\)</span> and <span class="math inline">\(m_im_j\)</span> do not involve <span class="math inline">\(y\)</span>, so they pass through the expectation unchanged, and</p>
 <p><span class="math display">\[\mathbb{E}_T\!\left[\partial_{ij}\ell_T\right]
 = \mathbb{E}_T[\ell^{(ij)}] - M_{ij} + m_im_j .\]</span></p>
-<p>Substituting the definition <span class="math inline">\(M_{ij} = \mathbb{E}_T[\ell^{(ij)}] + \mathbb{E}_T[s_is_j]\)</span>, the two occurrences of <span class="math inline">\(\mathbb{E}_T[\ell^{(ij)}]\)</span> cancel — a cancellation worth savouring, since it removes the parent’s expected Hessian from the formula entirely — and what remains is</p>
-<p><span class="math display">\[-\left(\mathbb{E}_T[s_is_j] - m_im_j\right) = -\operatorname{Cov}_T(\ell^{(i)}, \ell^{(j)}). \qquad\square\]</span></p>
+<p>Substituting the definition <span class="math inline">\(M_{ij} = \mathbb{E}_T[\ell^{(ij)}] + \mathbb{E}_T[\ell^{(i)}\ell^{(j)}]\)</span>, the two occurrences of <span class="math inline">\(\mathbb{E}_T[\ell^{(ij)}]\)</span> cancel — a cancellation worth savouring, since it removes the parent’s expected Hessian from the formula entirely — and what remains is</p>
+<p><span class="math display">\[-\left(\mathbb{E}_T[\ell^{(i)}\ell^{(j)}] - m_im_j\right) = -\operatorname{Cov}_T(\ell^{(i)}, \ell^{(j)}). \qquad\square\]</span></p>
 </div>
 <p>The three formulas invite three readings. The score of the truncated model is the parent’s score <em>recentred</em> at its mean over the retained region, so the first Bartlett identity holds by construction. The expected information is the <em>covariance matrix of the parent’s score</em> under truncation — which is the second Bartlett identity making an appearance from the other direction, and which guarantees positive semi-definiteness on sight. And none of the ingredients <span class="math inline">\(m_i\)</span>, <span class="math inline">\(M_{ij}\)</span> has a closed form for a general parent: they are computed by quadrature or summation through <code>expectation()</code>, which makes the derivatives of a truncated distribution markedly more expensive than the parent’s own, with third and fourth orders falling back to finite differences of the analytical Hessian.</p>
 <p>Inside <span class="math inline">\([L, U]\)</span> the constant <span class="math inline">\(\log Z\)</span> does not depend on <span class="math inline">\(y\)</span>, so the response derivatives are the parent’s, unchanged; outside, the log-density is <span class="math inline">\(-\infty\)</span> and they are <code>NaN</code>.</p>
@@ -1502,8 +1508,8 @@ w_0 \cdot \dfrac{\partial^{A} f_0}{f_0} &amp; \text{no } \zeta,\\[8pt]
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../chapters/A1-notation.html" class="pagination-link" aria-label="Notation">
-        <span class="nav-page-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../chapters/05-fitting.html" class="pagination-link" aria-label="Fitting a distribution">
+        <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Fitting a distribution</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

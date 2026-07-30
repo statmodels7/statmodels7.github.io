@@ -205,6 +205,12 @@ window.Quarto = {
  <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Transformations of distributions</span></span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-fitting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Fitting a distribution</span></span></a>
+  </div>
+</li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
@@ -461,7 +467,7 @@ h'''' = \frac{-15(g'')^{3} + 10\,g'g''g''' - (g')^{2}g''''}{(g')^{7}}.
 </tr>
 </tbody>
 </table>
-<p>In general <span class="math inline">\(g^{(k)}(\theta) = (-1)^{k-1}(k-1)!\,\theta^{-k}\)</span>, and the inverse is its own derivative to every order. The implementation floors <span class="math inline">\(h\)</span> and its derivatives at <code>.Machine$double.eps</code>: without it, a large negative <span class="math inline">\(\eta\)</span> underflows to exactly zero and the subsequent <span class="math inline">\(1/\theta\)</span> returns <code>Inf</code>.</p>
+<p>In general <span class="math inline">\(g^{(k)}(\theta) = (-1)^{k-1}(k-1)!\,\theta^{-k}\)</span>, and the inverse is its own derivative to every order. The implementation floors <span class="math inline">\(h\)</span> and its derivatives at a small positive value, since a large negative <span class="math inline">\(\eta\)</span> would otherwise underflow to exactly zero and the subsequent <span class="math inline">\(1/\theta\)</span> return <code>Inf</code>. Where to put that floor is decided by the highest forward derivative carried, <span class="math inline">\(-6/\theta^{4}\)</span>: the floor is the smallest value keeping it finite, which is near <span class="math inline">\(10^{-77}\)</span> rather than anywhere near machine epsilon, so <span class="math inline">\(\theta\)</span> stays exact down to <span class="math inline">\(\eta \approx -177\)</span>.</p>
 </section>
 <section id="sec-link-sqrt" class="level3" data-number="2.5.3">
 <h3 data-number="2.5.3" class="anchored" data-anchor-id="sec-link-sqrt"><span class="header-section-number">2.5.3</span> Square root</h3>
@@ -931,7 +937,7 @@ h'''' = \frac{-15(g'')^{3} + 10\,g'g''g''' - (g')^{2}g''''}{(g')^{7}}.
 </tr>
 </tbody>
 </table>
-<p>Shown at <span class="math inline">\(a = 1\)</span>, with <span class="math inline">\(v = e^{a\theta}-1\)</span> and <span class="math inline">\(p = \sigma(a\eta)\)</span>. A smooth positivity constraint that, unlike the log link, is asymptotically the identity: <span class="math inline">\(h(\eta) \to \eta\)</span> as <span class="math inline">\(\eta \to \infty\)</span>, so a large parameter is not compressed. The inverse derivatives are the logistic ones scaled by <span class="math inline">\(a^{k-1}\)</span>.</p>
+<p>Shown at <span class="math inline">\(a = 1\)</span>, with <span class="math inline">\(v = e^{a\theta}-1\)</span> and <span class="math inline">\(p = \sigma(a\eta)\)</span>. A smooth positivity constraint that, unlike the log link, is asymptotically the identity: <span class="math inline">\(h(\eta) \to \eta\)</span> as <span class="math inline">\(\eta \to \infty\)</span>, so a large parameter is not compressed. The inverse derivatives are the logistic ones scaled by <span class="math inline">\(a^{k-1}\)</span>. The forward ones are not evaluated in <span class="math inline">\(v\)</span>: it overflows once <span class="math inline">\(a\theta\)</span> passes about <span class="math inline">\(709\)</span>, and since the derivatives divide by <span class="math inline">\(v^{k}\)</span> the higher orders fail well before that. Writing <span class="math inline">\(\log v = a\theta + \log\!\left(1-e^{-a\theta}\right)\)</span> and dividing each derivative through by the matching power of <span class="math inline">\(e^{a\theta}\)</span> expresses everything in <span class="math inline">\(u = 1-e^{-a\theta} \in (0,1)\)</span> instead, which is bounded for every <span class="math inline">\(\theta\)</span>; the two forms are algebraically identical wherever both are finite.</p>
 </section>
 <section id="sec-link-bounded-both" class="level3" data-number="2.5.14">
 <h3 data-number="2.5.14" class="anchored" data-anchor-id="sec-link-bounded-both"><span class="header-section-number">2.5.14</span> Bounded, two-sided</h3>
