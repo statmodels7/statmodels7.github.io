@@ -56,7 +56,9 @@ with `NaN`. The catalogue below therefore states $E$ explicitly for every link.
 Third, and most characteristically for this toolkit, the definition demands four
 continuous derivatives rather than the customary one or two. The link objects in
 `stats::make.link()` carry the first derivative of the inverse and nothing else,
-which is all a GLM fitted by IRLS ever needs. Here the ambitions are higher: as
+which is all a generalized linear model fitted by iteratively reweighted least
+squares ever needs — the setting of @nelder1972 and @mccullagh1989, where the
+link first appears under that name. Here the ambitions are higher: as
 @sec-link-scale will show in detail, transporting a fourth-order derivative of a
 log-likelihood onto the unconstrained scale requires $h'$, $h''$, $h'''$ and
 $h''''$, so a link that stopped at second order would silently cap the entire
@@ -66,10 +68,8 @@ toolkit at second-order methods.
 
 Every link in the catalogue implements two families of derivatives: those of $g$
 with respect to $\theta$, and those of $h$ with respect to $\eta$. The two
-families are not independent — each determines the other completely — and the
-relationship between them is worth deriving carefully, both because the formulas
-are used throughout the toolkit and because the derivation is a pleasant exercise
-in the disciplined use of the chain rule.
+families are not independent, since each determines the other completely, and
+the formulas that connect them are used throughout the toolkit.
 
 ::: {#thm-ift}
 ## Derivatives of an inverse function
@@ -85,65 +85,17 @@ h'''' = \frac{-15(g'')^{3} + 10\,g'g''g''' - (g')^{2}g''''}{(g')^{7}}.
 $$
 :::
 
-::: {.proof}
-The whole argument flows from one identity. Since $h$ undoes $g$, we have
-$h(g(\theta)) = \theta$ for every $\theta$ in the domain, and we may
-differentiate this identity as many times as we like; each differentiation
-yields a relation between the derivatives of $h$ and those of $g$, from which
-the next unknown derivative of $h$ can be isolated. Throughout, $h^{(k)}$ is
-shorthand for $h^{(k)}(g(\theta))$.
-
-Differentiating once, the chain rule gives $h'\,g' = 1$. Since $g'$ never
-vanishes, we may divide by it, and the first formula, $h' = 1/g'$, is already in
-hand.
-
-Now differentiate $h'g' = 1$ again. The left side is a product whose two
-factors both depend on $\theta$ — the first through the composition with $g$ —
-so the product rule together with the chain rule gives
-
-$$h''\,(g')^{2} + h'\,g'' = 0 .$$
-
-Solving for $h''$ and substituting $h' = 1/g'$,
-
-$$h'' = -\frac{h'\,g''}{(g')^{2}} = -\frac{g''}{(g')^{3}},$$
-
-which is the second formula. Note the pattern that will repeat: each new
-differentiation produces an equation that is *linear* in the highest derivative
-of $h$, with coefficient a power of $g'$, so isolating it is always a division.
-
-Differentiating $h''(g')^{2} + h'g'' = 0$ once more, and collecting the terms
-carefully,
-
-$$h'''\,(g')^{3} + 3\,h''\,g'\,g'' + h'\,g''' = 0 . \tag{$\ast$}$$
-
-Substituting the expressions already obtained for $h''$ and $h'$, the middle
-term becomes $-3(g'')^{2}/(g')^{2}$ and the last becomes $g'''/g'$, so that
-
-$$h''' = -\frac{1}{(g')^{3}}\left(-\frac{3(g'')^{2}}{(g')^{2}} + \frac{g'''}{g'}\right)
-       = \frac{3(g'')^{2} - g'\,g'''}{(g')^{5}} .$$
-
-One more round. Differentiating each of the three terms of $(\ast)$,
-
-$$
-\begin{aligned}
-\frac{d}{d\theta}\!\left[h'''(g')^{3}\right] &= h''''(g')^{4} + 3h'''(g')^{2}g'', \\
-\frac{d}{d\theta}\!\left[3h''g'g''\right] &= 3h'''(g')^{2}g'' + 3h''(g'')^{2} + 3h''g'g''', \\
-\frac{d}{d\theta}\!\left[h'g'''\right] &= h''g'g''' + h'g'''' ,
-\end{aligned}
-$$
-
-and adding the three lines and setting the sum to zero,
-
-$$h''''(g')^{4} + 6h'''(g')^{2}g'' + 3h''(g'')^{2} + 4h''g'g''' + h'g'''' = 0 .$$
-
-It remains to substitute the three lower-order results and simplify. Putting
-everything except the first term over the common denominator $(g')^{3}$, the
-sum of the known terms works out to
-
-$$\frac{15(g'')^{3} - 10\,g'g''g''' + (g')^{2}g''''}{(g')^{3}},$$
-
-and dividing by $-(g')^{4}$ yields the stated expression for $h''''$. $\square$
-:::
+These four expressions all come from one identity. Because $h$ undoes $g$
+we have $h(g(\theta)) = \theta$ for every $\theta$ in the domain, and each
+differentiation of that identity produces a relation between the derivatives of
+$h$ and those of $g$ which is linear in the highest derivative of $h$, with a
+power of $g'$ for its coefficient. Since $g'$ never vanishes, that relation can
+always be solved for the derivative one does not yet know, and the four formulas
+follow one after another. The same mechanism, carried to arbitrary order and
+organised by set partitions rather than by hand, is the Faà di Bruno formula,
+whose history and combinatorics are surveyed in @johnson2002 and @comtet1974;
+@sec-link-scale uses it in that general form to move a likelihood derivative of
+any order onto the unconstrained scale.
 
 A quick example makes the formulas concrete, and catches sign errors better
 than any amount of staring. Take the log link, $g(\theta) = \log\theta$, whose
@@ -295,18 +247,19 @@ need it is the one experimenting with a transformation nobody has implemented,
 and asking them to differentiate it by hand four times before anything runs is
 asking them not to bother.
 
-### One differentiation, never four {#sec-link-fallback-chain}
+### How a fallback computes its answer {#sec-link-fallback-chain}
 
-How a fallback computes its answer matters more here than one might expect, and
-the design follows the same rule @sec-check-link imposes on the validator:
-**never differentiate numerically more than once in a row**.
-
-A fallback could be written recursively — the second derivative as a difference
-of the first, the third as a difference of the second — and it would be much the
-simplest thing to write. It would also be useless at the top, because each
-numerical differentiation multiplies the error of the one below it. The identity
-link makes the point with no arithmetic at all: its third derivative is exactly
-zero, and three nested differences return a number of order one.
+How a fallback computes its answer matters more here than one might expect,
+because it follows the same rule that @sec-check-link imposes on the validator:
+a quantity is never differentiated numerically more than once in a row. The
+simplest thing to write would be a recursion, taking the second derivative as a
+difference of the first and the third as a difference of the second, but each
+numerical differentiation multiplies the error of the one below it, so such a
+chain is useless by the time it reaches the top. The identity link makes the
+point without any arithmetic at all, since its third derivative is exactly zero
+while three nested differences return a number of order one. The dangers of
+repeated differencing, and the choice of step that balances truncation against
+rounding, are treated at length in @gill1981 and @press2007.
 
 What the fallbacks do instead is ask how many orders are actually missing. Each
 one finds the highest order $m$ the link implements analytically, and applies a
@@ -354,7 +307,7 @@ fourth-order stencils reach $2h$, so it is that reach and not $h$ that has to
 fit inside it. Differentiating the log link at $\theta = 10^{-8}$ would
 otherwise evaluate a logarithm at a negative number.
 
-### The catch, stated plainly {#sec-link-fallback-catch}
+### What such a link can still be told about itself {#sec-link-fallback-catch}
 
 A convenience of this kind comes with a hazard, and it is the same one
 @sec-fallbacks records for distributions. `check_link()` verifies an analytical
@@ -362,8 +315,8 @@ derivative by comparing it against a numerical one. If the analytical derivative
 *is* the numerical one, the comparison is between a quantity and itself: it
 agrees perfectly, and it has established nothing.
 
-The validator therefore does not report such an order as passing. It reports it
-as numerical, and it says how far the exactness actually goes.
+The validator therefore does not report such an order as having passed; it
+reports it as numerical, and says how far the exactness actually goes.
 
 ```{r}
 #| label: check-link-honest

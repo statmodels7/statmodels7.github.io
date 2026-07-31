@@ -101,7 +101,9 @@ The vector $(\ell^{(1)}, \dots, \ell^{(p)})^\top$ is the **score**; the
 matrix $-[\ell^{(ij)}]$ is the **observed information**; and the **expected
 information**, or Fisher information, is
 $\mathcal{I}(\theta) = -\mathbb{E}[\ell^{(ij)}]$, the expectation being taken over
-$Y \sim f(\cdot\,;\theta)$ at the same parameter value.
+$Y \sim f(\cdot\,;\theta)$ at the same parameter value. The classical account of
+these quantities and of the asymptotics that rest on them is @coxhinkley1974,
+with @severini2000 and @pace1997 as fuller modern treatments.
 
 A word on sign conventions, because both conventions circulate and a sign error
 here is invisible inside a symmetric matrix. The package returns *derivatives*,
@@ -138,8 +140,9 @@ whose location parameter sits at a kink of the log-likelihood, and
 Most readers will know the identity
 $\mathbb{E}[\ell^{(ij)}] = -\mathbb{E}[\ell^{(i)} \ell^{(j)}]$, the information matrix
 equality. What is less often written down is that this is only the second
-member of an infinite family of identities, one for each order of
-differentiation, and that the family taken as a whole allows an expected
+member of an infinite family of identities, due to @bartlett1953a and
+@bartlett1953b and given a systematic treatment in @mccullagh1987, one for each
+order of differentiation, and that the family taken as a whole allows an expected
 derivative of *any* order to be computed from expectations of products of
 lower-order ones. `distributions7` implements the family in full generality,
 so this section derives it.
@@ -175,23 +178,15 @@ $\{i_1, \dots, i_k\}$ into non-empty blocks, and $\ell^{(B)}$ is the derivative 
 $\ell$ with respect to the parameters indexed by the block $B$.
 :::
 
-::: {.proof}
-We argue by induction on $k$. For $k = 1$ the claim reads
-$\partial_i e^{\ell} = e^{\ell}\ell^{(i)}$, which is the chain rule, and indeed
-$\Pi_1$ contains the single partition $\{\{i\}\}$.
-
-Suppose the formula holds at order $k$, and differentiate it with respect to a
-new index $\theta_{i_{k+1}}$. By the product rule, the derivative acts either
-on the factor $e^{\ell}$ in front — producing an extra factor
-$\ell^{(i_{k+1})}$ — or on one of the factors $\ell^{(B)}$ inside a partition,
-turning it into $\ell^{(B \cup \{i_{k+1}\})}$. In the first case, the new index
-ends up in a block of its own; in the second, it joins an existing block. But
-these two cases are precisely the two ways of building a partition of the
-$(k{+}1)$-element set from a partition of the $k$-element set, and every
-partition of the larger set arises in exactly one of the two ways, from exactly
-one partition of the smaller set. The sum therefore runs over $\Pi_{k+1}$ with
-each term appearing once, which is the claim at order $k+1$. $\square$
-:::
+The formula is the Faà di Bruno expansion of the exponential, and the reason
+the partitions appear is visible in a single differentiation. Differentiating the
+expression at order $k$ with respect to a new index, the derivative falls either
+on the leading factor $e^{\ell}$, which contributes a new block containing that
+index alone, or on one of the factors $\ell^{(B)}$, which enlarges the block $B$;
+and those are exactly the two ways of extending a partition of a $k$-element set
+to a partition of a $(k{+}1)$-element one, each new partition arising once. The
+combinatorial identity behind this is the recursion for the complete Bell
+polynomials, treated in @comtet1974 and @stanley2012.
 
 Substituting the lemma into (3.1), and noticing that $e^{\ell} = f$ is exactly
 the density needed to turn the integral into an expectation, we arrive at the
@@ -262,7 +257,7 @@ quantities part company, and the one that still deserves the name
 "information" is the Bartlett one — a point @sec-nonregular makes concrete.
 
 ::: {.callout-note}
-## A cautionary tale about quadrature
+## Why the quadrature uses three knots and not nine
 
 The `expectation()` engine splits its integral at quantiles of the
 distribution, and it uses three knots rather than nine. More knots would extend
@@ -366,26 +361,16 @@ where $\ell^{(p_1^{j_1}\cdots p_r^{j_r})}$ denotes the parameter-scale
 derivative taken $j_t$ times with respect to $\theta_{p_t}$.
 :::
 
-::: {.proof}
-The key observation is that $\theta_{p_t} = h_{p_t}(\eta_{p_t})$ depends on its
-own linear predictor and on nothing else, so the operator
-$\partial^{m_t}/\partial\eta_{p_t}^{m_t}$ sees $\ell$ as a function of the
-single variable $\theta_{p_t}$, all other parameters held fixed. We may
-therefore apply @thm-faa in the variable $\eta_{p_1}$ alone, obtaining
-
-$$
-\frac{\partial^{m_1}\ell}{\partial\eta_{p_1}^{m_1}}
-= \sum_{j_1=1}^{m_1} \ell^{(p_1^{j_1})}\, B_{m_1,j_1}\!\left(h_{p_1}', \dots\right),
-$$
-
-in which the coefficients $B_{m_1, j_1}$ involve only the derivatives of
-$h_{p_1}$ and therefore behave as constants under differentiation with respect
-to any *other* linear predictor. Applying the theorem again in
-$\eta_{p_2}$, then $\eta_{p_3}$, and so on — the operators commute, acting as
-they do on disjoint variables — each application multiplies in its own Bell
-polynomial factor and deepens the sum by one index, and after $r$ rounds the
-stated nested sum is reached. $\square$
-:::
+Diagonality is the whole content of this. Each $\theta_{p_t}$ depends on its own
+linear predictor and on nothing else, so the operator
+$\partial^{m_t}/\partial\eta_{p_t}^{m_t}$ sees $\ell$ as a function of the single
+variable $\theta_{p_t}$ and @thm-faa applies in that variable alone; the Bell
+polynomial it produces involves only derivatives of $h_{p_t}$, so it is constant
+under differentiation with respect to any other predictor, and the operators may
+be applied one after another in any order. Each round multiplies in its own
+factor and deepens the sum by one index. Without diagonality the general
+multivariate version of the formula would be needed instead, and it is
+considerably heavier; @constantine1996 gives it.
 
 Two special cases are worth extracting because they cover most of what happens
 in practice. A purely mixed second derivative across two different parameters
@@ -416,13 +401,11 @@ or in matrix form
 $\mathbb{E}[H_\eta] = \operatorname{diag}(h')\,\mathbb{E}[H_\theta]\,\operatorname{diag}(h')$.
 :::
 
-::: {.proof}
-For $a = b$, the univariate formula gives
-$\partial^2\ell/\partial\eta_a^2 = \ell^{(aa)}(h_a')^2 + \ell^{(a)} h_a''$. Take
-expectations: the first Bartlett identity says $\mathbb{E}[\ell^{(a)}] = 0$, so the
-second term vanishes and only the congruence term survives. For $a \neq b$
-there was no first-order term to begin with. $\square$
-:::
+The first-order term is what disappears. For $a = b$ the univariate formula
+gives $\partial^2\ell/\partial\eta_a^2 = \ell^{(aa)}(h_a')^2 + \ell^{(a)} h_a''$,
+and taking expectations kills the second piece because the first Bartlett
+identity says the score has mean zero; for $a \neq b$ there was never a
+first-order term to begin with.
 
 The corollary matters beyond elegance. A congruence transform of a positive
 semi-definite matrix is positive semi-definite, so the link-scale Fisher
@@ -486,7 +469,8 @@ $\log f(y;\theta)$; one known only to exceed $q$ contributes
 $\log\big(1 - F(q;\theta)\big)$; and an interval-censored one contributes
 $\log\big(F(b;\theta) - F(a;\theta)\big)$. Without $\partial F/\partial\theta$
 none of these can be fitted by any method that uses a score, which rules out
-survival models, tobit models and every problem with a detection limit.
+survival models, tobit models and every problem with a detection limit; the
+likelihoods themselves are standard, and @klein2003 sets them out in full.
 
 The mathematics is a single exchange of derivative and integral, and it is worth
 seeing how little it costs. The region of integration is $(-\infty, q]$, fixed,
@@ -578,7 +562,9 @@ knitr::kable(catalogue_table(), align = "lllll", row.names = FALSE,
              caption = "The fourteen distributions")
 ```
 
-The individual entries follow. Several of the parametrisations are not the ones
+The individual entries follow, and a reader who wants any of these families in
+more depth than a catalogue entry can give will find them in @johnson1994,
+@johnson1995 and @johnson2005. Several of the parametrisations are not the ones
 the corresponding `d*` function in base R uses — the Gamma is parametrised by
 mean and variance rather than shape and rate, the Beta by mean and precision,
 the negative binomial in its NB2 form — and in each such case the entry states
@@ -600,7 +586,10 @@ for (id in names(DISTRIBS)) render_distrib_entry(id, DISTRIBS[[id]])
 
 The Laplace distribution, with density
 $f(y) = (2b)^{-1} e^{-|y-\mu|/b}$, is the catalogue's standing counterexample
-to regularity: its log-likelihood has a kink at $y = \mu$. Away from the kink
+to regularity: its log-likelihood has a kink at $y = \mu$. Families of this kind
+are treated in @lehmann1998, where the information of a non-regular model is
+defined as the variance of the score rather than as an expected second
+derivative, which is the definition that survives here. Away from the kink
 one computes
 
 $$\ell^{(\mu)} = \frac{\operatorname{sign}(y-\mu)}{b}, \qquad \ell^{(\mu\mu)} = 0,$$

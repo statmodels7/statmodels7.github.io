@@ -17,6 +17,7 @@ rm -rf stack/book book
 mkdir -p stack/book
 cp -r ../book/chapters ../book/R ../book/assets stack/book/
 cp ../book/_quarto.yml ../book/index.qmd ../book/README.md stack/book/
+cp ../book/references.bib stack/book/
 cp -r ../book/_book book
 
 echo "synced; now commit in this repository"

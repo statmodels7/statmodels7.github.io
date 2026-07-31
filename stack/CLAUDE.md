@@ -418,7 +418,7 @@ and `plot()` on the fit.
 |---|---|
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1512 tests, `R CMD check` OK (2026-07-30, local), CI green |
-| `optimizers7` | 524 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
+| `optimizers7` | 545 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 
 All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
 combinations (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix
@@ -897,15 +897,30 @@ exactly 1. What was wrong was everything around them.
 - The two logistic integrals above (cosmetic — `approx = "integrate"` already delivers
   them within Monte Carlo noise).
 - Publishing `linkfunctions7` to CRAN, which unblocks `distributions7`.
-- **A nonmonotone line search**, which is the one thing `bb()` is missing.
-  Barzilai-Borwein's efficiency comes from steps that make the objective *worse*
-  now in order to align with the curvature, and the Armijo condition forbids
-  exactly those: measured, ~930 iterations on Rosenbrock against `cg()`'s 35.
-  The classical remedy (Grippo-Lampariello-Lucidi) requires sufficient decrease
-  against the worst of the last several values rather than the last one. It
-  would be a third `line_search` subclass and would need the loop to keep a
-  short history of values, which nothing else needs. Worth doing only if `bb()`
-  turns out to matter for `statmodels7`; `cg()` covers the same ground today.
+- ~~A nonmonotone line search for `bb()`~~ **done 2026-07-31.**
+  `nonmonotone(c1, shrink, memory, max_step)` is a third `line_search` subclass;
+  the loop keeps a `std::deque` of the last `memory` values and Armijo tests
+  against their maximum. `memory = 0` is `armijo()` value for value, which is
+  what makes the comparison a comparison of that one number: Rosenbrock 68
+  iterations and 77 evaluations against 82 and 186, eleven uphill steps accepted
+  out of sixty-seven where Armijo accepts none.
+  What the measurement exposed was a **separate defect in `bb()`**, and its
+  shape is the one worth keeping. When the secant pair reports no usable
+  curvature, alpha has to come from outside, and **both constants one reaches
+  for are absorbing states**: freezing the previous alpha traps a short step in
+  its own shortness (bb2 spent 873 of 945 iterations there), and restarting at
+  `alpha0` does exactly the same wherever `alpha0` is itself too short — on a
+  boxed quadratic seen through its reparametrisation, 1395 refusals in 1521
+  iterations. `alpha_max`, which is what the SPG literature does, hands the
+  search a direction of length 1e10 that thirty halvings do not rescale, and
+  that run stopped a unit from the solution *reporting success*. What works is
+  `alpha = 1/max|g|`, a step of order one in the parameters: it cannot freeze,
+  since it does not depend on the alpha it replaces, and cannot explode, since
+  it scales with the gradient. Measured over Rosenbrock, Beale, Powell and the
+  boxed quadratic it is the only one of the four never worst. The curvature test
+  is also now **relative**, `s'y > curv_tol*||s||*||y||`, as `bfgs()` already had
+  it. General lesson: a policy chosen on one problem is a policy chosen on one
+  problem — the boxed case disagreed with Rosenbrock about all three constants.
 - Next packages: `modelterms7`, `basis7`, `penalties7`.
 - **A censored-likelihood front end.** `distrib_grad_cdf()` supplies the pieces, but
   nothing yet assembles them: a `fit_distrib(..., censored = )` taking a status vector,
@@ -941,16 +956,16 @@ exactly 1. What was wrong was everything around them.
   scoring versus Newton and why the congruence corollary makes the expected
   information the right matrix to invert, step halving, the delta method as the same
   congruence applied to the inverse, and intervals built on the link scale and mapped
-  back), and §3.4 on the numerical fallbacks — the ratio-of-uniforms theorem with its
-  proof, the mode recentring, the divergence transform at one edge and at two, the
+  back), and §3.4 on the numerical fallbacks — the ratio-of-uniforms theorem, the
+  mode recentring, the divergence transform at one edge and at two, the
   discrete cumulative table, and the two warnings that belong with them. Chapter 4
   (added 2026-07-31) covers `optimizers7`: descent directions and what a line search
-  must guarantee, with Zoutendijk's theorem proved; Newton's Hessian repairs and why
+  must guarantee, with Zoutendijk's theorem; Newton's Hessian repairs and why
   the eigenvalue floor is what keeps that theorem's angle bound alive; the secant
-  equation and BFGS proved symmetric positive definite, then conjugate gradients
+  equation and the BFGS update, then conjugate gradients
   and Barzilai-Borwein as the bottom of a ladder ordered by how much curvature a
   method stores, from p(p+1)/2 down to one number; the subdifferential, Fermat's
-  rule, and the bundle subproblem with its dual derived; and the box
+  rule, and the bundle subproblem with its dual; and the box
   reparametrisation and Adam. What the book still lacks is anything on **censored likelihoods**, which
   waits on the front end that does not exist yet, and it will need a chapter per
   package as the others arrive.
@@ -962,8 +977,9 @@ exactly 1. What was wrong was everything around them.
 `book/` is a **Quarto book** (`quarto render` from inside it; Quarto CLI 1.8.24 is on
 PATH, and no new R packages are needed — knitr and numDeriv suffice). It is the
 mathematical companion Giovanni asked for on 2026-07-26: every formula the toolkit
-implements, derived from the definitions with the steps written out. English, on
-purpose — it is the public document of a toolkit aiming at CRAN.
+implements, explained and attributed, with the argument in full left to the
+citation. English, on purpose — it is the public document of a toolkit aiming at
+CRAN.
 
 **Structure: one chapter per package** (Giovanni, 2026-07-30, explicit). The book
 is about `statmodels7`, not about distributions, and the earlier arrangement — a
@@ -975,7 +991,7 @@ Preface / 1 Introduction / 2 The linkfunctions7 package /
 3 The distributions7 package  (3.1 Distributions, 3.2 Transformations,
                                3.3 Fitting, 3.4 Fallbacks) /
 4 The optimizers7 package     (4.1 Descent, 4.2 Curvature, 4.3 Non-smooth,
-                               4.4 Constraints) / A Notation
+                               4.4 Constraints) / A Notation / B References
 ```
 
 When `modelterms7` and the rest arrive they arrive as chapters, and nothing
@@ -1015,6 +1031,35 @@ consistency checking is *ours* and must not be discussed in the text — no
 certification tables, no "verdict" columns, no meta-narrative about verification.
 And the prose must be flowing, discursive, book-like — not strings of short
 sentences — with the mathematics explained step by step.
+
+**Editorial line, revised (Giovanni, 2026-07-31, explicit) — this supersedes the
+"nothing is cited away" rule the preface used to state.** **No proofs.** Show the
+relevant formulas and enough reasoning to make them intelligible — where a
+quantity comes from, what it depends on, which cancellation the implementation
+relies on — and then **cite** the paper or textbook that gives the argument in
+full. `references.bib` and appendix `A2-references.qmd` (a `::: {#refs} :::`
+block) were added for this; `bibliography:` and `link-citations: true` sit in
+`_quarto.yml`, and pandoc's default author-date style is used, no CSL file.
+`sync-stack-files.sh` carries `references.bib`. Keep the bibliography free of
+uncited entries — pandoc silently ignores them, so they rot unnoticed; the check
+is a shell loop over `grep -o "@[a-z]*[0-9]\{4\}"` against `^@[a-z]*{`.
+
+The book is also **didactic**, and that rules out two things it used to do:
+**no punchy titles** ("The catch, stated plainly", "Below a matter", "Where the
+derivative fails" → say what the section is about), and **no over-segmented
+prose** — sentences joined into paragraphs that read continuously, not strings of
+three-word declaratives. All seventeen proof blocks were removed on 2026-07-31
+and the preface rewritten; the headings were swept at the same time.
+
+⚠️ **The book's own source had escape damage, committed and live.**
+`_04b-curvature.qmd` §"Below a matrix" had `\beta`, `\alpha`, `\frac`, `\top`,
+`\times`, `\ne` collapsed into BELL, BACKSPACE, FORMFEED and TAB characters —
+the §3 trap, landed in a chapter written through a shell heredoc, and it had been
+rendering as garbage at `statmodels7.github.io/book/` for a day. `cat -A` on
+every `.qmd` looking for `^[GHIL]` is the check; `^M` alone is only CRLF and is
+harmless. **Some book files are CRLF and some are LF**, so a Python edit script
+must normalise on read and restore on write, or every marker containing `\n`
+silently fails to match.
 
 **Notation, fixed 2026-07-26 (Giovanni).** Derivatives of the log-likelihood use
 **parenthesized superscripts** — `l^(i)`, `l^(ij)`, `l^(ijk)` — never subscripts. A

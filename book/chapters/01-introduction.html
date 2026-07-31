@@ -55,7 +55,27 @@ div.sourceCode
 @media screen {
 pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 
 <script src="../site_libs/quarto-nav/quarto-nav.js"></script>
@@ -220,6 +240,12 @@ window.Quarto = {
  <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A2-references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
       </ul>
   </li>
     </ul>
@@ -233,10 +259,10 @@ window.Quarto = {
    
   <ul>
   <li><a href="#sec-rewritten" id="toc-sec-rewritten" class="nav-link active" data-scroll-target="#sec-rewritten"><span class="header-section-number">1.1</span> One Gamma, written many times</a></li>
-  <li><a href="#sec-completely" id="toc-sec-completely" class="nav-link" data-scroll-target="#sec-completely"><span class="header-section-number">1.2</span> What “completely” means</a></li>
+  <li><a href="#sec-completely" id="toc-sec-completely" class="nav-link" data-scroll-target="#sec-completely"><span class="header-section-number">1.2</span> What a complete implementation contains</a></li>
   <li><a href="#sec-toolkit" id="toc-sec-toolkit" class="nav-link" data-scroll-target="#sec-toolkit"><span class="header-section-number">1.3</span> The toolkit</a></li>
-  <li><a href="#sec-extension" id="toc-sec-extension" class="nav-link" data-scroll-target="#sec-extension"><span class="header-section-number">1.4</span> Extension is the point</a></li>
-  <li><a href="#sec-validators" id="toc-sec-validators" class="nav-link" data-scroll-target="#sec-validators"><span class="header-section-number">1.5</span> Checking one’s own work</a></li>
+  <li><a href="#sec-extension" id="toc-sec-extension" class="nav-link" data-scroll-target="#sec-extension"><span class="header-section-number">1.4</span> Extending the toolkit</a></li>
+  <li><a href="#sec-validators" id="toc-sec-validators" class="nav-link" data-scroll-target="#sec-validators"><span class="header-section-number">1.5</span> Validating what a user has written</a></li>
   </ul>
 </nav>
     </div>
@@ -270,7 +296,7 @@ window.Quarto = {
 <p>That is what <code>statmodels7</code> is: infrastructure meant to be reused, rather than another modelling package. The measure of its success is not how well it fits models but whether somebody else’s modelling package can be built on top of it.</p>
 </section>
 <section id="sec-completely" class="level2" data-number="1.2">
-<h2 data-number="1.2" class="anchored" data-anchor-id="sec-completely"><span class="header-section-number">1.2</span> What “completely” means</h2>
+<h2 data-number="1.2" class="anchored" data-anchor-id="sec-completely"><span class="header-section-number">1.2</span> What a complete implementation contains</h2>
 <p>The principle applies to both kinds of object the toolkit currently provides, and it is worth stating for each, because what counts as complete differs.</p>
 <p>A <strong>link function</strong> is a map between a constrained parameter and an unconstrained one, and what a modelling routine can ask of it is its value and its derivatives — in both directions. Almost every implementation in R carries the first derivative of the inverse link and stops there, which is exactly what a GLM fitted by iterative least squares needs and nothing more. A link in this toolkit carries four derivatives of the forward map and four of the inverse, so that it can serve a routine working to any order up to the fourth, and it knows its own domain so that the routine does not have to.</p>
 <p>A <strong>distribution</strong> supplies, or can derive, the density or mass function together with the cdf, the quantile function and a random generator; the score and the observed information; the expected information; third and fourth derivatives of the log-likelihood, both observed and expected; derivatives with respect to the response as well as the parameters; derivatives of the distribution function, which is what a censored observation contributes; and every one of these with respect to the unconstrained parameters as well as the natural ones.</p>
@@ -323,10 +349,10 @@ window.Quarto = {
 </tr>
 </tbody>
 </table>
-<p>The destination is the last row: a framework in the spirit of GAMLSS in which every parameter of a distribution can be modelled rather than just the mean, the optimiser is pluggable, estimation can be frequentist or Bayesian, and users can define new model terms and drop them straight into formulas. Everything below it exists to make that possible, and one design pressure has shaped it all: <em>exact derivatives, on the unconstrained scale, for components the framework has never seen before</em>.</p>
+<p>The destination is the last row: a framework in the spirit of the generalized additive models for location, scale and shape of <span class="citation" data-cites="rigby2005">Rigby and Stasinopoulos (<a href="A2-references.html#ref-rigby2005" role="doc-biblioref">2005</a>)</span>, described at length in <span class="citation" data-cites="stasinopoulos2017">Stasinopoulos et al. (<a href="A2-references.html#ref-stasinopoulos2017" role="doc-biblioref">2017</a>)</span>, in which every parameter of a distribution can be modelled rather than just the mean, the optimiser is pluggable, estimation can be frequentist or Bayesian, and users can define new model terms and drop them straight into formulas. Everything below it exists to make that possible, and one design pressure has shaped it all: <em>exact derivatives, on the unconstrained scale, for components the framework has never seen before</em>.</p>
 </section>
 <section id="sec-extension" class="level2" data-number="1.4">
-<h2 data-number="1.4" class="anchored" data-anchor-id="sec-extension"><span class="header-section-number">1.4</span> Extension is the point</h2>
+<h2 data-number="1.4" class="anchored" data-anchor-id="sec-extension"><span class="header-section-number">1.4</span> Extending the toolkit</h2>
 <p>A toolkit that worked only for the sixteen links and fourteen distributions it ships with would have solved nothing; it would simply be one more closed catalogue, larger than the others. What matters is what happens when a user brings an object the authors never considered, and in both packages the answer is that it is treated exactly like the ones that came with them — there is no registration step, and no separate interface for the “advanced” case.</p>
 <p>For a link the requirement is only that the ten generics be implemented, and since a link is a formula and its derivatives, that is a dozen lines. Nothing distinguishes the result from a built-in one: it can be handed to any distribution as the link for any parameter, and the fourth-order machinery will use it without knowing where it came from.</p>
 <div class="cell" data-layout-align="center">
@@ -382,7 +408,7 @@ window.Quarto = {
 <p>The twenty lines above are a first-class citizen of the toolkit: the object can be zero-inflated, truncated, transformed, and fitted by Fisher scoring exactly like the distributions the package ships with.</p>
 </section>
 <section id="sec-validators" class="level2" data-number="1.5">
-<h2 data-number="1.5" class="anchored" data-anchor-id="sec-validators"><span class="header-section-number">1.5</span> Checking one’s own work</h2>
+<h2 data-number="1.5" class="anchored" data-anchor-id="sec-validators"><span class="header-section-number">1.5</span> Validating what a user has written</h2>
 <p>Because users are expected to write their own distributions and links, the packages ship the tools to validate them. <code>check_link()</code> verifies that a link is invertible in both directions, strictly monotone, consistent with the inverse function theorem, and that each analytical derivative agrees with a numerical one; <code>check_distrib()</code> runs the analogous battery on a distribution — the density integrates to one, the cdf and the quantile function invert each other and agree with the density, the random generator matches the cdf, every derivative matches a finite-difference computation, and the expected information matches a Monte Carlo estimate of the variance of the score.</p>
 <p>Both run on any object, including one written five minutes ago — here, on the two defined above:</p>
 <div class="cell" data-layout-align="center">
@@ -416,6 +442,14 @@ window.Quarto = {
 <p>They are used systematically on everything the packages contain. The three chapters that follow present the mathematics behind all of it, one per package: <a href="02-linkfunctions7.html" class="quarto-xref"><span>Chapter 2</span></a> for <code>linkfunctions7</code>, <a href="03-distributions7.html" class="quarto-xref"><span>Chapter 3</span></a> for <code>distributions7</code>, and <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a> for <code>optimizers7</code>.</p>
 
 
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-rigby2005" class="csl-entry" role="listitem">
+Rigby, Robert A., and D. Mikis Stasinopoulos. 2005. <span>“Generalized Additive Models for Location, Scale and Shape.”</span> <em>Journal of the Royal Statistical Society, Series C</em> 54 (3): 507–54.
+</div>
+<div id="ref-stasinopoulos2017" class="csl-entry" role="listitem">
+Stasinopoulos, D. Mikis, Robert A. Rigby, Gillian Z. Heller, Vlasios Voudouris, and Fernanda De Bastiani. 2017. <em>Flexible Regression and Smoothing: Using <span>GAMLSS</span> in <span>R</span></em>. Boca Raton: Chapman; Hall/CRC.
+</div>
+</div>
 </section>
 
 </main> <!-- /main -->
