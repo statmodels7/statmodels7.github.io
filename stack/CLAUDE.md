@@ -144,8 +144,23 @@ Rscript.exe -e "setwd('<pkg>'); install.packages('.', repos=NULL, type='source')
 
 # full check (installs into its own directory, unaffected by library locks)
 R.exe CMD build <pkg> --no-manual
-R.exe CMD check <pkg>_0.0.0.9000.tar.gz --no-manual
+# --as-cran, because that is what the CI action runs and warnings fail it
+R.exe CMD check <pkg>_0.0.0.9000.tar.gz --no-manual --as-cran
 ```
+
+**Check with `--as-cran`, and read WHICH warning.** The CI action runs
+`--as-cran` and treats any warning as a failure, so a local check without it
+cannot see a whole class of defect: adding a test that called
+`pkgdown::check_pkgdown()` without declaring pkgdown in `Suggests` gave
+*"'::' import not declared"* on all five platforms after a local
+`Status: OK`.
+
+The converse also holds and is worth knowing before chasing a phantom.
+`--as-cran` locally reports a **CRAN incoming feasibility** warning that CI
+never will, because that check needs the network and the action disables it.
+`distributions7` shows one here for its `Remotes` field while its CI is green
+and its workflow is identical to the others'. A local warning is a red push only
+if it is not that one.
 
 Vignettes need pandoc: `$env:RSTUDIO_PANDOC="C:\Users\giova\AppData\Local\Programs\Quarto\bin\tools"`.
 
@@ -401,7 +416,7 @@ and `plot()` on the fit.
 
 | | |
 |---|---|
-| `linkfunctions7` | 815 tests, `R CMD check` OK, CI green |
+| `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1512 tests, `R CMD check` OK (2026-07-30, local), CI green |
 | `optimizers7` | 524 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 
@@ -569,6 +584,28 @@ exactly 1. What was wrong was everything around them.
   Beta(0.9, 0.1) puts 2.5% of its mass within one ulp of 1 and no double-precision sampler
   can resolve it — `rbeta` has the same limitation. Near a boundary at *zero* there is no
   problem at all, denormals giving relative precision to 1e-308.
+- **A link maps onto an OPEN interval, and in double precision it did not**
+  (fixed 2026-07-31). `linkinv(logit_link(), 37)` was exactly 1, `linkinv(bounded_link(lwr
+  = 2), -40)` exactly 2, and the round trip through `linkfun()` then `Inf`;
+  `distributions7` validates against open intervals, so a link could hand it a value its
+  own validator rejects. Reported as a `bounded_link()` defect and it was not: probing
+  every link over |eta| ≤ 800, **nine of eighteen** reached a bound or went non-finite.
+  Fixed once in the **generic body** of `linkinv()` — the same interception
+  `distributions7` uses for its link scale — so every link inherits it, user-written ones
+  included, and every method stays the plain formula.
+  Three things in it worth keeping. The bump is `b + |b| * eps` because R has no
+  `nextafter` and the note above says a single additive constant cannot serve both a
+  bound at 2 and one at 1e-300. **The clamp fires only on EXACT equality with a bound**:
+  saturation lands precisely on the endpoint, whereas `inverse_link()` at eta = -40
+  returns -0.025 because 1/eta is a bijection from (0, ∞) and -40 is not an admissible
+  predictor for it — clamping that would turn a complaint into a small positive number.
+  My first version used `>=` and did exactly that.
+  And the test for it found a second defect at the other end: `cloglog`'s `linkfun`
+  computed `log(-log(1 - theta))`, which for small theta rounds to `log(0) = -Inf` while
+  the true value (-176.66 at theta = 1.9e-77) is perfectly representable. `log1p(-theta)`
+  returns it, and the four forward derivatives that divide by that logarithm are finite
+  again. **`log1p` and `expm1` are not micro-optimisations here; they are the difference
+  between a number and an infinity.**
 - **`numDeriv`'s Richardson stencil reaches ~8e-4·|x|.** Any grid that comes closer than
   that to a domain boundary is differentiated using points outside the domain, which come
   back NaN. This made `check_link` report failures for links that were exact to 1e-11.
@@ -701,6 +738,18 @@ exactly 1. What was wrong was everything around them.
   `R CMD check` raises neither locally. In `optimizers7` the six topics missing an
   example were the abstract classes and the generics — exactly where an example is most
   useful and least likely to be written.
+- **Exporting anything means adding it to `_pkgdown.yml`, and pkgdown enforces
+  that in CI rather than locally.** A topic missing from the reference index
+  fails the site build — a red push, minutes later, for one line of YAML.
+  `pkgdown::check_pkgdown()` asks the question in a second, and both
+  `linkfunctions7` and `optimizers7` now ask it from `tests/testthat/test-docs.R`
+  rather than relying on anyone remembering: I ran it for one package the same
+  afternoon and forgot the other, which is what a habit does. That test found a
+  missing `\value` the moment it existed, and then caught its own repair —
+  writing the word `\value` inside `\code{}` makes roxygen emit an Rd that will
+  not parse, which pkgdown reports as *the topic is missing from the index*,
+  because it cannot read the keywords of a file it cannot read. One malformed
+  page, two error messages, neither naming the cause.
 
 ### GitHub Actions
 
@@ -857,24 +906,6 @@ exactly 1. What was wrong was everything around them.
   would be a third `line_search` subclass and would need the loop to keep a
   short history of values, which nothing else needs. Worth doing only if `bb()`
   turns out to matter for `statmodels7`; `cg()` covers the same ground today.
-- **`bounded_link()` in linkfunctions7 saturates onto its bounds.**
-  `linkinv(bounded_link(0, 1), 37)` is exactly 1 and
-  `linkinv(bounded_link(lwr = 2), -40)` is exactly 2, although both are documented
-  as maps onto the *open* interval; the round trip through `linkfun()` then gives
-  `Inf`, and `distributions7` validates against open intervals so it can be handed
-  a value its own validator rejects. Two causes: `plogis` is exactly 1 above
-  eta = 37, and `exp_floor` (~1.9e-77) was derived for a bound at *zero* — at
-  lwr = 2 it does not bind at all, which is the "spacing of doubles is absolute
-  near a non-zero boundary" note in §7 biting again. `optimizers7` hit this and
-  fixed it in `src/bounded.h` with `clamp_inside()`: clamp to the adjacent
-  representable double, and to the largest finite one where `lwr + exp(eta)`
-  overflows. Both derived, no invented tolerance.
-  Not urgent: `fit_distrib()` on a fully separable Bernoulli stops at eta = 28.4,
-  giving mu = 0.99999999999954, so nothing in the toolkit currently reaches it —
-  the gradient underflows first. It becomes reachable the moment a derivative-free
-  optimiser is pointed at a bounded link, which is exactly what `statmodels7` will
-  do. `check_link()` passes it, being the "test grids sit inside the domain"
-  lesson of §7 for the third time.
 - Next packages: `modelterms7`, `basis7`, `penalties7`.
 - **A censored-likelihood front end.** `distrib_grad_cdf()` supplies the pieces, but
   nothing yet assembles them: a `fit_distrib(..., censored = )` taking a status vector,
