@@ -204,11 +204,12 @@ window.Quarto = {
   <li><a href="#sec-descent-zoutendijk" id="toc-sec-descent-zoutendijk" class="nav-link" data-scroll-target="#sec-descent-zoutendijk"><span class="header-section-number">4.1.3</span> The theorem that makes it worth the trouble</a></li>
   <li><a href="#sec-descent-cost" id="toc-sec-descent-cost" class="nav-link" data-scroll-target="#sec-descent-cost"><span class="header-section-number">4.1.4</span> What each search costs</a></li>
   </ul></li>
-  <li><a href="#sec-curvature" id="toc-sec-curvature" class="nav-link" data-scroll-target="#sec-curvature"><span class="header-section-number">4.2</span> Curvature, and three ways to obtain it</a>
+  <li><a href="#sec-curvature" id="toc-sec-curvature" class="nav-link" data-scroll-target="#sec-curvature"><span class="header-section-number">4.2</span> Curvature, and how little of it you can keep</a>
   <ul>
   <li><a href="#sec-newton" id="toc-sec-newton" class="nav-link" data-scroll-target="#sec-newton"><span class="header-section-number">4.2.1</span> Newton’s method, and the repair it needs</a></li>
   <li><a href="#sec-bfgs" id="toc-sec-bfgs" class="nav-link" data-scroll-target="#sec-bfgs"><span class="header-section-number">4.2.2</span> The quasi-Newton idea</a></li>
   <li><a href="#sec-lbfgs" id="toc-sec-lbfgs" class="nav-link" data-scroll-target="#sec-lbfgs"><span class="header-section-number">4.2.3</span> Limited memory</a></li>
+  <li><a href="#sec-cg-bb" id="toc-sec-cg-bb" class="nav-link" data-scroll-target="#sec-cg-bb"><span class="header-section-number">4.2.4</span> Below a matrix</a></li>
   </ul></li>
   <li><a href="#sec-nonsmooth" id="toc-sec-nonsmooth" class="nav-link" data-scroll-target="#sec-nonsmooth"><span class="header-section-number">4.3</span> Where the derivative fails</a>
   <ul>
@@ -250,7 +251,7 @@ window.Quarto = {
 
 
 <p>The last chapter ended with a maximisation performed by three fixed routines, and with the admission that the user could not supply a fourth. This chapter is about removing that limitation, and about what has to be true of an optimisation routine before it is safe to let anyone plug one in.</p>
-<p>The mathematics divides cleanly. <a href="#sec-descent" class="quarto-xref"><span>Section 4.1</span></a> asks what it means to take a step at all: what makes a direction a descent direction, what a line search along it must guarantee, and why a condition on the objective alone is not enough — the result there, Zoutendijk’s, is the one that turns “each step decreases <span class="math inline">\(f\)</span>” into “the gradient goes to zero”, which is a very different claim. <a href="#sec-curvature" class="quarto-xref"><span>Section 4.2</span></a> then asks how to choose the direction, and the answer in every case is a quadratic model: Newton’s uses the Hessian and must repair it when it is not positive definite, while the quasi-Newton methods refuse to compute one at all and build an approximation from the gradients they have already seen, which turns out to be determined almost uniquely by two requirements.</p>
+<p>The mathematics divides cleanly. <a href="#sec-descent" class="quarto-xref"><span>Section 4.1</span></a> asks what it means to take a step at all: what makes a direction a descent direction, what a line search along it must guarantee, and why a condition on the objective alone is not enough — the result there, Zoutendijk’s, is the one that turns “each step decreases <span class="math inline">\(f\)</span>” into “the gradient goes to zero”, which is a very different claim. <a href="#sec-curvature" class="quarto-xref"><span>Section 4.2</span></a> then asks how to choose the direction, and takes the methods in order of how much they store. Newton’s uses the exact Hessian and must repair it when it is not positive definite; the quasi-Newton methods refuse to compute one and build an approximation from the gradients they have already seen, which turns out to be determined almost uniquely by two requirements; and below them are methods keeping a few pairs of vectors, then one vector, then a single number. What is worth noticing on the way down is how far one can go before the method stops working, and that the answer is very nearly all the way.</p>
 <p><a href="#sec-nonsmooth" class="quarto-xref"><span>Section 4.3</span></a> is where the picture changes. Everything before it assumes a gradient that becomes small near a solution, and for an objective with a kink in it — a sum of absolute deviations, a Laplace likelihood in its location — that assumption is simply false: the subgradient at the minimiser has norm one. A method built on it does not merely converge slowly, it arrives at the answer and then reports failure. Two repairs are possible, and both are here: abandon derivatives entirely, which costs a great deal and buys a weaker theorem, or keep them and stop asking any single one of them to vanish, which is the bundle method.</p>
 <p><a href="#sec-constraints" class="quarto-xref"><span>Section 4.4</span></a> closes with two things that sit outside the descent framework rather than inside it. Box constraints are removed by a change of variable, so that no algorithm ever learns a constraint was involved; and Adam takes steps that are not descent steps at all, which is the price of tolerating a gradient computed from a handful of observations.</p>
 <section id="sec-descent" class="level2" data-number="4.1">
@@ -264,11 +265,12 @@ window.Quarto = {
 <div id="def-descent" class="theorem definition">
 <p><span class="theorem-title"><strong>Definition 4.1 (Descent direction)</strong></span> A vector <span class="math inline">\(d \in \mathbb{R}^{p}\)</span> is a descent direction for <span class="math inline">\(f\)</span> at <span class="math inline">\(x\)</span> when <span class="math inline">\(g^\top d &lt; 0\)</span>, where <span class="math inline">\(g = \nabla f(x)\)</span>.</p>
 </div>
-<p>The simplest choice is <span class="math inline">\(d = -g\)</span>, for which <span class="math inline">\(g^\top d = -\lVert g \rVert^{2} &lt; 0\)</span> whenever <span class="math inline">\(g \neq 0\)</span>; this is the steepest descent direction, in the sense that it minimises <span class="math inline">\(g^\top d\)</span> over all <span class="math inline">\(d\)</span> of a given Euclidean length. Every method in <a href="#sec-curvature" class="quarto-xref"><span>Section 4.2</span></a> instead takes</p>
+<p>The simplest choice is <span class="math inline">\(d = -g\)</span>, for which <span class="math inline">\(g^\top d = -\lVert g \rVert^{2} &lt; 0\)</span> whenever <span class="math inline">\(g \neq 0\)</span>; this is the steepest descent direction, in the sense that it minimises <span class="math inline">\(g^\top d\)</span> over all <span class="math inline">\(d\)</span> of a given Euclidean length. Most of the methods in <a href="#sec-curvature" class="quarto-xref"><span>Section 4.2</span></a> instead take</p>
 <p><span class="math display">\[d = -B g\]</span></p>
 <p>for some symmetric positive definite <span class="math inline">\(B\)</span>, and the reason that always works is immediate:</p>
 <p><span class="math display">\[g^\top d = -g^\top B g &lt; 0 \quad \text{for } g \neq 0,\]</span></p>
 <p>which is precisely the definition of positive definiteness. This is worth stating separately, because it is the single fact that connects the two halves of this chapter: <strong>the requirement that a curvature model be positive definite is not a preference, it is what makes the direction it produces usable at all.</strong> When Newton’s method repairs an indefinite Hessian in <a href="#sec-newton" class="quarto-xref"><span>Section 4.2.1</span></a>, it is defending this inequality and nothing else.</p>
+<p>Conjugate gradients, in <a href="#sec-cg-bb" class="quarto-xref"><span>Section 4.2.4</span></a>, is the exception that proves the rule. Its direction is not <span class="math inline">\(-Bg\)</span> for any matrix it holds, so nothing guarantees the inequality in advance; it is therefore tested outright at each step, and the direction replaced by <span class="math inline">\(-g\)</span> when it fails.</p>
 </section>
 <section id="sec-descent-armijo" class="level3" data-number="4.1.2">
 <h3 data-number="4.1.2" class="anchored" data-anchor-id="sec-descent-armijo"><span class="header-section-number">4.1.2</span> Why “the objective decreased” is not enough</h3>
@@ -370,12 +372,12 @@ f(x + sd)\)</span>. It costs nothing extra, since a search that can test (W) has
 </section>
 </section>
 <section id="sec-curvature" class="level2" data-number="4.2">
-<h2 data-number="4.2" class="anchored" data-anchor-id="sec-curvature"><span class="header-section-number">4.2</span> Curvature, and three ways to obtain it</h2>
+<h2 data-number="4.2" class="anchored" data-anchor-id="sec-curvature"><span class="header-section-number">4.2</span> Curvature, and how little of it you can keep</h2>
 <p>Every method in this section chooses its direction the same way: build a quadratic model of <span class="math inline">\(f\)</span> around the current point, and step to the minimiser of that model. Writing <span class="math inline">\(g = \nabla f(x)\)</span> and letting <span class="math inline">\(M\)</span> stand for whatever matrix plays the part of the curvature, the model is</p>
 <p><span class="math display">\[m(d) = f(x) + g^\top d + \tfrac{1}{2} d^\top M d,\]</span></p>
 <p>and setting <span class="math inline">\(\nabla m(d) = g + M d = 0\)</span> gives</p>
 <p><span class="math display">\[d = -M^{-1} g.\]</span></p>
-<p>The three methods differ only in what they use for <span class="math inline">\(M\)</span>, and the differences are about cost and about what happens when the true curvature is unhelpful.</p>
+<p>The methods differ in what they use for <span class="math inline">\(M\)</span>, and this section takes them in order of how much they store: the exact Hessian, then an approximation to its inverse of the same size, then the last few pairs of vectors that approximation was built from, then a single vector, then a single number. What is remarkable is how far down that list one can go before the method stops working.</p>
 <section id="sec-newton" class="level3" data-number="4.2.1">
 <h3 data-number="4.2.1" class="anchored" data-anchor-id="sec-newton"><span class="header-section-number">4.2.1</span> Newton’s method, and the repair it needs</h3>
 <p>The obvious choice is the true Hessian, <span class="math inline">\(M = \nabla^{2} f(x)\)</span>, which makes <span class="math inline">\(m\)</span> the second-order Taylor expansion and the step exact for a quadratic. Near a strict local minimum this converges quadratically, which no other method here achieves, and it is why <code>newton()</code> exists.</p>
@@ -434,7 +436,7 @@ V^\top\)</span> and replaces <span class="math inline">\(\Lambda\)</span> by <sp
 <p>Two responses are possible, and the package takes the conservative one: when <span class="math inline">\(y^\top s \le \varepsilon \lVert s \rVert \lVert y \rVert\)</span> the pair is <strong>skipped</strong>, the approximation left as it was, and the skip recorded in the trace. The alternative, damping the pair towards one that does satisfy the condition, injects curvature that was not observed. Skipping loses information; damping invents it, and this toolkit prefers to lose it.</p>
 <p>Note also that a Wolfe search makes the question moot. Condition (W) says <span class="math inline">\(\nabla f(x_{+})^\top d \ge c_2 \nabla f(x)^\top d\)</span>, and multiplying by <span class="math inline">\(s &gt; 0\)</span> and rearranging gives</p>
 <p><span class="math display">\[y^\top s \ \ge\ (c_2 - 1)\, s\, \nabla f(x)^\top d \ &gt; \ 0,\]</span></p>
-<p>since <span class="math inline">\(c_2 &lt; 1\)</span> and the directional derivative is negative. <strong>A quasi-Newton method paired with a Wolfe search never skips an update.</strong> That is the practical argument for the more expensive search, and it is why <code>bfgs()</code> defaults to it while <code>gradient_descent()</code>, which has no approximation to protect, defaults to backtracking.</p>
+<p>since <span class="math inline">\(c_2 &lt; 1\)</span> and the directional derivative is negative. <strong>A quasi-Newton method paired with a Wolfe search never skips an update.</strong> That is the practical argument for the more expensive search, and it is why <code>bfgs()</code> defaults to it while <code>gd()</code>, which has no approximation to protect, defaults to backtracking.</p>
 <p>The argument should be stated at its true strength, which is that of a guarantee rather than of an observed advantage. On every smooth problem in the standard collection, and on a deliberately non-convex one besides, backtracking skips no updates either: the curvature condition simply is not violated there. What the Wolfe search removes is not a frequent nuisance but the possibility of one, and the difference shows on objectives less well behaved than any that appear in this book.</p>
 </section>
 <section id="sec-lbfgs" class="level3" data-number="4.2.3">
@@ -482,6 +484,80 @@ V^\top\)</span> and replaces <span class="math inline">\(\Lambda\)</span> by <sp
 </table>
 </div>
 </div>
+</section>
+<section id="sec-cg-bb" class="level3" data-number="4.2.4">
+<h3 data-number="4.2.4" class="anchored" data-anchor-id="sec-cg-bb"><span class="header-section-number">4.2.4</span> Below a matrix</h3>
+<p>Two methods go further down, and they are worth the page because between them they cover the case a statistical model most often presents: a parameter vector too long for a <span class="math inline">\(p   imes p\)</span> anything.</p>
+<p><strong>Conjugate gradients</strong> keeps one vector. Its direction is</p>
+<p><span class="math display">\[d_k = -g_k + eta_k d_{k-1},\]</span></p>
+<p>which does not look like <span class="math inline">\(-M^{-1}g\)</span> at all, and the point is that it does not have to. Recall from <a href="#sec-descent-directions" class="quarto-xref"><span>Section 4.1.1</span></a> why steepest descent is poor: under an exact line search consecutive directions are orthogonal, since the search stops where <span class="math inline">\(g_{k+1}^   op d_k = 0\)</span>, so on a narrow valley the iterate crosses the floor rather than travelling along it. The remedy is to bend each direction back towards the last, and the whole of the method is the choice of how far.</p>
+<p>On a quadratic with Hessian <span class="math inline">\(H\)</span> and an exact line search, the classical choices of <span class="math inline">\(eta\)</span> make the directions <em>conjugate</em>, <span class="math inline">\(d_i^    op H d_j = 0\)</span> for <span class="math inline">\(i
+e j\)</span>, and a set of <span class="math inline">\(p\)</span> conjugate directions spans the space with the minimisations along them independent. The method therefore terminates in <span class="math inline">\(p\)</span> steps exactly, having used <span class="math inline">\(H\)</span> nowhere.</p>
+<p>The four formulas here agree on a quadratic and differ elsewhere:</p>
+<p><span class="math display">\[eta^{FR} = rac{g_k^ op g_k}{g_{k-1}^    op g_{k-1}}, \quad
+  eta^{PR} = rac{g_k^ op y_k}{g_{k-1}^    op g_{k-1}}, \quad
+  eta^{HS} = rac{g_k^ op y_k}{d_{k-1}^    op y_k}, \quad
+  eta^{DY} = rac{g_k^ op g_k}{d_{k-1}^    op y_k},\]</span></p>
+<p>with <span class="math inline">\(y_k = g_k - g_{k-1}\)</span> as always. Fletcher–Reeves has the cleanest theory and the practical fault of stalling for many iterations after a poor step; Polak– Ribière recovers immediately, because a small <span class="math inline">\(y\)</span> sends <span class="math inline">\(eta\)</span> towards zero and the method back to steepest descent, and its known failure to converge is repaired by clamping <span class="math inline">\(eta\)</span> at zero — a clamp which is not a fudge, since <span class="math inline">\(eta = 0\)</span> <em>is</em> a restart.</p>
+<p><strong>Barzilai–Borwein</strong> keeps one number. Take <span class="math inline">\(d = -lpha g\)</span> with</p>
+<p><span class="math display">\[lpha^{BB1} = rac{s^ op s}{s^    op y}, \qquad
+  lpha^{BB2} = rac{s^ op y}{y^    op y},\]</span></p>
+<p>the two Rayleigh quotients of the secant pair. Each is a scalar estimate of the inverse curvature along the direction just travelled, so this is <a href="#sec-bfgs" class="quarto-xref"><span>Section 4.2.2</span></a> with everything discarded but one number — and on a quadratic, where the curvature is constant, that number is exactly right and the second step lands on the answer.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Rosenbrock from the usual start, by how much curvature the method keeps.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">curvature stored</th>
+<th style="text-align: right;">iterations</th>
+<th style="text-align: left;">converged</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">newton</td>
+<td style="text-align: right;">p(p+1)/2</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">bfgs</td>
+<td style="text-align: right;">p^2</td>
+<td style="text-align: right;">33</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">lbfgs</td>
+<td style="text-align: right;">2mp</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">cg</td>
+<td style="text-align: right;">2p</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">bb</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">928</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gd</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1017</td>
+<td style="text-align: left;">FALSE</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Read it downwards. Keeping the exact Hessian, or a full approximation to its inverse, or twenty pairs of vectors, or one vector, makes almost no difference to the iteration count on this problem — and keeping nothing at all makes all the difference in the world. It is not the <em>amount</em> of curvature information that matters but whether there is any: gradient descent is the only row that fails, and conjugate gradients repairs it with a single remembered direction.</p>
+<p>Barzilai–Borwein sits oddly in that table, and honestly so. It reaches the same answer to the same precision from one stored number, which is remarkable, and it takes an order of magnitude more iterations to do it. The reason is not the scalar but the line search: the method’s efficiency comes from steps that make the objective <em>worse</em> in order to align with the curvature, and the sufficient-decrease condition of <a href="#def-armijo" class="quarto-xref">Definition&nbsp;<span>4.2</span></a> forbids exactly those. The classical remedy is a nonmonotone line search, requiring decrease against the worst of the last several values rather than the last one. This toolkit does not have one, so what is measured here is the safe version of the method rather than the fast one.</p>
 </section>
 </section>
 <section id="sec-nonsmooth" class="level2" data-number="4.3">
@@ -756,23 +832,26 @@ L_j + (U_j - L_j)\,\dfrac{1}{1 + e^{-\eta_j}}
 \quad \hat v_t = \frac{v_t}{1 - \beta_2^{t}},\]</span></p>
 <p>the division being elementwise, which is the entire idea. A coordinate whose gradient has been consistently large is divided by a large number and moves modestly; one whose gradient is small but persistent still moves. It is a diagonal preconditioner assembled from the gradients already seen, and it costs nothing beyond them — which is also its limit, since a diagonal cannot represent the correlation between parameters that <a href="#sec-bfgs" class="quarto-xref"><span>Section 4.2.2</span></a> learns from the same information.</p>
 <p>Ignoring the bias correction and <span class="math inline">\(\epsilon\)</span>, at <span class="math inline">\(t = 1\)</span> the ratio <span class="math inline">\(\hat m_1 / \sqrt{\hat v_1}\)</span> is <span class="math inline">\(g_1 / \lvert g_1 \rvert\)</span>, of size exactly one, so the first step has length <span class="math inline">\(\alpha\)</span> in every coordinate regardless of how steep the objective is. That scale invariance is what makes a single <span class="math inline">\(\alpha\)</span> workable across problems of very different magnitudes, and it is also why Adam is untroubled by a badly scaled parameter vector where steepest descent is helpless.</p>
-<p>The absence of a line search means there is no guarantee of monotone progress, and the run may end somewhere worse than it passed through. That freedom is most of why Adam tolerates a gradient computed from a handful of observations rather than from all of them: a stochastic gradient points downhill only on average, and insisting on decrease at every step would reject most of the steps that make progress. When the objective is a sum over observations,</p>
+<p>The absence of a line search means there is no guarantee of monotone progress, and the run may end somewhere worse than it passed through. That freedom is most of why Adam tolerates a gradient that is only right on average: insisting on decrease at every step would reject most of the steps that make progress when the gradient is an estimate rather than the thing itself.</p>
+<p>Which is the case that matters here. When the objective is a sum over observations,</p>
 <p><span class="math display">\[f(x) = \sum_{i=1}^{n} f_i(x),\]</span></p>
-<p>the gradient of a random subsample is an unbiased estimate of a scaled gradient of the whole, and Adam may be run on subsamples at a fraction of the cost per iteration.</p>
-<div class="callout callout-style-default callout-important callout-titled">
+<p>the gradient of a randomly drawn subset is, up to a factor of <span class="math inline">\(n/m\)</span>, an unbiased estimate of the gradient of the whole. Evaluating it costs a fraction of the full one, so a great many cheap noisy steps can be taken for the price of a few exact ones, and Adam is the method built to make that trade.</p>
+<div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>What a stochastic run may not test
+<span class="screen-reader-only">Note</span>Where the subsample is drawn, and why not here
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>When the gradient is estimated from a subsample, so is the objective, and a tolerance applied to either measures the sampling noise rather than the progress. Neither can serve as a stopping rule; such a run is governed by its iteration budget, and reports that it did not converge — which is the truth about a run that nothing checked.</p>
-<p>This is the same discipline as everywhere else in the toolkit. A check that cannot be evaluated must say so rather than pass or fail silently, and the package refuses an objective-based or gradient-based rule for a subsampling run by name rather than accepting one that would never fire.</p>
+<p>Nothing in <code>adam()</code> knows about observations. The subsample is drawn by the objective, which is an ordinary function of the parameter vector that happens to choose a different set of terms each time it is called; Adam optimises it without ever being told, and <span class="math inline">\(\mathtt{set.seed}\)</span> governs the run because the draws happen in the caller’s code.</p>
+<p>The alternative was tried and removed. Teaching the optimiser to subsample meant a second kind of objective to declare that it terms, a rule for which stopping rules such an objective permitted, and a branch through the iteration — all so that the optimiser could do something the caller could do in one line, and do worse, since the caller is the one who knows what an observation is, and what a stratum is, and what a cluster is.</p>
+<p>The mathematics above is unchanged by that: a stochastic gradient is a stochastic gradient however it was produced. What changed is which layer holds the knowledge, and the answer is the layer that has it.</p>
 </div>
 </div>
+<p>One consequence of the noise is worth stating separately, because it is about what may be <em>asked</em> rather than about what is done. When the gradient is an estimate, so is the objective, and a tolerance applied to either measures the sampling noise rather than the progress. Neither can serve as a stopping rule. Such a run is governed by its iteration budget and reports that it did not converge — which is the truth about a run that nothing checked. Whether an objective is noisy is a fact about the objective, though, not about the optimiser, so this is a caution to the caller and not something the package can detect on their behalf.</p>
 <p>Two safeguards deserve mention because they answer real failures rather than imagined ones. The learning rate may be reduced as <span class="math inline">\(\alpha_t = \alpha / (1 +
 \delta t)\)</span>, which is the Robbins–Monro condition a noisy run needs in order to settle at the optimum rather than orbit it at a radius set by <span class="math inline">\(\alpha\)</span>; and <span class="math inline">\(v_t\)</span> may be replaced by its running maximum, which forbids the second moment from shrinking and letting a single large gradient dominate the iterate long after it has passed. The second is not cosmetic: without it there is a <em>convex</em> problem on which Adam as published fails to converge.</p>
 </section>
