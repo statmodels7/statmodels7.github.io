@@ -156,31 +156,50 @@ helpless.
 
 The absence of a line search means there is no guarantee of monotone progress,
 and the run may end somewhere worse than it passed through. That freedom is most
-of why Adam tolerates a gradient computed from a handful of observations rather
-than from all of them: a stochastic gradient points downhill only on average, and
-insisting on decrease at every step would reject most of the steps that make
-progress. When the objective is a sum over observations,
+of why Adam tolerates a gradient that is only right on average: insisting on
+decrease at every step would reject most of the steps that make progress when
+the gradient is an estimate rather than the thing itself.
+
+Which is the case that matters here. When the objective is a sum over
+observations,
 
 $$f(x) = \sum_{i=1}^{n} f_i(x),$$
 
-the gradient of a random subsample is an unbiased estimate of a scaled gradient
-of the whole, and Adam may be run on subsamples at a fraction of the cost per
-iteration.
+the gradient of a randomly drawn subset is, up to a factor of $n/m$, an unbiased
+estimate of the gradient of the whole. Evaluating it costs a fraction of the
+full one, so a great many cheap noisy steps can be taken for the price of a few
+exact ones, and Adam is the method built to make that trade.
 
-::: {.callout-important}
-## What a stochastic run may not test
+::: {.callout-note}
+## Where the subsample is drawn, and why not here
 
-When the gradient is estimated from a subsample, so is the objective, and a
-tolerance applied to either measures the sampling noise rather than the progress.
-Neither can serve as a stopping rule; such a run is governed by its iteration
-budget, and reports that it did not converge — which is the truth about a run
-that nothing checked.
+Nothing in `adam()` knows about observations. The subsample is drawn by the
+objective, which is an ordinary function of the parameter vector that happens to
+choose a different set of terms each time it is called; Adam optimises it
+without ever being told, and $\mathtt{set.seed}$ governs the run because the
+draws happen in the caller's code.
 
-This is the same discipline as everywhere else in the toolkit. A check that
-cannot be evaluated must say so rather than pass or fail silently, and the
-package refuses an objective-based or gradient-based rule for a subsampling run
-by name rather than accepting one that would never fire.
+The alternative was tried and removed. Teaching the optimiser to subsample meant
+a second kind of objective to declare that it \emph{had} terms, a rule for which
+stopping rules such an objective permitted, and a branch through the iteration —
+all so that the optimiser could do something the caller could do in one line, and
+do worse, since the caller is the one who knows what an observation is, and what
+a stratum is, and what a cluster is.
+
+The mathematics above is unchanged by that: a stochastic gradient is a
+stochastic gradient however it was produced. What changed is which layer holds
+the knowledge, and the answer is the layer that has it.
 :::
+
+One consequence of the noise is worth stating separately, because it is about
+what may be *asked* rather than about what is done. When the gradient is an
+estimate, so is the objective, and a tolerance applied to either measures the
+sampling noise rather than the progress. Neither can serve as a stopping rule.
+Such a run is governed by its iteration budget and reports that it did not
+converge — which is the truth about a run that nothing checked. Whether an
+objective is noisy is a fact about the objective, though, not about the
+optimiser, so this is a caution to the caller and not something the package can
+detect on their behalf.
 
 Two safeguards deserve mention because they answer real failures rather than
 imagined ones. The learning rate may be reduced as $\alpha_t = \alpha / (1 +

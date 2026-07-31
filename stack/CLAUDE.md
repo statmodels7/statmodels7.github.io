@@ -59,7 +59,7 @@ followed by 7*, which happens to spell `...s7` — `linkfunction**s7**`,
 |---|---|
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
 | `distributions7` | 14 distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE |
-| `optimizers7` | 9 algorithms as objects — newton, bfgs, lbfgs, gradient_descent, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, and box bounds removed by reparametrisation |
+| `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, and box bounds removed by reparametrisation |
 
 **Planned** — `modelterms7`, `basis7`, `penalties7`, and eventually the `statmodels7`
 package itself, which assembles everything into models. That last one is the destination:
@@ -403,7 +403,7 @@ and `plot()` on the fit.
 |---|---|
 | `linkfunctions7` | 815 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1512 tests, `R CMD check` OK (2026-07-30, local), CI green |
-| `optimizers7` | 476 tests, `R CMD check` OK with vignettes (2026-07-31, local). **No GitHub repository yet**, so no workflow has ever run and `--as-cran` reports two 404 URLs. Creating `statmodels7/optimizers7` and the first push are Giovanni's to make. |
+| `optimizers7` | 524 tests, `R CMD check` OK with vignettes (2026-07-31, local). **No GitHub repository yet**, so no workflow has ever run and `--as-cran` reports two 404 URLs. Creating `statmodels7/optimizers7` and the first push are Giovanni's to make. |
 
 Both repositories run `R-CMD-check` on macOS, Windows and three Linux/R combinations
 (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix matters for
@@ -792,6 +792,42 @@ exactly 1. What was wrong was everything around them.
   becoming stationary, reporting `converged = TRUE` after zero serious and zero null
   steps. General shape: a convergence measure must not contain a quantity the algorithm
   is free to shrink for reasons of its own.
+- **The way to decide whether Rcpp is worth it is to measure, and the answer was
+  mostly no** (2026-07-31). Giovanni asked, before publishing `optimizers7`,
+  whether `statmodels7` would really be able to hand the optimisers
+  log-likelihoods with gradients and Hessians assembled in C++ from model terms.
+  Measured on a Gamma regression, an R objective against the identical thing
+  compiled: **0.88x at n = 200, 0.55x at 2000, 1.39x at 20 000, 2.09x at
+  200 000** — slower below about twenty thousand observations and never better
+  than twice as fast. The R callback into the loop costs about 0.5 microseconds
+  and is unmeasurable against a real objective; a two-rule criterion costs 24
+  microseconds an iteration, which is 0.5 to 5 per cent of a fit.
+  The decisive number is structural rather than incidental. **Assembling a
+  gradient or a Hessian from term blocks is `crossprod(Z, s)` and
+  `crossprod(Z, W * Z)`**, and `src/Makevars` links against R's own BLAS, so the
+  two languages call literally the same routine: at n = 50 000, p = 200 the
+  Hessian assembly costs 1.33 s in both, and the gradient assembly saves 5 ms on
+  it — 0.4 per cent. Whatever `modelterms7` composes, the composition is BLAS.
+  Compiled kernels earn their keep on **irregular elementwise arithmetic**,
+  which is where `distributions7` already puts them. The conclusion for the
+  model layer is *vectorised R over compiled kernels*, and the real order of
+  magnitude is algorithmic — Fisher scoring exploiting block structure and sparse
+  penalties — not linguistic.
+- **A feature with one caller is that caller's feature.** `adam(resample=)` and
+  `finite_sum()` let the optimiser draw its own minibatches, and between them
+  cost a second objective class, a rule for which criteria it permitted, a token
+  in the criterion machinery, a branch in the compiled loop and an argument to
+  select the path. An objective that resamples is a closure; the caller who
+  knows what an observation is writes it in one line and can also say what a
+  stratum is. Removing it took 378 lines out. Same judgement removed
+  `cpp_objective()`, which additionally *could not carry data* — the pointer type
+  `double(*)(const arma::vec&)` has no closure, so any real objective needed C++
+  globals, which is not reentrant.
+  Watch for the second-order consequence: `need_value` had made the objective
+  evaluation conditional on the criterion reading it, and the token answered
+  that question. Removing the token made the condition uncomputable, and a stale
+  value would have let a rule comparing `f_new` with `f_old` compare a number
+  with itself and fire at once.
 - **Writing the documentation is a test of the design.** The `optimizers7` vignette
   works through a user-written optimiser, and writing it showed that a user *could not*
   write a conforming one: honouring `bounds` and refusing an unevaluable stopping rule
@@ -809,6 +845,15 @@ exactly 1. What was wrong was everything around them.
 - **Creating `github.com/statmodels7/optimizers7` and pushing.** The package is
   complete and committed locally with three workflows ready, but no repository
   exists, so nothing has ever run on CI and `--as-cran` reports two 404 URLs.
+- **A nonmonotone line search**, which is the one thing `bb()` is missing.
+  Barzilai-Borwein's efficiency comes from steps that make the objective *worse*
+  now in order to align with the curvature, and the Armijo condition forbids
+  exactly those: measured, ~930 iterations on Rosenbrock against `cg()`'s 35.
+  The classical remedy (Grippo-Lampariello-Lucidi) requires sufficient decrease
+  against the worst of the last several values rather than the last one. It
+  would be a third `line_search` subclass and would need the loop to keep a
+  short history of values, which nothing else needs. Worth doing only if `bb()`
+  turns out to matter for `statmodels7`; `cg()` covers the same ground today.
 - **`bounded_link()` in linkfunctions7 saturates onto its bounds.**
   `linkinv(bounded_link(0, 1), 37)` is exactly 1 and
   `linkinv(bounded_link(lwr = 2), -40)` is exactly 2, although both are documented
@@ -868,9 +913,11 @@ exactly 1. What was wrong was everything around them.
   (added 2026-07-31) covers `optimizers7`: descent directions and what a line search
   must guarantee, with Zoutendijk's theorem proved; Newton's Hessian repairs and why
   the eigenvalue floor is what keeps that theorem's angle bound alive; the secant
-  equation and BFGS proved symmetric positive definite; the subdifferential, Fermat's
-  rule, and the bundle subproblem with its dual derived; and the box reparametrisation
-  and Adam. What the book still lacks is anything on **censored likelihoods**, which
+  equation and BFGS proved symmetric positive definite, then conjugate gradients
+  and Barzilai-Borwein as the bottom of a ladder ordered by how much curvature a
+  method stores, from p(p+1)/2 down to one number; the subdifferential, Fermat's
+  rule, and the bundle subproblem with its dual derived; and the box
+  reparametrisation and Adam. What the book still lacks is anything on **censored likelihoods**, which
   waits on the front end that does not exist yet, and it will need a chapter per
   package as the others arrive.
 
@@ -893,8 +940,8 @@ on distributions with a chapter on links attached. Now:
 Preface / 1 Introduction / 2 The linkfunctions7 package /
 3 The distributions7 package  (3.1 Distributions, 3.2 Transformations,
                                3.3 Fitting, 3.4 Fallbacks) /
-4 The optimizers7 package     (4.1 Descent, 4.2 Curvature,
-                               4.3 Non-smooth, 4.4 Constraints) / A Notation
+4 The optimizers7 package     (4.1 Descent, 4.2 Curvature, 4.3 Non-smooth,
+                               4.4 Constraints) / A Notation
 ```
 
 When `modelterms7` and the rest arrive they arrive as chapters, and nothing

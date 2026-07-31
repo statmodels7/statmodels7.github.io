@@ -1,4 +1,4 @@
-## Curvature, and three ways to obtain it {#sec-curvature}
+## Curvature, and how little of it you can keep {#sec-curvature}
 
 ```{r}
 #| label: setup-04b
@@ -18,8 +18,11 @@ and setting $\nabla m(d) = g + M d = 0$ gives
 
 $$d = -M^{-1} g.$$
 
-The three methods differ only in what they use for $M$, and the differences are
-about cost and about what happens when the true curvature is unhelpful.
+The methods differ in what they use for $M$, and this section takes them in
+order of how much they store: the exact Hessian, then an approximation to its
+inverse of the same size, then the last few pairs of vectors that approximation
+was built from, then a single vector, then a single number. What is remarkable is
+how far down that list one can go before the method stops working.
 
 ### Newton's method, and the repair it needs {#sec-newton}
 
@@ -170,7 +173,7 @@ $$y^\top s \ \ge\ (c_2 - 1)\, s\, \nabla f(x)^\top d \ > \ 0,$$
 since $c_2 < 1$ and the directional derivative is negative. **A quasi-Newton
 method paired with a Wolfe search never skips an update.** That is the practical
 argument for the more expensive search, and it is why `bfgs()` defaults to it
-while `gradient_descent()`, which has no approximation to protect, defaults to
+while `gd()`, which has no approximation to protect, defaults to
 backtracking.
 
 The argument should be stated at its true strength, which is that of a
@@ -245,3 +248,96 @@ knitr::kable(
   caption = "A quadratic in 60 variables. L-BFGS reaches the same answer while storing a fraction as much."
 )
 ```
+
+### Below a matrix {#sec-cg-bb}
+
+Two methods go further down, and they are worth the page because between them
+they cover the case a statistical model most often presents: a parameter vector
+too long for a $p 	imes p$ anything.
+
+**Conjugate gradients** keeps one vector. Its direction is
+
+$$d_k = -g_k + eta_k d_{k-1},$$
+
+which does not look like $-M^{-1}g$ at all, and the point is that it does not
+have to. Recall from @sec-descent-directions why steepest descent is poor: under
+an exact line search consecutive directions are orthogonal, since the search
+stops where $g_{k+1}^	op d_k = 0$, so on a narrow valley the iterate crosses
+the floor rather than travelling along it. The remedy is to bend each direction
+back towards the last, and the whole of the method is the choice of how far.
+
+On a quadratic with Hessian $H$ and an exact line search, the classical choices
+of $eta$ make the directions *conjugate*, $d_i^	op H d_j = 0$ for $i 
+e j$,
+and a set of $p$ conjugate directions spans the space with the minimisations
+along them independent. The method therefore terminates in $p$ steps exactly,
+having used $H$ nowhere.
+
+The four formulas here agree on a quadratic and differ elsewhere:
+
+$$eta^{FR} = rac{g_k^	op g_k}{g_{k-1}^	op g_{k-1}}, \quad
+  eta^{PR} = rac{g_k^	op y_k}{g_{k-1}^	op g_{k-1}}, \quad
+  eta^{HS} = rac{g_k^	op y_k}{d_{k-1}^	op y_k}, \quad
+  eta^{DY} = rac{g_k^	op g_k}{d_{k-1}^	op y_k},$$
+
+with $y_k = g_k - g_{k-1}$ as always. Fletcher–Reeves has the cleanest theory and
+the practical fault of stalling for many iterations after a poor step; Polak–
+Ribière recovers immediately, because a small $y$ sends $eta$ towards zero and
+the method back to steepest descent, and its known failure to converge is
+repaired by clamping $eta$ at zero — a clamp which is not a fudge, since
+$eta = 0$ *is* a restart.
+
+**Barzilai–Borwein** keeps one number. Take $d = -lpha g$ with
+
+$$lpha^{BB1} = rac{s^	op s}{s^	op y}, \qquad
+  lpha^{BB2} = rac{s^	op y}{y^	op y},$$
+
+the two Rayleigh quotients of the secant pair. Each is a scalar estimate of the
+inverse curvature along the direction just travelled, so this is @sec-bfgs with
+everything discarded but one number — and on a quadratic, where the curvature is
+constant, that number is exactly right and the second step lands on the answer.
+
+```{r}
+#| label: memory-ladder
+#| echo: false
+f  <- function(p) 100 * (p[2] - p[1]^2)^2 + (1 - p[1])^2
+gr <- function(p) c(-400 * p[1] * (p[2] - p[1]^2) - 2 * (1 - p[1]),
+                    200 * (p[2] - p[1]^2))
+os <- list(
+  `newton`  = optimizers7::newton(),
+  `bfgs`    = optimizers7::bfgs(),
+  `lbfgs`   = optimizers7::lbfgs(),
+  `cg`      = optimizers7::cg(maxit = 5000),
+  `bb`      = optimizers7::bb(maxit = 5000),
+  `gd`      = optimizers7::gd(maxit = 20000)
+)
+store <- c("p(p+1)/2", "p^2", "2mp", "2p", "1", "0")
+rows <- lapply(os, function(o)
+  optimizers7::minimize(o, f, c(-1.2, 1), gr = gr))
+knitr::kable(
+  data.frame(method = names(os),
+             `curvature stored` = store,
+             iterations = vapply(rows, function(r) r@iterations, numeric(1)),
+             converged = vapply(rows, function(r) r@converged, logical(1)),
+             check.names = FALSE),
+  row.names = FALSE, align = "lrrl",
+  caption = "Rosenbrock from the usual start, by how much curvature the method keeps."
+)
+```
+
+Read it downwards. Keeping the exact Hessian, or a full approximation to its
+inverse, or twenty pairs of vectors, or one vector, makes almost no difference
+to the iteration count on this problem — and keeping nothing at all makes all the
+difference in the world. It is not the *amount* of curvature information that
+matters but whether there is any: gradient descent is the only row that fails,
+and conjugate gradients repairs it with a single remembered direction.
+
+Barzilai–Borwein sits oddly in that table, and honestly so. It reaches the same
+answer to the same precision from one stored number, which is remarkable, and it
+takes an order of magnitude more iterations to do it. The reason is not the
+scalar but the line search: the method's efficiency comes from steps that make
+the objective *worse* in order to align with the curvature, and the
+sufficient-decrease condition of @def-armijo forbids exactly those. The classical
+remedy is a nonmonotone line search, requiring decrease against the worst of the
+last several values rather than the last one. This toolkit does not have one, so
+what is measured here is the safe version of the method rather than the fast one.

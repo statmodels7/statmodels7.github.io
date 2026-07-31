@@ -19,7 +19,8 @@
 #   5. the bundle method's optimality estimate vanishes where a subgradient
 #      does not, at the minimum of a sum of absolute deviations;
 #   6. every method solves a problem whose answer is known in closed form, and
-#      reports converged only when its rule fired.
+#      reports converged only when its rule fired. All ten of them, so a method
+#      added to the package cannot slip past the chapter's claims.
 
 # --- 1. what a line search returns ------------------------------------------
 
@@ -223,7 +224,7 @@
 .certify_battery <- function() {
   out <- character()
   os <- list(optimizers7::newton(), optimizers7::bfgs(), optimizers7::lbfgs(),
-             optimizers7::gradient_descent(),
+             optimizers7::cg(), optimizers7::bb(), optimizers7::gd(),
              optimizers7::adam(alpha = 0.05, maxit = 4000),
              optimizers7::nelder_mead(), optimizers7::compass(),
              optimizers7::bundle())
