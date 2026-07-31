@@ -6,7 +6,7 @@ path, and these packages were moved here on 2026-07-22, so nothing from the earl
 sessions carries over automatically.
 
 `statmodels7/` is a plain directory, not a repository — the package repositories sit
-inside it (`optimizers7` is a git repository too, but has no remote yet). This file and `logo/make-logos.R` are therefore versioned in the portal
+inside it. This file and `logo/make-logos.R` are therefore versioned in the portal
 repository (`site/`, which is `statmodels7.github.io`) and copied back up here, so a
 fresh clone can recover them. If you edit either, copy the change into `site/` and
 commit it there; `site/sync-stack-files.sh` does exactly that.
@@ -85,7 +85,7 @@ user-defined components.*
 C:\Users\giova\Desktop\labstatr\statmodels7\
     linkfunctions7\
     distributions7\
-    optimizers7\     committed locally; no GitHub repository yet (see §8)
+    optimizers7\
     book\            the Quarto book (see §9); `quarto render` from inside it
     logo\            hex logos: make-logos.R draws them, run from this directory
     site\            the portal, its own repository (statmodels7.github.io)
@@ -99,7 +99,7 @@ the book: `quarto render` in `book/` **from PowerShell** (see 3), then
 because it executes R against the working tree, and it takes about twenty minutes
 now that there are four package chapters.
 
-GitHub: `github.com/statmodels7/{linkfunctions7,distributions7}`. The repositories were
+GitHub: `github.com/statmodels7/{linkfunctions7,distributions7,optimizers7}`, all on `master`. The repositories were
 transferred from `giovannitinervia9/*` on 2026-07-22; GitHub keeps redirects, so
 `install_github("giovannitinervia9/distributions7")` still resolves.
 
@@ -110,7 +110,7 @@ Websites, all live and rebuilt by a `pkgdown.yaml` workflow on every push:
 | portal | `statmodels7.github.io` — plain HTML, own repository, deploys from `main` |
 | linkfunctions7 | `statmodels7.github.io/linkfunctions7` — pkgdown, from `gh-pages` |
 | distributions7 | `statmodels7.github.io/distributions7` — pkgdown, from `gh-pages` |
-| optimizers7 | *not yet* — `_pkgdown.yml` and the workflow are written and waiting on the repository |
+| optimizers7 | `statmodels7.github.io/optimizers7` — pkgdown, from `gh-pages` |
 
 Predecessors, kept for reference only: `labstatr\distrib` (S3, ~8500 lines) and
 `labstatr\linkfunctions`. `distributions7` is a rewrite of `distrib`, not a port —
@@ -403,16 +403,17 @@ and `plot()` on the fit.
 |---|---|
 | `linkfunctions7` | 815 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1512 tests, `R CMD check` OK (2026-07-30, local), CI green |
-| `optimizers7` | 524 tests, `R CMD check` OK with vignettes (2026-07-31, local). **No GitHub repository yet**, so no workflow has ever run and `--as-cran` reports two 404 URLs. Creating `statmodels7/optimizers7` and the first push are Giovanni's to make. |
+| `optimizers7` | 524 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 
-Both repositories run `R-CMD-check` on macOS, Windows and three Linux/R combinations
-(devel, release, oldrel-1) plus a coverage workflow, all green. That matrix matters for
-`distributions7` in particular: it ships Rcpp kernels, and until the CI existed they had
-only ever been compiled by one compiler on one machine.
+All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
+combinations (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix
+matters for the two that ship Rcpp kernels, `distributions7` and `optimizers7`: until the
+CI existed those had only ever been compiled by one compiler on one machine.
 
 Vignettes: `defining-a-distribution`, `fitting-a-model`,
-`derivatives-and-the-link-scale` (distributions7) and `link-functions`
-(linkfunctions7). Both packages have a README with badges.
+`derivatives-and-the-link-scale` (distributions7), `link-functions`
+(linkfunctions7) and `extending-optimizers7` (optimizers7). All three packages have a
+README with badges.
 
 `R CMD check --as-cran` on distributions7 is clean apart from submission metadata:
 new submission, version `0.0.0.9000`, the `Remotes:` field, and linkfunctions7 not being
@@ -703,9 +704,14 @@ exactly 1. What was wrong was everything around them.
 
 ### GitHub Actions
 
-- **A workflow added in a push does not run on that push.** GitHub registers the file but
-  triggers nothing, so the first run has to be started by hand. Keep `workflow_dispatch:`
-  in every workflow's `on:` block so that is possible without an empty commit.
+- **A workflow added in a push does not run on that push** -- in an EXISTING
+  repository. GitHub registers the file and triggers nothing, so the first run
+  has to be started by hand. Keep `workflow_dispatch:` in every workflow's `on:`
+  block so that is possible without an empty commit.
+  It does NOT apply to the first push of a NEW repository: `optimizers7` was
+  created and pushed on 2026-07-31 and all three workflows ran immediately on
+  that push. Worth knowing before waiting for something that has already
+  happened, or firing a second run on top of it.
 - The Codecov action fetches its own uploader and verifies its GPG signature; when the
   keyserver does not answer that fails the whole job for a reason unrelated to the
   package. `use_pypi: true` avoids that path, and `fail_ci_if_error: false` keeps a
@@ -842,9 +848,6 @@ exactly 1. What was wrong was everything around them.
 - The two logistic integrals above (cosmetic — `approx = "integrate"` already delivers
   them within Monte Carlo noise).
 - Publishing `linkfunctions7` to CRAN, which unblocks `distributions7`.
-- **Creating `github.com/statmodels7/optimizers7` and pushing.** The package is
-  complete and committed locally with three workflows ready, but no repository
-  exists, so nothing has ever run on CI and `--as-cran` reports two 404 URLs.
 - **A nonmonotone line search**, which is the one thing `bb()` is missing.
   Barzilai-Borwein's efficiency comes from steps that make the objective *worse*
   now in order to align with the curvature, and the Armijo condition forbids
