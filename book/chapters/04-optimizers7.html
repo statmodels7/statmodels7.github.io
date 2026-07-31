@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>4&nbsp; The optimizers7 package – The statmodels7 Framework</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/A1-notation.html" rel="next">
+<link href="../chapters/03-distributions7.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e986b704c747e817427b29ebc19a759e.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a2ce0b05719297c8ab99eac5b5b92eaa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/04-optimizers7.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">The optimizers7 package</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="../index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">The statmodels7 Framework</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-linkfunctions7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">The linkfunctions7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-distributions7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">The distributions7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-optimizers7.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">The optimizers7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A1-notation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-descent" id="toc-sec-descent" class="nav-link active" data-scroll-target="#sec-descent"><span class="header-section-number">4.1</span> Descent, and what a line search must guarantee</a>
+  <ul>
+  <li><a href="#sec-descent-directions" id="toc-sec-descent-directions" class="nav-link" data-scroll-target="#sec-descent-directions"><span class="header-section-number">4.1.1</span> Directions that go downhill</a></li>
+  <li><a href="#sec-descent-armijo" id="toc-sec-descent-armijo" class="nav-link" data-scroll-target="#sec-descent-armijo"><span class="header-section-number">4.1.2</span> Why “the objective decreased” is not enough</a></li>
+  <li><a href="#sec-descent-zoutendijk" id="toc-sec-descent-zoutendijk" class="nav-link" data-scroll-target="#sec-descent-zoutendijk"><span class="header-section-number">4.1.3</span> The theorem that makes it worth the trouble</a></li>
+  <li><a href="#sec-descent-cost" id="toc-sec-descent-cost" class="nav-link" data-scroll-target="#sec-descent-cost"><span class="header-section-number">4.1.4</span> What each search costs</a></li>
+  </ul></li>
+  <li><a href="#sec-curvature" id="toc-sec-curvature" class="nav-link" data-scroll-target="#sec-curvature"><span class="header-section-number">4.2</span> Curvature, and three ways to obtain it</a>
+  <ul>
+  <li><a href="#sec-newton" id="toc-sec-newton" class="nav-link" data-scroll-target="#sec-newton"><span class="header-section-number">4.2.1</span> Newton’s method, and the repair it needs</a></li>
+  <li><a href="#sec-bfgs" id="toc-sec-bfgs" class="nav-link" data-scroll-target="#sec-bfgs"><span class="header-section-number">4.2.2</span> The quasi-Newton idea</a></li>
+  <li><a href="#sec-lbfgs" id="toc-sec-lbfgs" class="nav-link" data-scroll-target="#sec-lbfgs"><span class="header-section-number">4.2.3</span> Limited memory</a></li>
+  </ul></li>
+  <li><a href="#sec-nonsmooth" id="toc-sec-nonsmooth" class="nav-link" data-scroll-target="#sec-nonsmooth"><span class="header-section-number">4.3</span> Where the derivative fails</a>
+  <ul>
+  <li><a href="#sec-subdifferential" id="toc-sec-subdifferential" class="nav-link" data-scroll-target="#sec-subdifferential"><span class="header-section-number">4.3.1</span> The subdifferential</a></li>
+  <li><a href="#sec-cutting" id="toc-sec-cutting" class="nav-link" data-scroll-target="#sec-cutting"><span class="header-section-number">4.3.2</span> Cutting planes, and the model that represents a kink</a></li>
+  <li><a href="#sec-bundle-dual" id="toc-sec-bundle-dual" class="nav-link" data-scroll-target="#sec-bundle-dual"><span class="header-section-number">4.3.3</span> The dual, and the quantity that does vanish</a></li>
+  <li><a href="#sec-bundle-steps" id="toc-sec-bundle-steps" class="nav-link" data-scroll-target="#sec-bundle-steps"><span class="header-section-number">4.3.4</span> Serious steps, null steps, and bounded memory</a></li>
+  <li><a href="#sec-direct-search" id="toc-sec-direct-search" class="nav-link" data-scroll-target="#sec-direct-search"><span class="header-section-number">4.3.5</span> The alternative: no derivatives at all</a></li>
+  </ul></li>
+  <li><a href="#sec-constraints" id="toc-sec-constraints" class="nav-link" data-scroll-target="#sec-constraints"><span class="header-section-number">4.4</span> Constraints, and steps that are not descent</a>
+  <ul>
+  <li><a href="#sec-box" id="toc-sec-box" class="nav-link" data-scroll-target="#sec-box"><span class="header-section-number">4.4.1</span> Removing a box</a></li>
+  <li><a href="#sec-adam" id="toc-sec-adam" class="nav-link" data-scroll-target="#sec-adam"><span class="header-section-number">4.4.2</span> Steps that go uphill</a></li>
+  <li><a href="#sec-optimizers-boundary" id="toc-sec-optimizers-boundary" class="nav-link" data-scroll-target="#sec-optimizers-boundary"><span class="header-section-number">4.4.3</span> Where the chapter ends</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span id="sec-optimizers7" class="quarto-section-identifier"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">The optimizers7 package</span></span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The last chapter ended with a maximisation performed by three fixed routines, and with the admission that the user could not supply a fourth. This chapter is about removing that limitation, and about what has to be true of an optimisation routine before it is safe to let anyone plug one in.</p>
+<p>The mathematics divides cleanly. <a href="#sec-descent" class="quarto-xref"><span>Section 4.1</span></a> asks what it means to take a step at all: what makes a direction a descent direction, what a line search along it must guarantee, and why a condition on the objective alone is not enough — the result there, Zoutendijk’s, is the one that turns “each step decreases <span class="math inline">\(f\)</span>” into “the gradient goes to zero”, which is a very different claim. <a href="#sec-curvature" class="quarto-xref"><span>Section 4.2</span></a> then asks how to choose the direction, and the answer in every case is a quadratic model: Newton’s uses the Hessian and must repair it when it is not positive definite, while the quasi-Newton methods refuse to compute one at all and build an approximation from the gradients they have already seen, which turns out to be determined almost uniquely by two requirements.</p>
+<p><a href="#sec-nonsmooth" class="quarto-xref"><span>Section 4.3</span></a> is where the picture changes. Everything before it assumes a gradient that becomes small near a solution, and for an objective with a kink in it — a sum of absolute deviations, a Laplace likelihood in its location — that assumption is simply false: the subgradient at the minimiser has norm one. A method built on it does not merely converge slowly, it arrives at the answer and then reports failure. Two repairs are possible, and both are here: abandon derivatives entirely, which costs a great deal and buys a weaker theorem, or keep them and stop asking any single one of them to vanish, which is the bundle method.</p>
+<p><a href="#sec-constraints" class="quarto-xref"><span>Section 4.4</span></a> closes with two things that sit outside the descent framework rather than inside it. Box constraints are removed by a change of variable, so that no algorithm ever learns a constraint was involved; and Adam takes steps that are not descent steps at all, which is the price of tolerating a gradient computed from a handful of observations.</p>
+<section id="sec-descent" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="sec-descent"><span class="header-section-number">4.1</span> Descent, and what a line search must guarantee</h2>
+<p>Take a differentiable <span class="math inline">\(f : \mathbb{R}^{p} \to \mathbb{R}\)</span> to be minimised, and suppose we are standing at a point <span class="math inline">\(x\)</span> where the gradient <span class="math inline">\(g = \nabla f(x)\)</span> is not zero. The whole of this section concerns one iteration: choosing a direction <span class="math inline">\(d\)</span>, choosing how far along it to go, and arriving somewhere better. It sounds like a small question, and the reason it is not is that “somewhere better” can be satisfied infinitely often without ever getting anywhere.</p>
+<section id="sec-descent-directions" class="level3" data-number="4.1.1">
+<h3 data-number="4.1.1" class="anchored" data-anchor-id="sec-descent-directions"><span class="header-section-number">4.1.1</span> Directions that go downhill</h3>
+<p>The first-order expansion of <span class="math inline">\(f\)</span> along <span class="math inline">\(d\)</span> is</p>
+<p><span class="math display">\[f(x + s d) = f(x) + s\, g^\top d + o(s), \qquad s \to 0^{+},\]</span></p>
+<p>so the sign of <span class="math inline">\(g^\top d\)</span> decides everything about small steps. If <span class="math inline">\(g^\top d &lt; 0\)</span> then <span class="math inline">\(f(x + sd) &lt; f(x)\)</span> for all sufficiently small <span class="math inline">\(s &gt; 0\)</span>, and <span class="math inline">\(d\)</span> is called a <strong>descent direction</strong>; if <span class="math inline">\(g^\top d &gt; 0\)</span> the same expansion says every small step uphill; and if <span class="math inline">\(g^\top d = 0\)</span> the first-order term tells us nothing at all.</p>
+<div id="def-descent" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.1 (Descent direction)</strong></span> A vector <span class="math inline">\(d \in \mathbb{R}^{p}\)</span> is a descent direction for <span class="math inline">\(f\)</span> at <span class="math inline">\(x\)</span> when <span class="math inline">\(g^\top d &lt; 0\)</span>, where <span class="math inline">\(g = \nabla f(x)\)</span>.</p>
+</div>
+<p>The simplest choice is <span class="math inline">\(d = -g\)</span>, for which <span class="math inline">\(g^\top d = -\lVert g \rVert^{2} &lt; 0\)</span> whenever <span class="math inline">\(g \neq 0\)</span>; this is the steepest descent direction, in the sense that it minimises <span class="math inline">\(g^\top d\)</span> over all <span class="math inline">\(d\)</span> of a given Euclidean length. Every method in <a href="#sec-curvature" class="quarto-xref"><span>Section 4.2</span></a> instead takes</p>
+<p><span class="math display">\[d = -B g\]</span></p>
+<p>for some symmetric positive definite <span class="math inline">\(B\)</span>, and the reason that always works is immediate:</p>
+<p><span class="math display">\[g^\top d = -g^\top B g &lt; 0 \quad \text{for } g \neq 0,\]</span></p>
+<p>which is precisely the definition of positive definiteness. This is worth stating separately, because it is the single fact that connects the two halves of this chapter: <strong>the requirement that a curvature model be positive definite is not a preference, it is what makes the direction it produces usable at all.</strong> When Newton’s method repairs an indefinite Hessian in <a href="#sec-newton" class="quarto-xref"><span>Section 4.2.1</span></a>, it is defending this inequality and nothing else.</p>
+</section>
+<section id="sec-descent-armijo" class="level3" data-number="4.1.2">
+<h3 data-number="4.1.2" class="anchored" data-anchor-id="sec-descent-armijo"><span class="header-section-number">4.1.2</span> Why “the objective decreased” is not enough</h3>
+<p>Having a descent direction, we must choose a step length <span class="math inline">\(s &gt; 0\)</span>. The naive rule — accept <span class="math inline">\(s\)</span> if <span class="math inline">\(f(x + sd) &lt; f(x)\)</span> — is not sufficient, and the reason is worth seeing concretely rather than in the abstract.</p>
+<p>Consider minimising <span class="math inline">\(f(x) = x^{2}\)</span> from <span class="math inline">\(x_0 = 1\)</span>, and suppose the step lengths are chosen so that the iterates are</p>
+<p><span class="math display">\[x_k = (-1)^{k}\left(1 + 2^{-k}\right).\]</span></p>
+<p>Each iterate is closer to the origin than the last, so <span class="math inline">\(f\)</span> decreases at every step; and yet <span class="math inline">\(\lvert x_k \rvert \to 1\)</span>, so the sequence converges to nothing useful and the gradient never approaches zero. The steps were too <em>long</em> relative to the decrease they achieved: the method kept overshooting through the minimum and being rewarded for it. A symmetric failure occurs when the steps are too short, <span class="math inline">\(x_k = 1 + 2^{-k}\)</span> say, where <span class="math inline">\(f\)</span> again decreases at every step and again converges away from the minimiser.</p>
+<p>The repair for the first failure is to demand a decrease <strong>proportional to what the slope promised</strong>. Along <span class="math inline">\(d\)</span> the model predicts a decrease of <span class="math inline">\(-s\, g^\top d\)</span> per unit of nothing; asking for a fixed fraction of it gives:</p>
+<div id="def-armijo" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.2 (Armijo, or sufficient decrease)</strong></span> For <span class="math inline">\(c_1 \in (0, 1)\)</span>, a step length <span class="math inline">\(s\)</span> satisfies the Armijo condition when</p>
+<p><span class="math display">\[f(x + s d) \le f(x) + c_1 s\, g^\top d. \tag{A}\]</span></p>
+</div>
+<p>Since <span class="math inline">\(g^\top d &lt; 0\)</span> the right-hand side is strictly below <span class="math inline">\(f(x)\)</span>, so (A) implies decrease; but it implies more, because the amount demanded grows with <span class="math inline">\(s\)</span>. A long step must earn its length. The condition is satisfiable: the expansion above gives</p>
+<p><span class="math display">\[\frac{f(x + sd) - f(x)}{s} \longrightarrow g^\top d &lt; c_1 g^\top d
+\quad \text{as } s \to 0^{+},\]</span></p>
+<p>the inequality holding because <span class="math inline">\(c_1 &lt; 1\)</span> and <span class="math inline">\(g^\top d\)</span> is negative, so (A) holds for all sufficiently small <span class="math inline">\(s\)</span>. That is what licenses <strong>backtracking</strong>: start from a trial length, and if (A) fails, shrink and try again. The procedure terminates, and the package’s <code>armijo()</code> is exactly this.</p>
+<p>What backtracking does not address is the second failure, steps that are too short. Nothing in (A) forbids a sequence of ever-tinier accepted steps. To rule that out we need a condition that a <em>small</em> step violates, and the natural one looks at the slope rather than the value.</p>
+<div id="def-wolfe" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.3 (The Wolfe conditions)</strong></span> For <span class="math inline">\(0 &lt; c_1 &lt; c_2 &lt; 1\)</span>, a step length <span class="math inline">\(s\)</span> satisfies the <strong>weak Wolfe</strong> conditions when (A) holds together with</p>
+<p><span class="math display">\[\nabla f(x + sd)^\top d \ge c_2\, g^\top d, \tag{W}\]</span></p>
+<p>and the <strong>strong Wolfe</strong> conditions when (W) is strengthened to</p>
+<p><span class="math display">\[\bigl\lvert \nabla f(x + sd)^\top d \bigr\rvert
+  \le c_2 \bigl\lvert g^\top d \bigr\rvert. \tag{W$'$}\]</span></p>
+</div>
+<p>Condition (W) says the slope along <span class="math inline">\(d\)</span> must have risen — become less steeply negative — by a definite factor. At <span class="math inline">\(s = 0\)</span> the slope is <span class="math inline">\(g^\top d\)</span>, and (W) is violated there because <span class="math inline">\(c_2 &lt; 1\)</span>; so (W) forces the step away from zero, which is exactly what (A) fails to do. The two conditions pull in opposite directions and a step satisfying both exists whenever <span class="math inline">\(f\)</span> is bounded below along <span class="math inline">\(d\)</span>: as <span class="math inline">\(s\)</span> grows, either <span class="math inline">\(f\)</span> eventually violates (A), and at the first such <span class="math inline">\(s\)</span> a mean-value argument produces a point where both hold, or <span class="math inline">\(f\)</span> decreases for ever and the problem is unbounded.</p>
+<p>The strong form (W<span class="math inline">\('\)</span>) additionally forbids the slope from becoming largely positive, which keeps the accepted point nearer a local minimum of <span class="math inline">\(s \mapsto
+f(x + sd)\)</span>. It costs nothing extra, since a search that can test (W) has already evaluated the gradient there, and the package’s <code>wolfe()</code> implements it by the usual two-phase procedure: <strong>bracket</strong> an interval known to contain an acceptable point by expanding until (A) fails or the slope turns positive, then <strong>zoom</strong> into it by interpolation until both conditions hold.</p>
+</section>
+<section id="sec-descent-zoutendijk" class="level3" data-number="4.1.3">
+<h3 data-number="4.1.3" class="anchored" data-anchor-id="sec-descent-zoutendijk"><span class="header-section-number">4.1.3</span> The theorem that makes it worth the trouble</h3>
+<p>The point of the Wolfe conditions is not tidiness. They buy a convergence statement that sufficient decrease alone cannot.</p>
+<div id="thm-zoutendijk" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 4.1 (Zoutendijk)</strong></span> Let <span class="math inline">\(f\)</span> be bounded below and continuously differentiable on an open set containing the level set <span class="math inline">\(\{x : f(x) \le f(x_0)\}\)</span>, with <span class="math inline">\(\nabla f\)</span> Lipschitz there. If each iterate is <span class="math inline">\(x_{k+1} = x_k + s_k d_k\)</span> with <span class="math inline">\(d_k\)</span> a descent direction and <span class="math inline">\(s_k\)</span> satisfying the Wolfe conditions, then</p>
+<p><span class="math display">\[\sum_{k \ge 0} \cos^{2}\!\theta_k \, \lVert g_k \rVert^{2} &lt; \infty,
+\qquad \text{where} \quad
+\cos\theta_k = \frac{-g_k^\top d_k}{\lVert g_k \rVert\, \lVert d_k \rVert}.\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>From (W), <span class="math inline">\((g_{k+1} - g_k)^\top d_k \ge (c_2 - 1) g_k^\top d_k\)</span>, and Lipschitz continuity of the gradient with constant <span class="math inline">\(L\)</span> gives <span class="math inline">\((g_{k+1} - g_k)^\top d_k \le L s_k \lVert d_k \rVert^{2}\)</span>. Combining,</p>
+<p><span class="math display">\[s_k \ge \frac{c_2 - 1}{L} \cdot \frac{g_k^\top d_k}{\lVert d_k \rVert^{2}},\]</span></p>
+<p>which is positive because <span class="math inline">\(c_2 &lt; 1\)</span> and <span class="math inline">\(g_k^\top d_k &lt; 0\)</span>. Substituting this lower bound on <span class="math inline">\(s_k\)</span> into (A),</p>
+<p><span class="math display">\[f_{k+1} \le f_k - \frac{c_1 (1 - c_2)}{L}
+  \frac{(g_k^\top d_k)^{2}}{\lVert d_k \rVert^{2}}
+= f_k - \frac{c_1 (1 - c_2)}{L} \cos^{2}\!\theta_k \lVert g_k \rVert^{2}.\]</span></p>
+<p>Summing over <span class="math inline">\(k\)</span> and using that <span class="math inline">\(f\)</span> is bounded below makes the total decrease finite, which is the claim.</p>
+</div>
+<p>The consequence is the one to remember. A convergent series has terms tending to zero, so <span class="math inline">\(\cos^{2}\theta_k \lVert g_k \rVert^{2} \to 0\)</span>; hence <strong>if the directions never become orthogonal to the gradient</strong> — if <span class="math inline">\(\cos\theta_k \ge
+\delta &gt; 0\)</span> for all <span class="math inline">\(k\)</span> — then <span class="math inline">\(\lVert g_k \rVert \to 0\)</span>. The line search supplies half of the guarantee and the direction supplies the other half, and neither is sufficient alone. This is why the package makes the line search an object carried by the optimiser rather than a fixed piece of each algorithm: the theorem is about the pair.</p>
+<p>For <span class="math inline">\(d_k = -B_k g_k\)</span> the angle condition becomes a statement about the condition number of <span class="math inline">\(B_k\)</span>,</p>
+<p><span class="math display">\[\cos\theta_k = \frac{g_k^\top B_k g_k}{\lVert g_k \rVert \,\lVert B_k g_k \rVert}
+\ \ge\ \frac{\lambda_{\min}(B_k)}{\lambda_{\max}(B_k)},\]</span></p>
+<p>so a curvature model whose eigenvalues stay in a fixed positive band inherits global convergence. That bound is the reason <a href="#sec-newton" class="quarto-xref"><span>Section 4.2.1</span></a> floors the eigenvalues of a repaired Hessian rather than merely making them positive, and the reason <a href="#sec-bfgs" class="quarto-xref"><span>Section 4.2.2</span></a> takes the curvature condition seriously enough to skip an update that would violate it.</p>
+</section>
+<section id="sec-descent-cost" class="level3" data-number="4.1.4">
+<h3 data-number="4.1.4" class="anchored" data-anchor-id="sec-descent-cost"><span class="header-section-number">4.1.4</span> What each search costs</h3>
+<p>The two searches differ in what they must evaluate. Backtracking needs only values of <span class="math inline">\(f\)</span>: it computes <span class="math inline">\(g^\top d\)</span> once, at the current point, and then tries <span class="math inline">\(f(x + sd)\)</span> for a shrinking sequence of <span class="math inline">\(s\)</span>. A Wolfe search must test (W), which mentions <span class="math inline">\(\nabla f(x + sd)\)</span>, so it evaluates the gradient at every trial point.</p>
+<p>That is not a defect but a trade. The gradient it evaluates at the accepted point is the one the next iteration needs anyway, so the marginal cost is the gradients spent at <em>rejected</em> trials; and in exchange the method gets <a href="#thm-zoutendijk" class="quarto-xref">Theorem&nbsp;<span>4.1</span></a> and, more practically, a step length that satisfies the curvature condition — which is exactly the condition <a href="#sec-bfgs" class="quarto-xref"><span>Section 4.2.2</span></a> needs in order to keep its approximation positive definite. A quasi-Newton method paired with a Wolfe search never has to skip an update. Paired with backtracking it sometimes does.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>BFGS on Rosenbrock from the usual starting point, under the two line searches.</caption>
+<colgroup>
+<col style="width: 16%">
+<col style="width: 15%">
+<col style="width: 19%">
+<col style="width: 14%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">line search</th>
+<th style="text-align: right;">iterations</th>
+<th style="text-align: right;">f evaluations</th>
+<th style="text-align: right;">gradients</th>
+<th style="text-align: right;">gradients per iteration</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">armijo</td>
+<td style="text-align: right;">38</td>
+<td style="text-align: right;">56</td>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">1.03</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">wolfe</td>
+<td style="text-align: right;">33</td>
+<td style="text-align: right;">65</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">1.36</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Read the last column. A backtracking search spends almost exactly one gradient per iteration — the one it needs to form the next direction, and no more, since the trials it rejects cost only values. A Wolfe search spends about a third again, the surplus being the gradients evaluated at trial points it then declines.</p>
+<p>The comparison is not, however, one of cost against nothing. The Wolfe run needs noticeably fewer iterations, because a step length satisfying the curvature condition is a better step length, so the total gradient count differs by rather less than the per-iteration figure suggests. What is bought with the remainder is <a href="#thm-zoutendijk" class="quarto-xref">Theorem&nbsp;<span>4.1</span></a>, which backtracking alone does not supply, and the guarantee in <a href="#sec-bfgs" class="quarto-xref"><span>Section 4.2.2</span></a> that the curvature approximation never has to reject an update.</p>
+</section>
+</section>
+<section id="sec-curvature" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="sec-curvature"><span class="header-section-number">4.2</span> Curvature, and three ways to obtain it</h2>
+<p>Every method in this section chooses its direction the same way: build a quadratic model of <span class="math inline">\(f\)</span> around the current point, and step to the minimiser of that model. Writing <span class="math inline">\(g = \nabla f(x)\)</span> and letting <span class="math inline">\(M\)</span> stand for whatever matrix plays the part of the curvature, the model is</p>
+<p><span class="math display">\[m(d) = f(x) + g^\top d + \tfrac{1}{2} d^\top M d,\]</span></p>
+<p>and setting <span class="math inline">\(\nabla m(d) = g + M d = 0\)</span> gives</p>
+<p><span class="math display">\[d = -M^{-1} g.\]</span></p>
+<p>The three methods differ only in what they use for <span class="math inline">\(M\)</span>, and the differences are about cost and about what happens when the true curvature is unhelpful.</p>
+<section id="sec-newton" class="level3" data-number="4.2.1">
+<h3 data-number="4.2.1" class="anchored" data-anchor-id="sec-newton"><span class="header-section-number">4.2.1</span> Newton’s method, and the repair it needs</h3>
+<p>The obvious choice is the true Hessian, <span class="math inline">\(M = \nabla^{2} f(x)\)</span>, which makes <span class="math inline">\(m\)</span> the second-order Taylor expansion and the step exact for a quadratic. Near a strict local minimum this converges quadratically, which no other method here achieves, and it is why <code>newton()</code> exists.</p>
+<p>Away from such a point the Hessian may be indefinite or singular, and then the step is not merely inaccurate but wrong in kind. If <span class="math inline">\(H\)</span> has a negative eigenvalue <span class="math inline">\(\lambda &lt; 0\)</span> with eigenvector <span class="math inline">\(v\)</span>, the model <span class="math inline">\(m\)</span> is unbounded below along <span class="math inline">\(v\)</span> and its stationary point is a saddle, not a minimum; and worse, taking <span class="math inline">\(d = -H^{-1} g\)</span> can produce a direction with <span class="math inline">\(g^\top d &gt; 0\)</span>, which by <a href="#def-descent" class="quarto-xref">Definition&nbsp;<span>4.1</span></a> points uphill. The line search then finds no acceptable step and the run stops for a reason that has nothing to do with the problem.</p>
+<p>So <span class="math inline">\(H\)</span> must be replaced by a positive definite matrix near it. Two repairs are standard and both are available.</p>
+<p>The <strong>eigenvalue repair</strong> takes the symmetric decomposition <span class="math inline">\(H = V \Lambda
+V^\top\)</span> and replaces <span class="math inline">\(\Lambda\)</span> by <span class="math inline">\(\tilde\Lambda\)</span> with</p>
+<p><span class="math display">\[\tilde\lambda_i = \max(\lambda_i, \varepsilon),\]</span></p>
+<p>for a floor <span class="math inline">\(\varepsilon &gt; 0\)</span>, giving <span class="math inline">\(\tilde H = V \tilde\Lambda V^\top\)</span>. This is minimal in a precise sense — it changes the eigenvalues that are a problem and leaves the others exactly alone, so the curvature the Hessian got right is preserved — and it is the default. Note that the floor is not cosmetic: taking <span class="math inline">\(\varepsilon = 0\)</span> would leave a singular matrix, and taking it very small leaves a matrix whose condition number destroys the angle bound at the end of <a href="#sec-descent-zoutendijk" class="quarto-xref"><span>Section 4.1.3</span></a>. The floor is what keeps <span class="math inline">\(\cos\theta_k\)</span> away from zero.</p>
+<p>The <strong>ridge repair</strong> instead takes <span class="math inline">\(\tilde H = H + \tau I\)</span> with <span class="math inline">\(\tau\)</span> the smallest multiple of the identity making the result positive definite, found by attempting a Cholesky factorisation and doubling <span class="math inline">\(\tau\)</span> on failure. It is cheaper, since it needs no eigendecomposition, but it is blunter: adding <span class="math inline">\(\tau I\)</span> shifts <em>every</em> eigenvalue, so directions in which the Hessian was informative are distorted along with the ones in which it was not.</p>
+<p>Both repairs share the property that matters. Whatever <span class="math inline">\(H\)</span> was, the matrix actually inverted is positive definite, so the direction is a descent direction, so the line search has something to find.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>A Hessian obtained by differencing
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><code>newton()</code> accepts an objective with no analytic Hessian and differences the gradient once to obtain one. When the gradient is itself analytic that is a single numerical differentiation and the result is good. When the gradient is <em>also</em> differenced, the Hessian is a difference of differences, and the error compounds — which is the one place in the toolkit where two layers of numerical differentiation are composed. It is unavoidable, since a Hessian from values alone must be, but it is why an objective supplying neither derivative is better served by <code>bfgs()</code>, which never forms a Hessian at all.</p>
+</div>
+</div>
+</section>
+<section id="sec-bfgs" class="level3" data-number="4.2.2">
+<h3 data-number="4.2.2" class="anchored" data-anchor-id="sec-bfgs"><span class="header-section-number">4.2.2</span> The quasi-Newton idea</h3>
+<p>The Hessian is expensive: <span class="math inline">\(p(p+1)/2\)</span> second derivatives per iteration, and a factorisation costing <span class="math inline">\(O(p^{3})\)</span>. The quasi-Newton methods refuse to pay it and build an approximation from what they already have — the gradients computed at successive iterates.</p>
+<p>The information available is a <strong>secant pair</strong>. Having moved from <span class="math inline">\(x\)</span> to <span class="math inline">\(x_{+} = x + s d\)</span>, write</p>
+<p><span class="math display">\[s = x_{+} - x, \qquad y = \nabla f(x_{+}) - \nabla f(x).\]</span></p>
+<p>For a quadratic with Hessian <span class="math inline">\(H\)</span> these satisfy <span class="math inline">\(y = H s\)</span> exactly, and for a general <span class="math inline">\(f\)</span> the mean value theorem gives <span class="math inline">\(y = \bar{H} s\)</span> for some average of Hessians along the segment. Either way the pair says what the curvature does in one direction, and it is natural to ask an approximation to reproduce it.</p>
+<div id="def-secant" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.4 (The secant equation)</strong></span> An approximation <span class="math inline">\(B_{+}\)</span> to the Hessian satisfies the secant equation when <span class="math inline">\(B_{+} s = y\)</span>; equivalently, an approximation <span class="math inline">\(H_{+}\)</span> to its inverse satisfies</p>
+<p><span class="math display">\[H_{+}\, y = s.\]</span></p>
+</div>
+<p>This is <span class="math inline">\(p\)</span> equations for the <span class="math inline">\(p(p+1)/2\)</span> unknowns of a symmetric matrix, so it does not determine <span class="math inline">\(H_{+}\)</span>. Two further requirements do, very nearly. The first is that <span class="math inline">\(H_{+}\)</span> be <strong>symmetric and positive definite</strong>, which <a href="#sec-descent" class="quarto-xref"><span>Section 4.1</span></a> showed is what makes the direction usable. The second is that it be <strong>as close as possible to <span class="math inline">\(H\)</span></strong>, on the grounds that the pair carries information about one direction and should not be allowed to overwrite what is known about the others.</p>
+<p>Making “close” precise in a particular weighted Frobenius norm yields a unique answer, and it is the BFGS update:</p>
+<div id="thm-bfgs" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 4.2 (The BFGS update)</strong></span> With <span class="math inline">\(\rho = 1 / (y^\top s)\)</span>, the update</p>
+<p><span class="math display">\[H_{+} = \left(I - \rho\, s y^\top\right) H \left(I - \rho\, y s^\top\right)
+          + \rho\, s s^\top\]</span></p>
+<p>satisfies the secant equation, is symmetric, and is positive definite whenever <span class="math inline">\(H\)</span> is and <span class="math inline">\(y^\top s &gt; 0\)</span>.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>For the secant equation, apply <span class="math inline">\(H_{+}\)</span> to <span class="math inline">\(y\)</span> and use <span class="math inline">\(\rho\, y^\top s = 1\)</span>:</p>
+<p><span class="math display">\[H_{+} y = \left(I - \rho\, s y^\top\right) H
+            \underbrace{\left(y - \rho\, y (s^\top y)\right)}_{= \, y - y \, = \, 0}
+            + \rho\, s (s^\top y) = s .\]</span></p>
+<p>Symmetry is immediate from the form, both terms being symmetric. For positive definiteness take any <span class="math inline">\(v \neq 0\)</span> and write <span class="math inline">\(w = v - \rho\, y (s^\top v)\)</span>, so that <span class="math inline">\(\left(I - \rho\, y s^\top\right) v = w\)</span> and</p>
+<p><span class="math display">\[v^\top H_{+} v = w^\top H w + \rho\, (s^\top v)^{2}.\]</span></p>
+<p>Both terms are non-negative, the first because <span class="math inline">\(H\)</span> is positive definite and the second because <span class="math inline">\(\rho &gt; 0\)</span>. They vanish together only if <span class="math inline">\(w = 0\)</span> and <span class="math inline">\(s^\top v = 0\)</span>; but <span class="math inline">\(s^\top v = 0\)</span> makes <span class="math inline">\(w = v \neq 0\)</span>, a contradiction. Hence <span class="math inline">\(v^\top H_{+} v &gt; 0\)</span>.</p>
+</div>
+<p>The proof shows exactly where <span class="math inline">\(y^\top s &gt; 0\)</span> enters, and it is not a technical convenience. The quantity</p>
+<p><span class="math display">\[y^\top s = \bigl(\nabla f(x_{+}) - \nabla f(x)\bigr)^\top (x_{+} - x)\]</span></p>
+<p>is positive precisely when the function is curving upward along the step — when the observed curvature is consistent with a minimum. On a non-convex objective it can be negative, and then no positive definite matrix satisfies the secant equation for that pair: the pair is asserting negative curvature, and asking a positive definite matrix to reproduce it is asking for a contradiction.</p>
+<p>Two responses are possible, and the package takes the conservative one: when <span class="math inline">\(y^\top s \le \varepsilon \lVert s \rVert \lVert y \rVert\)</span> the pair is <strong>skipped</strong>, the approximation left as it was, and the skip recorded in the trace. The alternative, damping the pair towards one that does satisfy the condition, injects curvature that was not observed. Skipping loses information; damping invents it, and this toolkit prefers to lose it.</p>
+<p>Note also that a Wolfe search makes the question moot. Condition (W) says <span class="math inline">\(\nabla f(x_{+})^\top d \ge c_2 \nabla f(x)^\top d\)</span>, and multiplying by <span class="math inline">\(s &gt; 0\)</span> and rearranging gives</p>
+<p><span class="math display">\[y^\top s \ \ge\ (c_2 - 1)\, s\, \nabla f(x)^\top d \ &gt; \ 0,\]</span></p>
+<p>since <span class="math inline">\(c_2 &lt; 1\)</span> and the directional derivative is negative. <strong>A quasi-Newton method paired with a Wolfe search never skips an update.</strong> That is the practical argument for the more expensive search, and it is why <code>bfgs()</code> defaults to it while <code>gradient_descent()</code>, which has no approximation to protect, defaults to backtracking.</p>
+<p>The argument should be stated at its true strength, which is that of a guarantee rather than of an observed advantage. On every smooth problem in the standard collection, and on a deliberately non-convex one besides, backtracking skips no updates either: the curvature condition simply is not violated there. What the Wolfe search removes is not a frequent nuisance but the possibility of one, and the difference shows on objectives less well behaved than any that appear in this book.</p>
+</section>
+<section id="sec-lbfgs" class="level3" data-number="4.2.3">
+<h3 data-number="4.2.3" class="anchored" data-anchor-id="sec-lbfgs"><span class="header-section-number">4.2.3</span> Limited memory</h3>
+<p>BFGS stores a <span class="math inline">\(p \times p\)</span> matrix, which is fine for the handful of parameters a distribution has and impossible for the thousands a model with covariates may have. L-BFGS keeps instead the last <span class="math inline">\(m\)</span> secant pairs, typically <span class="math inline">\(m\)</span> between 5 and 20, and never forms the matrix.</p>
+<p>The observation that makes this possible is that the BFGS update in <a href="#thm-bfgs" class="quarto-xref">Theorem&nbsp;<span>4.2</span></a> is a sum of terms each of which is an outer product. Applying <span class="math inline">\(H_k\)</span> to a vector therefore requires only inner products with the stored pairs, and unrolling the recursion gives the <strong>two-loop recursion</strong>: initialise <span class="math inline">\(q = g\)</span>, run backwards through the pairs computing</p>
+<p><span class="math display">\[\alpha_i = \rho_i\, s_i^\top q, \qquad q \leftarrow q - \alpha_i y_i,\]</span></p>
+<p>scale once by <span class="math inline">\(\gamma = (s_{k}^\top y_{k}) / (y_{k}^\top y_{k})\)</span> using the most recent pair, then run forwards computing</p>
+<p><span class="math display">\[\beta_i = \rho_i\, y_i^\top q, \qquad q \leftarrow q + (\alpha_i - \beta_i) s_i,\]</span></p>
+<p>after which <span class="math inline">\(q = H_k g\)</span>. The cost is <span class="math inline">\(O(mp)\)</span> in time and <span class="math inline">\(O(mp)\)</span> in storage, against <span class="math inline">\(O(p^{2})\)</span> for both in BFGS.</p>
+<p>The scaling <span class="math inline">\(\gamma\)</span> deserves a word, because it is the one part of the recursion that is a choice rather than an identity. It sets the initial approximation at each iteration to <span class="math inline">\(\gamma I\)</span>, and <span class="math inline">\(\gamma\)</span> is the Rayleigh quotient of the most recent pair — an estimate of the inverse curvature along the direction most recently travelled. Without it the recursion starts from <span class="math inline">\(I\)</span>, whose scale has nothing to do with the problem, and the first step of each iteration is badly sized.</p>
+<p>The price of limited memory is that older curvature is discarded. On a problem whose Hessian is nearly constant that costs almost nothing; on one where the curvature varies sharply, forgetting is sometimes an advantage, since stale pairs describe a region the iterate has left.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>A quadratic in 60 variables. L-BFGS reaches the same answer while storing a fraction as much.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">iterations</th>
+<th style="text-align: right;">stored numbers</th>
+<th style="text-align: right;">gap from the optimum</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">BFGS</td>
+<td style="text-align: right;">98</td>
+<td style="text-align: right;">3600</td>
+<td style="text-align: right;">1.2e-11</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">L-BFGS (m = 5)</td>
+<td style="text-align: right;">106</td>
+<td style="text-align: right;">600</td>
+<td style="text-align: right;">9.1e-12</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">L-BFGS (m = 20)</td>
+<td style="text-align: right;">93</td>
+<td style="text-align: right;">2400</td>
+<td style="text-align: right;">1.6e-11</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-nonsmooth" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="sec-nonsmooth"><span class="header-section-number">4.3</span> Where the derivative fails</h2>
+<p>Everything so far has assumed that <span class="math inline">\(f\)</span> is differentiable and that the gradient becomes small near a solution. Both halves of that assumption are used, and the second is the one that fails first. For an objective with a kink at its minimiser the gradient does not become small — it does not exist there, and the one-sided derivatives on either side do not approach zero. The methods of <a href="#sec-curvature" class="quarto-xref"><span>Section 4.2</span></a> then do something worse than converging slowly: they walk to the right answer and report that they have failed.</p>
+<p>The example is not contrived. Minimising</p>
+<p><span class="math display">\[f(\mu) = \sum_{i=1}^{n} \lvert y_i - \mu \rvert\]</span></p>
+<p>is estimating a median, and it is the location part of a Laplace likelihood; the toolkit met exactly this in <a href="03-distributions7.html#sec-fitting" class="quarto-xref"><span>Section 3.3</span></a>. The function is piecewise linear with a kink at every observation, and its minimiser is one of them.</p>
+<section id="sec-subdifferential" class="level3" data-number="4.3.1">
+<h3 data-number="4.3.1" class="anchored" data-anchor-id="sec-subdifferential"><span class="header-section-number">4.3.1</span> The subdifferential</h3>
+<p>For a convex <span class="math inline">\(f\)</span> the derivative is replaced by a set.</p>
+<div id="def-subdifferential" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.5 (Subgradient and subdifferential)</strong></span> For convex <span class="math inline">\(f\)</span>, a vector <span class="math inline">\(v\)</span> is a <strong>subgradient</strong> at <span class="math inline">\(x\)</span> when</p>
+<p><span class="math display">\[f(z) \ \ge\ f(x) + v^\top (z - x) \qquad \text{for all } z,\]</span></p>
+<p>and the set of all such <span class="math inline">\(v\)</span> is the <strong>subdifferential</strong> <span class="math inline">\(\partial f(x)\)</span>.</p>
+</div>
+<p>Geometrically a subgradient is the slope of an affine function that touches <span class="math inline">\(f\)</span> at <span class="math inline">\(x\)</span> and lies below it everywhere, so the subdifferential collects every supporting hyperplane at that point. Where <span class="math inline">\(f\)</span> is differentiable there is exactly one, <span class="math inline">\(\partial f(x) = \{\nabla f(x)\}\)</span>; at a kink there are many.</p>
+<p>The optimality condition generalises exactly as one would hope, and the proof is one line from the definition.</p>
+<div id="prp-fermat" class="theorem proposition">
+<p><span class="theorem-title"><strong>Proposition 4.1 (Fermat’s rule)</strong></span> A convex <span class="math inline">\(f\)</span> attains its minimum at <span class="math inline">\(x^{\star}\)</span> if and only if <span class="math inline">\(0 \in \partial f(x^{\star})\)</span>.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>Take <span class="math inline">\(v = 0\)</span> in <a href="#def-subdifferential" class="quarto-xref">Definition&nbsp;<span>4.5</span></a>: the inequality reads <span class="math inline">\(f(z) \ge
+f(x^{\star})\)</span> for all <span class="math inline">\(z\)</span>, which is exactly minimality. Conversely, minimality gives that inequality, which is the statement that <span class="math inline">\(0\)</span> is a subgradient.</p>
+</div>
+<p>Now apply this to the absolute-deviation objective. Away from the data <span class="math inline">\(f'(\mu) = \#\{y_i &lt; \mu\} - \#\{y_i &gt; \mu\}\)</span>, and at <span class="math inline">\(\mu = y_{(k)}\)</span> the subdifferential is the interval between the two one-sided slopes. Fermat’s rule is satisfied at the median, where the counts on either side balance. But notice what the <em>individual</em> subgradients look like there: each <span class="math inline">\(\lvert y_i - \mu
+\rvert\)</span> contributes <span class="math inline">\(\pm 1\)</span> depending on which side <span class="math inline">\(y_i\)</span> falls, and any particular subgradient you happen to evaluate — the one a <code>gr</code> function returns — is an integer of size comparable to <span class="math inline">\(n\)</span> away from the median and of size at least one at it. It never becomes small.</p>
+<p>This is the whole difficulty in one sentence. <strong>The quantity a gradient-based stopping rule tests does not vanish at the solution</strong>, so no tolerance can be chosen that both fires there and does not fire everywhere else. The method arrives, the line search finds no acceptable step because every direction leads uphill from a kink, and the run stops reporting failure while standing on the answer.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Both methods find the median. Only one of them knows it.</caption>
+<colgroup>
+<col style="width: 9%">
+<col style="width: 18%">
+<col style="width: 31%">
+<col style="width: 27%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">point reached</th>
+<th style="text-align: right;">distance to the median</th>
+<th style="text-align: right;">a subgradient there</th>
+<th style="text-align: left;">converged</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">bfgs</td>
+<td style="text-align: right;">-0.18760011</td>
+<td style="text-align: right;">1.3e-12</td>
+<td style="text-align: right;">-1.0</td>
+<td style="text-align: left;">FALSE</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">bundle</td>
+<td style="text-align: right;">-0.18760011</td>
+<td style="text-align: right;">9.3e-10</td>
+<td style="text-align: right;">-1.0</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The table is the argument. Both methods reach the same point, to the last digit printed; a subgradient there has size one for both; and one of them reports success. The difference is not in the arithmetic but in what is being tested.</p>
+</section>
+<section id="sec-cutting" class="level3" data-number="4.3.2">
+<h3 data-number="4.3.2" class="anchored" data-anchor-id="sec-cutting"><span class="header-section-number">4.3.2</span> Cutting planes, and the model that represents a kink</h3>
+<p>Since no single subgradient vanishes, the repair is to stop asking one to. The bundle method keeps a collection of them, from points already visited, and works with the model they define.</p>
+<p>Given points <span class="math inline">\(z_1, \dots, z_k\)</span> with values <span class="math inline">\(f_j = f(z_j)\)</span> and subgradients <span class="math inline">\(v_j \in \partial f(z_j)\)</span>, <a href="#def-subdifferential" class="quarto-xref">Definition&nbsp;<span>4.5</span></a> says each affine function <span class="math inline">\(\ell_j(x) = f_j + v_j^\top (x - z_j)\)</span> lies below <span class="math inline">\(f\)</span> everywhere. So does their pointwise maximum, and that maximum is a better model as more are collected:</p>
+<p><span class="math display">\[\check{f}(x) \ =\ \max_{1 \le j \le k}\ \bigl\{ f_j + v_j^\top (x - z_j) \bigr\}
+\ \le\ f(x).\]</span></p>
+<p>This is the <strong>cutting-plane model</strong>, and the point of it is that it is piecewise linear. A kink is exactly what it represents naturally — two linearisations meeting — where a quadratic model must either smooth it away or place spurious curvature across it.</p>
+<p>Minimising <span class="math inline">\(\check{f}\)</span> alone is unsafe, because a model built from finitely many planes can be unbounded below, and even when it is not, its minimiser may lie far outside the region where the collected planes say anything. So a proximal term is added, anchoring the step to the current point <span class="math inline">\(\hat{x}\)</span>, called the <strong>stability centre</strong>:</p>
+<p><span class="math display">\[d^{\star} \ =\ \operatorname*{arg\,min}_{d}\ \left\{
+  \max_{j}\ \bigl( -\alpha_j + v_j^\top d \bigr)
+  + \frac{1}{2t} \lVert d \rVert^{2} \right\},
+\tag{P}\]</span></p>
+<p>where <span class="math inline">\(t &gt; 0\)</span> controls how far the model is trusted and</p>
+<p><span class="math display">\[\alpha_j \ =\ f(\hat{x}) - \ell_j(\hat{x}) \ \ge\ 0\]</span></p>
+<p>is the <strong>linearisation error</strong>, measuring how badly plane <span class="math inline">\(j\)</span> misses the current point. It is non-negative by <a href="#def-subdifferential" class="quarto-xref">Definition&nbsp;<span>4.5</span></a>, and it is what makes an old plane, collected far away, count for less than a recent one.</p>
+</section>
+<section id="sec-bundle-dual" class="level3" data-number="4.3.3">
+<h3 data-number="4.3.3" class="anchored" data-anchor-id="sec-bundle-dual"><span class="header-section-number">4.3.3</span> The dual, and the quantity that does vanish</h3>
+<p>Problem (P) is a quadratic programme in <span class="math inline">\(d\)</span> with a piecewise-linear term, and it is solved through its dual, which is small and has a pleasant feasible set.</p>
+<div id="thm-bundle-dual" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 4.3 (The bundle subproblem and its dual)</strong></span> Let <span class="math inline">\(V\)</span> be the matrix with columns <span class="math inline">\(v_1, \dots, v_k\)</span> and <span class="math inline">\(\alpha\)</span> the vector of linearisation errors. Then the solution of (P) is <span class="math inline">\(d^{\star} = -t\, V\lambda^{\star}\)</span>, where <span class="math inline">\(\lambda^{\star}\)</span> solves</p>
+<p><span class="math display">\[\min_{\lambda \in \Delta_k}\ \ \frac{t}{2} \lVert V \lambda \rVert^{2}
+   + \alpha^\top \lambda,
+\qquad \Delta_k = \Bigl\{ \lambda \ge 0 : \textstyle\sum_j \lambda_j = 1 \Bigr\},\]</span></p>
+<p>and the optimal value of (P) is</p>
+<p><span class="math display">\[v \ =\ -\Bigl( t \lVert V\lambda^{\star} \rVert^{2}
+                 + \alpha^\top \lambda^{\star} \Bigr) \ \le\ 0 .\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>Write (P) with an epigraph variable <span class="math inline">\(u\)</span>: minimise <span class="math inline">\(u + \lVert d
+\rVert^{2}/(2t)\)</span> subject to <span class="math inline">\(-\alpha_j + v_j^\top d \le u\)</span> for each <span class="math inline">\(j\)</span>. The Lagrangian is</p>
+<p><span class="math display">\[L(d, u, \lambda) = u + \frac{1}{2t}\lVert d \rVert^{2}
+  + \sum_j \lambda_j \bigl( -\alpha_j + v_j^\top d - u \bigr), \qquad \lambda \ge 0 .\]</span></p>
+<p>Stationarity in <span class="math inline">\(u\)</span> gives <span class="math inline">\(\sum_j \lambda_j = 1\)</span>, which is where the simplex comes from; stationarity in <span class="math inline">\(d\)</span> gives <span class="math inline">\(d = -t \sum_j \lambda_j v_j = -t V\lambda\)</span>. Substituting both back,</p>
+<p><span class="math display">\[L = -\frac{t}{2} \lVert V\lambda \rVert^{2} - \alpha^\top \lambda,\]</span></p>
+<p>and maximising this over <span class="math inline">\(\lambda \in \Delta_k\)</span> is the stated minimisation. Strong duality holds, the problem being convex with a strictly feasible point, so the optimal value of (P) equals that of the dual, which is the displayed <span class="math inline">\(v\)</span>.</p>
+</div>
+<p>Write <span class="math inline">\(\bar{v} = V\lambda^{\star}\)</span> for the <strong>aggregate subgradient</strong> and <span class="math inline">\(\bar\alpha = \alpha^\top \lambda^{\star}\)</span> for the aggregate error. The aggregate is a convex combination of collected subgradients, and by convexity of the subdifferential it is itself a subgradient of the model at <span class="math inline">\(\hat{x}\)</span>. Both <span class="math inline">\(\lVert \bar{v} \rVert\)</span> and <span class="math inline">\(\bar\alpha\)</span> are non-negative, and</p>
+<p><span class="math display">\[\lVert \bar{v} \rVert^{2} + \bar\alpha \ =\ 0
+\iff \bar{v} = 0 \ \text{ and } \ \bar\alpha = 0,\]</span></p>
+<p>which says that zero lies in the convex hull of the collected subgradients with no linearisation error — the computable statement standing in for <span class="math inline">\(0 \in \partial f(\hat{x})\)</span> in <a href="#prp-fermat" class="quarto-xref">Proposition&nbsp;<span>4.1</span></a>. <strong>That</strong> is the quantity to test, and it is the one <code>crit_stationary()</code> reads.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Why the predicted decrease is the wrong thing to test
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>It is tempting to stop on <span class="math inline">\(-v\)</span> instead, the value from <a href="#thm-bundle-dual" class="quarto-xref">Theorem&nbsp;<span>4.3</span></a>, since it also vanishes at a solution and has the appealing reading of “how much better the model believes it can do”. It carries a factor of <span class="math inline">\(t\)</span>, and <span class="math inline">\(t\)</span> is reduced whenever the model over-promises. A run in difficulty therefore drives <span class="math inline">\(-v\)</span> below any fixed tolerance <strong>by shrinking its trust region</strong>, not by approaching a minimum, and reports convergence standing somewhere its own model still calls steep. Dropping the factor leaves <span class="math inline">\(\lVert \bar{v} \rVert^{2} + \bar\alpha\)</span>, which no amount of shrinking can flatter.</p>
+</div>
+</div>
+</section>
+<section id="sec-bundle-steps" class="level3" data-number="4.3.4">
+<h3 data-number="4.3.4" class="anchored" data-anchor-id="sec-bundle-steps"><span class="header-section-number">4.3.4</span> Serious steps, null steps, and bounded memory</h3>
+<p>With <span class="math inline">\(d^{\star}\)</span> in hand, the trial point is <span class="math inline">\(z = \hat{x} + d^{\star}\)</span>, and whether to move there is decided by the same bargain an Armijo condition strikes: the step must deliver a fixed fraction of the decrease the model promised,</p>
+<p><span class="math display">\[f(z) \ \le\ f(\hat{x}) + m\, v, \qquad m \in (0, 1).\]</span></p>
+<p>If it does, the centre moves — a <strong>serious step</strong>. If it does not, the centre stays, and the iteration is nonetheless not wasted: the trial point contributes its own subgradient to the collection, so the model is strictly better next time. This is a <strong>null step</strong>, and a run reporting many of them is refining its picture of a kink rather than failing.</p>
+<p>Left alone the collection grows without bound. It is capped by <strong>aggregation</strong> rather than by discarding: when the bundle is full, the oldest planes are replaced by the single affine function the dual solution defines,</p>
+<p><span class="math display">\[\ell_{\text{agg}}(x) = f(\hat{x}) - \bar\alpha + \bar{v}^\top (x - \hat{x}),\]</span></p>
+<p>which lies below <span class="math inline">\(f\)</span> because it is a convex combination of functions that do, and which summarises everything the discarded planes contributed. Simply deleting them loses that information and can stall the method; keeping the aggregate is what makes a bounded bundle safe.</p>
+</section>
+<section id="sec-direct-search" class="level3" data-number="4.3.5">
+<h3 data-number="4.3.5" class="anchored" data-anchor-id="sec-direct-search"><span class="header-section-number">4.3.5</span> The alternative: no derivatives at all</h3>
+<p>There is a second repair, which is to stop using derivatives. It costs a great deal and buys a weaker guarantee, but it asks nothing of the objective beyond a number, which is sometimes all there is.</p>
+<p>The idea with a theorem behind it is the <strong>positive spanning set</strong>.</p>
+<div id="def-spanning" class="theorem definition">
+<p><span class="theorem-title"><strong>Definition 4.6 (Positive spanning set)</strong></span> A finite set <span class="math inline">\(D \subset \mathbb{R}^{p}\)</span> positively spans <span class="math inline">\(\mathbb{R}^{p}\)</span> when every <span class="math inline">\(w \in \mathbb{R}^{p}\)</span> can be written <span class="math inline">\(w = \sum_{d \in D} c_d\, d\)</span> with all <span class="math inline">\(c_d \ge 0\)</span>.</p>
+</div>
+<p>The relevance is immediate: if <span class="math inline">\(D\)</span> positively spans the space and <span class="math inline">\(f\)</span> is differentiable at <span class="math inline">\(x\)</span> with <span class="math inline">\(\nabla f(x) \neq 0\)</span>, then some <span class="math inline">\(d \in D\)</span> has <span class="math inline">\(\nabla f(x)^\top d &lt; 0\)</span>, since otherwise <span class="math inline">\(-\nabla f(x)\)</span>, being a non-negative combination of the <span class="math inline">\(d\)</span>, would satisfy <span class="math inline">\(-\lVert \nabla f(x) \rVert^{2} \ge 0\)</span>. So <strong>a poll that fails in every direction is evidence about the point, not about the directions</strong>, and that is what licenses shrinking the poll radius. The limit points of a run whose radius goes to zero are stationary. <code>compass()</code> polls the <span class="math inline">\(2p\)</span> signed coordinate axes, which positively span the space.</p>
+<p>For a merely Lipschitz <span class="math inline">\(f\)</span> the argument breaks, and instructively. A kink whose ridge runs diagonally is descended by no coordinate direction: the poll fails at a point that is not stationary, the radius shrinks, and the run stops there. The repair, which is the idea behind mesh adaptive direct search, is to let the set of directions used over the whole run become dense in the sphere, so that no descent direction can be missed for ever; drawing a fresh random orthonormal basis at each poll achieves it with probability one.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>The minimum of <span class="math inline">\(\lvert p_1 + p_2 \rvert + 0.1 \lVert p \rVert^{2}\)</span> is zero, at the origin. The ridge runs diagonally, so no coordinate direction descends it.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">value reached</th>
+<th style="text-align: right;">evaluations</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">compass, coordinate</td>
+<td style="text-align: right;">5.00e-02</td>
+<td style="text-align: right;">121</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">compass, mads</td>
+<td style="text-align: right;">6.91e-03</td>
+<td style="text-align: right;">207</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">nelder-mead</td>
+<td style="text-align: right;">9.44e-17</td>
+<td style="text-align: right;">343</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">bundle</td>
+<td style="text-align: right;">8.21e-09</td>
+<td style="text-align: right;">52</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The table repays reading in two columns rather than one.</p>
+<p>The first two rows are the argument just made. A fixed set of directions stops on the ridge, at a point that is not stationary, having exhausted its poll without finding a descent direction that exists; drawing them at random does an order of magnitude better and still does not arrive, a finite number of directions from a fixed centre being the wrong instrument for a kink.</p>
+<p>The third row is a genuine surprise, and worth not glossing. Nelder–Mead solves this to machine precision, better than either poll and better than the bundle method — because a simplex is not a poll. It has no fixed centre and no fixed set of offsets: it deforms, and what it deforms into, on a problem whose descent direction lies along a ridge, is a long thin simplex aligned with that ridge. The adaptation is exactly what the fixed pattern lacks. What it lacks in turn is any theorem, since <a href="#sec-nonsmooth" class="quarto-xref"><span>Section 4.3</span></a>’s positive-spanning argument does not apply to it and McKinnon’s counterexample shows it can converge to a point that is not a minimiser at all; and it needs 343 evaluations to get there.</p>
+<p>The last row is the one to build on. The bundle method arrives, with a theorem, in a seventh of the evaluations — because it is the only method in the table that uses the derivative information it was given without asking any single derivative to vanish.</p>
+</section>
+</section>
+<section id="sec-constraints" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="sec-constraints"><span class="header-section-number">4.4</span> Constraints, and steps that are not descent</h2>
+<p>Two things remain, and neither belongs inside the descent framework of the previous sections. The first is a constraint, which is dealt with by making it disappear; the second is a method that abandons the requirement of descent altogether, and is useful precisely because it does.</p>
+<section id="sec-box" class="level3" data-number="4.4.1">
+<h3 data-number="4.4.1" class="anchored" data-anchor-id="sec-box"><span class="header-section-number">4.4.1</span> Removing a box</h3>
+<p>Suppose each parameter is confined to an interval, <span class="math inline">\(\theta_j \in (L_j, U_j)\)</span>, with either endpoint possibly infinite. Handing that to a general optimiser is awkward for exactly the reasons <a href="03-distributions7.html#sec-fit-scale" class="quarto-xref"><span>Section 3.3.1</span></a> gave: every proposal must be tested for admissibility, a step that overshoots must be shortened rather than taken, and near an endpoint the objective may be unbounded or undefined.</p>
+<p>The toolkit’s answer is the one it gives everywhere: do not enforce the constraint, remove it. Each bounded coordinate is reparameterised by a diffeomorphism <span class="math inline">\(h_j : \mathbb{R} \to (L_j, U_j)\)</span>,</p>
+<p><span class="math display">\[\theta_j \ =\ h_j(\eta_j) \ =\
+\begin{cases}
+L_j + e^{\eta_j}
+  &amp; \text{lower bound only,} \\[4pt]
+U_j - e^{\eta_j}
+  &amp; \text{upper bound only,} \\[4pt]
+L_j + (U_j - L_j)\,\dfrac{1}{1 + e^{-\eta_j}}
+  &amp; \text{both finite,}
+\end{cases}\]</span></p>
+<p>and the optimiser runs unconstrained in <span class="math inline">\(\eta\)</span>. These are the bounded links of <a href="02-linkfunctions7.html" class="quarto-xref"><span>Chapter 2</span></a>, and using them here is not a coincidence but the point of having written them once: every point the optimiser proposes is admissible by construction, so there is no rejection step and no boundary for a line search to trip over.</p>
+<p>What it costs is derivatives, and they are cheap because <strong>the Jacobian is diagonal</strong>. Each coordinate carries its own transform and nothing else, so with <span class="math inline">\(F(\eta) = f(h(\eta))\)</span>,</p>
+<p><span class="math display">\[\frac{\partial F}{\partial \eta_i} \ =\
+  \frac{\partial f}{\partial \theta_i}\, h_i'(\eta_i),
+\qquad
+\frac{\partial^{2} F}{\partial \eta_i \partial \eta_j} \ =\
+  \frac{\partial^{2} f}{\partial \theta_i \partial \theta_j}\, h_i'(\eta_i)\, h_j'(\eta_j)
+  \ +\ \delta_{ij}\, \frac{\partial f}{\partial \theta_i}\, h_i''(\eta_i).\]</span></p>
+<p>The second-derivative term appears only on the diagonal, and only because <span class="math inline">\(h\)</span> is not affine; it is the whole difference between transforming a Hessian and merely rescaling one. In matrix form,</p>
+<p><span class="math display">\[\nabla^{2} F \ =\ \operatorname{diag}(h')\, \nabla^{2} f\, \operatorname{diag}(h')
+  \ +\ \operatorname{diag}\!\bigl(\nabla f \odot h''\bigr),\]</span></p>
+<p>which is <a href="03-distributions7.html#sec-link-scale" class="quarto-xref"><span>Section 3.1.4</span></a>’s congruence with one extra diagonal term, and every algorithm in this chapter receives it without ever learning a box was involved.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>The limitation, which is structural
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>An optimum lying <strong>on</strong> a bound cannot be reached, because getting there needs <span class="math inline">\(\eta\)</span> to run to infinity. The optimiser marches off, improves by less and less, and stops on a budget at a point merely close to the constraint.</p>
+<p>For the statistical use this serves — a positive variance, a probability inside the unit interval, a shape parameter that must not vanish — the optimum is interior and the situation never arises. For a genuine box-constrained problem whose solution has active constraints, an active-set method is the right tool and this is not one.</p>
+<p>There is a second, quieter limitation, which is arithmetic rather than mathematical: in exact arithmetic <span class="math inline">\(h\)</span> never attains its endpoints, and in double precision it does. The inverse logit returns exactly one above <span class="math inline">\(\eta \approx 37\)</span>, and <span class="math inline">\(L + e^{\eta}\)</span> rounds to <span class="math inline">\(L\)</span> once <span class="math inline">\(e^{\eta}\)</span> falls below half an ulp of <span class="math inline">\(L\)</span>. Both are guarded by clamping to the adjacent representable double, which is the closest approach to the bound the machine can express while remaining strictly inside it.</p>
+</div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>The maximum likelihood scale of a centred Gaussian, whose answer is the root mean square: 1.9603082597</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">method</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: left;">strictly positive</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">bfgs</td>
+<td style="text-align: right;">1.9603082597</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">newton</td>
+<td style="text-align: right;">1.9603082597</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">nelder-mead</td>
+<td style="text-align: right;">1.9603082575</td>
+<td style="text-align: left;">TRUE</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Every method reaches the same estimate, and none of them contains a line of code about constraints.</p>
+</section>
+<section id="sec-adam" class="level3" data-number="4.4.2">
+<h3 data-number="4.4.2" class="anchored" data-anchor-id="sec-adam"><span class="header-section-number">4.4.2</span> Steps that go uphill</h3>
+<p>The last method in the chapter breaks the rule the first section established. Adam takes no line search and makes no attempt to decrease <span class="math inline">\(f\)</span> at every step, and both omissions are deliberate.</p>
+<p>Its state is two exponentially weighted averages, of the gradient and of its square, both taken coordinatewise:</p>
+<p><span class="math display">\[m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t, \qquad
+  v_t = \beta_2 v_{t-1} + (1 - \beta_2)\, g_t \odot g_t ,\]</span></p>
+<p>with <span class="math inline">\(m_0 = v_0 = 0\)</span>. Those initial zeros bias both averages towards zero in the early iterations, and the bias is known exactly: taking expectations under a stationary gradient,</p>
+<p><span class="math display">\[\mathbb{E}[m_t] = (1 - \beta_1^{t})\, \mathbb{E}[g],\]</span></p>
+<p>so dividing by <span class="math inline">\(1 - \beta_1^{t}\)</span> removes it, and likewise for <span class="math inline">\(v\)</span>. The step is then</p>
+<p><span class="math display">\[x_{t+1} = x_t - \alpha\, \frac{\hat m_t}{\sqrt{\hat v_t} + \epsilon},
+\qquad \hat m_t = \frac{m_t}{1 - \beta_1^{t}},
+\quad \hat v_t = \frac{v_t}{1 - \beta_2^{t}},\]</span></p>
+<p>the division being elementwise, which is the entire idea. A coordinate whose gradient has been consistently large is divided by a large number and moves modestly; one whose gradient is small but persistent still moves. It is a diagonal preconditioner assembled from the gradients already seen, and it costs nothing beyond them — which is also its limit, since a diagonal cannot represent the correlation between parameters that <a href="#sec-bfgs" class="quarto-xref"><span>Section 4.2.2</span></a> learns from the same information.</p>
+<p>Ignoring the bias correction and <span class="math inline">\(\epsilon\)</span>, at <span class="math inline">\(t = 1\)</span> the ratio <span class="math inline">\(\hat m_1 / \sqrt{\hat v_1}\)</span> is <span class="math inline">\(g_1 / \lvert g_1 \rvert\)</span>, of size exactly one, so the first step has length <span class="math inline">\(\alpha\)</span> in every coordinate regardless of how steep the objective is. That scale invariance is what makes a single <span class="math inline">\(\alpha\)</span> workable across problems of very different magnitudes, and it is also why Adam is untroubled by a badly scaled parameter vector where steepest descent is helpless.</p>
+<p>The absence of a line search means there is no guarantee of monotone progress, and the run may end somewhere worse than it passed through. That freedom is most of why Adam tolerates a gradient computed from a handful of observations rather than from all of them: a stochastic gradient points downhill only on average, and insisting on decrease at every step would reject most of the steps that make progress. When the objective is a sum over observations,</p>
+<p><span class="math display">\[f(x) = \sum_{i=1}^{n} f_i(x),\]</span></p>
+<p>the gradient of a random subsample is an unbiased estimate of a scaled gradient of the whole, and Adam may be run on subsamples at a fraction of the cost per iteration.</p>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>What a stochastic run may not test
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>When the gradient is estimated from a subsample, so is the objective, and a tolerance applied to either measures the sampling noise rather than the progress. Neither can serve as a stopping rule; such a run is governed by its iteration budget, and reports that it did not converge — which is the truth about a run that nothing checked.</p>
+<p>This is the same discipline as everywhere else in the toolkit. A check that cannot be evaluated must say so rather than pass or fail silently, and the package refuses an objective-based or gradient-based rule for a subsampling run by name rather than accepting one that would never fire.</p>
+</div>
+</div>
+<p>Two safeguards deserve mention because they answer real failures rather than imagined ones. The learning rate may be reduced as <span class="math inline">\(\alpha_t = \alpha / (1 +
+\delta t)\)</span>, which is the Robbins–Monro condition a noisy run needs in order to settle at the optimum rather than orbit it at a radius set by <span class="math inline">\(\alpha\)</span>; and <span class="math inline">\(v_t\)</span> may be replaced by its running maximum, which forbids the second moment from shrinking and letting a single large gradient dominate the iterate long after it has passed. The second is not cosmetic: without it there is a <em>convex</em> problem on which Adam as published fails to converge.</p>
+</section>
+<section id="sec-optimizers-boundary" class="level3" data-number="4.4.3">
+<h3 data-number="4.4.3" class="anchored" data-anchor-id="sec-optimizers-boundary"><span class="header-section-number">4.4.3</span> Where the chapter ends</h3>
+<p>It is worth being explicit about what this chapter does not reach, since the apparatus is capable of a good deal more than it has been asked to do.</p>
+<p>Every method here finds a <strong>local</strong> minimum, and none can tell whether it is the global one. That is a property of local optimisation and not a shortcoming of the implementations; the only general answer is to run from several starting points, and the most valuable thing that produces is not the best point but the count of distinct optima found, which is direct evidence about whether the question has one answer.</p>
+<p>There are no constraints beyond a box. Linear and nonlinear constraints need Lagrange multipliers and an active set, and the reparameterisation trick that serves so well here has nothing to say about them.</p>
+<p>Nor is there anything Bayesian. The toolkit’s stated ambition is that the user should be able to choose a Bayesian treatment in place of a frequentist one, and that is a different object entirely — a sampler rather than an optimiser, whose output is a distribution and not a point. It belongs to the model layer, which is where this book will go next.</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/03-distributions7.html" class="pagination-link" aria-label="The distributions7 package">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">The distributions7 package</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/A1-notation.html" class="pagination-link" aria-label="Notation">
+        <span class="nav-page-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>The statmodels7 Framework</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

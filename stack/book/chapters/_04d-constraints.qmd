@@ -1,0 +1,214 @@
+## Constraints, and steps that are not descent {#sec-constraints}
+
+```{r}
+#| label: setup-04d
+#| include: false
+source("R/_setup.R")
+source("R/optimizer-certificates.R")
+```
+
+Two things remain, and neither belongs inside the descent framework of the
+previous sections. The first is a constraint, which is dealt with by making it
+disappear; the second is a method that abandons the requirement of descent
+altogether, and is useful precisely because it does.
+
+### Removing a box {#sec-box}
+
+Suppose each parameter is confined to an interval, $\theta_j \in (L_j, U_j)$,
+with either endpoint possibly infinite. Handing that to a general optimiser is
+awkward for exactly the reasons @sec-fit-scale gave: every proposal must be
+tested for admissibility, a step that overshoots must be shortened rather than
+taken, and near an endpoint the objective may be unbounded or undefined.
+
+The toolkit's answer is the one it gives everywhere: do not enforce the
+constraint, remove it. Each bounded coordinate is reparameterised by a
+diffeomorphism $h_j : \mathbb{R} \to (L_j, U_j)$,
+
+$$\theta_j \ =\ h_j(\eta_j) \ =\
+\begin{cases}
+L_j + e^{\eta_j}
+  & \text{lower bound only,} \\[4pt]
+U_j - e^{\eta_j}
+  & \text{upper bound only,} \\[4pt]
+L_j + (U_j - L_j)\,\dfrac{1}{1 + e^{-\eta_j}}
+  & \text{both finite,}
+\end{cases}$$
+
+and the optimiser runs unconstrained in $\eta$. These are the bounded links of
+@sec-links, and using them here is not a coincidence but the point of having
+written them once: every point the optimiser proposes is admissible by
+construction, so there is no rejection step and no boundary for a line search to
+trip over.
+
+What it costs is derivatives, and they are cheap because **the Jacobian is
+diagonal**. Each coordinate carries its own transform and nothing else, so with
+$F(\eta) = f(h(\eta))$,
+
+$$\frac{\partial F}{\partial \eta_i} \ =\
+  \frac{\partial f}{\partial \theta_i}\, h_i'(\eta_i),
+\qquad
+\frac{\partial^{2} F}{\partial \eta_i \partial \eta_j} \ =\
+  \frac{\partial^{2} f}{\partial \theta_i \partial \theta_j}\, h_i'(\eta_i)\, h_j'(\eta_j)
+  \ +\ \delta_{ij}\, \frac{\partial f}{\partial \theta_i}\, h_i''(\eta_i).$$
+
+The second-derivative term appears only on the diagonal, and only because $h$ is
+not affine; it is the whole difference between transforming a Hessian and merely
+rescaling one. In matrix form,
+
+$$\nabla^{2} F \ =\ \operatorname{diag}(h')\, \nabla^{2} f\, \operatorname{diag}(h')
+  \ +\ \operatorname{diag}\!\bigl(\nabla f \odot h''\bigr),$$
+
+which is @sec-link-scale's congruence with one extra diagonal term, and every
+algorithm in this chapter receives it without ever learning a box was involved.
+
+::: {.callout-note}
+## The limitation, which is structural
+
+An optimum lying **on** a bound cannot be reached, because getting there needs
+$\eta$ to run to infinity. The optimiser marches off, improves by less and less,
+and stops on a budget at a point merely close to the constraint.
+
+For the statistical use this serves — a positive variance, a probability inside
+the unit interval, a shape parameter that must not vanish — the optimum is
+interior and the situation never arises. For a genuine box-constrained problem
+whose solution has active constraints, an active-set method is the right tool
+and this is not one.
+
+There is a second, quieter limitation, which is arithmetic rather than
+mathematical: in exact arithmetic $h$ never attains its endpoints, and in double
+precision it does. The inverse logit returns exactly one above $\eta \approx 37$,
+and $L + e^{\eta}$ rounds to $L$ once $e^{\eta}$ falls below half an ulp of $L$.
+Both are guarded by clamping to the adjacent representable double, which is the
+closest approach to the bound the machine can express while remaining strictly
+inside it.
+:::
+
+```{r}
+#| label: box-example
+#| echo: false
+set.seed(6)
+yv <- rnorm(300, mean = 0, sd = 2)
+nll <- function(s) length(yv) * log(s) + sum(yv^2) / (2 * s^2)
+gnll <- function(s) length(yv) / s - sum(yv^2) / s^3
+
+rs <- lapply(list(bfgs = optimizers7::bfgs(),
+                  newton = optimizers7::newton(),
+                  `nelder-mead` = optimizers7::nelder_mead()), function(o)
+  optimizers7::minimize(o, nll, par = 1, gr = gnll, bounds = list(c(0, Inf))))
+
+knitr::kable(
+  data.frame(method = names(rs),
+             estimate = formatC(vapply(rs, function(r) r@par, numeric(1)),
+                                format = "f", digits = 10),
+             `strictly positive` =
+               vapply(rs, function(r) r@par > 0, logical(1)),
+             check.names = FALSE),
+  row.names = FALSE, align = "lrl",
+  caption = paste("The maximum likelihood scale of a centred Gaussian, whose",
+                  "answer is the root mean square:",
+                  formatC(sqrt(mean(yv^2)), format = "f", digits = 10))
+)
+```
+
+Every method reaches the same estimate, and none of them contains a line of code
+about constraints.
+
+### Steps that go uphill {#sec-adam}
+
+The last method in the chapter breaks the rule the first section established.
+Adam takes no line search and makes no attempt to decrease $f$ at every step,
+and both omissions are deliberate.
+
+Its state is two exponentially weighted averages, of the gradient and of its
+square, both taken coordinatewise:
+
+$$m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t, \qquad
+  v_t = \beta_2 v_{t-1} + (1 - \beta_2)\, g_t \odot g_t ,$$
+
+with $m_0 = v_0 = 0$. Those initial zeros bias both averages towards zero in the
+early iterations, and the bias is known exactly: taking expectations under a
+stationary gradient,
+
+$$\mathbb{E}[m_t] = (1 - \beta_1^{t})\, \mathbb{E}[g],$$
+
+so dividing by $1 - \beta_1^{t}$ removes it, and likewise for $v$. The step is
+then
+
+$$x_{t+1} = x_t - \alpha\, \frac{\hat m_t}{\sqrt{\hat v_t} + \epsilon},
+\qquad \hat m_t = \frac{m_t}{1 - \beta_1^{t}},
+\quad \hat v_t = \frac{v_t}{1 - \beta_2^{t}},$$
+
+the division being elementwise, which is the entire idea. A coordinate whose
+gradient has been consistently large is divided by a large number and moves
+modestly; one whose gradient is small but persistent still moves. It is a
+diagonal preconditioner assembled from the gradients already seen, and it costs
+nothing beyond them — which is also its limit, since a diagonal cannot represent
+the correlation between parameters that @sec-bfgs learns from the same
+information.
+
+Ignoring the bias correction and $\epsilon$, at $t = 1$ the ratio
+$\hat m_1 / \sqrt{\hat v_1}$ is $g_1 / \lvert g_1 \rvert$, of size exactly one,
+so the first step has length $\alpha$ in every coordinate regardless of how
+steep the objective is. That scale invariance is what makes a single $\alpha$
+workable across problems of very different magnitudes, and it is also why Adam
+is untroubled by a badly scaled parameter vector where steepest descent is
+helpless.
+
+The absence of a line search means there is no guarantee of monotone progress,
+and the run may end somewhere worse than it passed through. That freedom is most
+of why Adam tolerates a gradient computed from a handful of observations rather
+than from all of them: a stochastic gradient points downhill only on average, and
+insisting on decrease at every step would reject most of the steps that make
+progress. When the objective is a sum over observations,
+
+$$f(x) = \sum_{i=1}^{n} f_i(x),$$
+
+the gradient of a random subsample is an unbiased estimate of a scaled gradient
+of the whole, and Adam may be run on subsamples at a fraction of the cost per
+iteration.
+
+::: {.callout-important}
+## What a stochastic run may not test
+
+When the gradient is estimated from a subsample, so is the objective, and a
+tolerance applied to either measures the sampling noise rather than the progress.
+Neither can serve as a stopping rule; such a run is governed by its iteration
+budget, and reports that it did not converge — which is the truth about a run
+that nothing checked.
+
+This is the same discipline as everywhere else in the toolkit. A check that
+cannot be evaluated must say so rather than pass or fail silently, and the
+package refuses an objective-based or gradient-based rule for a subsampling run
+by name rather than accepting one that would never fire.
+:::
+
+Two safeguards deserve mention because they answer real failures rather than
+imagined ones. The learning rate may be reduced as $\alpha_t = \alpha / (1 +
+\delta t)$, which is the Robbins–Monro condition a noisy run needs in order to
+settle at the optimum rather than orbit it at a radius set by $\alpha$; and $v_t$
+may be replaced by its running maximum, which forbids the second moment from
+shrinking and letting a single large gradient dominate the iterate long after it
+has passed. The second is not cosmetic: without it there is a *convex* problem
+on which Adam as published fails to converge.
+
+### Where the chapter ends {#sec-optimizers-boundary}
+
+It is worth being explicit about what this chapter does not reach, since the
+apparatus is capable of a good deal more than it has been asked to do.
+
+Every method here finds a **local** minimum, and none can tell whether it is the
+global one. That is a property of local optimisation and not a shortcoming of
+the implementations; the only general answer is to run from several starting
+points, and the most valuable thing that produces is not the best point but the
+count of distinct optima found, which is direct evidence about whether the
+question has one answer.
+
+There are no constraints beyond a box. Linear and nonlinear constraints need
+Lagrange multipliers and an active set, and the reparameterisation trick that
+serves so well here has nothing to say about them.
+
+Nor is there anything Bayesian. The toolkit's stated ambition is that the user
+should be able to choose a Bayesian treatment in place of a frequentist one, and
+that is a different object entirely — a sampler rather than an optimiser, whose
+output is a distribution and not a point. It belongs to the model layer, which is
+where this book will go next.
