@@ -1,6 +1,6 @@
 # Shared setup for every chapter of the book.
 #
-# The book documents the *working tree*, not an installed snapshot: both packages
+# The book documents the *working tree*, not an installed snapshot: the packages
 # are loaded from source with pkgload. If a formula in the text and the code in
 # the repository ever disagree, the certification chunks below say so while the
 # book renders, which is the whole point of the exercise.
@@ -18,6 +18,7 @@ suppressPackageStartupMessages({
 suppressMessages({
   pkgload::load_all(file.path(.toolkit_root, "linkfunctions7"), quiet = TRUE, export_all = FALSE)
   pkgload::load_all(file.path(.toolkit_root, "distributions7"), quiet = TRUE, export_all = FALSE)
+  pkgload::load_all(file.path(.toolkit_root, "optimizers7"), quiet = TRUE, export_all = FALSE)
 })
 
 knitr::opts_chunk$set(

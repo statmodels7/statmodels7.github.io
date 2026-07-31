@@ -5,8 +5,8 @@ place where the accumulated knowledge lives: Claude Code's memory is keyed by di
 path, and these packages were moved here on 2026-07-22, so nothing from the earlier
 sessions carries over automatically.
 
-`statmodels7/` is a plain directory, not a repository — the three repositories sit
-inside it. This file and `logo/make-logos.R` are therefore versioned in the portal
+`statmodels7/` is a plain directory, not a repository — the package repositories sit
+inside it (`optimizers7` is a git repository too, but has no remote yet). This file and `logo/make-logos.R` are therefore versioned in the portal
 repository (`site/`, which is `statmodels7.github.io`) and copied back up here, so a
 fresh clone can recover them. If you edit either, copy the change into `site/` and
 commit it there; `site/sync-stack-files.sh` does exactly that.
@@ -36,6 +36,13 @@ infrastructure to be reused, not another modelling package.
 Extension matters just as much in the telling: a toolkit that only worked for the fourteen
 distributions it ships with would have solved nothing.
 
+The same argument is what `optimizers7` is for, and it is worth having the sentence
+ready. Almost every R package that fits a model carries its own optimiser, written
+inside the function that needs it — a loop, a `while (!converged)`, a tolerance compared
+against whatever quantity the author had to hand. The stopping rule, which decides what
+the whole thing means by *finished*, is a number buried three levels down. Lead with
+that, not with the list of algorithms.
+
 Giovanni corrected an earlier draft that led with the link scale and the optimisation
 story. Lead with the reuse argument.
 
@@ -52,6 +59,7 @@ followed by 7*, which happens to spell `...s7` — `linkfunction**s7**`,
 |---|---|
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
 | `distributions7` | 14 distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE |
+| `optimizers7` | 9 algorithms as objects — newton, bfgs, lbfgs, gradient_descent, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, and box bounds removed by reparametrisation |
 
 **Planned** — `modelterms7`, `basis7`, `penalties7`, and eventually the `statmodels7`
 package itself, which assembles everything into models. That last one is the destination:
@@ -77,6 +85,7 @@ user-defined components.*
 C:\Users\giova\Desktop\labstatr\statmodels7\
     linkfunctions7\
     distributions7\
+    optimizers7\     committed locally; no GitHub repository yet (see §8)
     book\            the Quarto book (see §9); `quarto render` from inside it
     logo\            hex logos: make-logos.R draws them, run from this directory
     site\            the portal, its own repository (statmodels7.github.io)
@@ -85,9 +94,10 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
 `book/` is versioned through `site/` (source under `stack/book/`, rendered HTML
 under `book/`, both carried by `sync-stack-files.sh`), and the rendered book is
 **published at `statmodels7.github.io/book/`** (since 2026-07-26). After editing
-the book: `quarto render` in `book/`, then `sh sync-stack-files.sh` in `site/`
-and commit there — the render is a manual step because it executes R against the
-working tree.
+the book: `quarto render` in `book/` **from PowerShell** (see 3), then
+`sh sync-stack-files.sh` in `site/` and commit there — the render is a manual step
+because it executes R against the working tree, and it takes about twenty minutes
+now that there are four package chapters.
 
 GitHub: `github.com/statmodels7/{linkfunctions7,distributions7}`. The repositories were
 transferred from `giovannitinervia9/*` on 2026-07-22; GitHub keeps redirects, so
@@ -100,6 +110,7 @@ Websites, all live and rebuilt by a `pkgdown.yaml` workflow on every push:
 | portal | `statmodels7.github.io` — plain HTML, own repository, deploys from `main` |
 | linkfunctions7 | `statmodels7.github.io/linkfunctions7` — pkgdown, from `gh-pages` |
 | distributions7 | `statmodels7.github.io/distributions7` — pkgdown, from `gh-pages` |
+| optimizers7 | *not yet* — `_pkgdown.yml` and the workflow are written and waiting on the repository |
 
 Predecessors, kept for reference only: `labstatr\distrib` (S3, ~8500 lines) and
 `labstatr\linkfunctions`. `distributions7` is a rewrite of `distrib`, not a port —
@@ -152,6 +163,22 @@ Vignettes need pandoc: `$env:RSTUDIO_PANDOC="C:\Users\giova\AppData\Local\Progra
 - PowerShell here-strings and `-e` scripts with `$`, `^`, backticks get mangled. Write
   R scripts to a file and run the file. `^` is PowerShell's escape character, so
   `git rev-parse 'HEAD^{tree}'` must be run from bash.
+- **`C:\Users\giova\.Rprofile` is a 5-byte BOM-only file**, and every R launched from
+  Git Bash dies on it with `Error: 1:1: unexpected input`. Run R and anything that
+  shells out to R — `quarto render` above all — **from PowerShell**. Quarto reports it
+  as *"Problem with running R ... Please check your installation of R"*, which points
+  nowhere near the cause. Deleting the file would fix it properly; it has not been
+  done because it is in Giovanni's home directory, not the project.
+- **Escapes collapse one level when a script is passed through the shell.** A Python
+  heredoc written with `\\n` arrives as a newline, `\\code` as `\code` (with a
+  SyntaxWarning that is the only clue), and `\\rVert` as a carriage return inside the
+  file. A `sed 's/\\pi/.../g'` loses the backslash and matches bare `pi`, which
+  silently rewrote *piecewise*, *stopping*, *epigraph* and five other words in a book
+  chapter. **Anything containing a backslash goes into a file with the Write tool and
+  is run from there** — the same rule as the PowerShell one above, for the same reason.
+- **Run `Rcpp::compileAttributes()` BEFORE `roxygen2::roxygenise()`** after adding a
+  `.cpp`. Running roxygenise alone dropped `RcppExports.R` from the `Collate` field,
+  and the package then failed to install with *"files ... missing from 'Collate'"*.
 
 ---
 
@@ -376,6 +403,7 @@ and `plot()` on the fit.
 |---|---|
 | `linkfunctions7` | 815 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1512 tests, `R CMD check` OK (2026-07-30, local), CI green |
+| `optimizers7` | 476 tests, `R CMD check` OK with vignettes (2026-07-31, local). **No GitHub repository yet**, so no workflow has ever run and `--as-cran` reports two 404 URLs. Creating `statmodels7/optimizers7` and the first push are Giovanni's to make. |
 
 Both repositories run `R-CMD-check` on macOS, Windows and three Linux/R combinations
 (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix matters for
@@ -654,6 +682,24 @@ exactly 1. What was wrong was everything around them.
   is exactly how this went unnoticed for a while. `linkfunctions7` has a pre-commit hook
   that wants README.Rmd and README.md staged together; it is right to, so satisfy it
   rather than passing `--no-verify`.
+- **Two man pages whose topics differ only in case are ONE FILE on Windows.** A page's
+  name comes from its topic, so roxygen wrote `Adam.Rd` and then `adam.Rd` over it, and
+  seven class pages in `optimizers7` did not exist here while existing on Linux: `?Adam`
+  gave the constructor's page and the built package differed by platform. Nothing
+  complained — `R CMD check` passed throughout. It bit a *second* time during the
+  repair, when roxygen wrote `Adam-class.Rd` and then deleted `Adam.Rd` as obsolete,
+  which on this filesystem is `adam.Rd`.
+  The classes now live at `X-class` with the plain name as an `@aliases`. But the
+  naming is not the fix — a test is: `tests/testthat/test-docs.R` asks *which object in
+  the namespace has no help topic*, which is the question that found it, and asks it on
+  the machine where the evidence is destroyed. A second check catches the collision at
+  its source, where both files can exist. Worth copying into any package whose classes
+  are the CamelCase of their constructors.
+- **`\value` on every exported topic and an executable example on every exported
+  function** are the two commonest reasons a first CRAN submission comes back, and
+  `R CMD check` raises neither locally. In `optimizers7` the six topics missing an
+  example were the abstract classes and the generics — exactly where an example is most
+  useful and least likely to be written.
 
 ### GitHub Actions
 
@@ -726,6 +772,32 @@ exactly 1. What was wrong was everything around them.
   near a kink both are tiny yet differ by a factor of two, which a floor of 1 flattens
   into apparent agreement. Always confirm such a guard has not blunted the check by
   re-injecting a deliberate error (a gradient 5% wrong must still be caught).
+- **Separate what a component PROMISES from how WELL it does it.** `check_optimizer()`
+  runs twelve checks on what an optimiser *reports* — that `value` is the objective at
+  `par`, that `converged` follows the rule and is never inferred from the run ending,
+  that bounds hold strictly — and then a battery of standard problems whose gaps are
+  printed as information, not as pass or fail. Conflating them would have made the
+  function useless: gradient descent does not solve Rosenbrock in 500 iterations and is
+  not broken, it is slow. The separation earned itself immediately. `bundle()` passed
+  every numbered check while diverging on three problems — it did not lie, it merely did
+  not work — and the battery is where that showed. A single verdict would have said
+  either "fine" or "broken" and neither is true.
+- **The validator found two defects the same afternoon it was written**, which is the
+  whole argument for writing one. First, `t0` in the bundle method was read as a bare
+  multiplier, so the first step was as long as the gradient was big — 233 units on
+  Rosenbrock — and the run spent 3000 iterations taking rejected steps. Second, and
+  worse, its stationarity measure was the predicted decrease `-v = t||p||^2 + alpha`,
+  which carries a factor of `t`, and `t` halves at every null step: it could be driven
+  under any tolerance **by the trust parameter shrinking** rather than by the point
+  becoming stationary, reporting `converged = TRUE` after zero serious and zero null
+  steps. General shape: a convergence measure must not contain a quantity the algorithm
+  is free to shrink for reasons of its own.
+- **Writing the documentation is a test of the design.** The `optimizers7` vignette
+  works through a user-written optimiser, and writing it showed that a user *could not*
+  write a conforming one: honouring `bounds` and refusing an unevaluable stopping rule
+  both needed internal functions. The package promised extensibility and did not supply
+  the parts. Three exports later it does. The same vignette also disproved two claims
+  in its own prose — measure the example before describing it.
 
 ---
 
@@ -734,6 +806,27 @@ exactly 1. What was wrong was everything around them.
 - The two logistic integrals above (cosmetic — `approx = "integrate"` already delivers
   them within Monte Carlo noise).
 - Publishing `linkfunctions7` to CRAN, which unblocks `distributions7`.
+- **Creating `github.com/statmodels7/optimizers7` and pushing.** The package is
+  complete and committed locally with three workflows ready, but no repository
+  exists, so nothing has ever run on CI and `--as-cran` reports two 404 URLs.
+- **`bounded_link()` in linkfunctions7 saturates onto its bounds.**
+  `linkinv(bounded_link(0, 1), 37)` is exactly 1 and
+  `linkinv(bounded_link(lwr = 2), -40)` is exactly 2, although both are documented
+  as maps onto the *open* interval; the round trip through `linkfun()` then gives
+  `Inf`, and `distributions7` validates against open intervals so it can be handed
+  a value its own validator rejects. Two causes: `plogis` is exactly 1 above
+  eta = 37, and `exp_floor` (~1.9e-77) was derived for a bound at *zero* — at
+  lwr = 2 it does not bind at all, which is the "spacing of doubles is absolute
+  near a non-zero boundary" note in §7 biting again. `optimizers7` hit this and
+  fixed it in `src/bounded.h` with `clamp_inside()`: clamp to the adjacent
+  representable double, and to the largest finite one where `lwr + exp(eta)`
+  overflows. Both derived, no invented tolerance.
+  Not urgent: `fit_distrib()` on a fully separable Bernoulli stops at eta = 28.4,
+  giving mu = 0.99999999999954, so nothing in the toolkit currently reaches it —
+  the gradient underflows first. It becomes reachable the moment a derivative-free
+  optimiser is pointed at a bounded link, which is exactly what `statmodels7` will
+  do. `check_link()` passes it, being the "test grids sit inside the domain"
+  lesson of §7 for the third time.
 - Next packages: `modelterms7`, `basis7`, `penalties7`.
 - **A censored-likelihood front end.** `distrib_grad_cdf()` supplies the pieces, but
   nothing yet assembles them: a `fit_distrib(..., censored = )` taking a status vector,
@@ -771,9 +864,15 @@ exactly 1. What was wrong was everything around them.
   congruence applied to the inverse, and intervals built on the link scale and mapped
   back), and §3.4 on the numerical fallbacks — the ratio-of-uniforms theorem with its
   proof, the mode recentring, the divergence transform at one edge and at two, the
-  discrete cumulative table, and the two warnings that belong with them. What it still
-  lacks is anything on **censored likelihoods**, which waits on the front end that does
-  not exist yet, and it will need a chapter per package as the others arrive.
+  discrete cumulative table, and the two warnings that belong with them. Chapter 4
+  (added 2026-07-31) covers `optimizers7`: descent directions and what a line search
+  must guarantee, with Zoutendijk's theorem proved; Newton's Hessian repairs and why
+  the eigenvalue floor is what keeps that theorem's angle bound alive; the secant
+  equation and BFGS proved symmetric positive definite; the subdifferential, Fermat's
+  rule, and the bundle subproblem with its dual derived; and the box reparametrisation
+  and Adam. What the book still lacks is anything on **censored likelihoods**, which
+  waits on the front end that does not exist yet, and it will need a chapter per
+  package as the others arrive.
 
 ---
 
@@ -793,7 +892,9 @@ on distributions with a chapter on links attached. Now:
 ```
 Preface / 1 Introduction / 2 The linkfunctions7 package /
 3 The distributions7 package  (3.1 Distributions, 3.2 Transformations,
-                               3.3 Fitting, 3.4 Fallbacks) / A Notation
+                               3.3 Fitting, 3.4 Fallbacks) /
+4 The optimizers7 package     (4.1 Descent, 4.2 Curvature,
+                               4.3 Non-smooth, 4.4 Constraints) / A Notation
 ```
 
 When `modelterms7` and the rest arrive they arrive as chapters, and nothing
@@ -884,6 +985,24 @@ scoring, Newton and BFGS agree on the maximised log-likelihood. Injection-checke
 too: at the optimum the score is 4e-13 per observation against a 1e-4 threshold and
 2e-1 when displaced by 0.05, and the delta-method check is exact against 1e-1 for a
 Jacobian 5% wrong.
+
+`assert_optimizers_ok()` (chapter 4, `book/R/optimizer-certificates.R`) does the
+same for six claims: that an accepted step really satisfies the condition claimed
+for it, that the BFGS update satisfies the secant equation and stays positive
+definite, that the two-loop recursion equals the explicit inverse built from the
+same pairs, that the box transform's chain rule matches a numerical derivative of
+the composed objective, that the aggregate subgradient vanishes at the median
+where an ordinary one has norm 1, and that every method passes `check_optimizer()`.
+Injection-checked: a wrong sign in the printed upper-bound transform, a 5% error
+in the lower one, and a mis-scaled two-loop recursion are all caught.
+
+⚠️ **A gate that compares the package with itself proves nothing.** The bound
+checks originally compared `h'` against a numerical derivative of `h` — both from
+the package, so a wrong *printed* formula would have passed. The chapter's three
+cases are now transcribed by hand into the gate and compared, and that is what
+caught the upper-bounded transform being written `U - exp(-eta)` where the code
+computes `U - exp(eta)`. The same discipline as `link-formulas.R`: the printed
+LaTeX and an independent transcription live in the same record.
 
 The mechanism that makes this cheap: `book/R/link-formulas.R` and
 `distribution-catalogue.R` keep the printed LaTeX and an independent R
