@@ -152,6 +152,14 @@ DENS_XMAX  <- 11
 # way: the amplitude of the zigzag relative to the level set it starts on is
 # 1/sqrt(g+1), so a very ill-conditioned bowl draws a path too flat to read,
 # and the contraction (g-1)/(g+1) = 0.6 leaves enough visible steps to count.
+#
+# Two things about the drawing rather than the mathematics. The mapping is
+# ISOTROPIC -- one number of pixels per unit in both directions -- so the level
+# sets keep their true axis ratio of sqrt(g); the other two glyphs map x and y
+# independently because a density has no aspect ratio to preserve, and this one
+# does. And the whole picture is then rotated as a block, which is a rigid
+# motion and so changes nothing about it: a valley running at an angle fills a
+# hexagon better than one lying flat.
 {
   gam <- 4
   stp <- function(p) {
@@ -162,24 +170,37 @@ DENS_XMAX  <- 11
   pts[1, ] <- c(gam * 0.7, 0.7)
   for (k in 2:nrow(pts)) pts[k, ] <- stp(pts[k - 1, ])
 
-  # Level sets of the same quadratic, which are ellipses of axis ratio sqrt(g).
-  ell <- function(lev, n = 180) {
-    a <- seq(0, 2 * pi, length.out = n)
-    cbind(sqrt(2 * lev) * cos(a), sqrt(2 * lev / gam) * sin(a))
-  }
-  xlim <- c(-3.5, 3.5); ylim <- c(-1.75, 1.75)
-  ebox <- list(x = 140, y = 148, w = 240, h = 176)
-  lev0 <- (pts[1, 1]^2 + gam * pts[1, 2]^2) / 2   # the one the start sits on
+  lev0 <- (pts[1, 1]^2 + gam * pts[1, 2]^2) / 2   # the level the start sits on
+  cx <- W / 2; cy <- 238                          # glyph centre on the canvas
+  sc <- 152 / sqrt(2 * 1.85 * lev0)                      # px per unit, both directions
+  ang <- -25                                      # degrees, anticlockwise
 
-  outer_e <- ell(lev0)
-  mid_e   <- ell(lev0 * 0.30)
+  xy <- function(x, y) paste0(
+    "M ", paste(sprintf("%.2f %.2f", cx + sc * x, cy - sc * y), collapse = " L "))
+
+  # Level sets of the same quadratic: ellipses of axis ratio sqrt(g), at levels
+  # falling geometrically so the spacing reads evenly.
+  ell <- function(lev, n = 220) {
+    a <- seq(0, 2 * pi, length.out = n)
+    xy(sqrt(2 * lev) * cos(a), sqrt(2 * lev / gam) * sin(a))
+  }
+  # The outermost contour is drawn OUTSIDE the level the path starts on, so
+  # the picture reads as a descent into the valley rather than a line leaving it.
+  levs <- lev0 * c(1.85, 1.18, 0.66, 0.33, 0.13)
+  fades <- c(0.28, 0.36, 0.44, 0.52, 0.62)
+
   glyph <- paste0(
-    sprintf('<path d="%s Z" fill="none" stroke="%s" stroke-width="2.5" opacity="0.30"/>\n',
-            curve_path(outer_e[, 1], outer_e[, 2], xlim, ylim, ebox), LINE),
-    sprintf('<path d="%s Z" fill="none" stroke="%s" stroke-width="2.5" opacity="0.55"/>\n',
-            curve_path(mid_e[, 1], mid_e[, 2], xlim, ylim, ebox), FILL),
-    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>\n',
-            curve_path(pts[, 1], pts[, 2], xlim, ylim, ebox), LINE)
+    sprintf('<g transform="rotate(%.1f %.1f %.1f)">\n', ang, cx, cy),
+    paste0(mapply(function(lv, op) sprintf(
+      '<path d="%s Z" fill="none" stroke="%s" stroke-width="2.2" opacity="%.2f"/>\n',
+      ell(lv), LINE, op), levs, fades), collapse = ""),
+    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>\n',
+            xy(pts[, 1], pts[, 2]), LINE),
+    # the minimum the path is converging on: the only mark on any of these
+    # stickers that is a point rather than a curve, and it carries the one thing
+    # the picture is about
+    sprintf('<circle cx="%.1f" cy="%.1f" r="5.5" fill="%s"/>\n', cx, cy, ACCENT),
+    "</g>\n"
   )
   write_logo("logo/optimizers7.svg", glyph, "optimizers")
 }

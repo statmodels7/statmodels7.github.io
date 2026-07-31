@@ -1003,7 +1003,13 @@ exactly 1. What was wrong was everything around them.
   and Barzilai-Borwein as the bottom of a ladder ordered by how much curvature a
   method stores, from p(p+1)/2 down to one number; the subdifferential, Fermat's
   rule, and the bundle subproblem with its dual; and the box
-  reparametrisation and Adam. What the book still lacks is anything on **censored likelihoods**, which
+  reparametrisation and Adam; and 4.5 (added 2026-07-31) on where a run begins --
+  why a constant is only sensible on the unconstrained scale, how the number of
+  parameters is settled, the Latin hypercube, the count of distinct optima as
+  the thing several starts actually measure, and why the parallelism is at the
+  level of processes. Its gate is `assert_starting_ok()`, injection-checked
+  against a printed h(0) wrong by 0.5 and against independent draws replacing
+  the hypercube. What the book still lacks is anything on **censored likelihoods**, which
   waits on the front end that does not exist yet, and it will need a chapter per
   package as the others arrive.
 
@@ -1028,7 +1034,8 @@ Preface / 1 Introduction / 2 The linkfunctions7 package /
 3 The distributions7 package  (3.1 Distributions, 3.2 Transformations,
                                3.3 Fitting, 3.4 Fallbacks) /
 4 The optimizers7 package     (4.1 Descent, 4.2 Curvature, 4.3 Non-smooth,
-                               4.4 Constraints) / A Notation / B References
+                               4.4 Constraints, 4.5 Starting points) /
+A Notation / B References
 ```
 
 When `modelterms7` and the rest arrive they arrive as chapters, and nothing

@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 /* CSS for citations */
 div.csl-bib-body { }
 div.csl-entry {
@@ -251,6 +286,12 @@ window.Quarto = {
   <li><a href="#sec-adam" id="toc-sec-adam" class="nav-link" data-scroll-target="#sec-adam"><span class="header-section-number">4.4.2</span> Adam, and steps that are not descent steps</a></li>
   <li><a href="#sec-optimizers-boundary" id="toc-sec-optimizers-boundary" class="nav-link" data-scroll-target="#sec-optimizers-boundary"><span class="header-section-number">4.4.3</span> What the chapter does not cover</a></li>
   </ul></li>
+  <li><a href="#sec-starting" id="toc-sec-starting" class="nav-link" data-scroll-target="#sec-starting"><span class="header-section-number">4.5</span> Where a run begins, and how many runs there are</a>
+  <ul>
+  <li><a href="#sec-starting-scale" id="toc-sec-starting-scale" class="nav-link" data-scroll-target="#sec-starting-scale"><span class="header-section-number">4.5.1</span> The right scale on which to be simple</a></li>
+  <li><a href="#sec-multistart" id="toc-sec-multistart" class="nav-link" data-scroll-target="#sec-multistart"><span class="header-section-number">4.5.2</span> Several starts, and what they measure</a></li>
+  <li><a href="#sec-multistart-parallel" id="toc-sec-multistart-parallel" class="nav-link" data-scroll-target="#sec-multistart-parallel"><span class="header-section-number">4.5.3</span> Why the parallelism is at the level of processes</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -279,7 +320,8 @@ window.Quarto = {
 <p>The last chapter ended with a maximisation performed by three fixed routines, and with the admission that the user could not supply a fourth. This chapter is about removing that limitation, and about what has to be true of an optimisation routine before it is safe to let anyone plug one in.</p>
 <p>The mathematics divides cleanly, and none of it is new: <span class="citation" data-cites="nocedal2006">Nocedal and Wright (<a href="A2-references.html#ref-nocedal2006" role="doc-biblioref">2006</a>)</span> is the standard modern account of almost everything in this chapter, with <span class="citation" data-cites="dennis1983">Dennis and Schnabel (<a href="A2-references.html#ref-dennis1983" role="doc-biblioref">1983</a>)</span> and <span class="citation" data-cites="bonnans2006">Bonnans et al. (<a href="A2-references.html#ref-bonnans2006" role="doc-biblioref">2006</a>)</span> as the other two books a reader might keep to hand. What follows states the results the implementations rest on and says where each comes from, rather than reproving them. <a href="#sec-descent" class="quarto-xref"><span>Section 4.1</span></a> asks what it means to take a step at all: what makes a direction a descent direction, what a line search along it must guarantee, and why a condition on the objective alone is not enough — the result there, Zoutendijk’s, is the one that turns “each step decreases <span class="math inline">\(f\)</span>” into “the gradient goes to zero”, which is a very different claim. <a href="#sec-curvature" class="quarto-xref"><span>Section 4.2</span></a> then asks how to choose the direction, and takes the methods in order of how much they store. Newton’s uses the exact Hessian and must repair it when it is not positive definite; the quasi-Newton methods refuse to compute one and build an approximation from the gradients they have already seen, which turns out to be determined almost uniquely by two requirements; and below them are methods keeping a few pairs of vectors, then one vector, then a single number. What is worth noticing on the way down is how far one can go before the method stops working, and that the answer is very nearly all the way.</p>
 <p><a href="#sec-nonsmooth" class="quarto-xref"><span>Section 4.3</span></a> is where the picture changes. Everything before it assumes a gradient that becomes small near a solution, and for an objective with a kink in it — a sum of absolute deviations, a Laplace likelihood in its location — that assumption is simply false: the subgradient at the minimiser has norm one. A method built on it does not merely converge slowly, it arrives at the answer and then reports failure. Two repairs are possible, and both are here: abandon derivatives entirely, which costs a great deal and buys a weaker theorem, or keep them and stop asking any single one of them to vanish, which is the bundle method. <span class="citation" data-cites="neldermead1965">Nelder and Mead (<a href="A2-references.html#ref-neldermead1965" role="doc-biblioref">1965</a>)</span> belongs to the first camp and <span class="citation" data-cites="lemarechal1975">Lemaréchal (<a href="A2-references.html#ref-lemarechal1975" role="doc-biblioref">1975</a>)</span> to the second.</p>
-<p><a href="#sec-constraints" class="quarto-xref"><span>Section 4.4</span></a> closes with two things that sit outside the descent framework rather than inside it. Box constraints are removed by a change of variable, so that no algorithm ever learns a constraint was involved; and Adam takes steps that are not descent steps at all, which is the price of tolerating a gradient computed from a handful of observations.</p>
+<p><a href="#sec-constraints" class="quarto-xref"><span>Section 4.4</span></a> turns to two things that sit outside the descent framework rather than inside it. Box constraints are removed by a change of variable, so that no algorithm ever learns a constraint was involved; and Adam takes steps that are not descent steps at all, which is the price of tolerating a gradient computed from a handful of observations.</p>
+<p><a href="#sec-starting" class="quarto-xref"><span>Section 4.5</span></a> closes with the question every run has to answer before it can begin, which is where to start. The natural answer is wrong in a way worth seeing, and the right one turns out to be the change of variable of the section before it; and asking it properly leads to a second question no single run can address, namely how many answers the problem has.</p>
 <section id="sec-descent" class="level2" data-number="4.1">
 <h2 data-number="4.1" class="anchored" data-anchor-id="sec-descent"><span class="header-section-number">4.1</span> Descent, and what a line search must guarantee</h2>
 <p>Take a differentiable <span class="math inline">\(f : \mathbb{R}^{p} \to \mathbb{R}\)</span> to be minimised, and suppose we are standing at a point <span class="math inline">\(x\)</span> where the gradient <span class="math inline">\(g = \nabla f(x)\)</span> is not zero. The whole of this section concerns one iteration: choosing a direction <span class="math inline">\(d\)</span>, choosing how far along it to go, and arriving somewhere better. It sounds like a small question, and the reason it is not is that “somewhere better” can be satisfied infinitely often without ever getting anywhere.</p>
@@ -858,9 +900,66 @@ L_j + (U_j - L_j)\,\dfrac{1}{1 + e^{-\eta_j}}
 <section id="sec-optimizers-boundary" class="level3" data-number="4.4.3">
 <h3 data-number="4.4.3" class="anchored" data-anchor-id="sec-optimizers-boundary"><span class="header-section-number">4.4.3</span> What the chapter does not cover</h3>
 <p>It is worth being explicit about what this chapter does not reach, since the apparatus is capable of a good deal more than it has been asked to do.</p>
-<p>Every method here finds a <strong>local</strong> minimum, and none can tell whether it is the global one. That is a property of local optimisation and not a shortcoming of the implementations; the only general answer is to run from several starting points, and the most valuable thing that produces is not the best point but the count of distinct optima found, which is direct evidence about whether the question has one answer.</p>
+<p>Every method here finds a <strong>local</strong> minimum, and none can tell whether it is the global one. That is a property of local optimisation and not a shortcoming of the implementations, and <a href="#sec-multistart" class="quarto-xref"><span>Section 4.5.2</span></a> says what can be done about it, which is to run from several starting points and read the result for the number of distinct optima rather than for the best point.</p>
 <p>There are no constraints beyond a box. Linear and nonlinear constraints need Lagrange multipliers and an active set, and the reparameterisation trick that serves so well here has nothing to say about them.</p>
 <p>Nor is there anything Bayesian. The toolkit’s stated ambition is that the user should be able to choose a Bayesian treatment in place of a frequentist one, and that is a different object entirely — a sampler rather than an optimiser, whose output is a distribution and not a point. It belongs to the model layer, which is where this book will go next.</p>
+</section>
+</section>
+<section id="sec-starting" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="sec-starting"><span class="header-section-number">4.5</span> Where a run begins, and how many runs there are</h2>
+<p>Everything so far has taken the starting point as given. It is worth a section of its own, partly because the natural choice is wrong in a way that is easy to miss, and partly because the answer to “where should I start?” turns out to be bound up with a rather different question — how many answers the problem has — which no single run can address at all.</p>
+<section id="sec-starting-scale" class="level3" data-number="4.5.1">
+<h3 data-number="4.5.1" class="anchored" data-anchor-id="sec-starting-scale"><span class="header-section-number">4.5.1</span> The right scale on which to be simple</h3>
+<p>Asked for a starting point with nothing else to go on, one writes a vector of zeros. For a model with a scale parameter in it that is not a starting point but a boundary: at <span class="math inline">\(\sigma = 0\)</span> the log-likelihood is usually infinite and its gradient certainly is, and an optimiser handed such a point fails before it has taken a step. The obvious repair, writing ones instead, merely moves the problem, since one is a perfectly good scale and a very poor probability.</p>
+<p>What makes a single constant work for every kind of parameter is the change of variable of <a href="#sec-box" class="quarto-xref"><span>Section 4.4.1</span></a>. On the unconstrained scale there is no boundary to sit on, and the point <span class="math inline">\(\eta = 0\)</span> maps to a sensible interior value of whatever the parameter happens to be:</p>
+<p><span class="math display">\[
+h(0) \ =\
+\begin{cases}
+0 &amp; \text{unbounded,}\\[2pt]
+L + 1 &amp; \text{bounded below by } L,\\[2pt]
+U - 1 &amp; \text{bounded above by } U,\\[2pt]
+(L + U)/2 &amp; \text{bounded on both sides.}
+\end{cases}
+\]</span></p>
+<p>A variance starts at one, a probability at one half, a correlation at zero, and a parameter confined to <span class="math inline">\((2, 5)\)</span> at <span class="math inline">\(3.5\)</span> — from the same instruction each time. The same argument applies to a random start: draw on the unconstrained scale and map back, and the draw cannot be inadmissible however wide the range, whereas a draw made on the parameter scale has to be rejected and redrawn whenever it falls outside the box.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>f <span class="ot">&lt;-</span> <span class="cf">function</span>(p) <span class="fu">sum</span>((p <span class="sc">-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>))<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>optimizers7<span class="sc">::</span><span class="fu">minimize</span>(optimizers7<span class="sc">::</span><span class="fu">bfgs</span>(), f, optimizers7<span class="sc">::</span><span class="fu">start_zeros</span>(<span class="dv">3</span>),</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>                      <span class="at">lower =</span> <span class="dv">0</span>)<span class="sc">@</span>par</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1 2 3</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>optimizers7<span class="sc">::</span><span class="fu">minimize</span>(optimizers7<span class="sc">::</span><span class="fu">bfgs</span>(), f,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>                      optimizers7<span class="sc">::</span><span class="fu">start_runif</span>(<span class="sc">-</span><span class="dv">3</span>, <span class="dv">3</span>, <span class="at">npar =</span> <span class="dv">3</span>),</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>                      <span class="at">lower =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="at">upper =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">5</span>, <span class="dv">5</span>))<span class="sc">@</span>par</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1 2 3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>There is one thing such an object has to be told, which is how many parameters there are, and it is the only genuinely awkward part. It may be said outright; it may be read off bounds given one per parameter; or the objective may be probed, by evaluating it at candidate lengths until one is accepted. The last works when the objective rejects the wrong length, which the objective of a real model does, <code>X %*% beta</code> with a parameter of the wrong length being an error rather than a number. It does not work for a function written in terms of the parameter alone, because R recycles a shorter vector silently whenever its length divides, so <code>sum((p - c(1, 2, 3))^2)</code> is a perfectly finite function of one parameter as well as of three; there the count cannot be inferred and is asked for instead.</p>
+</section>
+<section id="sec-multistart" class="level3" data-number="4.5.2">
+<h3 data-number="4.5.2" class="anchored" data-anchor-id="sec-multistart"><span class="header-section-number">4.5.2</span> Several starts, and what they measure</h3>
+<p>Every method in this chapter finds a local minimum, and none of them can tell whether it is the global one. That is a property of local optimisation rather than a shortcoming of any implementation, and the only general answer is to run from several starting points. Global optimisation has a substantial literature of its own — <span class="citation" data-cites="rinnooykan1987">Rinnooy Kan and Timmer (<a href="A2-references.html#ref-rinnooykan1987" role="doc-biblioref">1987</a>)</span> is the classical treatment of multi-start and of how many local searches are worth doing — but the practical version is short.</p>
+<p>What matters is what the several runs are read for. The best point found is the obvious answer and the least informative one, since a better point may always sit in a basin no start happened to land in. The <strong>number of distinct optima</strong> is the quantity that carries information, because it is evidence about the objective rather than about the optimiser: a run reporting one optimum from twenty starts says the question asked has one answer, which no single convergent run can establish however cleanly it converges.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>tw <span class="ot">&lt;-</span> <span class="cf">function</span>(p) (p[<span class="dv">1</span>]<span class="sc">^</span><span class="dv">2</span> <span class="sc">-</span> <span class="dv">1</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> p[<span class="dv">2</span>]<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> p[<span class="dv">1</span>]</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>r <span class="ot">&lt;-</span> optimizers7<span class="sc">::</span><span class="fu">minimize</span>(</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  optimizers7<span class="sc">::</span><span class="fu">multistart</span>(optimizers7<span class="sc">::</span><span class="fu">bfgs</span>(), <span class="at">n =</span> <span class="dv">12</span>), tw, <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>))</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>r<span class="sc">@</span>message</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "12 starts, 12 succeeded, 12 converged, 2 distinct optima; the best was found 6 times. Best run: gradient obtained by finite differences"</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(<span class="fu">round</span>(r<span class="sc">@</span>trace<span class="sc">$</span>value, <span class="dv">6</span>))</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -0.305428  0.294146 </span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         6         6</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The starts themselves are a <strong>Latin hypercube</strong> rather than independent draws: each coordinate’s range is cut into as many strata as there are starts and each stratum is used exactly once, so no corner of the region can be left empty by chance. The construction is <span class="citation" data-cites="mckay1979">McKay, Beckman, and Conover (<a href="A2-references.html#ref-mckay1979" role="doc-biblioref">1979</a>)</span>, and it is applied on the unconstrained scale for the reason the previous section gave.</p>
+</section>
+<section id="sec-multistart-parallel" class="level3" data-number="4.5.3">
+<h3 data-number="4.5.3" class="anchored" data-anchor-id="sec-multistart-parallel"><span class="header-section-number">4.5.3</span> Why the parallelism is at the level of processes</h3>
+<p>The starts are independent, so they parallelise perfectly, and it is worth saying why they are given separate processes rather than threads. The reason is not the objective but the stopping rule. A criterion in this package is an R object, consulted at every iteration; that is the feature the whole design is arranged around. Every iteration therefore returns to R, and R is single-threaded, so calling it from several threads at once is undefined behaviour that crashes rather than errors. Separate processes have no shared interpreter and no such problem.</p>
+<p>The rest is arranged rather than asked for. A number of processes is chosen — as many as there are starts, and never more than the machine can spare — the workers are created, given the package and an independent random stream, and shut down again, all inside the call. On a Unix-alike they are forks, which cost microseconds and inherit the session entire; Windows has no <code>fork</code>, so a socket cluster is used instead. The user sees a number.</p>
+<p>One property is worth stating because it is easily lost and hard to recover. The starting points are drawn in the calling session, before anything is dispatched, and each worker is seeded from that session’s stream; so <code>set.seed()</code> reproduces the run, and reproduces it identically whether the work was split eight ways or not at all. A scheme that let each worker seed itself would give an answer that depended on how many cores happened to be free, which is not a property one wants in a result that will be reported.</p>
 
 
 <div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
@@ -927,6 +1026,9 @@ Lemaréchal, Claude. 1975. <span>“An Extension of <span>D</span>avidon Methods
 <div id="ref-liu1989" class="csl-entry" role="listitem">
 Liu, Dong C., and Jorge Nocedal. 1989. <span>“On the Limited Memory <span>BFGS</span> Method for Large Scale Optimization.”</span> <em>Mathematical Programming</em> 45: 503–28.
 </div>
+<div id="ref-mckay1979" class="csl-entry" role="listitem">
+McKay, M. D., R. J. Beckman, and W. J. Conover. 1979. <span>“A Comparison of Three Methods for Selecting Values of Input Variables in the Analysis of Output from a Computer Code.”</span> <em>Technometrics</em> 21 (2): 239–45.
+</div>
 <div id="ref-mckinnon1998" class="csl-entry" role="listitem">
 McKinnon, K. I. M. 1998. <span>“Convergence of the <span>N</span>elder–<span>M</span>ead Simplex Method to a Nonstationary Point.”</span> <em>SIAM Journal on Optimization</em> 9 (1): 148–58.
 </div>
@@ -950,6 +1052,9 @@ Raydan, Marcos. 1997. <span>“The <span>B</span>arzilai and <span>B</span>orwei
 </div>
 <div id="ref-reddi2018" class="csl-entry" role="listitem">
 Reddi, Sashank J., Satyen Kale, and Sanjiv Kumar. 2018. <span>“On the Convergence of <span>Adam</span> and Beyond.”</span> In <em>Proceedings of the 6th International Conference on Learning Representations</em>.
+</div>
+<div id="ref-rinnooykan1987" class="csl-entry" role="listitem">
+Rinnooy Kan, A. H. G., and G. T. Timmer. 1987. <span>“Stochastic Global Optimization Methods. Part <span>II</span>: Multi Level Methods.”</span> <em>Mathematical Programming</em> 39 (1): 57–78.
 </div>
 <div id="ref-robbins1951" class="csl-entry" role="listitem">
 Robbins, Herbert, and Sutton Monro. 1951. <span>“A Stochastic Approximation Method.”</span> <em>The Annals of Mathematical Statistics</em> 22 (3): 400–407.

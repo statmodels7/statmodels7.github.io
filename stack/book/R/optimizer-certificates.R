@@ -262,3 +262,81 @@ assert_optimizers_ok <- function() {
   }
   invisible(TRUE)
 }
+
+
+# --- 6. where a run begins ---------------------------------------------------
+#
+# Two claims from @sec-starting, each checked against something other than the
+# route the section itself takes.
+
+.certify_starting <- function() {
+  out <- character()
+
+  # The table of h(0), transcribed by hand from the chapter rather than read
+  # from the package -- the discipline of .certify_bounds(), for the same
+  # reason: comparing the package with itself would prove nothing.
+  printed <- list(
+    list(b = c(-Inf, Inf), h0 = 0),
+    list(b = c(2, Inf),    h0 = 3),        # L + 1
+    list(b = c(-Inf, 5),   h0 = 4),        # U - 1
+    list(b = c(2, 5),      h0 = 3.5)       # (L + U)/2
+  )
+  for (cs in printed) {
+    got <- optimizers7::bounded_transform(cs$b, 0)$h
+    if (abs(got - cs$h0) > 1e-12) {
+      out <- c(out, sprintf(
+        "h(0) on (%s, %s): the chapter prints %s, the package computes %s",
+        format(cs$b[1]), format(cs$b[2]), format(cs$h0), format(got)))
+    }
+  }
+
+  # A zero start really does arrive on the parameter scale where the table says,
+  # which is the claim the section makes about minimize() rather than about the
+  # transform. Read off the first point the objective is handed.
+  seen <- NULL
+  probe <- function(p) { if (is.null(seen)) seen <<- p; sum((p - 1)^2) }
+  optimizers7::minimize(optimizers7::gd(maxit = 1), probe,
+                        optimizers7::start_zeros(4),
+                        lower = c(-Inf, 2, -Inf, 2), upper = c(Inf, Inf, 5, 5))
+  want <- c(0, 3, 4, 3.5)
+  if (is.null(seen) || max(abs(seen - want)) > 1e-10) {
+    out <- c(out, paste("a zero start does not land where the table says:",
+                        paste(format(seen), collapse = ", ")))
+  }
+
+  # The Latin hypercube: with n starts, n - 1 are random and each coordinate
+  # must use each of the n - 1 strata exactly once. Recovered from the starting
+  # points themselves, on the unconstrained scale they were drawn on.
+  set.seed(4)
+  n <- 12
+  par0 <- c(0.4, 2, -1)
+  S <- optimizers7:::make_starts(par0, n, spread = 1, bounds = list())
+  m <- n - 1L
+  for (j in seq_along(par0)) {
+    eta0 <- par0[j]
+    half <- 3 * max(1, abs(eta0))
+    u <- (S[-1L, j] - (eta0 - half)) / (2 * half)
+    if (!setequal(sort(floor(u * m)), 0:(m - 1))) {
+      out <- c(out, sprintf(
+        "coordinate %d of the hypercube does not use each stratum once", j))
+    }
+  }
+
+  # And the user's own start is kept, which the section says without saying.
+  if (max(abs(S[1L, ] - par0)) > 0) {
+    out <- c(out, "the caller's own starting point is not the first start")
+  }
+
+  out
+}
+
+
+assert_starting_ok <- function() {
+  problems <- tryCatch(.certify_starting(), error = function(e)
+    paste("starting: error --", conditionMessage(e)))
+  if (length(problems)) {
+    stop("Section 4.5 consistency gate failed:\n  ",
+         paste(problems, collapse = "\n  "), call. = FALSE)
+  }
+  invisible(TRUE)
+}
