@@ -137,6 +137,53 @@ DENS_XMAX  <- 11
   write_logo("logo/distributions7.svg", glyph, "distributions")
 }
 
+# --- optimizers7: steepest descent zigzagging down a valley ---------------
+#
+# The zigzag is not drawn freehand. It is steepest descent with an EXACT line
+# search on f(x, y) = (x^2 + g y^2)/2, started at the worst point there is,
+# (g t, t), for which the whole path can be written down: each step multiplies
+# the iterate by (g-1)/(g+1) and flips the sign of y. That is the classic
+# picture of why steepest descent is poor -- consecutive directions come out
+# orthogonal, so the iterate crosses the floor of the valley instead of
+# travelling along it -- and it is the reason cg() exists, so the glyph is the
+# real thing rather than something zigzag-shaped.
+#
+# g = 4 rather than something more dramatic, for two reasons that pull the same
+# way: the amplitude of the zigzag relative to the level set it starts on is
+# 1/sqrt(g+1), so a very ill-conditioned bowl draws a path too flat to read,
+# and the contraction (g-1)/(g+1) = 0.6 leaves enough visible steps to count.
+{
+  gam <- 4
+  stp <- function(p) {
+    g <- c(p[1], gam * p[2])
+    p - g * sum(g^2) / (g[1]^2 + gam * (gam * p[2])^2)
+  }
+  pts <- matrix(NA_real_, 6, 2)
+  pts[1, ] <- c(gam * 0.7, 0.7)
+  for (k in 2:nrow(pts)) pts[k, ] <- stp(pts[k - 1, ])
+
+  # Level sets of the same quadratic, which are ellipses of axis ratio sqrt(g).
+  ell <- function(lev, n = 180) {
+    a <- seq(0, 2 * pi, length.out = n)
+    cbind(sqrt(2 * lev) * cos(a), sqrt(2 * lev / gam) * sin(a))
+  }
+  xlim <- c(-3.5, 3.5); ylim <- c(-1.75, 1.75)
+  ebox <- list(x = 140, y = 148, w = 240, h = 176)
+  lev0 <- (pts[1, 1]^2 + gam * pts[1, 2]^2) / 2   # the one the start sits on
+
+  outer_e <- ell(lev0)
+  mid_e   <- ell(lev0 * 0.30)
+  glyph <- paste0(
+    sprintf('<path d="%s Z" fill="none" stroke="%s" stroke-width="2.5" opacity="0.30"/>\n',
+            curve_path(outer_e[, 1], outer_e[, 2], xlim, ylim, ebox), LINE),
+    sprintf('<path d="%s Z" fill="none" stroke="%s" stroke-width="2.5" opacity="0.55"/>\n',
+            curve_path(mid_e[, 1], mid_e[, 2], xlim, ylim, ebox), FILL),
+    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>\n',
+            curve_path(pts[, 1], pts[, 2], xlim, ylim, ebox), LINE)
+  )
+  write_logo("logo/optimizers7.svg", glyph, "optimizers")
+}
+
 # --- statmodels7: the umbrella, both curves layered -----------------------
 {
   eta <- seq(-6, 6, length.out = 200)
@@ -162,7 +209,7 @@ for (f in list.files("logo", pattern = "[.]svg$", full.names = TRUE)) cat("  ", 
 
 # --- rasterise into each package's man/figures ---------------------------
 if (requireNamespace("magick", quietly = TRUE)) {
-  for (p in c("linkfunctions7", "distributions7")) {
+  for (p in c("linkfunctions7", "distributions7", "optimizers7")) {
     src <- file.path("logo", paste0(p, ".svg"))
     dst_dir <- file.path(p, "man", "figures")
     dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)
