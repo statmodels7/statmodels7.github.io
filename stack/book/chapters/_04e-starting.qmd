@@ -1,0 +1,137 @@
+## Where a run begins, and how many runs there are {#sec-starting}
+
+```{r}
+#| label: setup-04e
+#| include: false
+source("R/_setup.R")
+source("R/optimizer-certificates.R")
+```
+
+Everything so far has taken the starting point as given. It is worth a section of
+its own, partly because the natural choice is wrong in a way that is easy to miss,
+and partly because the answer to "where should I start?" turns out to be bound up
+with a rather different question — how many answers the problem has — which no
+single run can address at all.
+
+### The right scale on which to be simple {#sec-starting-scale}
+
+Asked for a starting point with nothing else to go on, one writes a vector of
+zeros. For a model with a scale parameter in it that is not a starting point but
+a boundary: at $\sigma = 0$ the log-likelihood is usually infinite and its
+gradient certainly is, and an optimiser handed such a point fails before it has
+taken a step. The obvious repair, writing ones instead, merely moves the problem,
+since one is a perfectly good scale and a very poor probability.
+
+What makes a single constant work for every kind of parameter is the change of
+variable of @sec-box. On the unconstrained scale there is no boundary to sit on,
+and the point $\eta = 0$ maps to a sensible interior value of whatever the
+parameter happens to be:
+
+$$
+h(0) \ =\
+\begin{cases}
+0 & \text{unbounded,}\\[2pt]
+L + 1 & \text{bounded below by } L,\\[2pt]
+U - 1 & \text{bounded above by } U,\\[2pt]
+(L + U)/2 & \text{bounded on both sides.}
+\end{cases}
+$$
+
+A variance starts at one, a probability at one half, a correlation at zero, and a
+parameter confined to $(2, 5)$ at $3.5$ — from the same instruction each time.
+The same argument applies to a random start: draw on the unconstrained scale and
+map back, and the draw cannot be inadmissible however wide the range, whereas a
+draw made on the parameter scale has to be rejected and redrawn whenever it falls
+outside the box.
+
+```{r}
+#| label: starters
+f <- function(p) sum((p - c(1, 2, 3))^2)
+
+optimizers7::minimize(optimizers7::bfgs(), f, optimizers7::start_zeros(3),
+                      lower = 0)@par
+
+set.seed(1)
+optimizers7::minimize(optimizers7::bfgs(), f,
+                      optimizers7::start_runif(-3, 3, npar = 3),
+                      lower = c(0, 0, 0), upper = c(5, 5, 5))@par
+```
+
+There is one thing such an object has to be told, which is how many parameters
+there are, and it is the only genuinely awkward part. It may be said outright; it
+may be read off bounds given one per parameter; or the objective may be probed,
+by evaluating it at candidate lengths until one is accepted. The last works when
+the objective rejects the wrong length, which the objective of a real model does,
+`X %*% beta` with a parameter of the wrong length being an error rather than a
+number. It does not work for a function written in terms of the parameter alone,
+because R recycles a shorter vector silently whenever its length divides, so
+`sum((p - c(1, 2, 3))^2)` is a perfectly finite function of one parameter as well
+as of three; there the count cannot be inferred and is asked for instead.
+
+### Several starts, and what they measure {#sec-multistart}
+
+Every method in this chapter finds a local minimum, and none of them can tell
+whether it is the global one. That is a property of local optimisation rather
+than a shortcoming of any implementation, and the only general answer is to run
+from several starting points. Global optimisation has a substantial literature of
+its own — @rinnooykan1987 is the classical treatment of multi-start and of how
+many local searches are worth doing — but the practical version is short.
+
+What matters is what the several runs are read for. The best point found is the
+obvious answer and the least informative one, since a better point may always sit
+in a basin no start happened to land in. The **number of distinct optima** is the
+quantity that carries information, because it is evidence about the objective
+rather than about the optimiser: a run reporting one optimum from twenty starts
+says the question asked has one answer, which no single convergent run can
+establish however cleanly it converges.
+
+```{r}
+#| label: multistart
+tw <- function(p) (p[1]^2 - 1)^2 + p[2]^2 + 0.3 * p[1]
+set.seed(1)
+r <- optimizers7::minimize(
+  optimizers7::multistart(optimizers7::bfgs(), n = 12), tw, c(0, 0))
+r@message
+table(round(r@trace$value, 6))
+```
+
+The starts themselves are a **Latin hypercube** rather than independent draws:
+each coordinate's range is cut into as many strata as there are starts and each
+stratum is used exactly once, so no corner of the region can be left empty by
+chance. The construction is @mckay1979, and it is applied on the unconstrained
+scale for the reason the previous section gave.
+
+### Why the parallelism is at the level of processes {#sec-multistart-parallel}
+
+The starts are independent, so they parallelise perfectly, and it is worth saying
+why they are given separate processes rather than threads. The reason is not the
+objective but the stopping rule. A criterion in this package is an R object,
+consulted at every iteration; that is the feature the whole design is arranged
+around. Every iteration therefore returns to R, and R is single-threaded, so
+calling it from several threads at once is undefined behaviour that crashes
+rather than errors. Separate processes have no shared interpreter and no such
+problem.
+
+The rest is arranged rather than asked for. A number of processes is chosen —
+as many as there are starts, and never more than the machine can spare — the
+workers are created, given the package and an independent random stream, and shut
+down again, all inside the call. On a Unix-alike they are forks, which cost
+microseconds and inherit the session entire; Windows has no `fork`, so a socket
+cluster is used instead. The user sees a number.
+
+One property is worth stating because it is easily lost and hard to recover. The
+starting points are drawn in the calling session, before anything is dispatched,
+and each worker is seeded from that session's stream; so `set.seed()` reproduces
+the run, and reproduces it identically whether the work was split eight ways or
+not at all. A scheme that let each worker seed itself would give an answer that
+depended on how many cores happened to be free, which is not a property one wants
+in a result that will be reported.
+
+```{r}
+#| label: consistency-starting
+#| include: false
+# Internal consistency gate for this section: fails the render if the printed
+# values of h(0) are not the ones the package computes, or if a Latin hypercube
+# leaves a stratum empty.
+assert_starting_ok()
+```
