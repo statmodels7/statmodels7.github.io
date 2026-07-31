@@ -1,4 +1,4 @@
-## Constraints, and steps that are not descent {#sec-constraints}
+## Box constraints and stochastic steps {#sec-constraints}
 
 ```{r}
 #| label: setup-04d
@@ -21,7 +21,9 @@ tested for admissibility, a step that overshoots must be shortened rather than
 taken, and near an endpoint the objective may be unbounded or undefined.
 
 The toolkit's answer is the one it gives everywhere: do not enforce the
-constraint, remove it. Each bounded coordinate is reparameterised by a
+constraint, remove it. The alternative, which is to keep the box and work with
+an active set, is what @byrd1995 does, and it is the right choice when an
+optimum genuinely lies on a bound; the trade is discussed below. Each bounded coordinate is reparameterised by a
 diffeomorphism $h_j : \mathbb{R} \to (L_j, U_j)$,
 
 $$\theta_j \ =\ h_j(\eta_j) \ =\
@@ -62,7 +64,7 @@ which is @sec-link-scale's congruence with one extra diagonal term, and every
 algorithm in this chapter receives it without ever learning a box was involved.
 
 ::: {.callout-note}
-## The limitation, which is structural
+## What the reparameterisation cannot do
 
 An optimum lying **on** a bound cannot be reached, because getting there needs
 $\eta$ to run to infinity. The optimiser marches off, improves by less and less,
@@ -113,11 +115,11 @@ knitr::kable(
 Every method reaches the same estimate, and none of them contains a line of code
 about constraints.
 
-### Steps that go uphill {#sec-adam}
+### Adam, and steps that are not descent steps {#sec-adam}
 
 The last method in the chapter breaks the rule the first section established.
-Adam takes no line search and makes no attempt to decrease $f$ at every step,
-and both omissions are deliberate.
+Adam, introduced by @kingma2015, takes no line search and makes no attempt to
+decrease $f$ at every step, and both omissions are deliberate.
 
 Its state is two exponentially weighted averages, of the gradient and of its
 square, both taken coordinatewise:
@@ -168,7 +170,8 @@ $$f(x) = \sum_{i=1}^{n} f_i(x),$$
 the gradient of a randomly drawn subset is, up to a factor of $n/m$, an unbiased
 estimate of the gradient of the whole. Evaluating it costs a fraction of the
 full one, so a great many cheap noisy steps can be taken for the price of a few
-exact ones, and Adam is the method built to make that trade.
+exact ones, and Adam is the method built to make that trade. @bottou2018 is the
+account of stochastic optimisation that places it in context.
 
 ::: {.callout-note}
 ## Where the subsample is drawn, and why not here
@@ -203,14 +206,15 @@ detect on their behalf.
 
 Two safeguards deserve mention because they answer real failures rather than
 imagined ones. The learning rate may be reduced as $\alpha_t = \alpha / (1 +
-\delta t)$, which is the Robbins–Monro condition a noisy run needs in order to
-settle at the optimum rather than orbit it at a radius set by $\alpha$; and $v_t$
-may be replaced by its running maximum, which forbids the second moment from
-shrinking and letting a single large gradient dominate the iterate long after it
-has passed. The second is not cosmetic: without it there is a *convex* problem
-on which Adam as published fails to converge.
+\delta t)$, which is the condition of @robbins1951 that a noisy run needs in
+order to settle at the optimum rather than orbit it at a radius set by $\alpha$;
+and $v_t$ may be replaced by its running maximum, which forbids the second moment
+from shrinking and letting a single large gradient dominate the iterate long
+after it has passed. The second is not cosmetic: @reddi2018 exhibits a *convex*
+problem on which Adam as published fails to converge, and this is their
+repair.
 
-### Where the chapter ends {#sec-optimizers-boundary}
+### What the chapter does not cover {#sec-optimizers-boundary}
 
 It is worth being explicit about what this chapter does not reach, since the
 apparatus is capable of a good deal more than it has been asked to do.

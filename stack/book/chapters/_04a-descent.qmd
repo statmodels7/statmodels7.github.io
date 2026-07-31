@@ -57,7 +57,7 @@ direction is not $-Bg$ for any matrix it holds, so nothing guarantees the
 inequality in advance; it is therefore tested outright at each step, and the
 direction replaced by $-g$ when it fails.
 
-### Why "the objective decreased" is not enough {#sec-descent-armijo}
+### Why a decrease in the objective is not enough {#sec-descent-armijo}
 
 Having a descent direction, we must choose a step length $s > 0$. The naive
 rule — accept $s$ if $f(x + sd) < f(x)$ — is not sufficient, and the reason is
@@ -81,7 +81,7 @@ the slope promised**. Along $d$ the model predicts a decrease of
 $-s\, g^\top d$ per unit of nothing; asking for a fixed fraction of it gives:
 
 ::: {#def-armijo}
-## Armijo, or sufficient decrease
+## Sufficient decrease
 
 For $c_1 \in (0, 1)$, a step length $s$ satisfies the Armijo condition when
 
@@ -99,7 +99,8 @@ $$\frac{f(x + sd) - f(x)}{s} \longrightarrow g^\top d < c_1 g^\top d
 the inequality holding because $c_1 < 1$ and $g^\top d$ is negative, so (A)
 holds for all sufficiently small $s$. That is what licenses **backtracking**:
 start from a trial length, and if (A) fails, shrink and try again. The procedure
-terminates, and the package's `armijo()` is exactly this.
+terminates, and the package's `armijo()` is exactly this. The condition is due
+to @armijo1966.
 
 What backtracking does not address is the second failure, steps that are too
 short. Nothing in (A) forbids a sequence of ever-tinier accepted steps. To rule
@@ -129,15 +130,16 @@ $s$ grows, either $f$ eventually violates (A), and at the first such $s$ a
 mean-value argument produces a point where both hold, or $f$ decreases for ever
 and the problem is unbounded.
 
-The strong form (W$'$) additionally forbids the slope from becoming largely
-positive, which keeps the accepted point nearer a local minimum of $s \mapsto
+Both forms are @wolfe1969, and @morethuente1994 gives the algorithm that has
+become the standard way to find a step satisfying them. The strong form (W$'$)
+additionally forbids the slope from becoming largely positive, which keeps the accepted point nearer a local minimum of $s \mapsto
 f(x + sd)$. It costs nothing extra, since a search that can test (W) has already
 evaluated the gradient there, and the package's `wolfe()` implements it by the
 usual two-phase procedure: **bracket** an interval known to contain an
 acceptable point by expanding until (A) fails or the slope turns positive, then
 **zoom** into it by interpolation until both conditions hold.
 
-### The theorem that makes it worth the trouble {#sec-descent-zoutendijk}
+### What the Wolfe conditions buy {#sec-descent-zoutendijk}
 
 The point of the Wolfe conditions is not tidiness. They buy a convergence
 statement that sufficient decrease alone cannot.
@@ -155,23 +157,13 @@ $$\sum_{k \ge 0} \cos^{2}\!\theta_k \, \lVert g_k \rVert^{2} < \infty,
 \cos\theta_k = \frac{-g_k^\top d_k}{\lVert g_k \rVert\, \lVert d_k \rVert}.$$
 :::
 
-::: {.proof}
-From (W), $(g_{k+1} - g_k)^\top d_k \ge (c_2 - 1) g_k^\top d_k$, and Lipschitz
-continuity of the gradient with constant $L$ gives
-$(g_{k+1} - g_k)^\top d_k \le L s_k \lVert d_k \rVert^{2}$. Combining,
-
-$$s_k \ge \frac{c_2 - 1}{L} \cdot \frac{g_k^\top d_k}{\lVert d_k \rVert^{2}},$$
-
-which is positive because $c_2 < 1$ and $g_k^\top d_k < 0$. Substituting this
-lower bound on $s_k$ into (A),
-
-$$f_{k+1} \le f_k - \frac{c_1 (1 - c_2)}{L}
-  \frac{(g_k^\top d_k)^{2}}{\lVert d_k \rVert^{2}}
-= f_k - \frac{c_1 (1 - c_2)}{L} \cos^{2}\!\theta_k \lVert g_k \rVert^{2}.$$
-
-Summing over $k$ and using that $f$ is bounded below makes the total decrease
-finite, which is the claim.
-:::
+The argument, which is @zoutendijk1970 and is given in full in @nocedal2006, is
+short and entirely mechanical: the curvature condition (W) bounds the step
+length from below, Lipschitz continuity of the gradient bounds it from above,
+and substituting the lower bound into the sufficient-decrease condition (A)
+turns each iteration's decrease into a multiple of
+$\cos^{2}\!\theta_k \lVert g_k \rVert^{2}$. Summing those decreases against an
+objective that is bounded below leaves a finite total, which is the claim.
 
 The consequence is the one to remember. A convergent series has terms tending to
 zero, so $\cos^{2}\theta_k \lVert g_k \rVert^{2} \to 0$; hence **if the

@@ -1,4 +1,4 @@
-## Where the derivative fails {#sec-nonsmooth}
+## Objectives that are not differentiable {#sec-nonsmooth}
 
 ```{r}
 #| label: setup-04c
@@ -42,8 +42,10 @@ at $x$ and lies below it everywhere, so the subdifferential collects every
 supporting hyperplane at that point. Where $f$ is differentiable there is
 exactly one, $\partial f(x) = \{\nabla f(x)\}$; at a kink there are many.
 
-The optimality condition generalises exactly as one would hope, and the proof is
-one line from the definition.
+The optimality condition generalises exactly as one would hope, and it is one
+line from the definition: putting $v = 0$ into @def-subdifferential turns the
+subgradient inequality into $f(z) \ge f(x)$ for every $z$, which is minimality
+itself, read in either direction.
 
 ::: {#prp-fermat}
 ## Fermat's rule
@@ -52,11 +54,9 @@ A convex $f$ attains its minimum at $x^{\star}$ if and only if
 $0 \in \partial f(x^{\star})$.
 :::
 
-::: {.proof}
-Take $v = 0$ in @def-subdifferential: the inequality reads $f(z) \ge
-f(x^{\star})$ for all $z$, which is exactly minimality. Conversely, minimality
-gives that inequality, which is the statement that $0$ is a subgradient.
-:::
+The subdifferential, Fermat's rule and everything else this section rests on are
+developed in @rockafellar1970 and, in the form closest to the algorithms here,
+in @hiriarturruty1993.
 
 Now apply this to the absolute-deviation objective. Away from the data
 $f'(\mu) = \#\{y_i < \mu\} - \#\{y_i > \mu\}$, and at $\mu = y_{(k)}$ the
@@ -104,7 +104,7 @@ The table is the argument. Both methods reach the same point, to the last digit
 printed; a subgradient there has size one for both; and one of them reports
 success. The difference is not in the arithmetic but in what is being tested.
 
-### Cutting planes, and the model that represents a kink {#sec-cutting}
+### Cutting planes {#sec-cutting}
 
 Since no single subgradient vanishes, the repair is to stop asking one to. The
 bundle method keeps a collection of them, from points already visited, and works
@@ -142,7 +142,7 @@ is the **linearisation error**, measuring how badly plane $j$ misses the current
 point. It is non-negative by @def-subdifferential, and it is what makes an old
 plane, collected far away, count for less than a recent one.
 
-### The dual, and the quantity that does vanish {#sec-bundle-dual}
+### The dual problem and the stopping quantity {#sec-bundle-dual}
 
 Problem (P) is a quadratic programme in $d$ with a piecewise-linear term, and it
 is solved through its dual, which is small and has a pleasant feasible set.
@@ -164,24 +164,14 @@ $$v \ =\ -\Bigl( t \lVert V\lambda^{\star} \rVert^{2}
                  + \alpha^\top \lambda^{\star} \Bigr) \ \le\ 0 .$$
 :::
 
-::: {.proof}
-Write (P) with an epigraph variable $u$: minimise $u + \lVert d
-\rVert^{2}/(2t)$ subject to $-\alpha_j + v_j^\top d \le u$ for each $j$. The
-Lagrangian is
-
-$$L(d, u, \lambda) = u + \frac{1}{2t}\lVert d \rVert^{2}
-  + \sum_j \lambda_j \bigl( -\alpha_j + v_j^\top d - u \bigr), \qquad \lambda \ge 0 .$$
-
-Stationarity in $u$ gives $\sum_j \lambda_j = 1$, which is where the simplex
-comes from; stationarity in $d$ gives $d = -t \sum_j \lambda_j v_j = -t V\lambda$.
-Substituting both back,
-
-$$L = -\frac{t}{2} \lVert V\lambda \rVert^{2} - \alpha^\top \lambda,$$
-
-and maximising this over $\lambda \in \Delta_k$ is the stated minimisation.
-Strong duality holds, the problem being convex with a strictly feasible point,
-so the optimal value of (P) equals that of the dual, which is the displayed $v$.
-:::
+The route to the dual is the usual one. Writing (P) with an epigraph variable
+$u$, so that the objective becomes $u + \lVert d \rVert^{2}/(2t)$ subject to
+$-\alpha_j + v_j^\top d \le u$, stationarity of the Lagrangian in $u$ forces
+$\sum_j \lambda_j = 1$, which is where the simplex comes from, and stationarity
+in $d$ gives $d = -t V\lambda$. Substituting both back leaves the stated
+minimisation over $\Delta_k$, and strong duality holds because the problem is
+convex with a strictly feasible point. The construction is @lemarechal1975 and
+@kiwiel1990; @bonnans2006 gives it in the form used here.
 
 Write $\bar{v} = V\lambda^{\star}$ for the **aggregate subgradient** and
 $\bar\alpha = \alpha^\top \lambda^{\star}$ for the aggregate error. The aggregate
@@ -198,7 +188,7 @@ $0 \in \partial f(\hat{x})$ in @prp-fermat. **That** is the quantity to test, an
 it is the one `crit_stationary()` reads.
 
 ::: {.callout-important}
-## Why the predicted decrease is the wrong thing to test
+## Why the predicted decrease is not what the stopping rule tests
 
 It is tempting to stop on $-v$ instead, the value from @thm-bundle-dual, since it
 also vanishes at a solution and has the appealing reading of "how much better the
@@ -235,13 +225,14 @@ which summarises everything the discarded planes contributed. Simply deleting th
 loses that information and can stall the method; keeping the aggregate is what
 makes a bounded bundle safe.
 
-### The alternative: no derivatives at all {#sec-direct-search}
+### Methods that use no derivatives at all {#sec-direct-search}
 
 There is a second repair, which is to stop using derivatives. It costs a great
 deal and buys a weaker guarantee, but it asks nothing of the objective beyond a
 number, which is sometimes all there is.
 
-The idea with a theorem behind it is the **positive spanning set**.
+The idea with a theorem behind it is the **positive spanning set**, and the
+theory around it is collected in @conn2009 and surveyed in @kolda2003.
 
 ::: {#def-spanning}
 ## Positive spanning set
@@ -263,10 +254,10 @@ $2p$ signed coordinate axes, which positively span the space.
 For a merely Lipschitz $f$ the argument breaks, and instructively. A kink whose
 ridge runs diagonally is descended by no coordinate direction: the poll fails at
 a point that is not stationary, the radius shrinks, and the run stops there. The
-repair, which is the idea behind mesh adaptive direct search, is to let the set
-of directions used over the whole run become dense in the sphere, so that no
-descent direction can be missed for ever; drawing a fresh random orthonormal
-basis at each poll achieves it with probability one.
+repair, which is the idea behind the mesh adaptive direct search of @audet2006,
+is to let the set of directions used over the whole run become dense in the
+sphere, so that no descent direction can be missed for ever; drawing a fresh
+random orthonormal basis at each poll achieves it with probability one.
 
 ```{r}
 #| label: diagonal-kink
@@ -315,9 +306,10 @@ method — because a simplex is not a poll. It has no fixed centre and no fixed 
 of offsets: it deforms, and what it deforms into, on a problem whose descent
 direction lies along a ridge, is a long thin simplex aligned with that ridge.
 The adaptation is exactly what the fixed pattern lacks. What it lacks in turn is
-any theorem, since @sec-nonsmooth's positive-spanning argument does not apply to
-it and McKinnon's counterexample shows it can converge to a point that is not a
-minimiser at all; and it needs 343 evaluations to get there.
+any theorem, since the positive-spanning argument does not apply to it and the
+counterexample of @mckinnon1998 shows it can converge to a point that is not a
+minimiser at all — @lagarias1998 is what can be proved, and it covers one and two
+dimensions only. It also needs 343 evaluations to get there.
 
 The last row is the one to build on. The bundle method arrives, with a theorem,
 in a seventh of the evaluations — because it is the only method in the table that
