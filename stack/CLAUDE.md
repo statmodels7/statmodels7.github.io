@@ -59,7 +59,7 @@ followed by 7*, which happens to spell `...s7` — `linkfunction**s7**`,
 |---|---|
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
 | `distributions7` | 14 distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE |
-| `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, and box bounds removed by reparametrisation |
+| `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
 
 **Planned** — `modelterms7`, `basis7`, `penalties7`, and eventually the `statmodels7`
 package itself, which assembles everything into models. That last one is the destination:
@@ -418,7 +418,7 @@ and `plot()` on the fit.
 |---|---|
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1512 tests, `R CMD check` OK (2026-07-30, local), CI green |
-| `optimizers7` | 545 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
+| `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 
 All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
 combinations (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix
@@ -751,6 +751,31 @@ exactly 1. What was wrong was everything around them.
   because it cannot read the keywords of a file it cannot read. One malformed
   page, two error messages, neither naming the cause.
 
+### Keeping the three packages in step
+
+- **Compare the packages against each other, file by file, from time to time.**
+  `git ls-files | grep -v '^R/\|^man/\|^src/\|^tests/'` in each and diff the
+  lists: it takes a minute and on 2026-07-31 it found that `optimizers7` had no
+  `.Rproj`, no logo, no favicons, and — the one that mattered — none of the
+  `check_pkgdown()` test that `linkfunctions7` carries. **That test had been
+  failing in CI for two pushes**, for one line of missing YAML, while
+  `R-CMD-check` and coverage stayed green on all five platforms; a red job that
+  is always the same red job stops being read. A habit that lives in one package
+  out of three is not a habit, so when a guard is added anywhere, add it
+  everywhere the same afternoon.
+- **`git mv` does not happen by itself on Windows.** Seven `man/*.Rd` were
+  tracked as `Adam.Rd`, `Bfgs.Rd`, `MultiStart.Rd`… while existing on disk in
+  lower case: the `X-class` repair renamed them here, the filesystem could not
+  tell the difference, and git kept the old names, so the Linux checkout and
+  this one differed by exactly those seven files. Nothing complained, because R
+  reads the topic from `\name{}` inside the file and not from the file name.
+  The check is `comm -23` of `git ls-files man` against `ls man`, and the fix is
+  `git mv -f`.
+- **Favicons do not need `pkgdown::build_favicons()`**, which posts the logo to
+  an external service. Four PNGs, an `.ico`, the SVG and a copied
+  `site.webmanifest` are seven lines of `magick`, and the result is what pkgdown
+  looks for.
+
 ### GitHub Actions
 
 - **A workflow added in a push does not run on that push** -- in an EXISTING
@@ -922,6 +947,18 @@ exactly 1. What was wrong was everything around them.
   it. General lesson: a policy chosen on one problem is a policy chosen on one
   problem — the boxed case disagreed with Rosenbrock about all three constants.
 - Next packages: `modelterms7`, `basis7`, `penalties7`.
+- **`infer_npar()` cannot decide for a vectorised objective, and that is
+  arithmetic rather than a gap.** `start_zeros()` with no `npar` and no bounds
+  probes the objective, and both plausible guesses about R are wrong: recycling
+  warns only when the shorter length is not a **divisor** of the longer, so
+  `sum((p - c(1,2,3))^2)` accepts a length-one vector *in silence* and returns a
+  perfectly finite 14; and its gradient `2*(p - c(1,2,3))` returns six
+  components for a length-six argument, so requiring `length(gr(x)) ==
+  length(x)` passes it too. What decides is an objective with a fixed width
+  built in — `X %*% beta` of the wrong length is an error — which is every real
+  model and no toy. So `statmodels7`, which always knows `npar`, will never meet
+  this; a user at the console with a toy objective will, and is told to say
+  `npar` rather than being guessed at.
 - **A censored-likelihood front end.** `distrib_grad_cdf()` supplies the pieces, but
   nothing yet assembles them: a `fit_distrib(..., censored = )` taking a status vector,
   or a `Surv()`-like object. That is the step that turns the capability into a feature.
