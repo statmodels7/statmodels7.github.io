@@ -409,12 +409,21 @@ covariance form, and the mixed block between the mean and the matrix
 parameters is (dOmega/deta_k)(y-mu) against two solves.
 
 One refusal belongs at that boundary and is recorded here so the future
-mvgaussian does not rediscover it: a RANK-DEFICIENT precision is a legitimate
-PENALTY -- an improper prior, the intrinsic GMRF, the whole of section 3(g) --
-and NOT a legitimate DENSITY, since the normalising constant does not exist
-and the law is supported on a subspace. covstructs7 accepts such a structure;
-mvgaussian_distrib() must refuse one, and the rank the object already carries
-is what lets it.
+mvgaussian does not rediscover it, together with the symmetry that is easy to
+get wrong. BOTH forms require FULL RANK, for two different reasons that land
+in the same place: a singular Sigma gives a degenerate law supported on a
+subspace, with no density with respect to Lebesgue measure, while a singular
+Omega gives exp(-x' Omega x / 2) flat along the null space, which does not
+normalise -- the intrinsic GMRF, improper by construction. So the set of
+structures a multivariate gaussian may take is the same on either side, and
+it is NOT the case that the precision form is the permissive one.
+
+That a rank-deficient structure is improper is exactly what makes it a
+legitimate PENALTY and not a legitimate DENSITY. covstructs7 accepts it --
+section 3(g) is built for it -- penalties7 consumes it, and both forms of
+mvgaussian_distrib() must refuse it. The rank the object already carries is
+what lets the refusal happen in the constructor rather than at the first
+chol().
 
 That constructor is NOT part of this plan. distributions7's theta contract
 is "a list of scalars (or vectors along y)", and every piece of its
