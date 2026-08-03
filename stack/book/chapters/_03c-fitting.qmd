@@ -60,21 +60,28 @@ log-likelihood is the sum of the individual contributions.
 
 ### Fisher scoring {#sec-fit-scoring}
 
-The three optimisers offered by `fit_distrib()` share one structure:
-approximate the log-likelihood near the current point by a quadratic and step
-to the maximum of that quadratic. Writing $I$ for the matrix that plays the
-role of the negative curvature, the update is
+The optimisation itself is not written here. `fit_distrib()` assembles the
+objective, the score and the information on the link scale and hands them to
+`optimizers7`, whose methods are the subject of @sec-optimizers7. What this
+section describes is the choice of matrix to invert, which belongs to the
+likelihood rather than to the algorithm.
+
+The three named strategies share one structure: approximate the
+log-likelihood near the current point by a quadratic and step to the maximum
+of that quadratic. Writing $I$ for the matrix that plays the role of the
+negative curvature, the update is
 
 $$\eta^{(t+1)} = \eta^{(t)} + I^{-1} U\big(\eta^{(t)}\big),$$
 
 and the methods differ only in the choice of $I$. **Newton–Raphson** uses the
 observed information $-H(\eta)$; **Fisher scoring** uses the expected
 information $-\mathbb{E}[H(\eta)]$; **BFGS** uses neither, and builds an
-approximation from successive gradients. The first two are treated together in
-@green1984, whose presentation of scoring as iteratively reweighted least
-squares is the one on which @mccullagh1989 builds the generalized linear
-model; @nocedal2006 is the reference for the third, and @sec-optimizers7
-treats all of them in detail.
+approximation from successive gradients. The first two are the same algorithm
+of @sec-newton with a different second-order argument, so Fisher scoring
+requires no separate implementation. They are treated together in @green1984,
+whose presentation of scoring as iteratively reweighted least squares is the
+one on which @mccullagh1989 builds the generalized linear model, while
+@nocedal2006 is the reference for the third.
 
 The default is Fisher scoring, for a reason supplied by @cor-congruence. On
 the link scale the expected information is
@@ -84,16 +91,18 @@ $$\mathbb{E}[I_\eta] = \operatorname{diag}(h')\,\mathbb{E}[I_\theta]\,\operatorn
 a congruence transform, and a congruence transform of a positive definite
 matrix is positive definite. If the model is identified on the parameter
 scale, the matrix Fisher scoring inverts is therefore positive definite on the
-link scale as well, and the step it computes is guaranteed to be an ascent
-direction. The observed Hessian carries no such guarantee: away from the
-optimum, $-H$ can fail to be positive definite, and the Newton step can then
-point downhill. This comparison concerns the behaviour of the iterations, not
-the quality of the estimators; at the optimum the two informations agree in
-expectation.
+link scale as well, and the step it computes is an ascent direction without
+any repair. The observed Hessian carries no such guarantee: away from the
+optimum, $-H$ can fail to be positive definite, and the raw Newton step can
+then point downhill, which is why @sec-newton floors the eigenvalues of the
+matrix it inverts. This comparison concerns the behaviour of the iterations,
+not the quality of the estimators; at the optimum the two informations agree
+in expectation.
 
 An ascent direction fixes only the direction, so the step length is chosen by
-halving: the candidate $\eta + s\,\Delta$ is tried with $s = 1$, and $s$ is
-halved until the log-likelihood does not decrease. Because the direction is an
+the line search of @sec-descent-armijo: the candidate $\eta + s\,\Delta$ is tried
+with $s = 1$ and $s$ is reduced until the decrease in the objective is a fixed
+fraction of the one the linear model predicts. Because the direction is an
 ascent direction, a sufficiently small $s$ always succeeds, so the iteration
 increases the log-likelihood at every step, and a step that would enter a
 region where the density overflows is simply not taken.
@@ -107,7 +116,10 @@ $$\max_j \lvert U_j \rvert < \texttt{tol}
 
 The second criterion is measured relative to the magnitude of the
 log-likelihood, because an absolute threshold has entirely different meanings
-for a sample of ten and for a sample of ten million.
+for a sample of ten and for a sample of ten million. The two conditions are
+the stopping rules `crit_grad()` and `crit_rel_obj()` of @sec-optimizers7,
+combined with `crit_any()`, so the rule is an object the caller can replace
+rather than a comparison written inside the iteration.
 
 ::: {.callout-note}
 ## Fitting a non-regular model
@@ -141,6 +153,11 @@ objective, and a slow answer is preferable to none.
 Only when every start has failed by every route does `fit_distrib()` stop, and
 it then reports the failure and asks for a starting value instead of returning
 an unusable result.
+
+The fallback belongs to the two named second-order strategies. An optimiser
+supplied explicitly is used as given and is never replaced, since substituting
+a different algorithm for the one the caller chose would report a fit obtained
+by a method other than the one requested.
 
 ### The delta method and confidence intervals {#sec-fit-delta}
 
@@ -208,6 +225,26 @@ fit@eta                 # the estimates on the link scale
 fit@ci                  # intervals on the parameter scale
 ```
 
+Because the optimisation is delegated rather than written in, `method` accepts
+any optimiser of @sec-optimizers7 in place of one of the three named
+strategies, and the object carries its own stopping rule with it:
+
+```{r}
+#| label: fit-optimizer
+library(optimizers7)
+
+fits <- list(
+  fisher = fit_distrib(d, y),
+  lbfgs  = fit_distrib(d, y, method = lbfgs(criterion = crit_grad(1e-12))),
+  nelder = fit_distrib(d, y, method = nelder_mead(maxit = 5000))
+)
+vapply(fits, function(f) as.numeric(logLik(f)), numeric(1))
+vapply(fits, function(f) f@method, character(1))
+```
+
+The three agree on the maximised log-likelihood, which is the statement that
+matters: the algorithm decides how the optimum is reached, not where it is.
+
 The relation between the two variance matrices is the diagonal Jacobian
 congruence of @sec-fit-delta, and it can be verified directly:
 
@@ -259,10 +296,7 @@ derivatives a censored likelihood needs. Assembling them requires a status
 vector alongside the response and an interface for stating which observations
 are censored and how — a front end that does not yet exist.
 
-Finally, the optimisers are the three described above, and `fit_distrib()`
-does not accept a fourth. Removing that restriction is the subject of
-@sec-optimizers7, which develops optimisation as a layer of its own. The
-further goal of allowing a Bayesian treatment in place of maximum likelihood
+The remaining goal, a Bayesian treatment in place of maximum likelihood,
 belongs to the model layer.
 
 ```{r}
