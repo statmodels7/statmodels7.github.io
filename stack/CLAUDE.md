@@ -472,7 +472,7 @@ it. This was found by writing the test for the new feature, not by using it.
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1538 tests, `R CMD check` OK (2026-08-03, local), CI green |
 | `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
-| `basis7` | 681 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
+| `basis7` | 682 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
 All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
 combinations (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix
@@ -698,6 +698,24 @@ exactly 1. What was wrong was everything around them.
   a rewrite by pinning it to the expression it replaces over the range where that one
   still works — agreement to 2e-16 there, plus finiteness beyond, is a much stronger
   statement than agreement with `numDeriv` alone.
+- **`chol()` is not a rank test** (2026-08-03). `basis7` asked whether a Gram
+  matrix or a penalty was usable by calling `chol()` and treating the error as
+  the answer. On a matrix with an *exactly* zero eigenvalue the pivot that
+  should be zero comes out positive or negative according to rounding, so the
+  same matrix was accepted here and refused on the CI: `orthonorm_basis()` and
+  `dr_basis()` disagreed with themselves across machines. The verdict now comes
+  from `min(ev) <= tol * max(ev)` on the eigenvalues, which is a statement about
+  the matrix rather than about the arithmetic, and the eigendecomposition is
+  free next to what both callers already do (`chol_pd()` in
+  `R/transformed_basis.R`). Anywhere a `tryCatch(chol(...))` decides a branch,
+  the same doubt applies.
+  How it surfaced is the second half of the lesson, and it is the **second**
+  time in this toolkit that **only the coverage job** saw a defect while
+  `R CMD check` stayed green on all five platforms — the first was the S7
+  identity comparison above. The two have nothing in common mechanically, so
+  the rule is not about `covr`: a green R-CMD-check matrix does not clear a
+  change whose outcome depends on floating-point luck, because five platforms
+  agreeing is five draws from the same coin. Read a red coverage job.
 
 ### Random number generation
 
