@@ -3,6 +3,9 @@
           basis expansions as S7 objects, with exact derivatives,
                     integrals and Gram matrices
                         drafted 2026-08-03
+        revised the same day: multivariate bases moved INTO basis7
+       (classic tensor products + the factorized evaluation of
+        Ruegamer, AISTATS 2024) -- see sections 3b, 6g and phase 3
 ================================================================================
 
 Written in English like every other artifact of the toolkit (CLAUDE.md, the
@@ -57,10 +60,16 @@ What basis7 is NOT:
     to modelterms7, where mgcv also puts it. Consequence: no `intercept`
     argument anywhere (see 6b).
 
-  - It is not multivariate, in v1. Tensor-product bases are a wrapper (a
-    Kronecker product of everything, including the Gram matrices) and the
-    design does not preclude them; they wait for modelterms7 to say what shape
-    it wants. See section 9.
+  - Multivariate bases ARE in scope, and they live HERE (Giovanni,
+    2026-08-03, explicit -- reversing this plan's first draft, which parked
+    them behind modelterms7). The construction of a D-variate basis is basis
+    mathematics: the classic tensor product, its partial derivatives, its
+    separable Gram matrices, and the contracted evaluation that never
+    materializes the Kronecker product. What stays upstream is only what
+    involves model PARAMETERS: the factorized-coefficient predictor of
+    Ruegamer (2024) keeps its latent factors in modelterms7, its
+    df-calibrated smoothing in penalties7, and its optimiser in optimizers7
+    (which already ships adam()). See section 3b.
 
 
 --------------------------------------------------------------------------------
@@ -187,6 +196,94 @@ missingness explicitly.
 
 
 --------------------------------------------------------------------------------
+3b. MULTIVARIATE BASES AND TENSOR PRODUCTS
+--------------------------------------------------------------------------------
+
+Decided 2026-08-03: multivariate construction belongs to basis7. The reference
+for the efficient path is Ruegamer, "Scalable Higher-Order Tensor Product
+Spline Models", AISTATS 2024 (source in ../articoli/, local copy only -- a
+copyrighted paper does NOT go into any public repository).
+
+3b.1 The classic tensor product, exact and explicit.
+
+    tensor_basis(b1, b2, ...)  -->  TensorBasis
+
+A wrapper over a list of D marginal bases. The domain becomes the box
+[lower_1, upper_1] x ... x [lower_D, upper_D]; `dimension` is prod(K_j);
+evaluation points are an n x D matrix. The generics extend by making the
+derivative order a MULTI-INDEX:
+
+    basis_eval(b, X)                       row-wise Kronecker of the marginal
+                                           evaluations, n x prod(K_j)
+    basis_deriv(b, X, order = c(d1..dD))   product of marginal derivatives
+    basis_int(b, X)                        the mixed antiderivative from the
+                                           lower corner; separability makes it
+                                           the row-wise Kronecker of the
+                                           marginal basis_int columns, and it
+                                           is zero on the corner by the same
+                                           convention as the univariate case
+    basis_gram(b, order = c(d1..dD))       SEPARABLE: G = kron_j G_j^(d_j),
+                                           exact whenever the marginals are
+
+Column order follows base R kronecker() -- rightmost marginal fastest -- and
+column names are the dot-joined marginal names ("bs2.sin1"), fixed once,
+because modelterms7 will build coefficient names from them. check_basis()
+extends with a separability check: the tensor Gram against the Kronecker of
+independently computed marginal Grams.
+
+The Kronecker-SUM penalty (lambda_1 P_1 (+) lambda_2 P_2, and Wood's
+G-weighted variants) is deliberately NOT built here: which combination a term
+is shrunk by is penalty semantics. basis7 supplies the marginal Grams;
+penalties7 assembles them.
+
+The explicit tensor is the right tool for D = 2 or 3 with moderate M, which
+is where almost all applied smooths live. Its costs are the honest ones:
+O(n prod K_j) to materialize, O(prod K_j) coefficients.
+
+3b.2 The contracted evaluation -- the Ruegamer path.
+
+The scaling problem of tensor products is not the basis, it is materializing
+the Kronecker product and carrying prod(K_j) coefficients. The paper's
+observation, transplanted to this layer: everything a fit needs can be
+computed from the MARGINAL evaluations alone, at O(n sum K_j) memory, if the
+evaluation is contracted against the coefficients instead of being formed and
+then multiplied.
+
+    basis_contract(b, X, coef)
+
+with `coef` in one of two shapes:
+
+  - a full array of dim c(K_1, ..., K_D): the contraction runs by mode
+    products, cost O(n prod K_j) time but never forms the n x prod(K_j)
+    matrix, so memory stays O(n sum K_j) plus the coefficient array;
+
+  - a CP (rank-F) factor list, Gamma_j of dim K_j x F: the term value is
+    sum_f prod_j (B_j(x_j)' Gamma_j[, f]), cost O(n F sum K_j) time AND
+    memory. This is one D-variate term of the paper's additive factorization
+    machine, exactly; the marginal matrices Phi_j = basis_eval(b_j, x_j) %*%
+    Gamma_j are what modelterms7's factorized term will ask for.
+
+What deliberately stays OUT of basis7, with its destination:
+
+  - the latent factors Gamma and their estimation      -> modelterms7 (a
+    factorized tensor term is a term: it owns parameters);
+  - the FM identity and the ANOVA-kernel recursion
+    Phi^(d) = (1/d) sum_t (-1)^(t+1) Phi^(d-t) sum_j phi_j^t, which sum one
+    factorized term across SUBSETS of features          -> modelterms7 (that
+    is formula structure, not basis mathematics);
+  - the df <-> lambda map by Demmler-Reinsch that makes one smoothing level
+    comparable across terms                             -> penalties7 (record
+    this in its plan when drafted; the ingredients are the marginal B'B and
+    P_j, both available here and there);
+  - the optimiser                                       -> optimizers7, which
+    already ships adam(); the paper fits with Adam and minibatch objectives
+    are one-line closures there by design.
+
+The pipeline of the paper therefore maps one-to-one onto the toolkit's
+layers, which is worth noticing: it is the first external method whose whole
+architecture decomposes into the four packages without remainder.
+
+--------------------------------------------------------------------------------
 4. THE FALLBACK BARGAIN
 --------------------------------------------------------------------------------
 
@@ -281,7 +378,15 @@ satisfied by weakening the other:
     [lower, upper], not raw monomials -- raw powers are numerically the worst
     choice and orthogonality makes the Gram diagonal), orthonorm_basis() as
     the wrapper. v1.1, when modelterms7 fixes their shape: truncated-power
-    and step bases for seg()/jump(). Radial/thin-plate: later, with tensors.
+    and step bases for seg()/jump(). Radial/thin-plate: later.
+
+6g. Multivariate bases live in basis7 (Giovanni, 2026-08-03): tensor_basis()
+    as the explicit classic construction, plus basis_contract() so the
+    Kronecker product need never be materialized -- full-array and CP
+    (rank-F) coefficient shapes, after Ruegamer (AISTATS 2024). The latent
+    factors, the across-features FM recursion, the df-calibrated smoothing
+    and the optimiser stay in modelterms7 / penalties7 / optimizers7
+    respectively; section 3b records the split.
 
 
 --------------------------------------------------------------------------------
@@ -333,34 +438,55 @@ Phase 2 -- inner products.
     machine precision, via the exact route and the quadrature route
     independently.
 
-Phase 3 -- the book chapter.
+Phase 3 -- multivariate.
+    tensor_basis() over arbitrary marginals: multi-index basis_deriv, the
+    corner-anchored basis_int, the separable basis_gram; then
+    basis_contract() with full-array and CP coefficient shapes.
+    Exit tests: (i) the tensor Gram equals the Kronecker of independently
+    computed marginal Grams; (ii) basis_contract on a full array equals
+    basis_eval %*% vec(coef) on a problem small enough to materialize, and
+    never allocates the n x prod(K_j) matrix on one too large to (checked by
+    memory profiling, not by trust); (iii) the CP contraction at rank
+    F = prod(K_j) reproduces the full-array value.
+
+Phase 4 -- the book chapter.
     "The basis7 package", one .qmd pulling _-prefixed sections: what a basis
     expansion is; B-splines and their local support; the phase-shift Fourier
     derivatives; inner products and the Gram matrix; orthonormalisation as a
-    congruence. Hidden gate assert_bases_ok() in book/R/basis-certificates.R:
-    printed formulas transcribed independently and compared (the
-    link-formulas.R discipline -- a gate that compares the package with
-    itself proves nothing), injection-checked before first render. Portal
-    card flips from "planned"; sync-stack-files.sh carries the new chapter.
+    congruence; tensor products, separability, and the contracted evaluation
+    with its costs stated. Hidden gate assert_bases_ok() in
+    book/R/basis-certificates.R: printed formulas transcribed independently
+    and compared (the link-formulas.R discipline -- a gate that compares the
+    package with itself proves nothing), injection-checked before first
+    render. Portal card flips from "planned"; sync-stack-files.sh carries
+    the new chapter.
 
-Phase 4 -- handoff.
-    penalties7 gets basis_gram (and the weighted form); modelterms7 gets
-    complete bases plus whatever constraint tooling it defines. Neither is
-    designed here beyond the interfaces already fixed in section 3.
+Phase 5 -- handoff.
+    penalties7 gets the marginal Grams, the Kronecker-sum assembly and the
+    Demmler-Reinsch df <-> lambda map (section 3b); modelterms7 gets complete
+    bases, basis_contract, and whatever constraint tooling it defines.
+    Neither is designed here beyond the interfaces already fixed in
+    sections 3 and 3b.
 
 
 --------------------------------------------------------------------------------
 9. OPEN, DELIBERATELY
 --------------------------------------------------------------------------------
 
-  - Extrapolation outside [lower, upper] (error in v1; the model layer will
+  - Extrapolation outside the domain (error in v1; the model layer will
     say whether it wants linear continuation, and for which bases).
-  - Tensor-product bases (a wrapper: Kronecker of designs and Grams; waits
-    for modelterms7).
   - The weighted-Gram interface basis_gram(basis, w) (ships when penalties7
     consumes it; the mathematics is section 1(g)).
   - Truncated-power and step bases for seg()/jump() (v1.1, shape decided by
     modelterms7).
   - Natural cubic splines (splines2::naturalSpline slots straight into the
     BsplineBasis pattern; add when a consumer asks).
+  - A sparse basis_eval for B-splines (each row has degree + 1 nonzeros; the
+    Matrix package makes the design n x K sparse, and the GLMM experiment of
+    2026-08-03 already showed sparse cluster designs paying off). Decide
+    when modelterms7 fixes its design-matrix type; do not pre-build both.
+  - Whether basis_contract should also accept a Tucker-format coefficient
+    (core tensor plus factor matrices) alongside full and CP. CP is what the
+    factorized model needs and full is what small terms need; Tucker waits
+    for a consumer.
 ================================================================================

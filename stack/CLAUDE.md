@@ -92,6 +92,12 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
     book\            the Quarto book (see §9); `quarto render` from inside it
     logo\            hex logos: make-logos.R draws them, run from this directory
     site\            the portal, its own repository (statmodels7.github.io)
+    articoli\        papers Giovanni drops in as design input (LaTeX sources).
+                     LOCAL ONLY — copyrighted material, never committed to any
+                     public repository. First entry: Rügamer, "Scalable
+                     Higher-Order Tensor Product Spline Models", AISTATS 2024,
+                     the factorized tensor-basis reference for piano_basis7 §3b
+    piano_*.txt      package plans, drafted before code; carried in site/stack/
 ```
 
 `book/` is versioned through `site/` (source under `stack/book/`, rendered HTML
