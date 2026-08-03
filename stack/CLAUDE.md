@@ -740,6 +740,20 @@ exactly 1. What was wrong was everything around them.
   free next to what both callers already do (`chol_pd()` in
   `R/transformed_basis.R`). Anywhere a `tryCatch(chol(...))` decides a branch,
   the same doubt applies.
+  A **second instance of the same shape**, found while planning `covstructs7`
+  (2026-08-03): counting eigenvalues above a relative tolerance is not a rank
+  test either. On a tensor-product penalty `l1*P1 + l2*P2` of true rank 28 out
+  of 32, the count reads 28 at `l1 == l2`, 26 at a ratio of 1e8 and **16** at
+  1e12 -- the small contributions sink below the tolerance and are read as
+  zeros -- while the null-space residual `max|M N| / max|M|` never moves off
+  3e-16 across the whole range. Smoothing parameters twelve orders of
+  magnitude apart are an ordinary fitted model, not a pathology. So a rank
+  comes from the **stacked, individually normalised components** (the null
+  space of a sum of PSD matrices is the intersection of the null spaces) and
+  membership is tested through the stored null basis, never by counting
+  eigenvalues of the assembled matrix. General form of both instances: a
+  membership question is about the matrix, not about whichever arithmetic was
+  performed on it.
   How it surfaced is the second half of the lesson, and it is the **second**
   time in this toolkit that **only the coverage job** saw a defect while
   `R CMD check` stayed green on all five platforms — the first was the S7
