@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>statmodels7 — an S7 toolkit for statistical modelling</title>
-<meta name="description" content="Distributions and link functions as reusable S7 objects, carrying every derivative up to fourth order in closed form. The pieces every R modelling package rebuilds from scratch, written once.">
+<meta name="description" content="Distributions, link functions and optimisers as reusable S7 objects, carrying every derivative up to fourth order in closed form. The components every R modelling package rewrites internally, written once.">
 <link rel="icon" href="logo/statmodels7.svg" type="image/svg+xml">
 <style>
   :root {
@@ -93,8 +93,8 @@
     <img src="logo/statmodels7.svg" alt="statmodels7">
     <div>
       <h1>statmodels7</h1>
-      <p>The pieces every statistical modelling package rebuilds from scratch,
-         written once as objects you can actually reuse — carrying every
+      <p>The components every statistical modelling package rewrites
+         internally, written once as reusable objects that carry every
          derivative up to fourth order, exactly.</p>
     </div>
   </div>
@@ -104,42 +104,40 @@
 
   <section>
     <h2>The problem</h2>
-    <p>Open almost any R package that fits statistical models and you will find
-       the same things written again: a handful of distributions, a handful of
-       link functions. Not as objects — as internal helper functions, a
-       <code>switch</code> on a character string, a list of closures private to
-       the package that owns them.</p>
-    <p>So they cannot be reused. You cannot hand a link function to another
-       package, ask a distribution for its third derivative, or add a new one
-       without editing somebody else's source. And because each package writes
-       only what it happens to need, what you get is almost always the density
-       and the score, sometimes the Hessian, and nothing beyond.</p>
-    <p><b>Why should a Gamma be re-implemented in every package that uses one?</b>
-       These are fixed mathematical objects. They can be written once, correctly,
-       with everything a modelling routine could want already computed — and then
-       everybody builds on top.</p>
-    <p>The same is true of the optimiser. Almost every package that fits a model
-       carries its own, written inside the function that needs it: a loop, a
-       <code>while (!converged)</code>, a tolerance compared against whatever
-       quantity the author had to hand. The stopping rule — which decides what
-       the whole thing means by <em>finished</em> — ends up a number nobody
-       outside can see, let alone change.</p>
+    <p>Almost every R package that fits statistical models contains its own
+       private copy of the same components: a handful of distributions and a
+       handful of link functions. They are written not as objects but as
+       internal helper functions, a <code>switch</code> on a character string,
+       a list of closures private to the package that owns them.</p>
+    <p>Written that way, they cannot be reused. A link function cannot be
+       handed to another package, a distribution cannot be asked for its third
+       derivative, and adding a new one means editing somebody else's source.
+       Because each package writes only what it needs, what is available is
+       almost always the density and the score, sometimes the Hessian, and
+       nothing beyond.</p>
+    <p>A Gamma is a fixed mathematical object. It can be written once,
+       correctly, with everything a modelling routine could want already
+       computed, and every package can then build on the same implementation.
+       That is what this toolkit provides.</p>
+    <p>The same argument applies to the optimiser. Almost every package that
+       fits a model carries its own, written inside the function that needs it:
+       a loop, a <code>while (!converged)</code>, a tolerance compared against
+       whatever quantity the author had to hand. The stopping rule, which
+       decides what the whole procedure means by <em>finished</em>, ends up as
+       a number that nothing outside the package can read or change.</p>
   </section>
 
   <section>
     <h2>The book</h2>
-    <p>Infrastructure is only worth building on if it can be checked, so the
-       mathematics behind the toolkit is written out in
+    <p>The mathematics behind the toolkit is written out in
        <a href="https://statmodels7.github.io/book/"><b>The statmodels7
-       Framework</b></a> — a book, generated from the same source tree as the
-       packages, in which every formula the code implements is derived from the
-       definitions with the intermediate steps left in: the link functions and
-       their derivatives to fourth order, the likelihood theory, the Bartlett
-       identities, the change of scale, and the operations that build new
-       distributions from old ones — and, in the chapter on
-       <code>optimizers7</code>, Zoutendijk's theorem, the BFGS update proved
-       symmetric positive definite, and the bundle subproblem's dual derived
-       from its Lagrangian.</p>
+       Framework</b></a>, a book generated from the same source tree as the
+       packages. It presents every formula the code implements: the link
+       functions and their derivatives to fourth order, the likelihood theory
+       and the Bartlett identities, the change of scale, and the operations
+       that build new distributions from existing ones. The chapter on
+       optimisation covers the methods themselves, from the Wolfe conditions
+       and Zoutendijk's theorem to the BFGS update and the bundle method.</p>
   </section>
 
   <section>
@@ -148,9 +146,9 @@
 
       <a class="card" href="https://statmodels7.github.io/linkfunctions7">
         <h3>linkfunctions<span>7</span></h3>
-        <p>A link is an object, not a string. Fourteen of them, each carrying
-           exact derivatives to fourth order in both directions, and a
-           diagnostic that proves them right.</p>
+        <p>Sixteen link classes, each carrying exact derivatives to fourth
+           order in both directions, with numerical fallbacks for user-defined
+           links and a diagnostic that verifies every order.</p>
       </a>
 
       <a class="card" href="https://statmodels7.github.io/distributions7">
@@ -162,10 +160,10 @@
 
       <a class="card" href="https://statmodels7.github.io/optimizers7">
         <h3>optimizers<span>7</span></h3>
-        <p>Eleven algorithms as objects, and a stopping rule that is an object
-           too — so what a run means by <em>finished</em> is something you set,
-           not something buried three levels down. Box constraints are removed
-           by reparameterisation rather than enforced.</p>
+        <p>Eleven algorithms as objects, with the stopping rule an object as
+           well, chosen and combined by the caller instead of buried in the
+           loop. Box constraints are removed by reparameterisation rather than
+           enforced.</p>
       </a>
 
       <div class="card planned">
@@ -189,27 +187,26 @@
       <div class="card planned">
         <h3>statmodels<span>7</span><span class="tag">planned</span></h3>
         <p>The package that assembles the others into models: every parameter
-           modelled, not just the mean; optimisers you choose; frequentist or
-           Bayesian.</p>
+           modelled rather than just the mean, pluggable optimisers, and
+           frequentist or Bayesian estimation.</p>
       </div>
 
     </div>
   </section>
 
   <section>
-    <h2>What you get that you usually don't</h2>
-    <p>The derivatives are the point. A modelling routine wants the score to
-       take a step, the information for standard errors, and the third and
-       fourth derivatives for higher-order corrections, bias adjustment or
-       saddlepoint work. Those higher orders are almost never available, so they
-       get approximated by differencing, or the method that needs them does not
-       get written.</p>
-    <p>Here they are computed in closed form, in C++, for every distribution —
-       and not only with respect to the parameters. Also with respect to the
-       response, and with respect to the <em>unconstrained</em> parameters behind
-       each link, which is the scale an optimiser actually works on. Where a
-       closed form genuinely does not exist, what replaces it is a documented
-       approximation, not a silence.</p>
+    <h2>The derivatives</h2>
+    <p>A modelling routine needs the score to take a step, the information for
+       standard errors, and the third and fourth derivatives for higher-order
+       corrections, bias adjustment or saddlepoint approximations. The higher
+       orders are almost never available in existing packages, so they are
+       approximated by differencing, or the method that needs them is not
+       written at all.</p>
+    <p>Here they are computed in closed form, in C++, for every distribution,
+       with respect to the parameters, to the response, and to the
+       <em>unconstrained</em> parameters behind each link, which is the scale
+       an optimiser works on. Where a closed form does not exist, a documented
+       numerical approximation takes its place.</p>
 <pre><span class="c"># everything below is exact, none of it is a finite difference</span>
 d &lt;- gamma_distrib()
 distrib_gradient(d, y, theta)                   <span class="c"># score</span>
@@ -220,19 +217,20 @@ distrib_gradient(d, y, theta, scale = "link")   <span class="c"># w.r.t. eta</sp
 
   <section>
     <h2>Built to be extended</h2>
-    <p>A toolkit that only works for the fourteen distributions it ships with
-       would have solved nothing. Everything dispatches on S7 generics, so your
-       own distribution is a subclass and one method — <b>the density</b>. The
-       distribution function, the quantile function, the sampler and every
-       derivative then follow from numerical fallbacks, and each one you later
-       derive in closed form silently takes over.</p>
+    <p>A toolkit that only worked for the fourteen distributions it ships with
+       would have solved nothing. Everything dispatches on S7 generics, so a
+       user-defined distribution is a subclass with one method, <b>the
+       density</b>. The distribution function, the quantile function, the
+       sampler and every derivative then follow from numerical fallbacks, and
+       each closed form derived later takes over as soon as it is registered
+       as a method.</p>
     <p>The same holds for link functions, and will hold for model terms, bases
-       and penalties as those arrive. If you write a component, it works with
-       everything already here — and everything already here works with yours.</p>
-    <p><code>check_distrib()</code> and <code>check_link()</code> exist for that
-       reason: they put your component through the same numerical validation the
-       shipped ones face, so a derivative you got wrong is caught before it
-       reaches a model.</p>
+       and penalties as those arrive. A user-written component works with
+       everything already here, and everything already here works with it.</p>
+    <p><code>check_distrib()</code> and <code>check_link()</code> exist for
+       that reason: they put a user-written component through the same
+       numerical validation the shipped ones face, so a wrong derivative is
+       caught before it reaches a model.</p>
   </section>
 
   <section>
@@ -242,8 +240,8 @@ distrib_gradient(d, y, theta, scale = "link")   <span class="c"># w.r.t. eta</sp
           system, and the plural of what it provides.</li>
       <li>Derivatives are exact and analytical wherever a closed form exists,
           and numerically validated where one does not.</li>
-      <li>Nothing is private. What the packages use internally is exported,
-          documented and available to you.</li>
+      <li>Nothing is private. What the packages use internally is exported
+          and documented.</li>
     </ul>
   </section>
 
