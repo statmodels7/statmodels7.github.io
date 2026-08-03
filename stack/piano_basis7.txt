@@ -561,13 +561,28 @@ Two things had to be decided in the writing.
     caught; the Demmler-Reinsch checks were also confirmed non-vacuous by
     asking them of an orthonormalised basis, which fails them by 0.08 and 132.
 
-The chapter found one defect in the package, and the way it was found is the
-point: the numerical derivative printed with its rows labelled "c" and "f"
-next to a closed form that printed "[1,]" and "[2,]". vapply had named the
-stencil offsets after the character vector recording which stencil each point
-uses, and those names travelled through the evaluation points into the row
-names of whatever the basis returned. Only a user-defined basis could reach
-it. Fixed in 0.3.1 with a regression test.
+The chapter found two defects in the package, and how each was found is the
+point.
+
+The first came from reading the rendered output: the numerical derivative
+printed with its rows labelled "c" and "f" next to a closed form that printed
+"[1,]" and "[2,]". vapply had named the stencil offsets after the character
+vector recording which stencil each point uses, and those names travelled
+through the evaluation points into the row names of whatever the basis
+returned. Only a user-defined basis could reach it.
+
+The second came from the coverage job, which failed while R-CMD-check stayed
+green on all five platforms. orthonorm_basis() and dr_basis() asked chol()
+whether a matrix was usable and read the error as the answer; on a matrix with
+an exactly zero eigenvalue the pivot that should be zero comes out positive or
+negative according to rounding, so the same matrix was accepted here and
+refused there. chol_pd() now decides from the eigenvalues. The test that
+exposed it was itself asserting the wrong thing -- a constant-only constraint
+with the default second-derivative penalty leaves the linear direction neither
+penalised nor identified, which dr_basis() is supposed to refuse -- so it now
+asserts the refusal and is paired with the well-posed first-derivative case.
+
+Both fixed in 0.3.1 with regression tests.
 
 --------------------------------------------------------------------------------
 6. DECISIONS
