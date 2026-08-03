@@ -7,23 +7,25 @@ source("R/_setup.R")
 source("R/optimizer-certificates.R")
 ```
 
-Two things remain, and neither belongs inside the descent framework of the
-previous sections. The first is a constraint, which is dealt with by making it
-disappear; the second is a method that abandons the requirement of descent
-altogether, and is useful precisely because it does.
+Two topics remain, and neither fits inside the descent framework of the
+previous sections. The first is the handling of box constraints, which the
+toolkit removes by a change of variable rather than enforcing. The second is a
+method that gives up the requirement of descent altogether, and is useful for
+stochastic objectives precisely because it does.
 
 ### The box reparameterisation {#sec-box}
 
 Suppose each parameter is confined to an interval, $\theta_j \in (L_j, U_j)$,
-with either endpoint possibly infinite. Handing that to a general optimiser is
-awkward for exactly the reasons @sec-fit-scale gave: every proposal must be
-tested for admissibility, a step that overshoots must be shortened rather than
-taken, and near an endpoint the objective may be unbounded or undefined.
+with either endpoint possibly infinite. Passing such constraints to a general
+optimiser creates the difficulties described in @sec-fit-scale: every proposal
+must be tested for admissibility, a step that overshoots must be shortened
+rather than taken, and near an endpoint the objective may be unbounded or
+undefined.
 
-The toolkit's answer is the one it gives everywhere: do not enforce the
-constraint, remove it. The alternative, which is to keep the box and work with
-an active set, is what @byrd1995 does, and it is the right choice when an
-optimum genuinely lies on a bound; the trade is discussed below. Each bounded coordinate is reparameterised by a
+The toolkit removes the constraint instead of enforcing it. The alternative,
+keeping the box and working with an active set, is the approach of @byrd1995,
+and it is the right choice when an optimum lies exactly on a bound; the
+comparison appears below. Each bounded coordinate is reparameterised by a
 diffeomorphism $h_j : \mathbb{R} \to (L_j, U_j)$,
 
 $$\theta_j \ =\ h_j(\eta_j) \ =\
@@ -37,14 +39,13 @@ L_j + (U_j - L_j)\,\dfrac{1}{1 + e^{-\eta_j}}
 \end{cases}$$
 
 and the optimiser runs unconstrained in $\eta$. These are the bounded links of
-@sec-links, and using them here is precisely the reuse they were written once
-for: every point the optimiser proposes is admissible by
-construction, so there is no rejection step and no boundary for a line search to
-trip over.
+@sec-links, reused here for the purpose they were written for. Every point the
+optimiser proposes is admissible by construction, so there is no rejection
+step and no boundary for a line search to encounter.
 
-What it costs is derivatives, and they are cheap because **the Jacobian is
-diagonal**. Each coordinate carries its own transform and nothing else, so with
-$F(\eta) = f(h(\eta))$,
+The cost of the change of variable is a set of derivative corrections, and
+they are cheap because the Jacobian is diagonal: each coordinate carries its
+own transform and nothing else. With $F(\eta) = f(h(\eta))$,
 
 $$\frac{\partial F}{\partial \eta_i} \ =\
   \frac{\partial f}{\partial \theta_i}\, h_i'(\eta_i),
@@ -53,36 +54,38 @@ $$\frac{\partial F}{\partial \eta_i} \ =\
   \frac{\partial^{2} f}{\partial \theta_i \partial \theta_j}\, h_i'(\eta_i)\, h_j'(\eta_j)
   \ +\ \delta_{ij}\, \frac{\partial f}{\partial \theta_i}\, h_i''(\eta_i).$$
 
-The second-derivative term appears only on the diagonal, and only because $h$ is
-not affine; it is the whole difference between transforming a Hessian and merely
+The second-derivative term appears only on the diagonal, and only because $h$
+is not affine; it is the difference between transforming a Hessian and merely
 rescaling one. In matrix form,
 
 $$\nabla^{2} F \ =\ \operatorname{diag}(h')\, \nabla^{2} f\, \operatorname{diag}(h')
   \ +\ \operatorname{diag}\!\bigl(\nabla f \odot h''\bigr),$$
 
-which is @sec-link-scale's congruence with one extra diagonal term, and every
-algorithm in this chapter receives it without ever learning a box was involved.
+which is the congruence of @sec-link-scale with one extra diagonal term. Every
+algorithm in this chapter receives these corrected derivatives without any
+information that a box was involved.
 
 ::: {.callout-note}
 ## Optima on a bound
 
-An optimum lying **on** a bound cannot be reached, because getting there needs
-$\eta$ to run to infinity. The optimiser marches off, improves by less and less,
-and stops on a budget at a point merely close to the constraint.
+An optimum lying exactly on a bound cannot be reached, because reaching it
+requires $\eta$ to go to infinity. The optimiser keeps moving, improves by
+less and less, and stops on its iteration budget at a point close to the
+constraint but not on it.
 
-For the statistical use this serves — a positive variance, a probability inside
-the unit interval, a shape parameter that must not vanish — the optimum is
-interior and the situation never arises. For a genuine box-constrained problem
-whose solution has active constraints, an active-set method is the right tool
-and this is not one.
+For the statistical use this mechanism serves — a positive variance, a
+probability inside the unit interval, a shape parameter that must not vanish —
+the optimum is interior and the situation does not arise. For a genuine
+box-constrained problem whose solution has active constraints, an active-set
+method is the appropriate tool.
 
-There is a second, quieter limitation, which is arithmetic rather than
-mathematical: in exact arithmetic $h$ never attains its endpoints, and in double
-precision it does. The inverse logit returns exactly one above $\eta \approx 37$,
-and $L + e^{\eta}$ rounds to $L$ once $e^{\eta}$ falls below half an ulp of $L$.
-Both are guarded by clamping to the adjacent representable double, which is the
-closest approach to the bound the machine can express while remaining strictly
-inside it.
+A second limitation is arithmetical rather than mathematical: in exact
+arithmetic $h$ never attains its endpoints, but in double precision it does.
+The inverse logit returns exactly one above $\eta \approx 37$, and
+$L + e^{\eta}$ rounds to $L$ once $e^{\eta}$ falls below half an ulp of $L$.
+Both cases are guarded by clamping to the adjacent representable double, which
+is the closest value to the bound that the machine can express while remaining
+strictly inside the interval.
 :::
 
 ```{r}
@@ -96,7 +99,7 @@ gnll <- function(s) length(yv) / s - sum(yv^2) / s^3
 rs <- lapply(list(bfgs = optimizers7::bfgs(),
                   newton = optimizers7::newton(),
                   `nelder-mead` = optimizers7::nelder_mead()), function(o)
-  optimizers7::minimize(o, nll, par = 1, gr = gnll, bounds = list(c(0, Inf))))
+  optimizers7::minimize(o, nll, par = 1, gr = gnll, lower = 0))
 
 knitr::kable(
   data.frame(method = names(rs),
@@ -112,125 +115,122 @@ knitr::kable(
 )
 ```
 
-Every method reaches the same estimate, and none of them contains a line of code
-about constraints.
+Every method reaches the same estimate, and none of their implementations
+contains any code about constraints.
 
 ### Adam {#sec-adam}
 
-The last method in the chapter breaks the rule the first section established.
-Adam, introduced by @kingma2015, takes no line search and makes no attempt to
-decrease $f$ at every step, and both omissions are deliberate.
+The last method of the chapter departs from the rule established in
+@sec-descent. Adam, introduced by @kingma2015, uses no line search and makes
+no attempt to decrease $f$ at every step; both omissions are deliberate, and
+their purpose becomes clear with stochastic gradients.
 
-Its state is two exponentially weighted averages, of the gradient and of its
-square, both taken coordinatewise:
+The state of the method is a pair of exponentially weighted averages, of the
+gradient and of its square, both taken coordinatewise:
 
 $$m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t, \qquad
   v_t = \beta_2 v_{t-1} + (1 - \beta_2)\, g_t \odot g_t ,$$
 
-with $m_0 = v_0 = 0$. Those initial zeros bias both averages towards zero in the
-early iterations, and the bias is known exactly: taking expectations under a
+with $m_0 = v_0 = 0$. The initial zeros bias both averages towards zero in the
+early iterations, and the size of the bias is known exactly: under a
 stationary gradient,
 
 $$\mathbb{E}[m_t] = (1 - \beta_1^{t})\, \mathbb{E}[g],$$
 
-so dividing by $1 - \beta_1^{t}$ removes it, and likewise for $v$. The step is
-then
+so dividing by $1 - \beta_1^{t}$ removes the bias, and the same holds for
+$v$. The step is then
 
 $$x_{t+1} = x_t - \alpha\, \frac{\hat m_t}{\sqrt{\hat v_t} + \epsilon},
 \qquad \hat m_t = \frac{m_t}{1 - \beta_1^{t}},
 \quad \hat v_t = \frac{v_t}{1 - \beta_2^{t}},$$
 
-the division being elementwise, which is the entire idea. A coordinate whose
-gradient has been consistently large is divided by a large number and moves
-modestly; one whose gradient is small but persistent still moves. It is a
-diagonal preconditioner assembled from the gradients already seen, and it costs
-nothing beyond them — which is also its limit, since a diagonal cannot represent
-the correlation between parameters that @sec-bfgs learns from the same
-information.
+with the division taken elementwise. The elementwise division is the essential
+feature: a coordinate whose gradient has been consistently large is divided by
+a large number and moves moderately, while a coordinate whose gradient is
+small but persistent still moves. The method is a diagonal preconditioner
+assembled from the gradients already computed, at no additional cost. The
+diagonal form is also its limitation, because a diagonal matrix cannot
+represent the correlation between parameters that @sec-bfgs extracts from the
+same information.
 
 Ignoring the bias correction and $\epsilon$, at $t = 1$ the ratio
-$\hat m_1 / \sqrt{\hat v_1}$ is $g_1 / \lvert g_1 \rvert$, of size exactly one,
-so the first step has length $\alpha$ in every coordinate regardless of how
-steep the objective is. That scale invariance is what makes a single $\alpha$
-workable across problems of very different magnitudes, and it is also why Adam
-is untroubled by a badly scaled parameter vector where steepest descent is
-helpless.
+$\hat m_1 / \sqrt{\hat v_1}$ equals $g_1 / \lvert g_1 \rvert$, which has size
+exactly one, so the first step has length $\alpha$ in every coordinate
+regardless of the steepness of the objective. This scale invariance is what
+makes a single value of $\alpha$ usable across problems of very different
+magnitudes, and it also makes Adam insensitive to a badly scaled parameter
+vector, on which steepest descent performs poorly.
 
-The absence of a line search means there is no guarantee of monotone progress,
-and the run may end somewhere worse than it passed through. That freedom is most
-of why Adam tolerates a gradient that is only right on average: insisting on
-decrease at every step would reject most of the steps that make progress when
-the gradient is an estimate rather than the thing itself.
+Without a line search there is no guarantee of monotone progress, and a run
+may end at a worse point than one it passed through. This freedom is what
+allows Adam to tolerate a gradient that is correct only on average: requiring
+a decrease at every step would reject most of the steps that make progress
+when the gradient is an estimate.
 
-Which is the case that matters here. When the objective is a sum over
-observations,
+The estimated gradient is the case Adam is designed for. When the objective is
+a sum over observations,
 
 $$f(x) = \sum_{i=1}^{n} f_i(x),$$
 
-the gradient of a randomly drawn subset is, up to a factor of $n/m$, an unbiased
-estimate of the gradient of the whole. Evaluating it costs a fraction of the
-full one, so a great many cheap noisy steps can be taken for the price of a few
-exact ones, and Adam is the method built to make that trade. @bottou2018 is the
-account of stochastic optimisation that places it in context.
+the gradient of a randomly drawn subset of $m$ terms is, up to a factor of
+$n/m$, an unbiased estimate of the full gradient, and it costs a fraction of
+the full evaluation. Many inexpensive noisy steps can therefore be taken for
+the price of a few exact ones, and Adam is the method built for that regime.
+@bottou2018 gives a full account of stochastic optimisation.
 
 ::: {.callout-note}
 ## Stochastic objectives
 
-Nothing in `adam()` knows about observations. The subsample is drawn by the
-objective, which is an ordinary function of the parameter vector that happens to
-choose a different set of terms each time it is called; Adam optimises it
-without ever being told, and $\mathtt{set.seed}$ governs the run because the
-draws happen in the caller's code.
+`adam()` contains no notion of observations. The subsample is drawn by the
+objective itself, which is an ordinary function of the parameter vector that
+happens to select a different set of terms at each call; Adam optimises it
+without any indication that this is happening, and `set.seed()` governs the
+run because the draws occur in the caller's code.
 
-The alternative was tried and removed. Teaching the optimiser to subsample meant
-a second kind of objective to declare that it \emph{had} terms, a rule for which
-stopping rules such an objective permitted, and a branch through the iteration —
-all so that the optimiser could do something the caller could do in one line, and
-do worse, since the caller is the one who knows what an observation is, and what
-a stratum is, and what a cluster is.
-
-The mathematics above is unchanged by that: a stochastic gradient is a
-stochastic gradient however it was produced. What changed is which layer holds
-the knowledge, and the answer is the layer that has it.
+The package once contained machinery for drawing minibatches inside the
+optimiser, and it was removed. Supporting it required a second kind of
+objective that declared its own terms, a rule for which stopping criteria such
+an objective admitted, and a branch through the iteration, all to perform a
+task the caller can do in one line and do better, since the caller knows what
+an observation, a stratum or a cluster is. The mathematics is unchanged either
+way — a stochastic gradient is a stochastic gradient however it is produced —
+but the knowledge now lives in the layer that has it.
 :::
 
-One consequence of the noise concerns what may be *asked* rather than what is
-done. When the gradient is an
-estimate, so is the objective, and a tolerance applied to either measures the
-sampling noise rather than the progress. Neither can serve as a stopping rule.
-Such a run is governed by its iteration budget and reports that it did not
-converge — which is the truth about a run that nothing checked. Whether an
-objective is noisy is a fact about the objective, though, not about the
-optimiser, so this is a caution to the caller and not something the package can
-detect on their behalf.
+One consequence of the noise concerns what may be asked of a stopping rule.
+When the gradient is an estimate, the objective value is one as well, and a
+tolerance applied to either measures the sampling noise rather than the
+progress; neither can serve as a stopping rule. A stochastic run is therefore
+governed by its iteration budget and reports that it did not converge, which
+is the accurate description of a run in which nothing was checked. Whether an
+objective is stochastic is a property of the objective, not of the optimiser,
+so this remains a caution to the caller rather than something the package can
+detect.
 
-Two safeguards deserve mention because they answer real failures rather than
-imagined ones. The learning rate may be reduced as $\alpha_t = \alpha / (1 +
-\delta t)$, which is the condition of @robbins1951 that a noisy run needs in
-order to settle at the optimum rather than orbit it at a radius set by $\alpha$;
-and $v_t$ may be replaced by its running maximum, which forbids the second moment
-from shrinking and letting a single large gradient dominate the iterate long
-after it has passed. The second is not cosmetic: @reddi2018 exhibits a *convex*
-problem on which Adam as published fails to converge, and this is their
-repair.
+Two safeguards address documented failure modes. The learning rate may be
+reduced as $\alpha_t = \alpha / (1 + \delta t)$, which is the condition of
+@robbins1951 under which a noisy run settles at the optimum instead of
+orbiting it at a radius proportional to $\alpha$. And $v_t$ may be replaced by
+its running maximum, which prevents the second moment from shrinking and
+letting a single large gradient dominate the iterates long after it has
+passed; @reddi2018 exhibit a convex problem on which Adam as originally
+published fails to converge, and this replacement is their repair.
 
 ### Scope {#sec-optimizers-boundary}
 
-What this chapter does not cover should be stated explicitly, since the
-apparatus is capable of a good deal more than it has been asked to do.
+Three topics lie outside this chapter.
 
-Every method here finds a **local** minimum, and none can tell whether it is the
-global one. That is a property of local optimisation and not a shortcoming of
-the implementations, and @sec-multistart says what can be done about it, which
-is to run from several starting points and read the result for the number of
-distinct optima rather than for the best point.
+Every method here finds a **local** minimum, and none can determine whether it
+is the global one. This is a property of local optimisation, not of the
+implementations; @sec-multistart describes the standard remedy, which is to
+run from several starting points and to read the result for the number of
+distinct optima found rather than only for the best point.
 
-There are no constraints beyond a box. Linear and nonlinear constraints need
-Lagrange multipliers and an active set, and the reparameterisation trick that
-serves so well here has nothing to say about them.
+There are no constraints beyond a box. Linear and nonlinear constraints
+require Lagrange multipliers and an active set, and the reparameterisation
+used here does not extend to them.
 
-Nor is there anything Bayesian. The toolkit's stated ambition is that the user
-should be able to choose a Bayesian treatment in place of a frequentist one, and
-that is a different object entirely — a sampler rather than an optimiser, whose
-output is a distribution and not a point. It belongs to the model layer, which is
-where this book will go next.
+There is nothing Bayesian. The toolkit intends to let the user choose a
+Bayesian treatment in place of a frequentist one, but that requires a sampler
+rather than an optimiser, and its output is a distribution rather than a
+point. It belongs to the model layer, which is the subject of future chapters.

@@ -7,170 +7,159 @@ source("R/_setup.R")
 source("R/fit-certificates.R")
 ```
 
-The three chapters so far have built objects and derived what can be computed
-from them: links carrying four derivatives in both directions, distributions
-carrying scores, informations and derivatives to fourth order, and operators
-that turn one distribution into another while keeping all of it. Nothing so far
-has *estimated* anything. This chapter closes that gap. It is shorter than the
-others, and deliberately so: almost everything it needs has already been
-derived, and the pleasure of the exercise is watching the earlier machinery fall
-into place with very little new mathematics.
-
-The task is the simplest one in which the machinery is exercised end to end.
-Given a sample $y_1, \dots, y_n$ assumed independent and identically
-distributed from a member of one of the families in the catalogue, estimate the
-parameter by maximum likelihood, and report an uncertainty for it. There is no
-regression here — no covariates, no design matrix — and deliberately so:
-`fit_distrib()` is the smallest complete consumer of the toolkit, and every
-component it uses is a component that a regression front end will use in the
-same way.
+The preceding sections built objects and derived their properties: links with
+four derivatives in both directions, distributions with scores, informations
+and derivatives to fourth order, and operators that turn one distribution into
+another. None of that estimated anything. This section closes the gap with the
+simplest problem that exercises the machinery end to end: given a sample
+$y_1, \dots, y_n$, independent and identically distributed from a member of
+one of the families in the catalogue, estimate the parameters by maximum
+likelihood and report their uncertainty. There is no regression here — no
+covariates and no design matrix — and deliberately so: `fit_distrib()` is the
+smallest complete consumer of the toolkit, and every component it uses will be
+used in the same way by a regression front end.
 
 ### Maximising on the unconstrained scale {#sec-fit-scale}
 
-Write the total log-likelihood of the sample as
+The total log-likelihood of the sample is
 
 $$\ell(\theta) = \sum_{i=1}^{n} \log f(y_i; \theta),$$
 
 a function of the $p$-vector $\theta$, each of whose components is confined to
-its own open interval $\Theta_j$. Maximising a function over a product of open
-intervals is an awkward problem to hand to a general optimiser. Every proposal
-must be checked for admissibility; a step that overshoots must be shortened
-rather than taken; and near a boundary the objective is unbounded or undefined,
-so the optimiser spends its effort fighting the constraint rather than climbing
-the likelihood.
+its own open interval $\Theta_j$. Maximising over a product of open intervals
+is an awkward problem for a general optimiser: every proposal must be checked
+for admissibility, a step that overshoots must be shortened rather than taken,
+and near a boundary the objective is unbounded or undefined, so the optimiser
+spends its effort on the constraint instead of on the likelihood.
 
-The toolkit disposes of this by never optimising in $\theta$ at all. Each
-parameter carries a link, and the estimation is carried out in
+The toolkit avoids the problem by never optimising in $\theta$. Each parameter
+carries a link, and the estimation is carried out in
 
 $$\eta = \big(g_1(\theta_1), \dots, g_p(\theta_p)\big) \in \mathbb{R}^{p},$$
 
 which is unconstrained by construction. The reparameterisation costs nothing,
-because maximum likelihood is invariant under a reparameterisation: if
-$\hat\eta$ maximises $\ell(h(\eta))$ then $h(\hat\eta)$ maximises $\ell(\theta)$,
-the two problems having the same stationary points wherever $h$ is a
-diffeomorphism — which @def-link guarantees, $h'$ never vanishing. The gain is
-that admissibility becomes automatic. Whatever the optimiser proposes,
-$h(\eta)$ lands inside the domain, because that is what the inverse link is: a
-bijection onto $\Theta$. There is no rejection step and no boundary to guard.
+because maximum likelihood is invariant under reparameterisation: if
+$\hat\eta$ maximises $\ell(h(\eta))$, then $h(\hat\eta)$ maximises
+$\ell(\theta)$, the two problems having the same stationary points wherever
+$h$ is a diffeomorphism, which @def-link guarantees because $h'$ never
+vanishes. The gain is that admissibility becomes automatic: whatever the
+optimiser proposes, $h(\eta)$ lies inside the domain, because the inverse link
+is a bijection onto $\Theta$. There is no rejection step and no boundary to
+guard.
 
-What the change of scale does cost is derivatives, and those have already been
-paid for. The score and the Hessian with respect to $\eta$ are exactly what
-@sec-link-scale computed, and `fit_distrib()` obtains them by asking for them:
+The change of scale requires derivatives with respect to $\eta$, and these
+were computed in @sec-link-scale. `fit_distrib()` obtains
 
 $$
 U(\eta) = \sum_{i=1}^{n} \frac{\partial \ell_i}{\partial \eta}, \qquad
 H(\eta) = \sum_{i=1}^{n} \frac{\partial^{2} \ell_i}{\partial \eta \,\partial \eta^\top},
 $$
 
-each summed over observations because the sample is independent and the total
-log-likelihood is the sum of the individual ones.
+with the sums over observations justified by independence, since the total
+log-likelihood is the sum of the individual contributions.
 
 ### Fisher scoring {#sec-fit-scoring}
 
-All three optimisers offered are variations on one idea: approximate the
-log-likelihood near the current point by a quadratic and step to the maximum of
-that quadratic. Writing $I$ for the matrix that plays the role of the negative
-curvature, the update is
+The three optimisers offered by `fit_distrib()` share one structure:
+approximate the log-likelihood near the current point by a quadratic and step
+to the maximum of that quadratic. Writing $I$ for the matrix that plays the
+role of the negative curvature, the update is
 
 $$\eta^{(t+1)} = \eta^{(t)} + I^{-1} U\big(\eta^{(t)}\big),$$
 
-and the three methods differ only in what they use for $I$. **Newton–Raphson**
-uses the observed information $-H(\eta)$; **Fisher scoring** uses the expected
-information $-\mathbb{E}[H(\eta)]$; **BFGS** uses neither, building an
-approximation from successive gradients instead. The first two are set out
-together in @green1984, whose account of scoring as iteratively reweighted least
-squares is the one @mccullagh1989 builds the generalised linear model on;
-@nocedal2006 is the reference for the third, and @sec-optimizers7 returns to all
-of them at length.
+and the methods differ only in the choice of $I$. **Newton–Raphson** uses the
+observed information $-H(\eta)$; **Fisher scoring** uses the expected
+information $-\mathbb{E}[H(\eta)]$; **BFGS** uses neither, and builds an
+approximation from successive gradients. The first two are treated together in
+@green1984, whose presentation of scoring as iteratively reweighted least
+squares is the one on which @mccullagh1989 builds the generalized linear
+model; @nocedal2006 is the reference for the third, and @sec-optimizers7
+treats all of them in detail.
 
-The default is Fisher scoring, for a reason that @cor-congruence supplied two
-chapters ago and is restated here because it is easy to mistake for a mere
-convenience. On the link scale the expected information is
+The default is Fisher scoring, for a reason supplied by @cor-congruence. On
+the link scale the expected information is
 
 $$\mathbb{E}[I_\eta] = \operatorname{diag}(h')\,\mathbb{E}[I_\theta]\,\operatorname{diag}(h'),$$
 
-a congruence transform. A congruence transform of a positive definite matrix is
-positive definite, so if the model is identified on the parameter scale then the
-matrix Fisher scoring inverts is positive definite on the link scale as well,
-and the step it computes is guaranteed to be an ascent direction. The observed
-Hessian carries no such guarantee: away from the optimum $-H$ can fail to be
-positive definite, and the Newton step can then point downhill. This is not a
-statement about which estimator is better — at the optimum the two informations
-agree in expectation — but about which iteration is better behaved on the way
-there.
+a congruence transform, and a congruence transform of a positive definite
+matrix is positive definite. If the model is identified on the parameter
+scale, the matrix Fisher scoring inverts is therefore positive definite on the
+link scale as well, and the step it computes is guaranteed to be an ascent
+direction. The observed Hessian carries no such guarantee: away from the
+optimum, $-H$ can fail to be positive definite, and the Newton step can then
+point downhill. This comparison concerns the behaviour of the iterations, not
+the quality of the estimators; at the optimum the two informations agree in
+expectation.
 
-Ascent being a direction rather than a distance, the step itself is halved until
-it is acceptable: the candidate $\eta + s\,\Delta$ is tried with $s = 1$, and
-$s$ is halved until the log-likelihood does not decrease. Since the direction is
-an ascent direction, some sufficiently small $s$ always succeeds, so the
-iteration is monotone in the log-likelihood by construction, and a step that
-would leap into a region where the density overflows is simply not taken.
+An ascent direction fixes only the direction, so the step length is chosen by
+halving: the candidate $\eta + s\,\Delta$ is tried with $s = 1$, and $s$ is
+halved until the log-likelihood does not decrease. Because the direction is an
+ascent direction, a sufficiently small $s$ always succeeds, so the iteration
+increases the log-likelihood at every step, and a step that would enter a
+region where the density overflows is simply not taken.
 
-Convergence is declared when the score is numerically zero or the
-log-likelihood has stopped moving, whichever comes first,
+Convergence is declared when the score is numerically zero or when the
+log-likelihood has stopped moving, whichever occurs first:
 
 $$\max_j \lvert U_j \rvert < \texttt{tol}
 \qquad\text{or}\qquad
-\lvert \Delta \ell \rvert < \texttt{tol}\,(\lvert \ell \rvert + \texttt{tol}),$$
+\lvert \Delta \ell \rvert < \texttt{tol}\,(\lvert \ell \rvert + \texttt{tol}).$$
 
-the second criterion measured relative to the log-likelihood's own magnitude,
-since an absolute threshold means something quite different for a sample of ten
-and one of ten million.
+The second criterion is measured relative to the magnitude of the
+log-likelihood, because an absolute threshold has entirely different meanings
+for a sample of ten and for a sample of ten million.
 
 ::: {.callout-note}
 ## Fitting a non-regular model
 
-@sec-nonregular showed that the Laplace location sits at a kink: its observed
-second derivative $\ell^{(\mu\mu)}$ is zero almost everywhere, while the
-information, defined as the variance of the score, is $1/b^{2}$. The consequence
-for estimation is immediate. Newton–Raphson on a Laplace has
-nothing to invert — the observed information in $\mu$ vanishes identically —
-whereas Fisher scoring has $1/b^{2}$ and proceeds without noticing anything
-unusual. That the default method is the one that works here is not a
-coincidence: the same property that makes the expected information the right
-object for a non-regular family makes it the right matrix to invert.
+@sec-nonregular showed that the Laplace location parameter sits at a kink of
+the log-likelihood: the observed second derivative $\ell^{(\mu\mu)}$ is zero
+almost everywhere, while the information, defined as the variance of the
+score, is $1/b^{2}$. The consequence for estimation is direct. Newton–Raphson
+has nothing to invert, because the observed information in $\mu$ vanishes
+identically, while Fisher scoring inverts $1/b^{2}$ and proceeds normally. The
+default method works here for the same reason the expected information is the
+right definition of information for a non-regular family.
 :::
 
 ### Starting values {#sec-fit-starts}
 
-A likelihood need not be concave, and a fit started in the wrong place can
-converge to a local maximum, to a boundary, or not at all. Two devices handle
-this without troubling the user.
+A likelihood need not be concave, and a fit started at a poor point can
+converge to a local maximum, to a boundary, or not at all. Two mechanisms
+handle this automatically.
 
 When no starting value is supplied, several are drawn at random from the
-admissible region with `generate_random_theta()` and tried in turn, the first
-that converges being kept. And if the chosen method fails from a given start —
-whether by exceeding the iteration budget, by producing a step that is not
-finite, or by raising an error outright, which a numerically approximated
-expected information can do when its quadrature diverges at an awkward parameter
-value — the fit falls back to BFGS from that same start before moving on to the
-next. BFGS is slower and uses no second-order information, but it is unfussy,
-and a slow answer is better than none.
+admissible region with `generate_random_theta()` and tried in turn, keeping
+the first that converges. If the chosen method fails from a given start —
+by exceeding its iteration budget, by producing a non-finite step, or by
+raising an error, which a numerically approximated expected information can do
+when its quadrature diverges at an unfavourable parameter value — the fit
+falls back to BFGS from the same start before moving to the next. BFGS is
+slower and uses no second-order information, but it makes fewer demands on the
+objective, and a slow answer is preferable to none.
 
-Only when every start has failed by every route does `fit_distrib()` give up,
-and it then says so and asks for a starting value rather than returning
-something unusable.
+Only when every start has failed by every route does `fit_distrib()` stop, and
+it then reports the failure and asks for a starting value instead of returning
+an unusable result.
 
 ### The delta method and confidence intervals {#sec-fit-delta}
 
-The optimiser returns $\hat\eta$ and the information $I_{\hat\eta}$, from which
-the asymptotic variance on the link scale is the usual inverse,
-$V_\eta = I_{\hat\eta}^{-1}$. What the user wants, though, is an uncertainty for
-$\hat\theta = h(\hat\eta)$, and here the diagonal Jacobian does its last piece
-of work. The delta method, in the form given by @vandervaart1998, gives
+The optimiser returns $\hat\eta$ and the information $I_{\hat\eta}$, so the
+asymptotic variance on the link scale is the inverse,
+$V_\eta = I_{\hat\eta}^{-1}$. The user needs the uncertainty of
+$\hat\theta = h(\hat\eta)$, and the diagonal Jacobian provides the conversion.
+The delta method, in the form given by @vandervaart1998, yields
 
 $$V_\theta = \operatorname{diag}(h')\,V_\eta\,\operatorname{diag}(h'),$$
 
-with $h'$ evaluated at $\hat\eta$ componentwise — the same congruence that
-@cor-congruence applied to the information, now applied to its inverse. The two
-statements are the same statement: if $I_\eta = \operatorname{diag}(h')^{-1} I_\theta \operatorname{diag}(h')^{-1}$
-then inverting both sides gives exactly the display above. It is a small
-pleasure that the transformation appearing in the derivative calculus of
-@sec-link-scale and the one appearing in the delta method are not two facts to
-remember but one.
+with $h'$ evaluated componentwise at $\hat\eta$. This is the same congruence
+that @cor-congruence applied to the information, now applied to its inverse;
+indeed the two statements are equivalent, since inverting both sides of
+$I_\eta = \operatorname{diag}(h')^{-1} I_\theta \operatorname{diag}(h')^{-1}$
+gives exactly the display above.
 
-Intervals are built where the normal approximation is most nearly true — on the
-unconstrained scale — and mapped back afterwards:
+Confidence intervals are built on the unconstrained scale, where the normal
+approximation is most accurate, and mapped back afterwards:
 
 $$
 \big[\hat\eta_j - z_{1-\alpha/2}\,\mathrm{se}(\hat\eta_j),\;
@@ -179,21 +168,20 @@ $$
 h_j\big(\,\cdot\,\big).
 $$
 
-Two properties follow, and both are the reason for doing it in this order. The
-mapped interval **cannot leave the parameter's domain**, since $h_j$ maps onto
-$\Theta_j$ and nowhere else: a variance never acquires a negative lower limit, a
-probability never an upper limit above one, however small the sample. And the
-interval is **not symmetric** about $\hat\theta_j$, which is as it should be —
-symmetry on the $\theta$ scale is an artefact of a linear approximation, not a
-property of the likelihood.
+This order of operations produces two properties. The mapped interval cannot
+leave the parameter's domain, because $h_j$ maps into $\Theta_j$ and nowhere
+else: a variance never receives a negative lower limit, and a probability
+never receives an upper limit above one, regardless of the sample size. And
+the interval is not symmetric about $\hat\theta_j$, correctly so, because
+symmetry on the $\theta$ scale is an artefact of a linear approximation rather
+than a property of the likelihood.
 
-One detail of the implementation is a direct consequence of @def-link having
-declined to require that links increase. A decreasing link — the upper-bounded
-$g(\theta) = \log(u - \theta)$ is the catalogue's example — sends the lower end
-of the $\eta$-interval to the *upper* end of the $\theta$-interval, so the two
-mapped endpoints are sorted before being reported. Code that assumed an
-increasing link would return an interval with its ends the wrong way round, and
-would do so silently.
+One implementation detail follows from the fact that @def-link does not
+require links to be increasing. A decreasing link — the upper-bounded
+$g(\theta) = \log(u - \theta)$ is the example in the catalogue — sends the
+lower end of the $\eta$-interval to the upper end of the $\theta$-interval, so
+the two mapped endpoints are sorted before being reported. Code that assumed
+an increasing link would silently return an interval with its ends reversed.
 
 ### A complete example {#sec-fit-example}
 
@@ -207,10 +195,10 @@ fit <- fit_distrib(d, y)
 fit
 ```
 
-The estimates sit near the values the sample was generated from, and the
-interval for `sigma2` is visibly asymmetric — longer to the right, as a variance
-estimated on a log scale should be. The pieces of the fit are all available
-individually, on either scale:
+The estimates are close to the values the sample was generated from, and the
+interval for `sigma2` is visibly asymmetric — longer to the right, as expected
+for a variance estimated on a log scale. All components of the fit are
+available individually, on either scale:
 
 ```{r}
 #| label: fit-pieces
@@ -220,8 +208,8 @@ fit@eta                 # the estimates on the link scale
 fit@ci                  # intervals on the parameter scale
 ```
 
-That the two variance matrices are related by the diagonal Jacobian, exactly as
-@sec-fit-delta claims, can be seen directly:
+The relation between the two variance matrices is the diagonal Jacobian
+congruence of @sec-fit-delta, and it can be verified directly:
 
 ```{r}
 #| label: fit-delta-check
@@ -231,10 +219,11 @@ J <- vapply(seq_along(d@params), function(i) {
 diag(J) %*% fit@vcov_eta %*% diag(J)
 ```
 
-The maximised log-likelihood, the information criteria, the number of iterations
-and the method actually used — which may not be the one requested, if the
-fallback was taken — are all carried on the fitted object, and `simulate()` and
-`plot()` methods compare the fitted distribution against the data it came from.
+The maximised log-likelihood, the information criteria, the number of
+iterations and the method actually used — which may differ from the one
+requested when the fallback was taken — are all carried on the fitted object,
+and the `simulate()` and `plot()` methods compare the fitted distribution
+against the data it came from.
 
 ```{r}
 #| label: fit-plot
@@ -243,9 +232,9 @@ plot(fit)
 ```
 
 `simulate()` draws new samples of the original size from the fitted
-distribution, which is the ingredient a parametric bootstrap needs: any
-statistic computed on the simulated samples has, under the fitted model, the
-distribution that same statistic has under repeated sampling.
+distribution, which is the ingredient a parametric bootstrap needs: under the
+fitted model, a statistic computed on the simulated samples has the same
+distribution that it has under repeated sampling.
 
 ```{r}
 #| label: fit-simulate
@@ -256,30 +245,25 @@ c(observed = mean(y), boot_se = sd(boot_means))
 
 ### Scope {#sec-fit-scope}
 
-The boundary of this chapter should be stated explicitly, because the
-apparatus assembled here is capable of a good deal more than it is asked to do.
+Three extensions lie outside this section.
 
 There are no covariates. Every observation shares one $\theta$, so the link
-scale is a $p$-vector rather than a set of linear predictors, and the score is a
-$p$-vector rather than a $\mathrm{X}^\top$-weighted sum. Adding covariates
-changes the bookkeeping and not the mathematics: the chain rule acquires one
-more link in the chain, $\eta = X\beta$, whose Jacobian is $X$ rather than
+scale is a $p$-vector rather than a set of linear predictors. Adding
+covariates changes the bookkeeping and not the mathematics: the chain rule
+acquires one more factor, $\eta = X\beta$, whose Jacobian is $X$ rather than
 $\operatorname{diag}(h')$, and everything in @sec-fit-delta goes through with
-the two composed. That is the subject of the model layer, not of this one.
+the two composed. This belongs to the model layer.
 
-Nor is censoring handled here, although @sec-cdf-derivatives supplied the
-derivatives that a censored likelihood needs. Assembling them into a likelihood
-requires a status vector alongside the response, and an interface for saying
-which observations are censored and how — a front end that does not yet exist.
+Censoring is not handled, although @sec-cdf-derivatives supplied the
+derivatives a censored likelihood needs. Assembling them requires a status
+vector alongside the response and an interface for stating which observations
+are censored and how — a front end that does not yet exist.
 
-Finally, the optimisers are the three above, and `fit_distrib()` does not let
-the user supply a fourth. That restriction is the subject of @sec-optimizers7,
-which develops optimisation as its own layer: what makes a step admissible, how
-curvature is obtained or approximated, what to do when the objective has a kink
-and no gradient becomes small, and how a box constraint is made to vanish rather
-than be enforced. The toolkit's further ambition, that the user should be able
-to choose a Bayesian treatment in place of maximum likelihood, belongs to the
-model layer and to neither of these chapters.
+Finally, the optimisers are the three described above, and `fit_distrib()`
+does not accept a fourth. Removing that restriction is the subject of
+@sec-optimizers7, which develops optimisation as a layer of its own. The
+further goal of allowing a Bayesian treatment in place of maximum likelihood
+belongs to the model layer.
 
 ```{r}
 #| label: consistency-fitting

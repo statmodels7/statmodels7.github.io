@@ -7,24 +7,24 @@ source("R/_setup.R")
 source("R/optimizer-certificates.R")
 ```
 
-Everything so far has taken the starting point as given. It has a section of its own
-because the natural choice is wrong in a way that is easy to miss, and because the answer to "where should I start?" turns out to be bound up
-with a rather different question — how many answers the problem has — which no
-single run can address at all.
+The previous sections took the starting point as given. This section examines
+how to choose it, why the natural choice is wrong in an easily missed way, and
+a related question that no single run can address: how many distinct minima
+the problem has.
 
 ### Starting values on the unconstrained scale {#sec-starting-scale}
 
-Asked for a starting point with nothing else to go on, one writes a vector of
-zeros. For a model with a scale parameter in it that is not a starting point but
-a boundary: at $\sigma = 0$ the log-likelihood is usually infinite and its
-gradient certainly is, and an optimiser handed such a point fails before it has
-taken a step. The obvious repair, writing ones instead, merely moves the problem,
-since one is a perfectly good scale and a very poor probability.
+With no other information, the natural starting point is a vector of zeros.
+For a model with a scale parameter this is not a starting point but a
+boundary: at $\sigma = 0$ the log-likelihood is usually infinite, its gradient
+certainly is, and an optimiser started there fails before its first step.
+Replacing the zeros with ones only moves the problem, because one is a
+reasonable scale but a poor probability.
 
-What makes a single constant work for every kind of parameter is the change of
-variable of @sec-box. On the unconstrained scale there is no boundary to sit on,
-and the point $\eta = 0$ maps to a sensible interior value of whatever the
-parameter happens to be:
+A single constant works for every kind of parameter when it is applied on the
+unconstrained scale, using the change of variable of @sec-box. On that scale
+there is no boundary, and the point $\eta = 0$ maps to a reasonable interior
+value of whatever the parameter is:
 
 $$
 h(0) \ =\
@@ -36,12 +36,12 @@ U - 1 & \text{bounded above by } U,\\[2pt]
 \end{cases}
 $$
 
-A variance starts at one, a probability at one half, a correlation at zero, and a
-parameter confined to $(2, 5)$ at $3.5$ — from the same instruction each time.
-The same argument applies to a random start: draw on the unconstrained scale and
-map back, and the draw cannot be inadmissible however wide the range, whereas a
-draw made on the parameter scale has to be rejected and redrawn whenever it falls
-outside the box.
+A variance starts at one, a probability at one half, a correlation at zero,
+and a parameter confined to $(2, 5)$ at $3.5$, all from the same instruction.
+The same argument applies to a random start: a draw made on the unconstrained
+scale and mapped back is always admissible, however wide the range, while a
+draw made on the parameter scale must be rejected and redrawn whenever it
+falls outside the box.
 
 ```{r}
 #| label: starters
@@ -56,30 +56,30 @@ optimizers7::minimize(optimizers7::bfgs(), f,
                       lower = c(0, 0, 0), upper = c(5, 5, 5))@par
 ```
 
-There is one thing such an object has to be told, which is how many parameters
-there are, and it is the only genuinely awkward part. It may be said outright; it
-may be read off bounds given one per parameter; or the objective may be probed,
-by evaluating it at candidate lengths until one is accepted. The last works when
-the objective rejects the wrong length, which the objective of a real model does,
-`X %*% beta` with a parameter of the wrong length being an error rather than a
-number. It does not work for a function written in terms of the parameter alone,
-because R recycles a shorter vector silently whenever its length divides, so
-`sum((p - c(1, 2, 3))^2)` is a perfectly finite function of one parameter as well
-as of three; there the count cannot be inferred and is asked for instead.
+A starter must be told how many parameters there are, and this is the one
+delicate point. The number can be stated directly; it can be read from bounds
+supplied one per parameter; or the objective can be probed, by evaluating it
+at candidate lengths until one is accepted. Probing works when the objective
+rejects a parameter vector of the wrong length, which the objective of a real
+model does: `X %*% beta` with a mismatched `beta` is an error, not a number.
+It does not work for a function written in terms of the parameter alone,
+because R recycles a shorter vector silently whenever its length divides the
+longer one, so `sum((p - c(1, 2, 3))^2)` is a perfectly finite function of one
+parameter as well as of three; in that case the count cannot be inferred and
+is asked of the user instead.
 
 A second check precedes the first iteration whenever a gradient is supplied.
 A `gr` computed from a different model than `fn` — a fixed predictor where the
 objective uses the parameter, a stale copy of the data — leaves the objective
-flat along a direction the gradient insists is downhill, and what the run
-reports is then a line-search failure at the first iteration, which describes
-the symptom and conceals the cause. Two evaluations settle the question in
-advance: one central difference of `fn` along the gradient direction at the
-starting point is compared with the rate `gr` predicts, which along that
-direction is $\lVert g \rVert$, and a gross disagreement between the two draws
-a warning naming both rates. The tolerance is deliberately loose, so that
-finite-difference error, or a subgradient evaluated at a point where the
-objective has a kink, does not trip it: the check exists to catch the wrong
-function, not the eighth digit.
+flat along a direction the gradient reports as downhill, and the run then ends
+with a line-search failure at the first iteration, which describes the symptom
+and conceals the cause. Two evaluations settle the question in advance: one
+central difference of `fn` along the gradient direction at the starting point
+is compared with the rate `gr` predicts, which along that direction is
+$\lVert g \rVert$, and a gross disagreement between the two produces a warning
+that names both rates. The tolerance is deliberately loose, so that
+finite-difference error, or a subgradient evaluated at a kink, does not
+trigger it: the check detects the wrong function, not the eighth digit.
 
 ```{r}
 #| label: gradient-guard
@@ -92,20 +92,21 @@ r <- optimizers7::minimize(optimizers7::bfgs(maxit = 2), f_wrong, c(0, 0),
 
 ### Multiple starts and distinct optima {#sec-multistart}
 
-Every method in this chapter finds a local minimum, and none of them can tell
-whether it is the global one. That is a property of local optimisation rather
-than a shortcoming of any implementation, and the only general answer is to run
-from several starting points. Global optimisation has a substantial literature of
-its own — @rinnooykan1987 is the classical treatment of multi-start and of how
-many local searches are worth doing — but the practical version is short.
+Every method in this chapter finds a local minimum, and none of them can
+determine whether it is the global one. This is a property of local
+optimisation, not of any implementation, and the standard remedy is to run
+from several starting points. Global optimisation has a large literature of
+its own — @rinnooykan1987 is the classical treatment of multi-start methods
+and of how many local searches are worth running — but the practical version
+is short.
 
-What matters is what the several runs are read for. The best point found is the
-obvious answer and the least informative one, since a better point may always sit
-in a basin no start happened to land in. The **number of distinct optima** is the
-quantity that carries information, because it is evidence about the objective
-rather than about the optimiser: a run reporting one optimum from twenty starts
-says the question asked has one answer, which no single convergent run can
-establish however cleanly it converges.
+What matters is how the several runs are read. The best point found is the
+obvious summary and the least informative one, because a better point may
+always lie in a basin that no start reached. The informative summary is the
+**number of distinct optima**, because it describes the objective rather than
+the optimiser: twenty starts that all report the same optimum are evidence
+that the problem has a single answer, which no single convergent run can
+establish.
 
 ```{r}
 #| label: multistart
@@ -117,43 +118,43 @@ r@message
 table(round(r@trace$value, 6))
 ```
 
-The starts themselves are a **Latin hypercube** rather than independent draws:
-each coordinate's range is cut into as many strata as there are starts and each
-stratum is used exactly once, so no corner of the region can be left empty by
-chance. The construction is @mckay1979, and it is applied on the unconstrained
-scale for the reason the previous section gave.
+The starts themselves form a **Latin hypercube** rather than independent
+draws: each coordinate's range is divided into as many strata as there are
+starts and each stratum is used exactly once, so no region of the range is
+left empty by chance. The construction is due to @mckay1979, and it is applied
+on the unconstrained scale for the reason given in the previous section.
 
 ### Parallel execution {#sec-multistart-parallel}
 
-The starts are independent, so they parallelise naturally; they are given
-separate processes rather than threads for the following reason. The reason is not the
-objective but the stopping rule. A criterion in this package is an R object,
-consulted at every iteration; that is the feature the whole design is arranged
-around. Every iteration therefore returns to R, and R is single-threaded, so
-calling it from several threads at once is undefined behaviour that crashes
-rather than errors. Separate processes have no shared interpreter and no such
-problem.
+The starts are independent, so they parallelise naturally; they are executed
+in separate processes rather than threads for a specific reason. A stopping
+criterion in this package is an R object, consulted at every iteration — this
+is the design the package is built around — so every iteration returns to R,
+and R cannot be called from several threads at once. Separate processes have
+no shared interpreter and no such restriction.
 
-The rest is arranged rather than asked for. A number of processes is chosen —
-as many as there are starts, and never more than the machine can spare — the
-workers are created, given the package and an independent random stream, and shut
-down again, all inside the call. On a Unix-alike they are forks, which cost
-microseconds and inherit the session entire; Windows has no `fork`, so a socket
-cluster is used instead. The user sees a number.
+Everything else is handled internally. A number of processes is chosen — as
+many as there are starts, but never more than the machine can spare — and the
+workers are created, given the package and an independent random stream, and
+shut down, all inside the call. On Unix-alikes the workers are forks, which
+start in microseconds and inherit the session; Windows has no `fork`, so a
+socket cluster is used instead. The user supplies at most a number of cores.
 
-One property has to be stated because it is easily lost and hard to recover. The
-starting points are drawn in the calling session, before anything is dispatched,
-and each worker is seeded from that session's stream; so `set.seed()` reproduces
-the run, and reproduces it identically whether the work was split eight ways or
-not at all. A scheme that let each worker seed itself would give an answer that
-depended on how many cores happened to be free, which is not a property one wants
-in a result that will be reported.
+One property of this arrangement deserves explicit statement, because it is
+easy to lose and difficult to restore. The starting points are drawn in the
+calling session, before any work is dispatched, and each worker is seeded from
+that session's stream. `set.seed()` therefore reproduces the run, and
+reproduces it identically whether the work was split across eight processes or
+none: a scheme in which each worker seeded itself would produce answers that
+depend on how many cores happened to be free, which is not acceptable in a
+result that will be reported.
 
 ```{r}
 #| label: consistency-starting
 #| include: false
 # Internal consistency gate for this section: fails the render if the printed
-# values of h(0) are not the ones the package computes, or if a Latin hypercube
-# leaves a stratum empty.
+# values of h(0) are not the ones the package computes, if a Latin hypercube
+# leaves a stratum empty, or if the gradient guard fails to fire on a
+# mismatched pair or fires on a correct one.
 assert_starting_ok()
 ```

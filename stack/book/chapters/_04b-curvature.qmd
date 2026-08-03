@@ -7,10 +7,10 @@ source("R/_setup.R")
 source("R/optimizer-certificates.R")
 ```
 
-Every method in this section chooses its direction the same way: build a
-quadratic model of $f$ around the current point, and step to the minimiser of
-that model. Writing $g = \nabla f(x)$ and letting $M$ stand for whatever matrix
-plays the part of the curvature, the model is
+Every method in this section chooses its direction in the same way: it builds
+a quadratic model of $f$ around the current point and steps towards the
+minimiser of that model. Writing $g = \nabla f(x)$ and letting $M$ denote the
+matrix that plays the role of the curvature, the model is
 
 $$m(d) = f(x) + g^\top d + \tfrac{1}{2} d^\top M d,$$
 
@@ -18,84 +18,87 @@ and setting $\nabla m(d) = g + M d = 0$ gives
 
 $$d = -M^{-1} g.$$
 
-The methods differ in what they use for $M$, and this section takes them in
+The methods differ in what they use for $M$. This section presents them in
 order of how much they store: the exact Hessian, then an approximation to its
-inverse of the same size, then the last few pairs of vectors that approximation
-was built from, then a single vector, then a single number; the methods remain
-effective even near the bottom of the list.
+inverse of the same size, then the last few pairs of vectors that
+approximation was built from, then a single vector, then a single number. The
+methods remain effective even near the bottom of the list.
 
 ### Newton's method {#sec-newton}
 
-The obvious choice is the true Hessian, $M = \nabla^{2} f(x)$, which makes
-$m$ the second-order Taylor expansion and the step exact for a quadratic. Near a
-strict local minimum this converges quadratically, which no other method here
-achieves, and it is why `newton()` exists.
+The most direct choice is the true Hessian, $M = \nabla^{2} f(x)$, which makes
+$m$ the second-order Taylor expansion and the step exact for a quadratic
+objective. Near a strict local minimum the resulting iteration converges
+quadratically, which no other method in this chapter achieves, and this is the
+reason `newton()` exists.
 
-Away from such a point the Hessian may be indefinite or singular, and then the
-step is not merely inaccurate but wrong in kind. If $H$ has a negative
-eigenvalue $\lambda < 0$ with eigenvector $v$, the model $m$ is unbounded below
-along $v$ and its stationary point is a saddle, not a minimum; and worse, taking
-$d = -H^{-1} g$ can produce a direction with $g^\top d > 0$, which by
+Away from a minimum the Hessian may be indefinite or singular, and the step is
+then wrong in a qualitative sense, not just inaccurate. If $H$ has a negative
+eigenvalue $\lambda < 0$ with eigenvector $v$, the model $m$ is unbounded
+below along $v$ and its stationary point is a saddle rather than a minimum;
+moreover the direction $d = -H^{-1} g$ can satisfy $g^\top d > 0$, which by
 @def-descent points uphill. The line search then finds no acceptable step and
-the run stops for a reason that has nothing to do with the problem.
+the run stops for a reason unrelated to the actual problem.
 
-So $H$ must be replaced by a positive definite matrix near it. Two repairs are
-standard, both are available here, and both are described in @nocedal2006 and
+$H$ must therefore be replaced by a positive definite matrix near it. Two
+standard repairs are available, both described in @nocedal2006 and
 @dennis1983.
 
-The **eigenvalue repair** takes the symmetric decomposition $H = V \Lambda
-V^\top$ and replaces $\Lambda$ by $\tilde\Lambda$ with
+The **eigenvalue repair** takes the symmetric decomposition
+$H = V \Lambda V^\top$ and replaces $\Lambda$ by $\tilde\Lambda$ with
 
 $$\tilde\lambda_i = \max(\lambda_i, \varepsilon),$$
 
-for a floor $\varepsilon > 0$, giving $\tilde H = V \tilde\Lambda V^\top$. This
-is minimal in a precise sense — it changes the eigenvalues that are a problem
-and leaves the others exactly alone, so the curvature the Hessian got right is
-preserved — and it is the default. Note that the floor is not cosmetic: taking
-$\varepsilon = 0$ would leave a singular matrix, and taking it very small leaves
-a matrix whose condition number destroys the angle bound at the end of
-@sec-descent-zoutendijk. The floor is what keeps $\cos\theta_k$ away from zero.
+for a floor $\varepsilon > 0$, giving $\tilde H = V \tilde\Lambda V^\top$.
+This repair is minimal in a precise sense: it changes only the problematic
+eigenvalues and leaves the others exactly as they were, so the curvature that
+the Hessian estimated correctly is preserved. It is the default. The floor
+serves a definite purpose: with $\varepsilon = 0$ the repaired matrix could be
+singular, and with $\varepsilon$ very small its condition number could destroy
+the angle bound at the end of @sec-descent-zoutendijk. The floor keeps
+$\cos\theta_k$ away from zero.
 
-The **ridge repair** instead takes $\tilde H = H + \tau I$ with $\tau$ the
-smallest multiple of the identity making the result positive definite, found by
+The **ridge repair** takes $\tilde H = H + \tau I$, with $\tau$ the smallest
+multiple of the identity that makes the result positive definite, found by
 attempting a Cholesky factorisation and doubling $\tau$ on failure. It is
-cheaper, since it needs no eigendecomposition, but it is blunter: adding $\tau I$
-shifts *every* eigenvalue, so directions in which the Hessian was informative are
-distorted along with the ones in which it was not.
+cheaper, because it needs no eigendecomposition, but less precise: adding
+$\tau I$ shifts every eigenvalue, so the directions in which the Hessian was
+informative are distorted together with the ones in which it was not.
 
-Both repairs share the property that matters. Whatever $H$ was, the matrix
-actually inverted is positive definite, so the direction is a descent direction,
-so the line search has something to find.
+Both repairs guarantee the property that matters: the matrix actually inverted
+is positive definite, so the direction is a descent direction, and the line
+search can find an acceptable step.
 
 ::: {.callout-note}
 ## Numerical Hessians
 
-`newton()` accepts an objective with no analytic Hessian and differences the
-gradient once to obtain one. When the gradient is itself analytic that is a
-single numerical differentiation and the result is good. When the gradient is
-*also* differenced, the Hessian is a difference of differences, and the error
-compounds — which is the one place in the toolkit where two layers of numerical
-differentiation are composed. It is unavoidable, since a Hessian from values
-alone must be, but it is why an objective supplying neither derivative is better
-served by `bfgs()`, which never forms a Hessian at all.
+`newton()` accepts an objective with no analytic Hessian and obtains one by
+differencing the gradient once. When the gradient is analytic this is a single
+numerical differentiation and the result is accurate. When the gradient is
+itself obtained by finite differences, the Hessian becomes a difference of
+differences and the errors compound; this is the only place in the toolkit
+where two layers of numerical differentiation are composed, and it cannot be
+avoided, because a Hessian computed from function values alone has no other
+form. For this reason an objective that supplies neither derivative is better
+served by `bfgs()`, which never forms a Hessian.
 :::
 
 ### The BFGS update {#sec-bfgs}
 
-The Hessian is expensive: $p(p+1)/2$ second derivatives per iteration, and a
-factorisation costing $O(p^{3})$. The quasi-Newton methods refuse to pay it and
-build an approximation from what they already have — the gradients computed at
-successive iterates.
+The Hessian is expensive: $p(p+1)/2$ second derivatives per iteration, plus a
+factorisation costing $O(p^{3})$. Quasi-Newton methods avoid this cost by
+building an approximation from information they already have, namely the
+gradients computed at successive iterates.
 
-The information available is a **secant pair**. Having moved from $x$ to
+The available information is a **secant pair**. After moving from $x$ to
 $x_{+} = x + s d$, write
 
 $$s = x_{+} - x, \qquad y = \nabla f(x_{+}) - \nabla f(x).$$
 
 For a quadratic with Hessian $H$ these satisfy $y = H s$ exactly, and for a
-general $f$ the mean value theorem gives $y = \bar{H} s$ for some average of
-Hessians along the segment. Either way the pair says what the curvature does in
-one direction, and it is natural to ask an approximation to reproduce it.
+general $f$ the mean value theorem gives $y = \bar{H} s$ for an average of
+Hessians along the segment. In both cases the pair describes the curvature in
+one direction, and it is natural to require the approximation to reproduce it.
 
 ::: {#def-secant}
 ## The secant equation
@@ -106,15 +109,16 @@ $B_{+} s = y$; equivalently, an approximation $H_{+}$ to its inverse satisfies
 $$H_{+}\, y = s.$$
 :::
 
-This is $p$ equations for the $p(p+1)/2$ unknowns of a symmetric matrix, so it
-does not determine $H_{+}$. Two further requirements do, very nearly. The first
-is that $H_{+}$ be **symmetric and positive definite**, which @sec-descent
-showed is what makes the direction usable. The second is that it be **as close
-as possible to $H$**, on the grounds that the pair carries information about one
-direction and should not be allowed to overwrite what is known about the others.
+These are $p$ equations for the $p(p+1)/2$ unknowns of a symmetric matrix, so
+they do not determine $H_{+}$ by themselves. Two further requirements almost
+do. The first is that $H_{+}$ be symmetric and positive definite, which
+@sec-descent showed is necessary for the direction to be usable. The second is
+that $H_{+}$ be as close as possible to the current $H$, because the pair
+carries information about one direction only and should not overwrite what is
+known about the others.
 
 Making "close" precise in a particular weighted Frobenius norm yields a unique
-answer, and it is the BFGS update:
+answer, the BFGS update:
 
 ::: {#thm-bfgs}
 ## The BFGS update
@@ -128,75 +132,73 @@ satisfies the secant equation, is symmetric, and is positive definite whenever
 $H$ is and $y^\top s > 0$.
 :::
 
-The three claims are all short calculations, set out in @nocedal2006 along with
-the variational characterisation that singles this update out; the update itself
-was arrived at independently by four authors in 1970, of whom @broyden1970 is the
-one cited here. Applying $H_{+}$ to $y$ and using $\rho\,y^\top s = 1$ collapses
-the middle factor to zero and leaves $s$; symmetry is visible in the form, both
-terms being symmetric; and for positive definiteness one writes
-$w = v - \rho\,y(s^\top v)$ and finds
+The three claims are short calculations, set out in @nocedal2006 together with
+the variational characterisation that singles this update out; the update was
+found independently by four authors in 1970, of whom @broyden1970 is cited
+here. Applying $H_{+}$ to $y$ and using $\rho\,y^\top s = 1$ collapses the
+middle factor to zero and leaves $s$; symmetry is visible in the formula,
+since both terms are symmetric; and for positive definiteness one writes
+$w = v - \rho\,y(s^\top v)$ and obtains
 
 $$v^\top H_{+} v = w^\top H w + \rho\,(s^\top v)^{2},$$
 
-whose two terms are non-negative and cannot vanish together, since $s^\top v = 0$
-would force $w = v \neq 0$.
+whose two terms are non-negative and cannot vanish together, because
+$s^\top v = 0$ would force $w = v \neq 0$.
 
-That last calculation is where the condition $y^\top s > 0$ enters, and it is
-not a technical convenience. The quantity
+The last calculation is where the condition $y^\top s > 0$ enters, and the
+condition has a direct meaning. The quantity
 
 $$y^\top s = \bigl(\nabla f(x_{+}) - \nabla f(x)\bigr)^\top (x_{+} - x)$$
 
-is positive precisely when the function is curving upward along the step — when
-the observed curvature is consistent with a minimum. On a non-convex objective
-it can be negative, and then no positive definite matrix satisfies the secant
-equation for that pair: the pair is asserting negative curvature, and asking a
-positive definite matrix to reproduce it is asking for a contradiction.
+is positive exactly when the function curves upward along the step, that is,
+when the observed curvature is consistent with a minimum. On a non-convex
+objective it can be negative, and then no positive definite matrix satisfies
+the secant equation for that pair: the pair reports negative curvature, and a
+positive definite matrix cannot reproduce it.
 
-Two responses are possible, and the package takes the conservative one: when
-$y^\top s \le \varepsilon \lVert s \rVert \lVert y \rVert$ the pair is
-**skipped**, the approximation left as it was, and the skip recorded in the
-trace. The alternative, damping the pair towards one that does satisfy the
-condition, injects curvature that was not observed. Skipping loses information;
-damping invents it, and this toolkit prefers to lose it.
+When this happens the package **skips** the pair: whenever
+$y^\top s \le \varepsilon \lVert s \rVert \lVert y \rVert$, the approximation
+is left unchanged and the skip is recorded in the trace. The alternative,
+damping the pair towards one that does satisfy the condition, would inject
+curvature that was never observed; skipping loses information, damping invents
+it, and the toolkit prefers to lose it.
 
-Note also that a Wolfe search makes the question moot. Condition (W) says
-$\nabla f(x_{+})^\top d \ge c_2 \nabla f(x)^\top d$, and multiplying by $s > 0$
-and rearranging gives
+A Wolfe search removes the problem entirely. Condition (W) states
+$\nabla f(x_{+})^\top d \ge c_2 \nabla f(x)^\top d$, and multiplying by
+$s > 0$ and rearranging gives
 
 $$y^\top s \ \ge\ (c_2 - 1)\, s\, \nabla f(x)^\top d \ > \ 0,$$
 
-since $c_2 < 1$ and the directional derivative is negative. **A quasi-Newton
-method paired with a Wolfe search never skips an update.** That is the practical
-argument for the more expensive search, and it is why `bfgs()` defaults to it
-while `gd()`, which has no approximation to protect, defaults to
-backtracking.
+because $c_2 < 1$ and the directional derivative is negative. A quasi-Newton
+method paired with a Wolfe search therefore never skips an update. This is the
+practical reason `bfgs()` defaults to the Wolfe search, while `gd()`, which
+has no approximation to protect, defaults to backtracking.
 
-The argument should be stated at its true strength, which is that of a
-guarantee rather than of an observed advantage. On every smooth problem in the
-standard collection, and on a deliberately non-convex one besides, backtracking
-skips no updates either: the curvature condition simply is not violated there.
-What the Wolfe search removes is not a frequent nuisance but the possibility of
-one, and the difference shows on objectives less well behaved than any that
-appear in this book.
+This advantage is a guarantee rather than an observed difference. On every
+smooth problem in the standard collection, and on a deliberately non-convex
+one as well, backtracking also skips no updates, because the curvature
+condition is simply never violated there. What the Wolfe search removes is the
+possibility of a skipped update, and the difference appears only on objectives
+less well behaved than any in this book.
 
 ### Limited-memory BFGS {#sec-lbfgs}
 
-BFGS stores a $p \times p$ matrix, which is fine for the handful of parameters a
-distribution has and impossible for the thousands a model with covariates may
-have. L-BFGS keeps instead the last $m$ secant pairs, typically $m$ between 5
-and 20, and never forms the matrix; it is @nocedal1980, with the convergence
-analysis and the large-scale evidence in @liu1989.
+BFGS stores a $p \times p$ matrix, which is acceptable for the handful of
+parameters of a single distribution and impossible for the thousands of a
+model with covariates. L-BFGS instead keeps the last $m$ secant pairs,
+typically with $m$ between 5 and 20, and never forms the matrix; the method is
+due to @nocedal1980, with the convergence analysis and large-scale evidence in
+@liu1989.
 
-The observation that makes this possible is that the BFGS update in
-@thm-bfgs is a sum of terms each of which is an outer product. Applying $H_k$ to
-a vector therefore requires only inner products with the stored pairs, and
-unrolling the recursion gives the **two-loop recursion**: initialise $q = g$,
-run backwards through the pairs computing
+The method rests on the observation that the BFGS update in @thm-bfgs is a sum
+of outer products, so applying $H_k$ to a vector requires only inner products
+with the stored pairs. Unrolling the recursion gives the **two-loop
+recursion**: initialise $q = g$, run backwards through the pairs computing
 
 $$\alpha_i = \rho_i\, s_i^\top q, \qquad q \leftarrow q - \alpha_i y_i,$$
 
-scale once by $\gamma = (s_{k}^\top y_{k}) / (y_{k}^\top y_{k})$ using the most
-recent pair, then run forwards computing
+scale once by $\gamma = (s_{k}^\top y_{k}) / (y_{k}^\top y_{k})$ using the
+most recent pair, then run forwards computing
 
 $$\beta_i = \rho_i\, y_i^\top q, \qquad q \leftarrow q + (\alpha_i - \beta_i) s_i,$$
 
@@ -204,17 +206,17 @@ after which $q = H_k g$. The cost is $O(mp)$ in time and $O(mp)$ in storage,
 against $O(p^{2})$ for both in BFGS.
 
 The scaling $\gamma$ is the one part of the recursion that is a choice rather
-than an identity. It sets the initial
-approximation at each iteration to $\gamma I$, and $\gamma$ is the Rayleigh
-quotient of the most recent pair — an estimate of the inverse curvature along the
-direction most recently travelled. Without it the recursion starts from $I$,
-whose scale has nothing to do with the problem, and the first step of each
-iteration is badly sized.
+than an identity. It sets the initial approximation at each iteration to
+$\gamma I$, where $\gamma$ is the Rayleigh quotient of the most recent pair,
+an estimate of the inverse curvature along the direction most recently
+travelled. Without this scaling the recursion would start from $I$, whose
+scale has no relation to the problem, and the first step of each iteration
+would be badly sized.
 
-The price of limited memory is that older curvature is discarded. On a problem
-whose Hessian is nearly constant that costs almost nothing; on one where the
-curvature varies sharply, forgetting is sometimes an advantage, since stale
-pairs describe a region the iterate has left.
+The cost of limited memory is that older curvature information is discarded.
+On a problem whose Hessian is nearly constant this costs almost nothing; on
+one where the curvature varies sharply, discarding can even help, because
+stale pairs describe a region the iterate has already left.
 
 ```{r}
 #| label: memory-cost
@@ -247,54 +249,58 @@ knitr::kable(
 
 ### Conjugate gradients and Barzilai-Borwein {#sec-cg-bb}
 
-Two methods store less still, and between them they cover the case a statistical model most often presents, in which the
-parameter vector is too long for a $p \times p$ anything.
+Two further methods store even less, and between them they cover the case a
+statistical model most often presents: a parameter vector too long for any
+$p \times p$ matrix.
 
 **Conjugate gradients** keeps one vector. Its direction is
 
 $$d_k = -g_k + \beta_k d_{k-1},$$
 
-which does not look like $-M^{-1}g$ at all, and it does not have to. Recall from
-@sec-descent-directions why steepest descent is poor: under an exact line search
-consecutive directions are orthogonal, since the search stops where
-$g_{k+1}^\top d_k = 0$, so on a narrow valley the iterate crosses the floor
-rather than travelling along it. The remedy is to bend each direction back
-towards the last, and the whole of the method is the choice of how far.
+which is not of the form $-M^{-1}g$, and does not need to be. Recall from
+@sec-descent-directions why steepest descent is slow: under an exact line
+search consecutive directions are orthogonal, because the search stops where
+$g_{k+1}^\top d_k = 0$, so on a narrow valley the iterates cross the floor
+repeatedly instead of travelling along it. The remedy is to combine each new
+gradient with the previous direction, and the entire method is the choice of
+how much weight $\beta_k$ to give the previous direction.
 
-On a quadratic with Hessian $H$ and an exact line search, the classical choices
-of $\beta$ make the directions *conjugate*, meaning $d_i^\top H d_j = 0$ for
-$i \neq j$, and a set of $p$ conjugate directions spans the space with the
-minimisations along them independent of one another. The method therefore
-terminates in $p$ steps exactly, having formed $H$ nowhere. The linear case is
-@hestenes1952; the nonlinear one begins with @fletcher1964, and @hager2006
-surveys what has happened since.
+On a quadratic with Hessian $H$ and an exact line search, the classical
+choices of $\beta$ make the directions *conjugate*, meaning
+$d_i^\top H d_j = 0$ for $i \neq j$. A set of $p$ conjugate directions spans
+the space, and the one-dimensional minimisations along them are independent of
+one another, so the method terminates in exactly $p$ steps without ever
+forming $H$. The linear case is @hestenes1952; the nonlinear case begins with
+@fletcher1964, and @hager2006 surveys the later developments.
 
-The four formulas offered here agree on a quadratic and differ everywhere else:
+The four formulas offered here agree on a quadratic and differ everywhere
+else:
 
 $$\beta^{FR} = \frac{g_k^\top g_k}{g_{k-1}^\top g_{k-1}}, \quad
   \beta^{PR} = \frac{g_k^\top y_k}{g_{k-1}^\top g_{k-1}}, \quad
   \beta^{HS} = \frac{g_k^\top y_k}{d_{k-1}^\top y_k}, \quad
   \beta^{DY} = \frac{g_k^\top g_k}{d_{k-1}^\top y_k},$$
 
-with $y_k = g_k - g_{k-1}$ as always, and with the four due respectively to
-@fletcher1964, @polak1969, @hestenes1952 and @dai1999. Fletcher–Reeves has the
-cleanest theory and the practical fault of stalling for many iterations after a
-poor step; Polak–Ribière recovers immediately, because a small $y$ sends $\beta$
-towards zero and the method back to steepest descent, and its known failure to
-converge is repaired by clamping $\beta$ at zero, a clamp which is not a fudge
-since $\beta = 0$ *is* a restart.
+with $y_k = g_k - g_{k-1}$ as before, due respectively to @fletcher1964,
+@polak1969, @hestenes1952 and @dai1999. Fletcher–Reeves has the cleanest
+convergence theory and a known practical fault: after a poor step it can stall
+for many iterations. Polak–Ribière recovers immediately, because a small $y$
+sends $\beta$ towards zero and the method back to steepest descent; its known
+theoretical non-convergence is repaired by clamping $\beta$ at zero, and since
+$\beta = 0$ restarts the method at steepest descent, the clamp is recorded in
+the trace as a restart.
 
-**Barzilai–Borwein** keeps one number. Take $d = -\alpha g$ with
+**Barzilai–Borwein** keeps one number. The direction is $d = -\alpha g$ with
 
 $$\alpha^{BB1} = \frac{s^\top s}{s^\top y}, \qquad
   \alpha^{BB2} = \frac{s^\top y}{y^\top y},$$
 
-the two Rayleigh quotients of the secant pair. Each is a scalar estimate of the
-inverse curvature along the direction just travelled, so this is @sec-bfgs with
-everything discarded but one number — and on a quadratic, where the curvature is
-constant, that number is exactly right and the second step lands on the answer.
-The method is @barzilai1988, and @raydan1997 is what established that it is
-practical on large problems rather than merely elegant.
+the two Rayleigh quotients of the secant pair. Each is a scalar estimate of
+the inverse curvature along the direction just travelled, so the method is
+@sec-bfgs with everything discarded except one number. On a quadratic, where
+the curvature is constant, the estimate is exact and the second step lands on
+the answer. The method is due to @barzilai1988, and @raydan1997 established
+that it is practical on large problems.
 
 ```{r}
 #| label: memory-ladder
@@ -324,13 +330,12 @@ knitr::kable(
 )
 ```
 
-Read it downwards. Keeping the exact Hessian, or a full approximation to its
-inverse, or twenty pairs of vectors, or one vector, or one number makes only a
-modest difference to the iteration count on this problem — and keeping nothing
-at all makes all the difference in the world. It is not the *amount* of
-curvature information that matters so much as whether there is any: gradient
-descent is the only row that fails, and conjugate gradients repairs it with a
-single remembered direction.
+The table shows that the amount of stored curvature matters less than its
+presence. Keeping the exact Hessian, a full approximation to its inverse,
+twenty pairs of vectors, one vector or one number changes the iteration count
+only moderately, while keeping nothing at all is the one configuration that
+fails: gradient descent is the only row that does not converge, and conjugate
+gradients repairs it with a single remembered direction.
 
 Every run can record its own path. With `keep_trace = TRUE` the result carries
 one row per iteration — the objective value, the gradient norm, the step taken
@@ -352,13 +357,12 @@ lines(rb@trace$iteration, log10(rb@trace$value), lty = 2)
 legend("topright", c("gradient descent", "BFGS"), lty = c(1, 2), bty = "n")
 ```
 
-For Barzilai–Borwein the count in its row depends on something besides the
-number it stores. Its efficiency comes from
-steps that make the objective *worse* now in order to be aligned with the
-curvature later, and the sufficient-decrease condition of @def-armijo forbids
-exactly those. The classical remedy, due to @grippo1986, is a nonmonotone line
-search, which asks for improvement against the worst of the last several values
-rather than against the present one; it is what `bb()` uses by default, and
-under it the method reaches Rosenbrock in 68 iterations and 77 objective
-evaluations against 82 and 186 under backtracking. One stored number, and a line
-search that lets it be used.
+For Barzilai–Borwein the iteration count in the table depends on the line
+search as much as on the stored number. The method makes progress through
+steps that temporarily increase the objective in order to be aligned with the
+curvature later, and the sufficient-decrease condition of @def-armijo rejects
+exactly those steps. The standard remedy, due to @grippo1986, is a nonmonotone
+line search, which requires improvement over the worst of the last several
+values instead of over the current one. `bb()` uses it by default, and with it
+the method reaches the minimum of Rosenbrock in 68 iterations and 77 objective
+evaluations, against 82 and 186 under plain backtracking.

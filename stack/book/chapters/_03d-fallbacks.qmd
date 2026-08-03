@@ -6,50 +6,51 @@
 source("R/_setup.R")
 ```
 
-The contract of @sec-distrib-object is unusually generous: a new distribution
-must supply its density and nothing else. Everything the preceding sections
-have described — the distribution function, the quantile function, random
+The contract of @sec-distrib-object requires a new distribution to supply its
+density and nothing else. Everything else that the preceding sections
+described — the distribution function, the quantile function, random
 generation, derivatives of every order in the parameters and in the response —
-is provided by default implementations registered on the base classes, which any
-subclass may override but none is obliged to.
+is provided by default implementations registered on the base classes, which
+any subclass may override but none is obliged to.
 
-That generosity is what makes the extension story credible. A package that only
-worked for the fourteen families it ships with would have solved nothing; the
-test is whether a user's own distribution is a first-class citizen, and it is one
-exactly to the extent that the fallbacks are good. This section describes them,
-because two of them rest on ideas of independent interest, and because knowing
-where a fallback is weak is part of knowing when to replace it.
+These defaults are what makes user-defined distributions practical: a
+distribution written by a user is a first-class citizen exactly to the extent
+that the fallbacks are accurate and fast. This section describes how each
+fallback works and where its limits are, since knowing where a fallback is
+weak is part of knowing when to replace it with a closed form.
 
 ### Distribution function, quantiles and derivatives {#sec-fallbacks-easy}
 
-Several fallbacks are what one would guess. The distribution function is a
-quadrature of the density from the lower end of the support for a continuous
-family, and a partial sum for a discrete support one. The quantile function inverts it by
+Several fallbacks are direct implementations of their definitions. The
+distribution function is computed by quadrature of the density from the lower
+end of the support for a continuous family, and by partial summation for a
+discrete one. The quantile function inverts the distribution function by
 root-finding. Derivatives with respect to the parameters are central finite
-differences, each order differencing the analytical implementation of the order
-below when one exists, so that a distribution supplying a closed-form score gets
-a Hessian one differencing away rather than two.
+differences, and each order differences the analytical implementation of the
+order below when one exists, so a distribution supplying a closed-form score
+obtains its Hessian from one differencing rather than two.
 
-The steps of those differences are the one place where care is needed, and the
-reason is the openness of the parameter domains. A scale parameter is positive,
-not non-negative, so a step chosen from the magnitude of $\sigma$ alone will,
-for small $\sigma$, place $\sigma - \delta$ on the wrong side of zero, and the
-log-density comes back `NaN` for a reason that looks like a defect in the
-density. Each step is therefore shrunk to stay within the domain, and the same
-is done in the response direction so that $y \pm \delta$ never leaves the
-support — the Gamma near zero being the case that forces it.
+The step sizes of these differences require care because the parameter
+domains are open. A scale parameter is positive, not non-negative, so a step
+chosen only from the magnitude of $\sigma$ will, for small $\sigma$, place
+$\sigma - \delta$ below zero, and the log-density then returns `NaN` for a
+reason that looks like a defect in the density itself. Each step is therefore
+shrunk to stay within the domain, and the same is done in the response
+direction, so that $y \pm \delta$ never leaves the support; the Gamma near
+zero is the case that requires it.
 
 ### Random generation by ratio of uniforms {#sec-fallbacks-grou}
 
-Random generation is where the obvious fallback is unusable. Inverse transform
-sampling needs $Q(V)$ for $V$ uniform, and if the quantile function is itself
-the numerical fallback then each draw costs a root-finding call, each iteration
-of which costs a quadrature. A sample of a thousand becomes a noticeable wait.
+For random generation the direct fallback is too slow to use. Inverse
+transform sampling computes $Q(V)$ for uniform $V$, and when the quantile
+function is itself the numerical fallback, each draw costs a root-finding
+call, and each iteration of the root-finder costs a quadrature; a sample of a
+thousand becomes a noticeable wait.
 
-The package instead uses a **generalized ratio-of-uniforms** scheme, which needs
-the density alone. The idea is a change of perspective: instead of sampling $Y$
-directly, sample uniformly from a two-dimensional region built from the density
-and read $Y$ off the ratio of the coordinates.
+The package instead uses a **generalized ratio-of-uniforms** scheme, which
+needs only the density. Instead of sampling $Y$ directly, the scheme samples
+uniformly from a two-dimensional region built from the density and obtains $Y$
+as the ratio of the coordinates.
 
 ::: {#thm-grou}
 ## Generalized ratio-of-uniforms
@@ -65,95 +66,95 @@ If $(U, V)$ is uniform on $\mathcal{A}_r$, then $Y = V/U^{r}$ has density
 proportional to $\kappa$.
 :::
 
-The mechanism is a single change of variables. Writing $v = y\,u^{r}$, the joint
-density of $(U, Y)$ is proportional to $u^{r}$ over the region
+The result follows from a single change of variables. Writing $v = y\,u^{r}$,
+the joint density of $(U, Y)$ is proportional to $u^{r}$ over the region
 $\{0 < u \le \kappa(y)^{1/(r+1)}\}$, and integrating $u$ out leaves
 $\kappa(y)/(r+1)$, which is proportional to $\kappa$ and free of $u$. The
 method is due to @kinderman1977 in its original form and to @wakefield1991 in
-the generalised one used here; @devroye1986 remains the standard reference for
-non-uniform generation as a whole.
+the generalised form used here; @devroye1986 is the standard reference for
+non-uniform random generation in general.
 
-The practical content is that $\mathcal{A}_r$ is contained in a rectangle whose
-sides can be computed from $\kappa$, so one samples uniformly from the rectangle
-and rejects the points outside $\mathcal{A}_r$. Only the density is needed, and
-only up to a constant — which is fortunate, since a normalising constant is
-exactly what a user-defined density may not have.
+In practice, $\mathcal{A}_r$ is contained in a rectangle whose sides can be
+computed from $\kappa$, so the sampler draws uniformly from the rectangle and
+rejects the points outside $\mathcal{A}_r$. Only the density is needed, and
+only up to a constant, which matters because a user-defined density often has
+no normalising constant.
 
-Two devices make the scheme reliable rather than merely correct, and both were
-put in after the naive version failed.
+Two additional devices are needed for the scheme to work reliably.
 
-The kernel is **recentred at the mode** before the bounding rectangle is
-computed. Without this a density concentrated far from the origin — a Gaussian at
-$\mu = 1000$, say — produces a rectangle whose acceptance probability is
-essentially zero, because the region $\mathcal{A}_r$ is a sliver in a corner of
-it. The mode is located by evaluating the log-density on a grid over a
-compactified support and keeping the two cells around the largest value, which
-for a unimodal density provably still brackets the mode and shrinks it by a
-factor of 64 per pass.
+First, the kernel is **recentred at the mode** before the bounding rectangle
+is computed. Without recentring, a density concentrated far from the origin —
+a Gaussian at $\mu = 1000$, for example — produces a rectangle in which the
+region $\mathcal{A}_r$ occupies a negligible corner, and the acceptance
+probability is essentially zero. The mode is located by evaluating the
+log-density on a grid over a compactified support and keeping the two cells
+around the largest value; for a unimodal density this bracket always contains
+the mode, and it shrinks by a factor of 64 at each pass.
 
 ::: {.callout-note}
 ## Locating the mode
 
-The obvious way to locate the mode is a golden-section search on the
-compactified scale, and it is not accurate enough. Its tolerance is expressed in
-the compactified variable $t$, and the derivative of the compactification can be
-enormous: under the tangent map $\mathrm{d}y/\mathrm{d}t$ is of order $y^{2}$, so
-a default tolerance of about $10^{-4}$ in $t$ became an error of 125 standard
-deviations in $y$ for a density centred at 1000. The grid refinement stops on the
-width of the bracket measured in $y$, which is the quantity that matters.
+A golden-section search on the compactified scale is the obvious alternative
+for locating the mode, and it is not accurate enough. Its tolerance is
+expressed in the compactified variable $t$, while the derivative of the
+compactification grows with the location of the mode: under the tangent map,
+$\mathrm{d}y/\mathrm{d}t$ is of order $y^{2}$, so a fixed tolerance in $t$
+corresponds to an error in $y$ that grows quadratically with the mode. The
+grid refinement instead stops on the width of the bracket measured in $y$,
+which is the quantity that matters.
 :::
 
-The kernel is also **normalised to a maximum of one**, so that the rectangle does
-not inherit an arbitrary scale from an unnormalised density.
+Second, the kernel is **normalised to a maximum of one**, so that the
+rectangle does not inherit an arbitrary scale from an unnormalised density.
 
-So equipped, the method copes with far more than one expects of it: bimodal
-densities, a Student $t$ with half a degree of freedom, a Pareto with infinite
-mean. Exactly one shape remains that it cannot handle, and it has to be named
-precisely, because it is also the one the next subsection removes.
+With these two devices the method handles bimodal densities, a Student $t$
+with half a degree of freedom, and a Pareto with infinite mean. One class of
+densities remains outside its reach, and the next subsection removes it.
 
 ### Densities unbounded at an endpoint {#sec-fallbacks-divergence}
 
-If $\kappa$ is unbounded then no bounding rectangle exists and the scheme has
-nothing to sample from. This is not an exotic case: a Gamma with shape below one
-diverges at zero, as does a Beta with either parameter below one.
+If $\kappa$ is unbounded, no bounding rectangle exists and the scheme has
+nothing to sample from. The case is common rather than exotic: a Gamma with
+shape below one diverges at zero, and so does a Beta with either parameter
+below one.
 
-The cure is a change of variable that flattens the singularity. Suppose that
+The remedy is a change of variable that removes the singularity. Suppose that
 near a finite edge $a$ of the support
 
 $$f(y) \sim \lvert y - a \rvert^{\alpha - 1}, \qquad 0 < \alpha < 1,$$
 
-so that the density diverges as the edge is approached. Put
-$X = \lvert Y - a \rvert^{1/\lambda}$ for some $\lambda > 0$. The density of $X$
-carries the Jacobian of the map, and a short computation gives an exponent
-$\lambda\alpha - 1$ in place of $\alpha - 1$: the transformed density behaves
-like $x^{\lambda\alpha - 1}$ near the edge, which is **bounded** as soon as
-$\lambda\alpha > 1$, and in fact vanishes there. One samples $X$ by the scheme
-above and maps back.
+so that the density diverges as the edge is approached. Set
+$X = \lvert Y - a \rvert^{1/\lambda}$ for some $\lambda > 0$. The density of
+$X$ carries the Jacobian of the map, and a short computation replaces the
+exponent $\alpha - 1$ with $\lambda\alpha - 1$: the transformed density
+behaves like $x^{\lambda\alpha - 1}$ near the edge, which is bounded as soon
+as $\lambda\alpha > 1$, and in fact vanishes there. The sampler draws $X$ by
+the scheme above and maps back.
 
-What makes this practical rather than merely possible is that $\alpha$ never has
-to be searched for. Taking logarithms of the assumed behaviour,
+The exponent $\alpha$ does not need to be searched for. Taking logarithms of
+the assumed behaviour,
 
 $$\log f(a + \delta) \approx \text{const} + (\alpha - 1)\log\delta,$$
 
-so walking towards the edge in decades — $\delta$, $\delta/10$, $\delta/100$ —
-raises the log-density by $(1-\alpha)\log 10$ at every step when the density
-diverges, and by an amount that dies away when it does not. **The probe that
-detects the divergence therefore also measures it**, to about four decimals,
-from the same handful of density evaluations. For a Gamma of shape $0.4$ the
-transformation takes a draw from 27 milliseconds to under a microsecond, and the
-draws remain exact — nothing here is an approximation, only a reparameterisation.
+so approaching the edge in decades — $\delta$, $\delta/10$, $\delta/100$ —
+raises the log-density by $(1-\alpha)\log 10$ at each step when the density
+diverges, and by a vanishing amount when it does not. The same probe that
+detects the divergence therefore also measures its exponent, to about four
+decimal places, from a handful of density evaluations. The transformation
+reduces the cost of a draw by several orders of magnitude for strongly
+divergent shapes, and the draws remain exact, because the construction is a
+reparameterisation and not an approximation.
 
-A density that diverges at **both** ends of a finite interval needs slightly
-more, since a single power flattens one edge while steepening the other. What
-serves is a map behaving like a different power at each end,
+A density that diverges at **both** ends of a finite interval requires a map
+that behaves like a different power at each end,
 
 $$T(u) = \frac{u^{p}}{u^{p} + (1-u)^{q}}, \qquad Y = a + (b-a)\,T(U),$$
 
 which increases from $0$ to $1$, behaves like $u^{p}$ on the left and like
 $1 - (1-u)^{q}$ on the right, and has a closed-form derivative. The density of
-$U$ then carries the exponents $p\alpha - 1$ and $q\beta - 1$ at the two ends and
-is bounded as soon as $p\alpha > 1$ and $q\beta > 1$. Both exponents come from
-the same probe as before, run once at each edge.
+$U$ then carries the exponents $p\alpha - 1$ and $q\beta - 1$ at the two ends
+and is bounded as soon as $p\alpha > 1$ and $q\beta > 1$. Both exponents come
+from the same probe as before, run once at each edge.
 
 ```{r}
 #| label: grou-demo
@@ -169,43 +170,40 @@ c(var = var(x), theoretical = 1)
 
 ### Discrete distributions {#sec-fallbacks-discrete}
 
-For a discrete family none of the above is required, and the reason is instructive
-rather than leaving it implicit. The distribution function of a discrete variable
-is a step function, so its generalized inverse is exact: there is no root to
-find, only a table to look up. The fallbacks therefore build one cumulative
-table over the support — grown geometrically until it covers the probability
-asked of it — and read the distribution function, the quantile function and the
-random generator off it.
-
-The only thing that ever went wrong here was performance, and not of the
-algorithm: the lookup was originally one R-level call per draw, which cost
-$12.6\,\mu s$ against $0.1\,\mu s$ once vectorised. The requirement the table
-imposes is a finite lower bound on the support, which every standard count
-distribution has.
+A discrete family needs none of the machinery above, for a simple reason: the
+distribution function of a discrete variable is a step function, so its
+generalized inverse is exact — there is no root to find, only a table to look
+up. The fallbacks build one cumulative table over the support, grown
+geometrically until it covers the probability requested, and read the
+distribution function, the quantile function and the random generator off the
+table. The lookup is vectorised, and the only requirement the table imposes is
+a finite lower bound on the support, which every standard count distribution
+has.
 
 ### Limitations {#sec-fallbacks-caveat}
 
-Two warnings belong with all of this.
+Two warnings apply to everything in this section.
 
-The first concerns validation and is easy to miss. A distribution relying on the
-numerical derivatives will pass the derivative checks of `check_distrib()`
-*trivially*, because the analytical value and the numerical reference are then
-the same computation. Those checks become informative exactly when a closed form
-has been supplied — which is the moment one wants them, but it means a clean
-report on a density-only distribution says less than it appears to.
+The first concerns validation. A distribution that relies on the numerical
+derivatives passes the derivative checks of `check_distrib()` trivially,
+because the analytical value and the numerical reference are then the same
+computation. Those checks become informative exactly when a closed form has
+been supplied, so a clean report on a density-only distribution states less
+than it appears to.
 
-The second concerns quadrature, and is the reason `expectation()` is deliberately
-conservative.
+The second concerns quadrature, and explains why `expectation()` is
+deliberately conservative.
 
 ::: {.callout-note}
 ## Quadrature knots
 
 `expectation()` splits its integral at quantiles of the distribution, and uses
-three knots rather than nine. More knots would extend the range of densities it
-can integrate at all — but they would also convert loud failures into silent
-wrong answers. At Gamma shape $0.02$ a nine-knot rule returns $-54.9$ for a
-quantity that is exactly zero, while the three-knot rule reports that it could
-not compute the integral. In the ordinary range three knots are also the more
-accurate choice, every additional panel contributing its own error. An explicit failure is
-preferable to a plausible wrong number.
+three knots rather than nine. More knots would extend the range of extreme
+densities that can be integrated at all, but they would also convert loud
+failures into silent wrong answers: at Gamma shape $0.02$ a nine-knot rule
+returns $-54.9$ for a quantity that is exactly zero, while the three-knot rule
+reports that it could not compute the integral. In the ordinary range three
+knots are also the more accurate choice, because every additional panel
+contributes its own quadrature error. An explicit failure is preferable to a
+plausible wrong number.
 :::

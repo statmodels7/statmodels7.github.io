@@ -7,21 +7,22 @@ source("R/_setup.R")
 source("R/optimizer-certificates.R")
 ```
 
-Everything so far has assumed that $f$ is differentiable and that the gradient
-becomes small near a solution. Both halves of that assumption are used, and the
-second is the one that fails first. For an objective with a kink at its
-minimiser the gradient does not become small — it does not exist there, and the
-one-sided derivatives on either side do not approach zero. The methods of
-@sec-curvature then do something worse than converging slowly: they walk to the
-right answer and report that they have failed.
+Everything so far assumed that $f$ is differentiable and that the gradient
+becomes small near a solution. The second part of this assumption is the one
+that fails first. For an objective with a kink at its minimiser the gradient
+does not become small: it does not exist at the minimiser, and the one-sided
+derivatives on either side do not approach zero. On such an objective the
+methods of @sec-curvature reach the correct point and then report failure,
+because the quantity their stopping rule tests never becomes small.
 
-The example is not contrived. Minimising
+The example is a standard one. Minimising
 
 $$f(\mu) = \sum_{i=1}^{n} \lvert y_i - \mu \rvert$$
 
-is estimating a median, and it is the location part of a Laplace likelihood; the
-toolkit met exactly this in @sec-fitting. The function is piecewise linear with a
-kink at every observation, and its minimiser is one of them.
+is the estimation of a median, and it is the location part of a Laplace
+likelihood; the toolkit met exactly this objective in @sec-fitting. The
+function is piecewise linear with a kink at every observation, and its
+minimiser is one of the observations.
 
 ### The subdifferential {#sec-subdifferential}
 
@@ -37,15 +38,16 @@ $$f(z) \ \ge\ f(x) + v^\top (z - x) \qquad \text{for all } z,$$
 and the set of all such $v$ is the **subdifferential** $\partial f(x)$.
 :::
 
-Geometrically a subgradient is the slope of an affine function that touches $f$
-at $x$ and lies below it everywhere, so the subdifferential collects every
-supporting hyperplane at that point. Where $f$ is differentiable there is
-exactly one, $\partial f(x) = \{\nabla f(x)\}$; at a kink there are many.
+Geometrically, a subgradient is the slope of an affine function that touches
+$f$ at $x$ and lies below it everywhere, so the subdifferential collects every
+supporting hyperplane at that point. Where $f$ is differentiable the
+subdifferential contains exactly one element, $\partial f(x) = \{\nabla
+f(x)\}$; at a kink it contains many.
 
-The optimality condition generalises directly, and it is one line from the
-definition: putting $v = 0$ into @def-subdifferential turns the
-subgradient inequality into $f(z) \ge f(x)$ for every $z$, which is minimality
-itself, read in either direction.
+The optimality condition generalises directly, and follows in one line from
+the definition: setting $v = 0$ in @def-subdifferential turns the subgradient
+inequality into $f(z) \ge f(x)$ for every $z$, which is minimality, and the
+argument reads the same in both directions.
 
 ::: {#prp-fermat}
 ## Fermat's rule
@@ -54,26 +56,26 @@ A convex $f$ attains its minimum at $x^{\star}$ if and only if
 $0 \in \partial f(x^{\star})$.
 :::
 
-The subdifferential, Fermat's rule and everything else this section rests on are
+The subdifferential, Fermat's rule and the other results this section uses are
 developed in @rockafellar1970 and, in the form closest to the algorithms here,
 in @hiriarturruty1993.
 
-Now apply this to the absolute-deviation objective. Away from the data
-$f'(\mu) = \#\{y_i < \mu\} - \#\{y_i > \mu\}$, and at $\mu = y_{(k)}$ the
-subdifferential is the interval between the two one-sided slopes. Fermat's rule
-is satisfied at the median, where the counts on either side balance. But notice
-what the *individual* subgradients look like there: each $\lvert y_i - \mu
-\rvert$ contributes $\pm 1$ depending on which side $y_i$ falls, and any
-particular subgradient you happen to evaluate — the one a `gr` function returns —
-is an integer of size comparable to $n$ away from the median and of size at
-least one at it. It never becomes small.
+Applied to the absolute-deviation objective, these definitions give the
+following picture. Away from the data points,
+$f'(\mu) = \#\{y_i < \mu\} - \#\{y_i > \mu\}$; at an observation
+$\mu = y_{(k)}$ the subdifferential is the interval between the two one-sided
+slopes. Fermat's rule is satisfied at the median, where the counts on either
+side balance. The individual subgradients, however, do not become small there:
+each term $\lvert y_i - \mu \rvert$ contributes $\pm 1$ according to the side
+on which $y_i$ falls, so any particular subgradient — the value a `gr`
+function returns — is an integer of size comparable to $n$ away from the
+median, and of size at least one at the median itself.
 
-This is the whole difficulty in one sentence. **The quantity a gradient-based
-stopping rule tests does not vanish at the solution**, so no tolerance can be
-chosen that both fires there and does not fire everywhere else. The method
-arrives, the line search finds no acceptable step because every direction leads
-uphill from a kink, and the run stops reporting failure while standing on the
-answer.
+This is the central difficulty: the quantity a gradient-based stopping rule
+tests does not vanish at the solution, so no tolerance both fires there and
+stays quiet elsewhere. The method reaches the minimiser, the line search finds
+no acceptable step because every direction leads uphill from the kink, and the
+run stops with a failure report while standing on the answer.
 
 ```{r}
 #| label: kink-failure
@@ -100,34 +102,36 @@ knitr::kable(
 )
 ```
 
-The table is the argument. Both methods reach the same point, to the last digit
-printed; a subgradient there has size one for both; and one of them reports
-success. The difference is not in the arithmetic but in what is being tested.
+Both methods reach the same point to the last printed digit, and at that point
+a subgradient has size one for both; only one of the two reports success. The
+difference is not in the arithmetic but in the quantity being tested, which is
+the subject of the next two sections.
 
 ### The cutting-plane model {#sec-cutting}
 
-Since no single subgradient vanishes, the repair is to stop asking one to. The
-bundle method keeps a collection of them, from points already visited, and works
-with the model they define.
+Since no single subgradient vanishes at the solution, the bundle method stops
+testing single subgradients. It keeps a collection of them, gathered at the
+points already visited, and works with the model that the collection defines.
 
 Given points $z_1, \dots, z_k$ with values $f_j = f(z_j)$ and subgradients
-$v_j \in \partial f(z_j)$, @def-subdifferential says each affine function
-$\ell_j(x) = f_j + v_j^\top (x - z_j)$ lies below $f$ everywhere. So does their
-pointwise maximum, and that maximum is a better model as more are collected:
+$v_j \in \partial f(z_j)$, @def-subdifferential states that each affine
+function $\ell_j(x) = f_j + v_j^\top (x - z_j)$ lies below $f$ everywhere.
+Their pointwise maximum therefore also lies below $f$, and it becomes a better
+model as more planes are collected:
 
 $$\check{f}(x) \ =\ \max_{1 \le j \le k}\ \bigl\{ f_j + v_j^\top (x - z_j) \bigr\}
 \ \le\ f(x).$$
 
-This is the **cutting-plane model**, and the point of it is that it is
-piecewise linear. A kink is exactly what it represents naturally — two
-linearisations meeting — where a quadratic model must either smooth it away or
-place spurious curvature across it.
+This is the **cutting-plane model**, and its useful property is that it is
+piecewise linear: a kink, which is two linearisations meeting, is exactly the
+shape it represents naturally, while a quadratic model must either smooth the
+kink away or place spurious curvature across it.
 
-Minimising $\check{f}$ alone is unsafe, because a model built from finitely many
-planes can be unbounded below, and even when it is not, its minimiser may lie far
-outside the region where the collected planes say anything. So a proximal term is
-added, anchoring the step to the current point $\hat{x}$, called the **stability
-centre**:
+Minimising $\check{f}$ alone would not be safe. A model built from finitely
+many planes can be unbounded below, and even when it is bounded its minimiser
+may lie far outside the region the collected planes describe. A proximal term
+is therefore added, anchoring the step to the current point $\hat{x}$, called
+the **stability centre**:
 
 $$d^{\star} \ =\ \operatorname*{arg\,min}_{d}\ \left\{
   \max_{j}\ \bigl( -\alpha_j + v_j^\top d \bigr)
@@ -138,14 +142,16 @@ where $t > 0$ controls how far the model is trusted and
 
 $$\alpha_j \ =\ f(\hat{x}) - \ell_j(\hat{x}) \ \ge\ 0$$
 
-is the **linearisation error**, measuring how badly plane $j$ misses the current
-point. It is non-negative by @def-subdifferential, and it is what makes an old
-plane, collected far away, count for less than a recent one.
+is the **linearisation error** of plane $j$, the amount by which the plane
+underestimates $f$ at the current point. It is non-negative by
+@def-subdifferential, and it gives an old plane, collected far away, less
+influence than a recent one.
 
 ### The dual of the bundle subproblem {#sec-bundle-dual}
 
-Problem (P) is a quadratic programme in $d$ with a piecewise-linear term, and it
-is solved through its dual, which is small and has a simple feasible set.
+Problem (P) is a quadratic programme in $d$ with a piecewise-linear term. It
+is solved through its dual, which is a small problem with a simple feasible
+set.
 
 ::: {#thm-bundle-dual}
 ## The bundle subproblem and its dual
@@ -164,75 +170,80 @@ $$v \ =\ -\Bigl( t \lVert V\lambda^{\star} \rVert^{2}
                  + \alpha^\top \lambda^{\star} \Bigr) \ \le\ 0 .$$
 :::
 
-The route to the dual is the usual one. Writing (P) with an epigraph variable
+The dual is derived in the usual way. Writing (P) with an epigraph variable
 $u$, so that the objective becomes $u + \lVert d \rVert^{2}/(2t)$ subject to
 $-\alpha_j + v_j^\top d \le u$, stationarity of the Lagrangian in $u$ forces
-$\sum_j \lambda_j = 1$, which is where the simplex comes from, and stationarity
-in $d$ gives $d = -t V\lambda$. Substituting both back leaves the stated
-minimisation over $\Delta_k$, and strong duality holds because the problem is
-convex with a strictly feasible point. The construction is @lemarechal1975 and
-@kiwiel1990; @bonnans2006 gives it in the form used here.
+$\sum_j \lambda_j = 1$, which is the origin of the simplex constraint, and
+stationarity in $d$ gives $d = -t V\lambda$. Substituting both back yields the
+stated minimisation over $\Delta_k$, and strong duality holds because the
+problem is convex with a strictly feasible point. The construction is due to
+@lemarechal1975 and @kiwiel1990; @bonnans2006 presents it in the form used
+here.
 
 Write $\bar{v} = V\lambda^{\star}$ for the **aggregate subgradient** and
-$\bar\alpha = \alpha^\top \lambda^{\star}$ for the aggregate error. The aggregate
-is a convex combination of collected subgradients, and by convexity of the
-subdifferential it is itself a subgradient of the model at $\hat{x}$. Both
-$\lVert \bar{v} \rVert$ and $\bar\alpha$ are non-negative, and
+$\bar\alpha = \alpha^\top \lambda^{\star}$ for the aggregate error. The
+aggregate is a convex combination of collected subgradients, and by convexity
+of the subdifferential it is itself a subgradient of the model at $\hat{x}$.
+Both $\lVert \bar{v} \rVert$ and $\bar\alpha$ are non-negative, and
 
 $$\lVert \bar{v} \rVert^{2} + \bar\alpha \ =\ 0
 \iff \bar{v} = 0 \ \text{ and } \ \bar\alpha = 0,$$
 
-which says that zero lies in the convex hull of the collected subgradients with
-no linearisation error — the computable statement standing in for
-$0 \in \partial f(\hat{x})$ in @prp-fermat. **That** is the quantity to test, and
-it is the one `crit_stationary()` reads.
+which states that zero lies in the convex hull of the collected subgradients
+with no linearisation error. This is the computable counterpart of
+$0 \in \partial f(\hat{x})$ in @prp-fermat, it is the correct quantity to
+test, and it is the quantity that `crit_stationary()` reads.
 
 ::: {.callout-important}
 ## The stopping quantity
 
-It is tempting to stop on $-v$ instead, the value from @thm-bundle-dual, since it
-also vanishes at a solution and has the appealing reading of "how much better the
-model believes it can do". It carries a factor of $t$, and $t$ is reduced
-whenever the model over-promises. A run in difficulty therefore drives $-v$ below
-any fixed tolerance **by shrinking its trust region**, not by approaching a
-minimum, and reports convergence standing somewhere its own model still calls
-steep. Dropping the factor leaves $\lVert \bar{v} \rVert^{2} + \bar\alpha$, which no
-amount of shrinking can flatter.
+The value $-v$ from @thm-bundle-dual also vanishes at a solution, and reads
+naturally as the improvement the model still expects, so it looks like a
+reasonable stopping quantity. It is not, because it carries a factor of $t$,
+and $t$ is reduced whenever the model over-promises. A run in difficulty can
+therefore drive $-v$ below any fixed tolerance by shrinking its trust
+parameter rather than by approaching a minimum, and would then report
+convergence at a point its own model still describes as steep. Dropping the
+factor of $t$ leaves $\lVert \bar{v} \rVert^{2} + \bar\alpha$, which shrinking
+$t$ cannot reduce.
 :::
 
 ### Serious steps, null steps and aggregation {#sec-bundle-steps}
 
-With $d^{\star}$ in hand, the trial point is $z = \hat{x} + d^{\star}$, and
-whether to move there is decided by the same bargain an Armijo condition strikes:
-the step must deliver a fixed fraction of the decrease the model promised,
+Given $d^{\star}$, the trial point is $z = \hat{x} + d^{\star}$, and the
+decision whether to move there follows the same principle as an Armijo
+condition: the step must deliver a fixed fraction of the decrease the model
+promised,
 
 $$f(z) \ \le\ f(\hat{x}) + m\, v, \qquad m \in (0, 1).$$
 
-If it does, the centre moves — a **serious step**. If it does not, the centre
-stays, and the iteration is nonetheless not wasted: the trial point contributes
-its own subgradient to the collection, so the model is strictly better next time.
-This is a **null step**, and a run reporting many of them is refining its picture
-of a kink rather than failing.
+If the condition holds, the centre moves; this is a **serious step**. If it
+does not, the centre stays, but the iteration is still useful, because the
+trial point contributes its own subgradient to the collection and the model is
+strictly better at the next iteration. This is a **null step**, and a run with
+many null steps is refining its representation of a kink, not failing.
 
-Left alone the collection grows without bound. It is capped by **aggregation**
-rather than by discarding: when the bundle is full, the oldest planes are
-replaced by the single affine function the dual solution defines,
+Without intervention the collection grows without bound. It is capped by
+**aggregation** rather than by discarding: when the bundle is full, the oldest
+planes are replaced by the single affine function that the dual solution
+defines,
 
 $$\ell_{\text{agg}}(x) = f(\hat{x}) - \bar\alpha + \bar{v}^\top (x - \hat{x}),$$
 
-which lies below $f$ because it is a convex combination of functions that do, and
-which summarises everything the discarded planes contributed. Simply deleting them
-loses that information and can stall the method; keeping the aggregate is what
-makes a bounded bundle safe.
+which lies below $f$ because it is a convex combination of functions that do,
+and which summarises the contribution of the discarded planes. Deleting old
+planes outright would lose that information and can stall the method; keeping
+the aggregate is what makes a bounded bundle safe.
 
 ### Direct search methods {#sec-direct-search}
 
-There is a second repair, which is to stop using derivatives. It costs a great
-deal and buys a weaker guarantee, but it asks nothing of the objective beyond a
-number, which is sometimes all there is.
+A second way of handling a non-smooth objective is to use no derivatives at
+all. This costs many more evaluations and yields a weaker guarantee, but it
+requires nothing of the objective beyond a value, which is sometimes all that
+is available.
 
-The idea with a theorem behind it is the **positive spanning set**, and the
-theory around it is collected in @conn2009 and surveyed in @kolda2003.
+The concept that carries the theory is the **positive spanning set**; the
+theory is collected in @conn2009 and surveyed in @kolda2003.
 
 ::: {#def-spanning}
 ## Positive spanning set
@@ -242,22 +253,24 @@ every $w \in \mathbb{R}^{p}$ can be written $w = \sum_{d \in D} c_d\, d$ with al
 $c_d \ge 0$.
 :::
 
-The relevance is immediate: if $D$ positively spans the space and $f$ is
-differentiable at $x$ with $\nabla f(x) \neq 0$, then some $d \in D$ has
-$\nabla f(x)^\top d < 0$, since otherwise $-\nabla f(x)$, being a non-negative
-combination of the $d$, would satisfy $-\lVert \nabla f(x) \rVert^{2} \ge 0$.
-So **a poll that fails in every direction is evidence about the point, not about
-the directions**, and that is what licenses shrinking the poll radius. The limit
-points of a run whose radius goes to zero are stationary. `compass()` polls the
-$2p$ signed coordinate axes, which positively span the space.
+The relevance is the following. If $D$ positively spans the space and $f$ is
+differentiable at $x$ with $\nabla f(x) \neq 0$, then some $d \in D$ satisfies
+$\nabla f(x)^\top d < 0$; otherwise $-\nabla f(x)$, which is a non-negative
+combination of the elements of $D$, would give
+$-\lVert \nabla f(x) \rVert^{2} \ge 0$, a contradiction. A poll that fails in
+every direction of $D$ is therefore evidence about the point rather than about
+the directions, and this justifies shrinking the poll radius: the limit points
+of a run whose radius goes to zero are stationary. `compass()` polls the $2p$
+signed coordinate axes, which positively span the space.
 
-For a merely Lipschitz $f$ the argument breaks, and instructively. A kink whose
-ridge runs diagonally is descended by no coordinate direction: the poll fails at
-a point that is not stationary, the radius shrinks, and the run stops there. The
-repair, which is the idea behind the mesh adaptive direct search of @audet2006,
-is to let the set of directions used over the whole run become dense in the
-sphere, so that no descent direction can be missed for ever; drawing a fresh
-random orthonormal basis at each poll achieves it with probability one.
+For an $f$ that is only Lipschitz the argument fails, and the way it fails is
+informative. A kink whose ridge runs diagonally is descended by no coordinate
+direction, so the poll fails at a point that is not stationary, the radius
+shrinks, and the run stops there. The repair, which is the idea behind the
+mesh adaptive direct search of @audet2006, is to let the set of directions
+used over the whole run become dense in the sphere, so that no descent
+direction can be missed forever; drawing a fresh random orthonormal basis at
+each poll achieves this with probability one.
 
 ```{r}
 #| label: diagonal-kink
@@ -292,29 +305,29 @@ knitr::kable(
 )
 ```
 
-The table contains two separate findings.
+The table contains three separate findings.
 
-The first two rows are the argument just made. A fixed set of directions stops
-on the ridge, at a point that is not stationary, having exhausted its poll
-without finding a descent direction that exists; drawing them at random does an
-order of magnitude better and still does not arrive, a finite number of
-directions from a fixed centre being the wrong instrument for a kink.
+The first two rows illustrate the argument just given. A fixed set of
+directions stops on the ridge, at a point that is not stationary, having
+exhausted its poll without finding the descent direction that exists; random
+directions do an order of magnitude better and still do not arrive, because a
+finite number of directions from a fixed centre remains a poor instrument for
+a kink.
 
-The third row is unexpected. Nelder–Mead solves
-this to machine precision, better than either poll and better than the bundle
-method — because a simplex is not a poll. It has no fixed centre and no fixed set
-of offsets: it deforms, and what it deforms into, on a problem whose descent
-direction lies along a ridge, is a long thin simplex aligned with that ridge.
-The adaptation is exactly what the fixed pattern lacks. What it lacks in turn is
-any theorem, since the positive-spanning argument does not apply to it and the
-counterexample of @mckinnon1998 shows it can converge to a point that is not a
-minimiser at all — @lagarias1998 is what can be proved, and it covers one and two
-dimensions only. It also needs 343 evaluations to get there.
+The third row shows Nelder–Mead solving the problem to machine precision,
+better than either poll and better than the bundle method. The reason is that
+a simplex is not a poll: it has no fixed centre and no fixed set of offsets,
+it deforms, and on a problem whose descent direction lies along a ridge it
+deforms into a long thin simplex aligned with that ridge. This adaptivity is
+exactly what a fixed pattern lacks. What Nelder–Mead lacks in exchange is a
+guarantee: the positive-spanning argument does not apply to it, the
+counterexample of @mckinnon1998 shows that it can converge to a point that is
+not a minimiser, and the positive results of @lagarias1998 cover only one and
+two dimensions. It also needs 343 evaluations here.
 
-The last row is the one to build on. The bundle method arrives, with a theorem,
-in a seventh of the evaluations — because it is the only method in the table that
-uses the derivative information it was given without asking any single derivative
-to vanish.
+The last row shows the bundle method arriving, with a guarantee, in a seventh
+of the evaluations. It is the only method in the table that uses the available
+derivative information without requiring any single derivative to vanish.
 
 ```{r}
 #| label: consistency-optimizers

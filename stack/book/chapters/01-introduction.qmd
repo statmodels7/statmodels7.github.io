@@ -8,9 +8,9 @@ source("R/_setup.R")
 
 ## Duplicated infrastructure {#sec-rewritten}
 
-Open almost any R modelling package and somewhere in its internals you will find
-a Gamma distribution — not *the* Gamma distribution, but that package's own
-private copy of it, written as a handful of helper functions: a `switch` on a
+Almost every R modelling package contains, somewhere in its internals, a Gamma
+distribution — not *the* Gamma distribution, but that package's own private
+copy of it, written as a handful of helper functions: a `switch` on a
 character string that returns a density, a closure that computes a score, a
 block inside a fitting routine that produces whatever second derivative the
 routine happens to need. The same is true of link functions. Every package that
@@ -23,8 +23,8 @@ only what their author's routine happened to call for — usually the density an
 the score, sometimes the Hessian, almost never anything beyond. A package that
 needs a third derivative writes its own Gamma from scratch; a package that wants
 derivatives with respect to an unconstrained parameter does the same. The result
-is that the R ecosystem contains dozens of Gamma distributions, each partial,
-each written under deadline, and each capable of being wrong in its own way.
+is that the R ecosystem contains dozens of Gamma distributions, each partial
+and each capable of being wrong in its own way.
 
 The observation the toolkit is built on is that all of this is unnecessary,
 because a Gamma distribution is a fixed mathematical object. It does not vary
@@ -89,7 +89,7 @@ the `7` being the S7 object system everything is built on.
 |---|---|
 | `linkfunctions7` | 16 link classes with exact analytical derivatives to fourth order, in both directions |
 | `distributions7` | 14 distributions with exact score, information and third/fourth derivatives, plus wrappers, transformations and maximum likelihood |
-| `optimizers7` | 9 optimisation algorithms as objects, with composable stopping rules, safeguards that report themselves, and box constraints removed by reparameterisation |
+| `optimizers7` | 11 optimisation algorithms as objects, with composable stopping rules, safeguards that report themselves, starting values generated on the unconstrained scale, and box constraints removed by reparameterisation |
 | `modelterms7` | *planned* — model terms usable directly in formulas |
 | `basis7` | *planned* — spline and other bases |
 | `penalties7` | *planned* — penalties |
@@ -203,8 +203,8 @@ and agree with the density, the random generator matches the cdf, every
 derivative matches a finite-difference computation, and the expected information
 matches a Monte Carlo estimate of the variance of the score.
 
-Both run on any object, including one written five minutes ago — here, on the
-two defined above:
+Both run on any object, including one just defined — here, on the two objects
+above:
 
 ```{r}
 #| label: check-neglog
