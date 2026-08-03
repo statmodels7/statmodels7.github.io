@@ -322,6 +322,27 @@ assert_optimizers_ok <- function() {
     }
   }
 
+  # The gradient guard of this section, checked in both directions: the
+  # mismatched pair must warn, the correct pair must not.
+  w <- tryCatch({
+    withCallingHandlers(
+      optimizers7::minimize(optimizers7::bfgs(maxit = 2),
+                            function(p) 42, c(0, 0),
+                            gr = function(p) 2 * (p - c(1, 2))),
+      warning = function(x) stop("GUARD_FIRED: ", conditionMessage(x)))
+    ""
+  }, error = function(e) conditionMessage(e))
+  if (!grepl("GUARD_FIRED", w) || !grepl("does not appear to be the gradient", w)) {
+    out <- c(out, "the gradient guard did not fire on a mismatched fn/gr pair")
+  }
+  ok <- TRUE
+  withCallingHandlers(
+    optimizers7::minimize(optimizers7::bfgs(),
+                          function(p) sum((p - c(1, 2))^2), c(0, 0),
+                          gr = function(p) 2 * (p - c(1, 2))),
+    warning = function(x) { ok <<- FALSE; invokeRestart("muffleWarning") })
+  if (!ok) out <- c(out, "the gradient guard fired on a correct fn/gr pair")
+
   # And the user's own start is kept, which the section says without saying.
   if (max(abs(S[1L, ] - par0)) > 0) {
     out <- c(out, "the caller's own starting point is not the first start")

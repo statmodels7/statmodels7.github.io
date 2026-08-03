@@ -68,6 +68,29 @@ because R recycles a shorter vector silently whenever its length divides, so
 `sum((p - c(1, 2, 3))^2)` is a perfectly finite function of one parameter as well
 as of three; there the count cannot be inferred and is asked for instead.
 
+A second check precedes the first iteration whenever a gradient is supplied.
+A `gr` computed from a different model than `fn` — a fixed predictor where the
+objective uses the parameter, a stale copy of the data — leaves the objective
+flat along a direction the gradient insists is downhill, and what the run
+reports is then a line-search failure at the first iteration, which describes
+the symptom and conceals the cause. Two evaluations settle the question in
+advance: one central difference of `fn` along the gradient direction at the
+starting point is compared with the rate `gr` predicts, which along that
+direction is $\lVert g \rVert$, and a gross disagreement between the two draws
+a warning naming both rates. The tolerance is deliberately loose, so that
+finite-difference error, or a subgradient evaluated at a point where the
+objective has a kink, does not trip it: the check exists to catch the wrong
+function, not the eighth digit.
+
+```{r}
+#| label: gradient-guard
+#| warning: true
+f_wrong <- function(p) 42            # constant: does not depend on p
+g_right <- function(p) 2 * (p - c(1, 2))
+r <- optimizers7::minimize(optimizers7::bfgs(maxit = 2), f_wrong, c(0, 0),
+                           gr = g_right)
+```
+
 ### Multiple starts and distinct optima {#sec-multistart}
 
 Every method in this chapter finds a local minimum, and none of them can tell
