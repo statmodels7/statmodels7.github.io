@@ -1,4 +1,4 @@
-## What a distribution gets for free {#sec-fallbacks}
+## Numerical fallbacks {#sec-fallbacks}
 
 ```{r}
 #| label: setup-03d
@@ -20,11 +20,11 @@ exactly to the extent that the fallbacks are good. This section describes them,
 because two contain ideas worth reading in their own right, and because knowing
 where a fallback is weak is part of knowing when to replace it.
 
-### The straightforward fallbacks {#sec-fallbacks-easy}
+### Distribution function, quantiles and derivatives {#sec-fallbacks-easy}
 
 Several fallbacks are what one would guess. The distribution function is a
 quadrature of the density from the lower end of the support for a continuous
-family, and a partial sum for a lattice one. The quantile function inverts it by
+family, and a partial sum for a discrete support one. The quantile function inverts it by
 root-finding. Derivatives with respect to the parameters are central finite
 differences, each order differencing the analytical implementation of the order
 below when one exists, so that a distribution supplying a closed-form score gets
@@ -39,7 +39,7 @@ density. Each step is therefore shrunk to stay within the domain, and the same
 is done in the response direction so that $y \pm \delta$ never leaves the
 support — the Gamma near zero being the case that forces it.
 
-### Sampling without a quantile function {#sec-fallbacks-grou}
+### Random generation by ratio of uniforms {#sec-fallbacks-grou}
 
 Random generation is where the obvious fallback is unusable. Inverse transform
 sampling needs $Q(V)$ for $V$ uniform, and if the quantile function is itself
@@ -92,7 +92,7 @@ for a unimodal density provably still brackets the mode and shrinks it by a
 factor of 64 per pass.
 
 ::: {.callout-note}
-## Why the mode is not located by golden-section search
+## Locating the mode
 
 The obvious way to locate the mode is a golden-section search on the
 compactified scale, and it is not accurate enough. Its tolerance is expressed in
@@ -111,7 +111,7 @@ densities, a Student $t$ with half a degree of freedom, a Pareto with infinite
 mean. There is exactly one shape it cannot handle, and it is worth naming
 precisely, because it is also the one the next subsection removes.
 
-### Densities that blow up at an edge {#sec-fallbacks-divergence}
+### Densities unbounded at an endpoint {#sec-fallbacks-divergence}
 
 If $\kappa$ is unbounded then no bounding rectangle exists and the scheme has
 nothing to sample from. This is not an exotic case: a Gamma with shape below one
@@ -167,10 +167,10 @@ c(mean = mean(x), theoretical = 0.4)
 c(var = var(x), theoretical = 1)
 ```
 
-### Lattice distributions need no new idea {#sec-fallbacks-discrete}
+### Discrete distributions {#sec-fallbacks-discrete}
 
 For a discrete family none of the above is required, and it is worth saying why
-rather than leaving it implicit. The distribution function of a lattice variable
+rather than leaving it implicit. The distribution function of a discrete variable
 is a step function, so its generalized inverse is exact: there is no root to
 find, only a table to look up. The fallbacks therefore build one cumulative
 table over the support — grown geometrically until it covers the probability
@@ -183,7 +183,7 @@ $12.6\,\mu s$ against $0.1\,\mu s$ once vectorised. The requirement the table
 imposes is a finite lower bound on the support, which every standard count
 distribution has.
 
-### Knowing when a fallback is not enough {#sec-fallbacks-caveat}
+### Limitations {#sec-fallbacks-caveat}
 
 Two warnings belong with all of this.
 
@@ -198,7 +198,7 @@ The second concerns quadrature, and is the reason `expectation()` is deliberatel
 conservative.
 
 ::: {.callout-note}
-## Fewer knots on purpose
+## Quadrature knots
 
 `expectation()` splits its integral at quantiles of the distribution, and uses
 three knots rather than nine. More knots would extend the range of densities it

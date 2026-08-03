@@ -1049,6 +1049,25 @@ code (where `#` is an R comment) and outside `:::` divs — a `##` inside
 `::: {#thm-x}` is the *theorem's title*, which Quarto reads as the block's name,
 not a section heading.
 
+**Terminology, fixed 2026-08-03 (Giovanni, explicit): "lattice" is BANNED** as a
+name for discrete distributions, everywhere in documentation, book and code
+comments -- the word is **"discrete"** (or "support points" for the points
+themselves). The one legitimate survivor is the *partition lattice* in the book,
+which really is an order-theoretic lattice. Swept from distributions7 and the
+book on 2026-08-03; grep for it before writing new prose.
+
+**Documentation style, fixed 2026-08-03 (Giovanni, explicit).** Package
+documentation is **aseptic and synthetic**: it states what a function does and
+briefly which method it uses, for EVERY function and S7 method. No anecdotes,
+no measured war stories (the three-knot Gamma tale, iteration counts from named
+runs), no punchy subsection titles, no stock phrases, and no strings of short
+sentences -- flowing prose. Methods whose behaviour a generic's or constructor's
+page fully specifies may share that page; methods with behaviour of their own
+(defaults, closed-form overrides, numerical fallbacks, wrapper re-derivations)
+get their own internal page. He also said plainly that my writing style did not
+please him: no eloquence, in docs OR book titles -- every heading names its
+subject ("The BFGS update", not "Below a matrix").
+
 **The word is "toolkit", never "stack"** (Giovanni, 2026-07-30) — in the book, the
 portal and both package READMEs. Careful with the verb: "wrappers do not stack"
 is the other sense and must survive, as must the `sec-no-stacking` label.
