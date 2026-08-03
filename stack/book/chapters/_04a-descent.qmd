@@ -7,12 +7,13 @@ source("R/_setup.R")
 source("R/optimizer-certificates.R")
 ```
 
-Take a differentiable $f : \mathbb{R}^{p} \to \mathbb{R}$ to be minimised, and
-suppose we are standing at a point $x$ where the gradient $g = \nabla f(x)$ is
-not zero. The whole of this section concerns one iteration: choosing a direction
-$d$, choosing how far along it to go, and arriving somewhere better. It sounds
-like a small question, and the reason it is not is that "somewhere better" can
-be satisfied infinitely often without ever getting anywhere.
+Let $f : \mathbb{R}^{p} \to \mathbb{R}$ be a differentiable function to be
+minimised, and let $x$ be a point where the gradient $g = \nabla f(x)$ is not
+zero. This section studies a single iteration: how to choose a direction $d$,
+and how to choose the step length along it. Both choices need care, because a
+sequence of steps can decrease $f$ at every iteration and still fail to
+converge to a minimiser; the conditions introduced below exist to rule out
+exactly that failure.
 
 ### Descent directions {#sec-descent-directions}
 
@@ -20,11 +21,10 @@ The first-order expansion of $f$ along $d$ is
 
 $$f(x + s d) = f(x) + s\, g^\top d + o(s), \qquad s \to 0^{+},$$
 
-so the sign of $g^\top d$ decides everything about small steps. If
-$g^\top d < 0$ then $f(x + sd) < f(x)$ for all sufficiently small $s > 0$, and
-$d$ is called a **descent direction**; if $g^\top d > 0$ the same expansion says
-every small step uphill; and if $g^\top d = 0$ the first-order term tells us
-nothing at all.
+so for small steps the sign of $g^\top d$ determines the behaviour of $f$. If
+$g^\top d < 0$, then $f(x + sd) < f(x)$ for all sufficiently small $s > 0$; if
+$g^\top d > 0$, every small step increases $f$; if $g^\top d = 0$, the
+first-order term gives no information.
 
 ::: {#def-descent}
 ## Descent direction
@@ -33,52 +33,53 @@ A vector $d \in \mathbb{R}^{p}$ is a descent direction for $f$ at $x$ when
 $g^\top d < 0$, where $g = \nabla f(x)$.
 :::
 
-The simplest choice is $d = -g$, for which $g^\top d = -\lVert g \rVert^{2} < 0$
-whenever $g \neq 0$; this is the steepest descent direction, in the sense that
-it minimises $g^\top d$ over all $d$ of a given Euclidean length. Most of the
-methods in @sec-curvature instead take
+The simplest descent direction is $d = -g$, for which
+$g^\top d = -\lVert g \rVert^{2} < 0$ whenever $g \neq 0$; among all
+directions of a given Euclidean length it minimises $g^\top d$, and for this
+reason it is called the steepest descent direction. Most of the methods in
+@sec-curvature instead use
 
 $$d = -B g$$
 
-for some symmetric positive definite $B$, and the reason that always works is
-immediate:
+for some symmetric positive definite matrix $B$. Such a direction is always a
+descent direction, because
 
-$$g^\top d = -g^\top B g < 0 \quad \text{for } g \neq 0,$$
+$$g^\top d = -g^\top B g < 0 \quad \text{for } g \neq 0$$
 
-which is precisely the definition of positive definiteness. This is worth
-stating separately, because it is the single fact that connects the two halves
-of this chapter: **the requirement that a curvature model be positive definite
-is not a preference, it is what makes the direction it produces usable at all.**
-When Newton's method repairs an indefinite Hessian in @sec-newton, it is
-defending this inequality and nothing else.
+by the definition of positive definiteness. This fact connects the two halves
+of the chapter: a curvature model must be positive definite because otherwise
+the direction it produces may not be a descent direction at all, and when
+Newton's method repairs an indefinite Hessian in @sec-newton it does so to
+preserve exactly this inequality.
 
-Conjugate gradients, in @sec-cg-bb, is the exception that proves the rule. Its
-direction is not $-Bg$ for any matrix it holds, so nothing guarantees the
-inequality in advance; it is therefore tested outright at each step, and the
-direction replaced by $-g$ when it fails.
+Conjugate gradients, in @sec-cg-bb, does not have the form $-Bg$ for any
+stored matrix, so its direction is not guaranteed to be a descent direction in
+advance. The implementation therefore tests $g^\top d < 0$ at each step and
+replaces the direction by $-g$ when the test fails.
 
 ### The sufficient-decrease and Wolfe conditions {#sec-descent-armijo}
 
-Having a descent direction, we must choose a step length $s > 0$. The naive
-rule — accept $s$ if $f(x + sd) < f(x)$ — is not sufficient, and the reason is
-clearest in a concrete example.
+Given a descent direction, a step length $s > 0$ must be chosen. Accepting any
+$s$ with $f(x + sd) < f(x)$ is not sufficient, and a concrete example shows
+why.
 
-Consider minimising $f(x) = x^{2}$ from $x_0 = 1$, and suppose the step lengths
-are chosen so that the iterates are
+Consider minimising $f(x) = x^{2}$ from $x_0 = 1$, with step lengths chosen so
+that the iterates are
 
 $$x_k = (-1)^{k}\left(1 + 2^{-k}\right).$$
 
 Each iterate is closer to the origin than the last, so $f$ decreases at every
-step; and yet $\lvert x_k \rvert \to 1$, so the sequence converges to nothing
-useful and the gradient never approaches zero. The steps were too *long*
-relative to the decrease they achieved: the method kept overshooting through the
-minimum and being rewarded for it. A symmetric failure occurs when the steps are
-too short, $x_k = 1 + 2^{-k}$ say, where $f$ again decreases at every step and
-again converges away from the minimiser.
+step, and yet $\lvert x_k \rvert \to 1$: the sequence converges to a point
+that is not a minimiser, and the gradient never approaches zero. The steps
+were too long relative to the decrease they achieved, since each one
+overshoots the minimum. The opposite failure occurs when the steps are too
+short: with $x_k = 1 + 2^{-k}$, $f$ again decreases at every step and again
+converges away from the minimiser.
 
-The repair for the first failure is to demand a decrease **proportional to what
-the slope promised**. Along $d$ the model predicts a decrease of
-$-s\, g^\top d$ per unit of nothing; asking for a fixed fraction of it gives:
+The first failure is prevented by requiring a decrease proportional to the one
+the local slope predicts. Along $d$ the first-order model predicts a decrease
+of $-s\, g^\top d$; requiring a fixed fraction of it gives the following
+condition.
 
 ::: {#def-armijo}
 ## Sufficient decrease
@@ -88,24 +89,24 @@ For $c_1 \in (0, 1)$, a step length $s$ satisfies the Armijo condition when
 $$f(x + s d) \le f(x) + c_1 s\, g^\top d. \tag{A}$$
 :::
 
-Since $g^\top d < 0$ the right-hand side is strictly below $f(x)$, so (A)
-implies decrease; but it implies more, because the amount demanded grows with
-$s$. A long step must earn its length. The condition is satisfiable: the
-expansion above gives
+Since $g^\top d < 0$, the right-hand side is strictly below $f(x)$, so (A)
+implies a decrease; and because the required decrease grows with $s$, a long
+step is accepted only when it achieves a proportionally large decrease. The
+condition is always satisfiable: from the first-order expansion,
 
 $$\frac{f(x + sd) - f(x)}{s} \longrightarrow g^\top d < c_1 g^\top d
 \quad \text{as } s \to 0^{+},$$
 
-the inequality holding because $c_1 < 1$ and $g^\top d$ is negative, so (A)
-holds for all sufficiently small $s$. That is what licenses **backtracking**:
-start from a trial length, and if (A) fails, shrink and try again. The procedure
-terminates, and the package's `armijo()` is exactly this. The condition is due
-to @armijo1966.
+where the inequality holds because $c_1 < 1$ and $g^\top d$ is negative, so
+(A) holds for all sufficiently small $s$. This justifies **backtracking**:
+start from a trial length, and if (A) fails, shrink the step and try again.
+The procedure terminates, and the package's `armijo()` implements exactly
+this. The condition is due to @armijo1966.
 
-What backtracking does not address is the second failure, steps that are too
-short. Nothing in (A) forbids a sequence of ever-tinier accepted steps. To rule
-that out we need a condition that a *small* step violates, and the natural one
-looks at the slope rather than the value.
+Backtracking does not address the second failure, steps that are too short:
+nothing in (A) forbids a sequence of ever smaller accepted steps. Ruling that
+out requires a condition that a small step violates, and the natural quantity
+to examine is the slope rather than the value.
 
 ::: {#def-wolfe}
 ## The Wolfe conditions
@@ -121,28 +122,30 @@ $$\bigl\lvert \nabla f(x + sd)^\top d \bigr\rvert
   \le c_2 \bigl\lvert g^\top d \bigr\rvert. \tag{W$'$}$$
 :::
 
-Condition (W) says the slope along $d$ must have risen — become less steeply
-negative — by a definite factor. At $s = 0$ the slope is $g^\top d$, and (W) is
-violated there because $c_2 < 1$; so (W) forces the step away from zero, which
-is exactly what (A) fails to do. The two conditions pull in opposite directions
-and a step satisfying both exists whenever $f$ is bounded below along $d$: as
-$s$ grows, either $f$ eventually violates (A), and at the first such $s$ a
-mean-value argument produces a point where both hold, or $f$ decreases for ever
-and the problem is unbounded.
+Condition (W) requires the slope along $d$ to have risen — to have become less
+steeply negative — by a definite factor. At $s = 0$ the slope is $g^\top d$
+and (W) is violated because $c_2 < 1$, so (W) forces the step away from zero,
+which is precisely what (A) cannot do. The two conditions act in opposite
+directions, and a step satisfying both exists whenever $f$ is bounded below
+along $d$: as $s$ grows, either $f$ eventually violates (A), in which case a
+mean-value argument at the first such $s$ produces a point where both
+conditions hold, or $f$ decreases forever and the problem is unbounded.
 
-Both forms are @wolfe1969, and @morethuente1994 gives the algorithm that has
-become the standard way to find a step satisfying them. The strong form (W$'$)
-additionally forbids the slope from becoming largely positive, which keeps the accepted point nearer a local minimum of $s \mapsto
-f(x + sd)$. It costs nothing extra, since a search that can test (W) has already
-evaluated the gradient there, and the package's `wolfe()` implements it by the
-usual two-phase procedure: **bracket** an interval known to contain an
-acceptable point by expanding until (A) fails or the slope turns positive, then
-**zoom** into it by interpolation until both conditions hold.
+Both forms are due to @wolfe1969, and @morethuente1994 gives the algorithm
+that has become the standard way of finding a step that satisfies them. The
+strong form (W$'$) additionally forbids the slope from becoming strongly
+positive, which keeps the accepted point near a local minimum of
+$s \mapsto f(x + sd)$. It costs nothing extra, because a search able to test
+(W) has already evaluated the gradient at the trial point. The package's
+`wolfe()` implements the strong form by the usual two-phase procedure: it
+**brackets** an interval known to contain an acceptable point, expanding until
+(A) fails or the slope turns positive, and then **zooms** into the interval by
+interpolation until both conditions hold.
 
 ### Zoutendijk's theorem {#sec-descent-zoutendijk}
 
-The point of the Wolfe conditions is not tidiness. They buy a convergence
-statement that sufficient decrease alone cannot.
+The Wolfe conditions matter because they yield a global convergence result
+that sufficient decrease alone does not.
 
 ::: {#thm-zoutendijk}
 ## Zoutendijk
@@ -157,50 +160,50 @@ $$\sum_{k \ge 0} \cos^{2}\!\theta_k \, \lVert g_k \rVert^{2} < \infty,
 \cos\theta_k = \frac{-g_k^\top d_k}{\lVert g_k \rVert\, \lVert d_k \rVert}.$$
 :::
 
-The argument, which is @zoutendijk1970 and is given in full in @nocedal2006, is
-short and entirely mechanical: the curvature condition (W) bounds the step
-length from below, Lipschitz continuity of the gradient bounds it from above,
-and substituting the lower bound into the sufficient-decrease condition (A)
-turns each iteration's decrease into a multiple of
-$\cos^{2}\!\theta_k \lVert g_k \rVert^{2}$. Summing those decreases against an
-objective that is bounded below leaves a finite total, which is the claim.
+The argument is due to @zoutendijk1970 and is given in full in @nocedal2006.
+Its structure is simple: the curvature condition (W) bounds the step length
+from below, the Lipschitz continuity of the gradient bounds it from above, and
+substituting the lower bound into the sufficient-decrease condition (A) shows
+that each iteration decreases $f$ by at least a fixed multiple of
+$\cos^{2}\!\theta_k \lVert g_k \rVert^{2}$. Since $f$ is bounded below, the
+total decrease is finite, and the series converges.
 
-The consequence is the one to remember. A convergent series has terms tending to
-zero, so $\cos^{2}\theta_k \lVert g_k \rVert^{2} \to 0$; hence **if the
-directions never become orthogonal to the gradient** — if $\cos\theta_k \ge
-\delta > 0$ for all $k$ — then $\lVert g_k \rVert \to 0$. The line search
-supplies half of the guarantee and the direction supplies the other half, and
-neither is sufficient alone. This is why the package makes the line search an
-object carried by the optimiser rather than a fixed piece of each algorithm: the
-theorem is about the pair.
+The consequence used throughout the chapter is this: a convergent series has
+terms tending to zero, so $\cos^{2}\theta_k \lVert g_k \rVert^{2} \to 0$, and
+therefore if the directions never become orthogonal to the gradient — if
+$\cos\theta_k \ge \delta > 0$ for all $k$ — then $\lVert g_k \rVert \to 0$.
+The line search supplies one half of the guarantee and the direction supplies
+the other, and neither is sufficient alone. This is also why the package makes
+the line search an object carried by the optimiser rather than a fixed part of
+each algorithm: the theorem is a statement about the pair.
 
-For $d_k = -B_k g_k$ the angle condition becomes a statement about the condition
-number of $B_k$,
+For $d_k = -B_k g_k$ the angle condition becomes a statement about the
+condition number of $B_k$,
 
 $$\cos\theta_k = \frac{g_k^\top B_k g_k}{\lVert g_k \rVert \,\lVert B_k g_k \rVert}
 \ \ge\ \frac{\lambda_{\min}(B_k)}{\lambda_{\max}(B_k)},$$
 
-so a curvature model whose eigenvalues stay in a fixed positive band inherits
-global convergence. That bound is the reason @sec-newton floors the eigenvalues
-of a repaired Hessian rather than merely making them positive, and the reason
-@sec-bfgs takes the curvature condition seriously enough to skip an update that
-would violate it.
+so a curvature model whose eigenvalues stay within a fixed positive band
+inherits global convergence. This bound explains two implementation choices
+that appear later: @sec-newton floors the eigenvalues of a repaired Hessian
+instead of merely making them positive, and @sec-bfgs skips an update that
+would violate the curvature condition.
 
 ### Cost of the two searches {#sec-descent-cost}
 
-The two searches differ in what they must evaluate. Backtracking needs only
-values of $f$: it computes $g^\top d$ once, at the current point, and then tries
-$f(x + sd)$ for a shrinking sequence of $s$. A Wolfe search must test (W), which
-mentions $\nabla f(x + sd)$, so it evaluates the gradient at every trial point.
+The two searches differ in what they evaluate. Backtracking needs only values
+of $f$: it computes $g^\top d$ once, at the current point, and then evaluates
+$f(x + sd)$ for a shrinking sequence of $s$. A Wolfe search must test (W),
+which involves $\nabla f(x + sd)$, so it evaluates the gradient at every trial
+point.
 
-That is not a defect but a trade. The gradient it evaluates at the accepted
-point is the one the next iteration needs anyway, so the marginal cost is the
-gradients spent at *rejected* trials; and in exchange the method gets
-@thm-zoutendijk and, more practically, a step length that satisfies the
-curvature condition — which is exactly the condition @sec-bfgs needs in order to
-keep its approximation positive definite. A quasi-Newton method paired with a
-Wolfe search never has to skip an update. Paired with backtracking it sometimes
-does.
+The extra cost buys something specific. The gradient evaluated at the accepted
+point is needed by the next iteration in any case, so the additional cost is
+only the gradients spent at rejected trials. In exchange the method obtains
+@thm-zoutendijk and a step length that satisfies the curvature condition,
+which is the condition @sec-bfgs needs to keep its approximation positive
+definite: a quasi-Newton method paired with a Wolfe search never has to skip
+an update, while one paired with backtracking sometimes does.
 
 ```{r}
 #| label: line-search-cost
@@ -227,15 +230,16 @@ knitr::kable(
 )
 ```
 
-Read the last column. A backtracking search spends almost exactly one gradient
-per iteration — the one it needs to form the next direction, and no more, since
-the trials it rejects cost only values. A Wolfe search spends about a third
-again, the surplus being the gradients evaluated at trial points it then
-declines.
+The last column summarises the difference. A backtracking search spends almost
+exactly one gradient per iteration — the one it needs to form the next
+direction — because its rejected trials cost only function values. A Wolfe
+search spends about a third more, the surplus being the gradients evaluated at
+trial points it then rejects.
 
-The comparison is not, however, one of cost against nothing. The Wolfe run needs
-noticeably fewer iterations, because a step length satisfying the curvature
-condition is a better step length, so the total gradient count differs by rather
-less than the per-iteration figure suggests. What is bought with the remainder is
-@thm-zoutendijk, which backtracking alone does not supply, and the guarantee in
-@sec-bfgs that the curvature approximation never has to reject an update.
+The comparison is not purely a cost. The Wolfe run needs noticeably fewer
+iterations, because a step length satisfying the curvature condition is a
+better step length, so the total gradient counts differ by less than the
+per-iteration figures suggest; and the difference that remains pays for
+@thm-zoutendijk, which backtracking alone does not provide, and for the
+guarantee in @sec-bfgs that the curvature approximation never has to reject an
+update.

@@ -1,50 +1,51 @@
 # The optimizers7 package {#sec-optimizers7}
 
-The last chapter ended with a maximisation performed by three fixed routines,
-and with the admission that the user could not supply a fourth. This chapter is
-about removing that limitation, and about what has to be true of an optimisation
-routine before it is safe to let anyone plug one in.
+The previous chapter fitted distributions with three fixed optimisation
+routines, and the user could not supply a fourth. This chapter removes that
+limitation: it presents the optimisation methods of `optimizers7` and the
+conditions an optimisation routine must satisfy before it can be plugged into
+the toolkit.
 
-The mathematics divides cleanly, and none of it is new: @nocedal2006 is the
-standard modern account of almost everything in this chapter, with @dennis1983
-and @bonnans2006 as the other two books a reader might keep to hand. What
-follows states the results the implementations rest on and says where each comes
-from, rather than reproving them. @sec-descent asks what it means to take a step
-at all: what makes a direction a descent direction, what a line search along it
-must guarantee, and why a condition on the objective alone is not enough — the
-result there, Zoutendijk's, is the one that turns "each step decreases $f$" into
-"the gradient goes to zero", which is a very different claim. @sec-curvature
-then asks how to choose the direction, and takes the methods in order of how
-much they store. Newton's uses the exact Hessian and must repair it when it is
-not positive definite; the quasi-Newton methods refuse to compute one and build
-an approximation from the gradients they have already seen, which turns out to
-be determined almost uniquely by two requirements; and below them are methods
-keeping a few pairs of vectors, then one vector, then a single number. The methods remain
-effective even near the bottom of that list, where the stored curvature is a
-single number.
+None of the mathematics is new. @nocedal2006 is the standard modern account of
+almost everything in this chapter, with @dennis1983 and @bonnans2006 as the
+two other general references; the text states the results the implementations
+rest on and cites the source of each, without reproving them.
 
-@sec-nonsmooth is where the picture changes. Everything before it assumes a
-gradient that becomes small near a solution, and for an objective with a kink in
-it — a sum of absolute deviations, a Laplace likelihood in its location — that
-assumption is simply false: the subgradient at the minimiser has norm one. A
-method built on it does not merely converge slowly, it arrives at the answer and
-then reports failure. Two repairs are possible, and both are here: abandon
-derivatives entirely, which costs a great deal and buys a weaker theorem, or
-keep them and stop asking any single one of them to vanish, which is the bundle
-method. @neldermead1965 belongs to the first camp and @lemarechal1975 to the
-second.
+@sec-descent studies a single iteration: what makes a direction a descent
+direction, which conditions a step length must satisfy, and why a decrease of
+the objective at every step is not enough. The main result there, Zoutendijk's
+theorem, upgrades "each step decreases $f$" to "the gradient converges to
+zero", which is a much stronger statement.
 
-@sec-constraints turns to two things that sit outside the descent framework
-rather than inside it. Box constraints are removed by a change of variable, so
-that no algorithm ever learns a constraint was involved; and Adam takes steps
-that are not descent steps at all, which is the price of tolerating a gradient
-computed from a handful of observations.
+@sec-curvature studies the choice of direction, and orders the methods by the
+amount of curvature information they store. Newton's method uses the exact
+Hessian and must repair it when it is not positive definite; the quasi-Newton
+methods build an approximation from the gradients already computed, an
+approximation that two natural requirements determine almost uniquely; below
+them come methods that keep a few pairs of vectors, one vector, and finally a
+single number. The methods remain effective even near the bottom of this list.
 
-@sec-starting closes with the question every run has to answer before it can
-begin, which is where to start. The natural answer is wrong in a way worth
-seeing, and the right one turns out to be the change of variable of the section
-before it; and asking it properly leads to a second question no single run can
-address, namely how many answers the problem has.
+@sec-nonsmooth treats objectives with kinks, such as a sum of absolute
+deviations or the location part of a Laplace likelihood. For these the central
+assumption of the earlier sections fails: the subgradient at the minimiser has
+norm one instead of becoming small, so a gradient-based method reaches the
+answer and then reports failure. Two remedies are presented. Direct search
+methods abandon derivatives entirely, at a high cost in evaluations and with a
+weaker guarantee; the bundle method keeps the derivatives but stops requiring
+any single one of them to vanish. @neldermead1965 founded the first approach
+and @lemarechal1975 the second.
+
+@sec-constraints covers two topics outside the descent framework. Box
+constraints are removed by a change of variable, so that no algorithm needs
+any knowledge of them; and Adam takes steps that are not descent steps, which
+is the price of tolerating a gradient computed from a random subset of the
+observations.
+
+@sec-starting covers the choice of the starting point, where the natural
+answer — a vector of zeros — fails for any model with a scale parameter and
+the correct answer reuses the change of variable of the section before it; and
+the related question of how many distinct optima a problem has, which several
+starts can answer and a single run cannot.
 
 {{< include _04a-descent.qmd >}}
 

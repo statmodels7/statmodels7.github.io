@@ -7,17 +7,16 @@ source("R/_setup.R")
 source("R/link-formulas.R")
 ```
 
-The parameters of a distribution rarely live on the whole real line. A scale
-must be positive, a probability lies between zero and one, a correlation between
-minus one and one. An optimiser, on the other hand, is happiest with an argument
-it can move freely in any direction. A link function is the bridge between the
-two worlds: it maps the natural, constrained domain of a parameter onto an
-unconstrained scale, and its inverse maps the optimiser's iterates back into the
-domain where the distribution makes sense. This chapter defines the objects
-precisely, works out the relationship between the derivatives of a link and
-those of its inverse, explains why the toolkit carries both to fourth order, and
-ends with the full catalogue of the sixteen link classes that `linkfunctions7`
-provides.
+The parameters of a distribution are usually constrained: a scale is positive,
+a probability lies between zero and one, a correlation between minus one and
+one. An optimiser, on the other hand, works best with an argument it can move
+freely in any direction. A link function connects the two: it maps the
+constrained domain of a parameter onto an unconstrained scale, and its inverse
+maps the optimiser's iterates back into the domain where the distribution is
+defined. This chapter gives the precise definition, derives the relationship
+between the derivatives of a link and those of its inverse, explains why the
+toolkit carries both to fourth order, and ends with the catalogue of the
+sixteen link classes that `linkfunctions7` provides.
 
 ## Definition {#sec-link-def}
 
@@ -32,44 +31,41 @@ $g'(\theta) \neq 0$ everywhere. We write $h = g^{-1} : E \to \Theta$ for the
 inverse, and throughout the book $\eta = g(\theta)$ and $\theta = h(\eta)$.
 :::
 
-Each clause of this definition is a decision with consequences, so it is worth
-pausing on all three.
+Three observations about this definition are useful before going on.
 
-Notice first what the definition does *not* say: it never asks $g$ to be
-increasing. Monotonicity is a consequence rather than an assumption — a
-continuous function whose derivative never vanishes on an interval cannot change
-the sign of that derivative, so it is automatically strictly monotone — but the
-direction is left free, and this freedom is used. The link for a parameter
-bounded above, $g(\theta) = \log(u - \theta)$, is strictly *decreasing*, and it
-is a perfectly good link. Code that quietly assumes an increasing link, for
-instance when mapping quantiles through it, breaks on exactly that case, which
-is why the natural property to require, and to test, is strict monotonicity of
+First, the definition does not require $g$ to be increasing. Since $g'$ is
+continuous and never zero on an interval, $g$ is automatically strictly
+monotone, but the direction can be either, and both directions occur in
+practice: the link for a parameter bounded above, $g(\theta) = \log(u -
+\theta)$, is strictly decreasing. Code that assumes an increasing link, for
+example when mapping the endpoints of an interval through it, fails on this
+case. The property to require and to test is therefore strict monotonicity of
 either sign.
 
-Second, the image $E$ need not be the whole real line. For the square-root link
-$E = (0, \infty)$, and for the reciprocal link it is a half-line as well. In
-such cases the optimiser is not truly unconstrained — the constraint has merely
-moved from $\theta$ to $\eta$ — and it helps to know this in advance, because
-these are the links where an optimiser can step outside the domain and come back
-with `NaN`. The catalogue below therefore states $E$ explicitly for every link.
+Second, the image $E$ need not be the whole real line. For the square-root
+link $E = (0, \infty)$, and the same holds for the reciprocal link. In these
+cases the optimiser is not fully unconstrained, because the constraint has
+moved from $\theta$ to $\eta$, and an optimiser can still step outside the
+domain and receive `NaN`. For this reason the catalogue below states $E$
+explicitly for every link.
 
-Third, and most characteristically for this toolkit, the definition demands four
-continuous derivatives rather than the customary one or two. The link objects in
-`stats::make.link()` carry the first derivative of the inverse and nothing else,
-which is all a generalized linear model fitted by iteratively reweighted least
-squares ever needs — the setting of @nelder1972 and @mccullagh1989, where the
-link first appears under that name. Here the ambitions are higher: as
-@sec-link-scale will show in detail, transporting a fourth-order derivative of a
-log-likelihood onto the unconstrained scale requires $h'$, $h''$, $h'''$ and
-$h''''$, so a link that stopped at second order would silently cap the entire
-toolkit at second-order methods.
+Third, the definition requires four continuous derivatives instead of the
+customary one or two. The link objects in `stats::make.link()` carry the first
+derivative of the inverse and nothing else, because a generalized linear model
+fitted by iteratively reweighted least squares needs nothing more; this is the
+setting of @nelder1972 and @mccullagh1989, where the link function first
+appears under that name. This toolkit needs more: as @sec-link-scale shows,
+transporting a fourth-order derivative of a log-likelihood onto the
+unconstrained scale requires $h'$, $h''$, $h'''$ and $h''''$, so a link that
+stopped at second order would restrict the entire toolkit to second-order
+methods.
 
 ## Derivatives of the inverse link {#sec-ift}
 
-Every link in the catalogue implements two families of derivatives: those of $g$
-with respect to $\theta$, and those of $h$ with respect to $\eta$. The two
-families are not independent, since each determines the other completely, and
-the formulas that connect them are used throughout the toolkit.
+Every link in the catalogue implements two families of derivatives: those of
+$g$ with respect to $\theta$, and those of $h$ with respect to $\eta$. Each
+family determines the other completely, and the formulas that connect them are
+used throughout the toolkit.
 
 ::: {#thm-ift}
 ## Derivatives of an inverse function
@@ -85,24 +81,23 @@ h'''' = \frac{-15(g'')^{3} + 10\,g'g''g''' - (g')^{2}g''''}{(g')^{7}}.
 $$
 :::
 
-These four expressions all come from one identity. Because $h$ undoes $g$
-we have $h(g(\theta)) = \theta$ for every $\theta$ in the domain, and each
-differentiation of that identity produces a relation between the derivatives of
-$h$ and those of $g$ which is linear in the highest derivative of $h$, with a
-power of $g'$ for its coefficient. Since $g'$ never vanishes, that relation can
-always be solved for the derivative one does not yet know, and the four formulas
-follow one after another. The same mechanism, carried to arbitrary order and
-organised by set partitions rather than by hand, is the Faà di Bruno formula,
-whose history and combinatorics are surveyed in @johnson2002 and @comtet1974;
-@sec-link-scale uses it in that general form to move a likelihood derivative of
-any order onto the unconstrained scale.
+All four expressions follow from the identity $h(g(\theta)) = \theta$, which
+holds for every $\theta$ in the domain because $h$ is the inverse of $g$.
+Differentiating this identity once gives $h'\,g' = 1$, and hence the first
+formula. Each further differentiation produces an equation that is linear in
+the highest derivative of $h$, with a power of $g'$ as its coefficient; since
+$g'$ never vanishes, this equation can be solved for that derivative, and the
+remaining formulas follow one after another. The same procedure, carried to
+arbitrary order and organised through set partitions, is the Faà di Bruno
+formula, whose history and combinatorics are presented in @johnson2002 and
+@comtet1974; @sec-link-scale uses it in that general form to transport
+likelihood derivatives of any order onto the unconstrained scale.
 
-A quick example makes the formulas concrete and checks the signs. Take the
-log link, $g(\theta) = \log\theta$, whose
-inverse $h(\eta) = e^\eta$ is its own
-derivative at every order, so every $h^{(k)}$ should equal
+A short example makes the formulas concrete and checks the signs. For the log
+link, $g(\theta) = \log\theta$, the inverse $h(\eta) = e^\eta$ is its own
+derivative at every order, so every $h^{(k)}$ must equal
 $u = e^{\eta} = \theta$. On the forward side $g' = u^{-1}$, $g'' = -u^{-2}$,
-$g''' = 2u^{-3}$ and $g'''' = -6u^{-4}$. Feeding these into the fourth formula,
+$g''' = 2u^{-3}$ and $g'''' = -6u^{-4}$. Substituting into the fourth formula,
 
 $$\frac{-15(-u^{-2})^{3} + 10\,u^{-1}(-u^{-2})(2u^{-3}) - u^{-2}(-6u^{-4})}{u^{-7}}
 = \frac{15u^{-6} - 20u^{-6} + 6u^{-6}}{u^{-7}} = u,$$
@@ -111,9 +106,9 @@ which is the correct value.
 
 ## The role of the fourth order {#sec-why-four}
 
-Whether a fourth derivative of a link function is ever actually used can be
-answered from the formula that will be derived in @sec-link-scale for the fourth derivative of a
-log-likelihood with respect to the linear predictor:
+The fourth derivative of a link is genuinely used, and the formula derived in
+@sec-link-scale for the fourth derivative of a log-likelihood with respect to
+the linear predictor shows where:
 
 $$
 \frac{\partial^{4}\ell}{\partial\eta^{4}}
@@ -123,19 +118,18 @@ $$
 + \ell^{(\theta)}\,h'''' .
 $$
 
-The last term contains $h''''$, and it does not vanish for any link except an
-affine one. A link truncated at second order would therefore not merely make
-this quantity less accurate — it would make it wrong, by an amount that has
-nothing to do with any small parameter and does not shrink as the sample grows.
-Since fourth-order likelihood derivatives are exactly what bias correction and
-higher-order asymptotics consume, the four-derivative requirement in
-@def-link is essential to the design.
+The last term contains $h''''$, which vanishes only for an affine link. A link
+implemented only to second order would therefore make this quantity wrong, not
+merely less accurate, and the error would not shrink as the sample grows.
+Fourth-order likelihood derivatives are exactly what bias correction and
+higher-order asymptotics require, so the four-derivative requirement in
+@def-link is necessary for those applications.
 
 ## The interface {#sec-link-interface}
 
 A link is an S7 object. The base class `link` carries the name, the domain
-$\Theta$ (`link_bounds`), and any extra mathematical parameters the link needs,
-such as the exponent of the power link; each concrete link is a subclass.
+$\Theta$ (`link_bounds`), and any additional parameters the link needs, such
+as the exponent of the power link; each concrete link is a subclass.
 
 ```{r}
 #| label: link-object
@@ -166,19 +160,18 @@ linkinvderiv(lk, linkfun(lk, theta), order = 2)
 ```
 
 One practical remark about these routers. `linkderiv()` dispatches on the link
-and then calls the order-specific generic, which dispatches again; since an S7
-dispatch costs roughly five microseconds against one for a plain call, the
-second dispatch accounts for about a third of the total. In a hot loop this
-adds up — `distributions7` evaluates inverse-link derivatives once per
-parameter per order on every scoring iteration — so performance-critical code
-calls `dlinkinv()` and its siblings directly, and the routers are best regarded
-as a convenience for interactive use.
+and then calls the order-specific generic, which dispatches again. An S7
+dispatch costs roughly five microseconds against one microsecond for a plain
+call, so the second dispatch accounts for about a third of the total, and this
+cost accumulates in a loop: `distributions7` evaluates inverse-link
+derivatives once per parameter per order on every scoring iteration.
+Performance-critical code therefore calls `dlinkinv()` and its siblings
+directly, and the routers are intended for interactive use.
 
 Every link also carries `print` and `plot` methods. The plot draws the two
-directions of the map side by side, which makes the geometry of a link concrete
-before any formula is read: the forward direction stretches the neighbourhoods
-of the domain's endpoints out to infinity, and the inverse compresses the whole
-real line back between them.
+directions of the map side by side: the forward direction stretches the
+neighbourhoods of the domain's endpoints out to infinity, and the inverse
+compresses the whole real line back between them.
 
 ```{r}
 #| label: link-plot
@@ -194,9 +187,8 @@ lower-, an upper- or a doubly-bounded link according to which of its two
 arguments are supplied, and reduces to the identity link when neither is. For
 each entry the table gives the domain, the pair $g$ and $h$, and all eight
 derivatives; the accompanying note records the mathematical or numerical
-properties specific to that link. Links that take a
-parameter — the power link, the softplus, the bounded family — are shown at a
-representative value.
+properties specific to that link. Links that take a parameter — the power
+link, the softplus, the bounded family — are shown at a representative value.
 
 ```{r}
 #| label: catalogue
@@ -207,38 +199,38 @@ for (id in names(LINKS)) render_link_entry(id, LINKS[[id]])
 
 ## Validating a link {#sec-check-link}
 
-Since users can define links of their own, the package provides `check_link()`,
-which takes any link object and verifies the properties that @def-link demands:
-invertibility in both directions on a grid, strict monotonicity of either sign,
-the first-order inverse function theorem $h'(\eta)\,g'(\theta) = 1$, and the
-agreement of each analytical derivative, in both families and at every order up
-to the fourth, with a numerical one.
+Users can define links of their own, so the package provides `check_link()`,
+which takes any link object and verifies the properties that @def-link
+demands: invertibility in both directions on a grid, strict monotonicity of
+either sign, the first-order inverse function theorem
+$h'(\eta)\,g'(\theta) = 1$, and the agreement of each analytical derivative,
+in both families and at every order up to the fourth, with a numerical one.
 
 ```{r}
 #| label: check-link-demo
 invisible(check_link(cloglog_link()))
 ```
 
-The derivative checks are organised as a chain because of a genuine
-limitation of numerical differentiation, not an implementation detail. One cannot verify a
-fourth derivative by differentiating $g$ itself four times numerically: each
-numerical differentiation amplifies the error of the previous one, and by the
-third order the result is noise. The validator instead compares the analytical
-derivative of order $k$ against a *single* numerical differentiation of the
-analytical derivative of order $k-1$, so that every comparison involves exactly
-one finite-difference step and retains its full accuracy. The grid, moreover,
-keeps away from the edges of the domain: the Richardson extrapolation in
-`numDeriv` evaluates the function at points up to about
-$8 \times 10^{-4}\,|x|$ away from $x$, and a grid point closer than that to a
-boundary would be differentiated using values from outside the domain.
+The derivative checks are organised as a chain because of a limitation of
+numerical differentiation itself. A fourth derivative cannot be verified by
+differentiating $g$ four times numerically: each numerical differentiation
+amplifies the error of the previous one, and by the third order the result is
+noise. The validator instead compares the analytical derivative of order $k$
+against a *single* numerical differentiation of the analytical derivative of
+order $k-1$, so that every comparison involves exactly one finite-difference
+step and keeps its full accuracy. The grid also stays away from the edges of
+the domain: the Richardson extrapolation in `numDeriv` evaluates the function
+at points up to about $8 \times 10^{-4}\,|x|$ away from $x$, and a grid point
+closer than that to a boundary would be differentiated using values from
+outside the domain.
 
 ## Numerical fallbacks {#sec-link-fallbacks}
 
-The ten generics of @sec-link-interface are what a link *may* implement. Only
-two of them are compulsory. A link that supplies $g$ and $h$ and stops there
-still answers every derivative, because the base class carries numerical
-fallbacks for the eight it was not given, and the routers reach them like any
-other method.
+Of the ten generics in @sec-link-interface, only `linkfun` and `linkinv` are
+compulsory. A link that supplies $g$ and $h$ and nothing else still answers
+every derivative, because the base class carries numerical fallbacks for the
+eight generics it was not given, and the routers reach them like any other
+method.
 
 ```{r}
 #| label: bare-link
@@ -252,28 +244,27 @@ linkderiv(bare, 2, order = 3)   # third derivative, never written down
 2 / 2^3                         # the closed form
 ```
 
-This is the same bargain `distributions7` offers a distribution that supplies
-only its density, and it exists for the same reason: the person most likely to
-need it is the one experimenting with a transformation nobody has implemented,
-and asking them to differentiate it by hand four times before anything runs is
-asking them not to bother.
+`distributions7` offers the same arrangement to a distribution that supplies
+only its density, and for the same reason: the user most likely to need it is
+the one experimenting with a link nobody has implemented, and requiring four
+hand-computed derivatives before anything runs would discourage the experiment
+entirely.
 
 ### The finite-difference scheme {#sec-link-fallback-chain}
 
-How a fallback computes its answer matters more here than one might expect,
-because it follows the same rule that @sec-check-link imposes on the validator:
-a quantity is never differentiated numerically more than once in a row. The
-simplest thing to write would be a recursion, taking the second derivative as a
-difference of the first and the third as a difference of the second, but each
-numerical differentiation multiplies the error of the one below it, so such a
-chain is useless by the time it reaches the top. The identity link makes the
-point without any arithmetic at all, since its third derivative is exactly zero
-while three nested differences return a number of order one. The dangers of
+The fallbacks follow the same rule that @sec-check-link imposes on the
+validator: a quantity is never differentiated numerically more than once in a
+row. The simplest implementation would be a recursion — the second derivative
+as a difference of the first, the third as a difference of the second — but
+each numerical differentiation multiplies the error of the one below it, and
+such a chain is useless by the time it reaches the fourth order. The identity
+link shows the failure directly: its third derivative is exactly zero, while
+three nested differences return a number of order one. The instability of
 repeated differencing, and the choice of step that balances truncation against
-rounding, are treated at length in @gill1981 and @press2007.
+rounding, are treated in @gill1981 and @press2007.
 
-What the fallbacks do instead is ask how many orders are actually missing. Each
-one finds the highest order $m$ the link implements analytically, and applies a
+The fallbacks instead determine how many orders are actually missing. Each one
+finds the highest order $m$ the link implements analytically and applies a
 **single** central stencil of order $k - m$ to that derivative:
 
 $$
@@ -286,9 +277,9 @@ f'''' \approx \frac{f_{+2} - 4f_{+1} + 6f_{0} - 4f_{-1} + f_{-2}}{h^{4}},
 $$
 
 writing $f_{\pm j}$ for $f(x \pm jh)$. A link analytic to the second order
-therefore reaches the third with one difference and the fourth with two, rather
-than standing on three differences of its own — and the difference this makes is
-not marginal:
+therefore reaches the third derivative with one difference and the fourth with
+two, instead of with three nested differences of its own, and the gain in
+accuracy is substantial:
 
 ```{r}
 #| label: fallback-accuracy
@@ -310,24 +301,25 @@ c(nothing_analytic = rel(linkderiv(bare, theta, order = 4), exact4),
   two_orders_given = rel(linkderiv(half, theta, order = 4), exact4))
 ```
 
-Two analytical orders, which is a couple of lines of algebra, buy several digits
-at the fourth. The step itself is $\varepsilon^{1/(k+2)}\max(1, \lvert x\rvert)$
-for a stencil of order $k$, balancing truncation against rounding, and it is
-shrunk near the ends of the domain: a link's domain is open, and the third- and
-fourth-order stencils reach $2h$, so it is that reach and not $h$ that has to
-fit inside it. Differentiating the log link at $\theta = 10^{-8}$ would
-otherwise evaluate a logarithm at a negative number.
+Supplying two analytical orders, a couple of lines of algebra, gains several
+digits of accuracy at the fourth. The step is
+$\varepsilon^{1/(k+2)}\max(1, \lvert x\rvert)$ for a stencil of order $k$,
+which balances truncation error against rounding error, and it is reduced near
+the ends of the domain: the domain is open, the third- and fourth-order
+stencils reach out to $2h$, and that full reach has to stay inside it.
+Without this reduction, differentiating the log link at $\theta = 10^{-8}$
+would evaluate a logarithm at a negative number.
 
 ### Validation of numerical orders {#sec-link-fallback-catch}
 
-A convenience of this kind comes with a hazard, and it is the same one
-@sec-fallbacks records for distributions. `check_link()` verifies an analytical
-derivative by comparing it against a numerical one. If the analytical derivative
-*is* the numerical one, the comparison is between a quantity and itself: it
-agrees perfectly, and it has established nothing.
+The fallbacks create a problem for validation, the same one that
+@sec-fallbacks records for distributions. `check_link()` verifies an
+analytical derivative by comparing it against a numerical one; when the
+"analytical" derivative is itself the numerical fallback, the comparison sets
+a quantity against itself, agrees perfectly, and establishes nothing.
 
-The validator therefore does not report such an order as having passed; it
-reports it as numerical, and says how far the exactness actually goes.
+The validator therefore does not report such an order as having passed. It
+reports it as numerical, and states up to which order the link is exact.
 
 ```{r}
 #| label: check-link-honest
@@ -335,9 +327,10 @@ invisible(check_link(bare))
 invisible(check_link(half))
 ```
 
-Neither link is wrong; both are simply less checked than a reader of a bare
-`[PASSED]` would assume, and the summary says so. `link_fallback_orders()`
-answers the same question programmatically, which is the form a script wants:
+Neither link is wrong; both are simply less thoroughly checked than a plain
+`[PASSED]` would suggest, and the summary says so. `link_fallback_orders()`
+returns the same information programmatically, which is the form a script
+needs:
 
 ```{r}
 #| label: fallback-orders
@@ -345,11 +338,10 @@ link_fallback_orders(half)
 link_fallback_orders(logit_link())
 ```
 
-Everything in the catalogue reports four and four. The fallbacks exist for links
-that do not yet, and the honest description of them is that they make an
-incomplete link *usable* rather than *exact* — which is why the catalogue does
-not rely on them, and why a link intended for serious use should end up not
-needing them either.
+Every link in the catalogue reports four analytic orders in both directions.
+The fallbacks exist for links that are still incomplete: they make such a link
+usable rather than exact, the catalogue does not rely on them, and a link
+intended for regular use should eventually not need them either.
 
 ```{r}
 #| label: consistency-links
