@@ -63,11 +63,16 @@
                           d@distrib_name, err))
   }
 
-  # (3) intervals lie inside the domain and are ordered
+  # (3) intervals lie inside the domain and are ordered. Read through confint(),
+  # which is what the chapter displays, rather than through the stored slot: a
+  # check on a quantity the reader never sees would not cover the one shown.
+  ci <- stats::confint(fit)
+  ci_eta <- stats::confint(fit, scale = "link")
+
   for (i in seq_along(ps)) {
     b <- d@params_bounds[[ps[i]]]
-    lo <- fit@ci[i, 1]
-    hi <- fit@ci[i, 2]
+    lo <- ci[i, 1]
+    hi <- ci[i, 2]
     if (!is.finite(lo) || !is.finite(hi)) next
     if (lo <= b[1] || hi >= b[2]) {
       out <- c(out, sprintf("%s: interval for %s escapes (%s, %s)",
@@ -75,6 +80,21 @@
     }
     if (lo > hi) {
       out <- c(out, sprintf("%s: interval for %s is inverted", d@distrib_name, ps[i]))
+    }
+
+    # the link-scale interval is symmetric about the estimate, and the
+    # parameter-scale one is its image under g^{-1}. Mapped here independently
+    # of the package's own mapping, and sorted, since a link may decrease.
+    if (!all(is.finite(ci_eta[i, ]))) next
+    half <- c(fit@eta[i] - ci_eta[i, 1], ci_eta[i, 2] - fit@eta[i])
+    if (abs(half[1] - half[2]) > 1e-10 * max(1, abs(fit@eta[i]))) {
+      out <- c(out, sprintf("%s: link-scale interval for %s is not symmetric",
+                            d@distrib_name, ps[i]))
+    }
+    mapped <- sort(linkfunctions7::linkinv(d@link_params[[ps[i]]], ci_eta[i, ]))
+    if (max(abs(mapped - ci[i, ]) / pmax(abs(ci[i, ]), 1e-8)) > 1e-10) {
+      out <- c(out, sprintf("%s: interval for %s is not the image of the link one",
+                            d@distrib_name, ps[i]))
     }
   }
 

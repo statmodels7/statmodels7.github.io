@@ -393,7 +393,15 @@ component; the cdf derivatives cannot separate `E_T[l^(ij)]` from `E_T[l^(i)l^(j
 distribution, twelve on a discrete one; catches deliberately broken components),
 `fit_distrib()` (MLE on the link scale, Fisher scoring / Newton / BFGS, delta-method SEs,
 CIs built on the link scale and mapped back so they respect domains), plus `simulate()`
-and `plot()` on the fit.
+and `plot()` on the fit. Extractors: `coef()`, `vcov()`, `confint()` — all three
+taking `scale = c("parameter", "link")` — and `logLik()`.
+
+**`confint()` was missing until 2026-08-03**, and so was the interval in the
+`print()` method's link-scale block, although `ci_eta` had been computed, stored
+and documented from the start. The link-scale interval is the one actually
+computed and the parameter-scale table is its image under `g^{-1}`, so printing
+both is what makes the mapping legible; `confint()` recomputes at any `level`
+from the stored estimate and standard error, without refitting.
 
 **`fit_distrib()` delegates its optimisation to `optimizers7`** (2026-08-03), and
 distributions7 now Imports it. Until then the function did the exact thing the
@@ -1241,6 +1249,16 @@ scoring, Newton and BFGS agree on the maximised log-likelihood. Injection-checke
 too: at the optimum the score is 4e-13 per observation against a 1e-4 threshold and
 2e-1 when displaced by 0.05, and the delta-method check is exact against 1e-1 for a
 Jacobian 5% wrong.
+
+Extended 2026-08-03, when `confint()` was added: the interval checks now read
+through **`confint()` rather than the `@ci` slot**, because that is what the
+chapter displays and a check on a quantity the reader never sees would not cover
+the one shown. Two conditions were added with it — that the link-scale interval
+is symmetric about the estimate, and that the parameter-scale one is its image
+under `linkinv()`, mapped independently of the package's own mapping and sorted,
+since a link may decrease. Both are injection-checked: shifting one end of the
+link-scale interval by 0.05 and inflating the parameter-scale one by 5% are each
+caught, and the gate passes again once they are removed.
 
 `assert_optimizers_ok()` (chapter 4, `book/R/optimizer-certificates.R`) does the
 same for six claims: that an accepted step really satisfies the condition claimed
