@@ -20,7 +20,7 @@ The task is the simplest one in which the machinery is exercised end to end.
 Given a sample $y_1, \dots, y_n$ assumed independent and identically
 distributed from a member of one of the families in the catalogue, estimate the
 parameter by maximum likelihood, and report an uncertainty for it. There is no
-regression here — no covariates, no design matrix — and that is the point:
+regression here — no covariates, no design matrix — and deliberately so:
 `fit_distrib()` is the smallest complete consumer of the toolkit, and every
 component it uses is a component that a regression front end will use in the
 same way.
@@ -84,8 +84,8 @@ squares is the one @mccullagh1989 builds the generalised linear model on;
 of them at length.
 
 The default is Fisher scoring, for a reason that @cor-congruence supplied two
-chapters ago and that is worth restating because it is easy to mistake for a
-mere convenience. On the link scale the expected information is
+chapters ago and is restated here because it is easy to mistake for a mere
+convenience. On the link scale the expected information is
 
 $$\mathbb{E}[I_\eta] = \operatorname{diag}(h')\,\mathbb{E}[I_\theta]\,\operatorname{diag}(h'),$$
 
@@ -100,7 +100,7 @@ agree in expectation — but about which iteration is better behaved on the way
 there.
 
 Ascent being a direction rather than a distance, the step itself is halved until
-it earns its keep: the candidate $\eta + s\,\Delta$ is tried with $s = 1$, and
+it is acceptable: the candidate $\eta + s\,\Delta$ is tried with $s = 1$, and
 $s$ is halved until the log-likelihood does not decrease. Since the direction is
 an ascent direction, some sufficiently small $s$ always succeeds, so the
 iteration is monotone in the log-likelihood by construction, and a step that
@@ -123,7 +123,7 @@ and one of ten million.
 @sec-nonregular showed that the Laplace location sits at a kink: its observed
 second derivative $\ell^{(\mu\mu)}$ is zero almost everywhere, while the
 information, defined as the variance of the score, is $1/b^{2}$. The consequence
-for estimation is immediate and rather striking. Newton–Raphson on a Laplace has
+for estimation is immediate. Newton–Raphson on a Laplace has
 nothing to invert — the observed information in $\mu$ vanishes identically —
 whereas Fisher scoring has $1/b^{2}$ and proceeds without noticing anything
 unusual. That the default method is the one that works here is not a
@@ -242,9 +242,21 @@ fallback was taken — are all carried on the fitted object, and `simulate()` an
 plot(fit)
 ```
 
+`simulate()` draws new samples of the original size from the fitted
+distribution, which is the ingredient a parametric bootstrap needs: any
+statistic computed on the simulated samples has, under the fitted model, the
+distribution that same statistic has under repeated sampling.
+
+```{r}
+#| label: fit-simulate
+sims <- simulate(fit, nsim = 200, seed = 1)
+boot_means <- vapply(sims, mean, numeric(1))
+c(observed = mean(y), boot_se = sd(boot_means))
+```
+
 ### Scope {#sec-fit-scope}
 
-It is worth being explicit about the boundary of this chapter, because the
+The boundary of this chapter should be stated explicitly, because the
 apparatus assembled here is capable of a good deal more than it is asked to do.
 
 There are no covariates. Every observation shares one $\theta$, so the link
