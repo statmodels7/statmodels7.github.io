@@ -50,11 +50,11 @@ domain and receive `NaN`. For this reason the catalogue below states $E$
 explicitly for every link.
 
 Third, the definition requires four continuous derivatives instead of the
-customary one or two. The link objects in `stats::make.link()` carry the first
-derivative of the inverse and nothing else, because a generalized linear model
-fitted by iteratively reweighted least squares needs nothing more; this is the
-setting of @nelder1972 and @mccullagh1989, where the link function first
-appears under that name. This toolkit needs more: as @sec-link-scale shows,
+customary one or two. The link objects in `stats::make.link()` carry the first derivative of the
+inverse and nothing else, because a generalized linear model fitted by
+iteratively reweighted least squares needs nothing more. This is the setting
+of @nelder1972 and @mccullagh1989, where the link function first appears
+under that name. This toolkit needs more: as @sec-link-scale shows,
 transporting a fourth-order derivative of a log-likelihood onto the
 unconstrained scale requires $h'$, $h''$, $h'''$ and $h''''$, so a link that
 stopped at second order would restrict the entire toolkit to second-order
@@ -87,11 +87,11 @@ Differentiating this identity once gives $h'\,g' = 1$, and hence the first
 formula. Each further differentiation produces an equation that is linear in
 the highest derivative of $h$, with a power of $g'$ as its coefficient; since
 $g'$ never vanishes, this equation can be solved for that derivative, and the
-remaining formulas follow one after another. The same procedure, carried to
-arbitrary order and organised through set partitions, is the Faà di Bruno
-formula, whose history and combinatorics are presented in @johnson2002 and
-@comtet1974; @sec-link-scale uses it in that general form to transport
-likelihood derivatives of any order onto the unconstrained scale.
+remaining formulas follow one after another. The same procedure, carried to arbitrary order and organised through set
+partitions, is the Faà di Bruno formula, whose history and combinatorics are
+presented in @johnson2002 and @comtet1974. @sec-link-scale uses it in that
+general form to transport likelihood derivatives of any order onto the
+unconstrained scale.
 
 A short example makes the formulas concrete and checks the signs. For the log
 link, $g(\theta) = \log\theta$, the inverse $h(\eta) = e^\eta$ is its own
@@ -160,10 +160,9 @@ linkinvderiv(lk, linkfun(lk, theta), order = 2)
 ```
 
 One practical remark about these routers. `linkderiv()` dispatches on the link
-and then calls the order-specific generic, which dispatches again. An S7
-dispatch costs roughly five microseconds against one microsecond for a plain
-call, so the second dispatch accounts for about a third of the total, and this
-cost accumulates in a loop: `distributions7` evaluates inverse-link
+and then calls the order-specific generic, which dispatches again. An S7 dispatch costs roughly five microseconds, against one microsecond for a
+plain call, so the second dispatch accounts for about a third of the total.
+The cost accumulates in a loop: `distributions7` evaluates inverse-link
 derivatives once per parameter per order on every scoring iteration.
 Performance-critical code therefore calls `dlinkinv()` and its siblings
 directly, and the routers are intended for interactive use.
@@ -201,10 +200,10 @@ for (id in names(LINKS)) render_link_entry(id, LINKS[[id]])
 
 Users can define links of their own, so the package provides `check_link()`,
 which takes any link object and verifies the properties that @def-link
-demands: invertibility in both directions on a grid, strict monotonicity of
-either sign, the first-order inverse function theorem
-$h'(\eta)\,g'(\theta) = 1$, and the agreement of each analytical derivative,
-in both families and at every order up to the fourth, with a numerical one.
+demands. It checks invertibility in both directions on a grid, strict
+monotonicity of either sign, and the first-order inverse function theorem
+$h'(\eta)\,g'(\theta) = 1$. It then compares each analytical derivative, in
+both families and at every order up to the fourth, with a numerical one.
 
 ```{r}
 #| label: check-link-demo
@@ -218,11 +217,10 @@ amplifies the error of the previous one, and by the third order the result is
 noise. The validator instead compares the analytical derivative of order $k$
 against a *single* numerical differentiation of the analytical derivative of
 order $k-1$, so that every comparison involves exactly one finite-difference
-step and keeps its full accuracy. The grid also stays away from the edges of
-the domain: the Richardson extrapolation in `numDeriv` evaluates the function
-at points up to about $8 \times 10^{-4}\,|x|$ away from $x$, and a grid point
-closer than that to a boundary would be differentiated using values from
-outside the domain.
+step and keeps its full accuracy. The grid also stays away from the edges of the domain. The Richardson
+extrapolation in `numDeriv` evaluates the function at points up to about
+$8 \times 10^{-4}\,|x|$ away from $x$, so a grid point closer than that to a
+boundary would be differentiated using values from outside the domain.
 
 ## Numerical fallbacks {#sec-link-fallbacks}
 
@@ -245,19 +243,19 @@ linkderiv(bare, 2, order = 3)   # third derivative, never written down
 ```
 
 `distributions7` offers the same arrangement to a distribution that supplies
-only its density, and for the same reason: the user most likely to need it is
-the one experimenting with a link nobody has implemented, and requiring four
-hand-computed derivatives before anything runs would discourage the experiment
-entirely.
+only its density, for the same reason. The user most likely to need the
+fallbacks is the one experimenting with a link nobody has implemented, and
+requiring four hand-computed derivatives before anything runs would
+discourage the experiment entirely.
 
 ### The finite-difference scheme {#sec-link-fallback-chain}
 
 The fallbacks follow the same rule that @sec-check-link imposes on the
 validator: a quantity is never differentiated numerically more than once in a
-row. The simplest implementation would be a recursion — the second derivative
-as a difference of the first, the third as a difference of the second — but
-each numerical differentiation multiplies the error of the one below it, and
-such a chain is useless by the time it reaches the fourth order. The identity
+row. The simplest implementation would be a recursion: the second derivative as a
+difference of the first, the third as a difference of the second. But each
+numerical differentiation multiplies the error of the one below it, and such
+a chain is useless by the time it reaches the fourth order. The identity
 link shows the failure directly: its third derivative is exactly zero, while
 three nested differences return a number of order one. The instability of
 repeated differencing, and the choice of step that balances truncation against
@@ -302,11 +300,11 @@ c(nothing_analytic = rel(linkderiv(bare, theta, order = 4), exact4),
 ```
 
 Supplying two analytical orders, a couple of lines of algebra, gains several
-digits of accuracy at the fourth. The step is
-$\varepsilon^{1/(k+2)}\max(1, \lvert x\rvert)$ for a stencil of order $k$,
-which balances truncation error against rounding error, and it is reduced near
-the ends of the domain: the domain is open, the third- and fourth-order
-stencils reach out to $2h$, and that full reach has to stay inside it.
+digits of accuracy at the fourth. The step is $\varepsilon^{1/(k+2)}\max(1, \lvert x\rvert)$ for a stencil of
+order $k$, which balances truncation error against rounding error. Near the
+ends of the domain the step is reduced: the domain is open, the third- and
+fourth-order stencils reach out to $2h$, and that full reach has to stay
+inside it.
 Without this reduction, differentiating the log link at $\theta = 10^{-8}$
 would evaluate a logarithm at a negative number.
 

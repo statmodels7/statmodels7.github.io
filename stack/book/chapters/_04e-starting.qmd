@@ -64,20 +64,20 @@ rejects a parameter vector of the wrong length, which the objective of a real
 model does: `X %*% beta` with a mismatched `beta` is an error, not a number.
 It does not work for a function written in terms of the parameter alone,
 because R recycles a shorter vector silently whenever its length divides the
-longer one, so `sum((p - c(1, 2, 3))^2)` is a perfectly finite function of one
-parameter as well as of three; in that case the count cannot be inferred and
-is asked of the user instead.
+longer one. `sum((p - c(1, 2, 3))^2)` is therefore a perfectly finite
+function of one parameter as well as of three. In that case the count cannot be inferred,
+and the user is asked to supply it.
 
 A second check precedes the first iteration whenever a gradient is supplied.
-A `gr` computed from a different model than `fn` — a fixed predictor where the
-objective uses the parameter, a stale copy of the data — leaves the objective
-flat along a direction the gradient reports as downhill, and the run then ends
-with a line-search failure at the first iteration, which describes the symptom
-and conceals the cause. Two evaluations settle the question in advance: one
-central difference of `fn` along the gradient direction at the starting point
-is compared with the rate `gr` predicts, which along that direction is
-$\lVert g \rVert$, and a gross disagreement between the two produces a warning
-that names both rates. The tolerance is deliberately loose, so that
+A `gr` computed from a different model than `fn` — a fixed predictor where
+the objective uses the parameter, a stale copy of the data — leaves the
+objective flat along a direction the gradient reports as downhill. The run
+then ends with a line-search failure at the first iteration, which describes
+the symptom and conceals the cause. Two evaluations settle the question in advance. One central difference of
+`fn` along the gradient direction at the starting point is compared with the
+rate `gr` predicts, which along that direction is $\lVert g \rVert$, and a
+gross disagreement between the two produces a warning that names both
+rates. The tolerance is deliberately loose, so that
 finite-difference error, or a subgradient evaluated at a kink, does not
 trigger it: the check detects the wrong function, not the eighth digit.
 
@@ -143,11 +143,11 @@ socket cluster is used instead. The user supplies at most a number of cores.
 One property of this arrangement deserves explicit statement, because it is
 easy to lose and difficult to restore. The starting points are drawn in the
 calling session, before any work is dispatched, and each worker is seeded from
-that session's stream. `set.seed()` therefore reproduces the run, and
-reproduces it identically whether the work was split across eight processes or
-none: a scheme in which each worker seeded itself would produce answers that
-depend on how many cores happened to be free, which is not acceptable in a
-result that will be reported.
+that session's stream. `set.seed()` therefore reproduces the run, and reproduces it identically
+whether the work was split across eight processes or none. A scheme in which
+each worker seeded itself would produce answers that depend on how many cores
+happened to be free, which is not acceptable in a result that will be
+reported.
 
 ```{r}
 #| label: consistency-starting

@@ -46,11 +46,10 @@ descent direction, because
 
 $$g^\top d = -g^\top B g < 0 \quad \text{for } g \neq 0$$
 
-by the definition of positive definiteness. This fact connects the two halves
-of the chapter: a curvature model must be positive definite because otherwise
-the direction it produces may not be a descent direction at all, and when
-Newton's method repairs an indefinite Hessian in @sec-newton it does so to
-preserve exactly this inequality.
+by the definition of positive definiteness. This fact connects the two halves of the chapter. A curvature model must be
+positive definite because otherwise the direction it produces may not be a
+descent direction at all, and when Newton's method repairs an indefinite
+Hessian in @sec-newton, it does so to preserve exactly this inequality.
 
 Conjugate gradients, in @sec-cg-bb, does not have the form $-Bg$ for any
 stored matrix, so its direction is not guaranteed to be a descent direction in
@@ -125,11 +124,11 @@ $$\bigl\lvert \nabla f(x + sd)^\top d \bigr\rvert
 Condition (W) requires the slope along $d$ to have risen — to have become less
 steeply negative — by a definite factor. At $s = 0$ the slope is $g^\top d$
 and (W) is violated because $c_2 < 1$, so (W) forces the step away from zero,
-which is precisely what (A) cannot do. The two conditions act in opposite
-directions, and a step satisfying both exists whenever $f$ is bounded below
-along $d$: as $s$ grows, either $f$ eventually violates (A), in which case a
-mean-value argument at the first such $s$ produces a point where both
-conditions hold, or $f$ decreases forever and the problem is unbounded.
+which is precisely what (A) cannot do. The two conditions act in opposite directions, and a step satisfying both
+exists whenever $f$ is bounded below along $d$. As $s$ grows, either $f$
+eventually violates (A), in which case a mean-value argument at the first
+such $s$ produces a point where both conditions hold, or $f$ decreases
+forever and the problem is unbounded.
 
 Both forms are due to @wolfe1969, and @morethuente1994 gives the algorithm
 that has become the standard way of finding a step that satisfies them. The
@@ -161,17 +160,18 @@ $$\sum_{k \ge 0} \cos^{2}\!\theta_k \, \lVert g_k \rVert^{2} < \infty,
 :::
 
 The argument is due to @zoutendijk1970 and is given in full in @nocedal2006.
-Its structure is simple: the curvature condition (W) bounds the step length
-from below, the Lipschitz continuity of the gradient bounds it from above, and
-substituting the lower bound into the sufficient-decrease condition (A) shows
-that each iteration decreases $f$ by at least a fixed multiple of
+Its structure is simple. The curvature condition (W) bounds the step length
+from below, and the Lipschitz continuity of the gradient bounds it from
+above. Substituting the lower bound into the sufficient-decrease condition
+(A) shows that each iteration decreases $f$ by at least a fixed multiple of
 $\cos^{2}\!\theta_k \lVert g_k \rVert^{2}$. Since $f$ is bounded below, the
 total decrease is finite, and the series converges.
 
-The consequence used throughout the chapter is this: a convergent series has
-terms tending to zero, so $\cos^{2}\theta_k \lVert g_k \rVert^{2} \to 0$, and
-therefore if the directions never become orthogonal to the gradient — if
-$\cos\theta_k \ge \delta > 0$ for all $k$ — then $\lVert g_k \rVert \to 0$.
+The consequence used throughout the chapter is the following. A convergent
+series has terms tending to zero, so
+$\cos^{2}\theta_k \lVert g_k \rVert^{2} \to 0$. If the directions never
+become orthogonal to the gradient, that is, if
+$\cos\theta_k \ge \delta > 0$ for all $k$, then $\lVert g_k \rVert \to 0$.
 The line search supplies one half of the guarantee and the direction supplies
 the other, and neither is sufficient alone. This is also why the package makes
 the line search an object carried by the optimiser rather than a fixed part of
@@ -199,11 +199,11 @@ point.
 
 The extra cost buys something specific. The gradient evaluated at the accepted
 point is needed by the next iteration in any case, so the additional cost is
-only the gradients spent at rejected trials. In exchange the method obtains
-@thm-zoutendijk and a step length that satisfies the curvature condition,
-which is the condition @sec-bfgs needs to keep its approximation positive
-definite: a quasi-Newton method paired with a Wolfe search never has to skip
-an update, while one paired with backtracking sometimes does.
+only the gradients spent at rejected trials. In exchange the method obtains @thm-zoutendijk and a step length that
+satisfies the curvature condition, which is what @sec-bfgs needs to keep its
+approximation positive definite. A quasi-Newton method paired with a Wolfe
+search never has to skip an update; one paired with backtracking sometimes
+does.
 
 ```{r}
 #| label: line-search-cost
@@ -236,10 +236,9 @@ direction — because its rejected trials cost only function values. A Wolfe
 search spends about a third more, the surplus being the gradients evaluated at
 trial points it then rejects.
 
-The comparison is not purely a cost. The Wolfe run needs noticeably fewer
-iterations, because a step length satisfying the curvature condition is a
-better step length, so the total gradient counts differ by less than the
-per-iteration figures suggest; and the difference that remains pays for
-@thm-zoutendijk, which backtracking alone does not provide, and for the
-guarantee in @sec-bfgs that the curvature approximation never has to reject an
-update.
+The comparison is not purely a cost. The Wolfe run needs noticeably fewer iterations, because a step length
+satisfying the curvature condition is a better step length, so the total
+gradient counts differ by less than the per-iteration figures suggest. The
+difference that remains pays for @thm-zoutendijk, which backtracking alone
+does not provide, and for the guarantee in @sec-bfgs that the curvature
+approximation never has to reject an update.

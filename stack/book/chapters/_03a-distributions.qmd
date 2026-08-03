@@ -19,11 +19,11 @@ are the places where misreadings arise.
 
 ### The distrib class {#sec-distrib-object}
 
-A distribution is an S7 object carrying its name, its dimensionality, the
+A distribution is an S7 object. It carries its name, its dimensionality, the
 bounds of its support, the names and interpretations of its parameters, their
-individual domains, the link function attached to each of them, and a
-per-parameter flag recording whether the log-likelihood is differentiable in
-that parameter, whose use is described in @sec-nonregular. Two
+individual domains, and the link function attached to each parameter. It also
+carries a per-parameter flag recording whether the log-likelihood is
+differentiable in that parameter, whose use is described in @sec-nonregular. Two
 subclasses, `continuous_distrib` and `discrete_distrib`, provide the defaults
 appropriate to each kind.
 
@@ -36,19 +36,17 @@ d@link_params$sigma2
 ```
 
 Parameters travel through the API as a named list called `theta`, and every
-generic normalises this list before doing anything else. The normalisation
-reorders the entries by name, so that `list(sigma2 = 2, mu = 3)` and
-`list(mu = 3, sigma2 = 2)` mean the same thing rather than silently meaning
-different things; it strips names from the *values*, because a parameter that
-has passed through a link function comes back carrying its own name, which
-would otherwise leak into the results and label a density `"sigma2"`; and it
+generic normalises this list before doing anything else. The normalisation does three things. It reorders the entries by name, so that
+`list(sigma2 = 2, mu = 3)` and `list(mu = 3, sigma2 = 2)` mean the same
+thing. It strips names from the *values*, because a parameter that has passed
+through a link function comes back carrying its own name, which would
+otherwise leak into the results and label a density `"sigma2"`. And it
 validates every value against the parameter's domain.
 
-The domains are treated as **open** intervals. A Gaussian requires
-$\sigma > 0$, not $\sigma \geq 0$, and a Bernoulli requires $0 < \mu < 1$: at
-the closed boundary the log-likelihood and its derivatives do not exist, and
-accepting a boundary value would replace an informative error now with an
-unexplained `NaN` several calls later.
+The domains are treated as **open** intervals. A Gaussian requires $\sigma > 0$, not $\sigma \geq 0$, and a Bernoulli
+requires $0 < \mu < 1$. At the closed boundary the log-likelihood and its
+derivatives do not exist, and accepting a boundary value would replace an
+informative error now with an unexplained `NaN` several calls later.
 
 ```{r}
 #| label: bounds-error
@@ -85,11 +83,11 @@ $$
 \ell^{(ijk)} = \frac{\partial^{3} \ell}{\partial \theta_i \partial \theta_j \partial \theta_k},
 $$
 
-and so on. This notation keeps the subscript position free for its usual
-meanings in likelihood work — $\ell_i$ for the contribution of the $i$-th
-observation, or $\ell_Y$ for the log-likelihood of a transformed model in the
-next section — while the parenthesized superscript unambiguously marks a
-derivative, as $f^{(k)}$ does for a function of one variable. The two usages
+and so on. This notation keeps the subscript position free for its usual meanings in
+likelihood work: $\ell_i$ for the contribution of the $i$-th observation, or
+$\ell_Y$ for the log-likelihood of a transformed model in the next section.
+The parenthesized superscript unambiguously marks a derivative, as $f^{(k)}$
+does for a function of one variable. The two usages
 agree: when $\ell$ depends on a single parameter $\theta$, the $k$-th
 derivative can be written either as $\ell^{(k)}$ with an integer order or as
 $\ell^{(\theta\cdots\theta)}$ with the label repeated, and both forms appear
@@ -177,12 +175,12 @@ $\ell$ with respect to the parameters indexed by the block $B$.
 :::
 
 The formula is the Faà di Bruno expansion of the exponential, and the reason
-the partitions appear is visible in a single differentiation. Differentiating the
-expression at order $k$ with respect to a new index, the derivative falls either
-on the leading factor $e^{\ell}$, which contributes a new block containing that
-index alone, or on one of the factors $\ell^{(B)}$, which enlarges the block $B$;
-and those are exactly the two ways of extending a partition of a $k$-element set
-to a partition of a $(k{+}1)$-element one, each new partition arising once. The
+the partitions appear is visible in a single differentiation. Differentiate the expression at order $k$ with respect to a new index. The
+derivative falls either on the leading factor $e^{\ell}$, which contributes a
+new block containing that index alone, or on one of the factors
+$\ell^{(B)}$, which enlarges the block $B$. These are exactly the two ways of
+extending a partition of a $k$-element set to a partition of a
+$(k{+}1)$-element one, and each new partition arises exactly once. The
 combinatorial identity behind this is the recursion for the complete Bell
 polynomials, treated in @comtet1974 and @stanley2012.
 
@@ -257,11 +255,11 @@ Bartlett one; @sec-nonregular shows this on a concrete example.
 ## Quadrature knots
 
 The `expectation()` engine splits its integral at quantiles of the
-distribution, and it uses three knots rather than nine. More knots would extend
-the range of densities it can integrate at all, but they would also convert
-loud failures into silent wrong answers: at Gamma shape $0.02$, a nine-knot
-rule returns $-54.9$ for a quantity that is exactly zero, while the three-knot
-rule simply reports that the integral could not be computed. In the ordinary
+distribution, and it uses three knots rather than nine. More knots would extend the range of densities it can integrate at all, but
+they would also convert loud failures into silent wrong answers. At Gamma
+shape $0.02$, a nine-knot rule returns $-54.9$ for a quantity that is exactly
+zero, while the three-knot rule reports that the integral could not be
+computed. In the ordinary
 range three knots are also the more accurate choice, since every extra panel
 contributes its own quadrature error. An explicit failure is preferable to a plausible
 wrong number.
@@ -359,12 +357,11 @@ derivative taken $j_t$ times with respect to $\theta_{p_t}$.
 
 The diagonality of the Jacobian is what makes this factorisation possible.
 Each $\theta_{p_t}$ depends on its own linear predictor and on nothing else,
-so the operator
-$\partial^{m_t}/\partial\eta_{p_t}^{m_t}$ sees $\ell$ as a function of the single
-variable $\theta_{p_t}$ and @thm-faa applies in that variable alone; the Bell
-polynomial it produces involves only derivatives of $h_{p_t}$, so it is constant
-under differentiation with respect to any other predictor, and the operators may
-be applied one after another in any order. Each round multiplies in its own
+so the operator $\partial^{m_t}/\partial\eta_{p_t}^{m_t}$ sees $\ell$ as a
+function of the single variable $\theta_{p_t}$, and @thm-faa applies in that
+variable alone. The Bell polynomial it produces involves only derivatives of
+$h_{p_t}$, so it is constant under differentiation with respect to any other
+predictor, and the operators can be applied one after another in any order. Each round multiplies in its own
 factor and deepens the sum by one index. Without diagonality the general
 multivariate version of the formula would be needed instead, and it is
 considerably heavier; @constantine1996 gives it.
@@ -427,8 +424,8 @@ distrib_gradient <- S7::new_generic(
 ```
 
 This placement has one visible consequence for users who write their own
-derivative methods: since S7 requires a method's formal arguments to include
-the generic's named arguments, such a method must declare
+derivative methods. S7 requires a method's formal arguments to include the
+generic's named arguments, so such a method must declare
 `scale = c("parameter", "link"), ...` in its signature even though it never
 touches `scale` itself. Omitting the declaration makes dispatch fail.
 
@@ -559,11 +556,11 @@ knitr::kable(catalogue_table(), align = "lllll", row.names = FALSE,
 
 The individual entries follow, and a reader who wants any of these families in
 more depth than a catalogue entry can give will find them in @johnson1994,
-@johnson1995 and @johnson2005. Several of the parametrisations are not the ones
-the corresponding `d*` function in base R uses — the Gamma is parametrised by
-mean and variance rather than shape and rate, the Beta by mean and precision,
-the negative binomial in its NB2 form — and in each such case the entry states
-the map between the two explicitly. All fourteen distributions implement their
+@johnson1995 and @johnson2005. Several of the parametrisations differ from the ones used by the
+corresponding `d*` function in base R: the Gamma is parametrised by mean and
+variance rather than shape and rate, the Beta by mean and precision, the
+negative binomial in its NB2 form. In each such case the entry states the map
+between the two explicitly. All fourteen distributions implement their
 observed derivatives to fourth order in closed form, as compiled Rcpp kernels,
 and the continuous-integration matrix builds them with several compilers on
 several platforms.
@@ -597,9 +594,9 @@ $$\mathcal{I}_{\mu\mu} = \mathbb{E}\left[(\ell^{(\mu)})^{2}\right]
 = \frac{1}{b^{2}}.$$
 
 The distribution the package ships is not affected by any of this in daily
-use, because `laplace_distrib()` implements the expected Hessian in closed
-form — the score-variance value $-1/b^{2}$ just computed — and, as always when
-an analytical method exists, the `approx` argument is simply ignored:
+use. `laplace_distrib()` implements the expected Hessian in closed form,
+returning the score-variance value $-1/b^{2}$ just computed, and, as always
+when an analytical method exists, the `approx` argument is simply ignored:
 
 ```{r}
 #| label: laplace-nonregular
@@ -650,11 +647,11 @@ c(bartlett  = distrib_expected_hessian(bare, 0, th, approx = "bartlett")$mu_mu,
 On this distribution the strategies disagree, and the pattern of the
 disagreement identifies the mechanism. The Bartlett route recovers $-1/b^{2}$
 exactly, because it works from the score alone and never touches the second
-derivative. The other two both return zero, for the same reason: each averages
-the observed $\ell^{(\mu\mu)}$, by quadrature in one case and over simulated
-draws in the other, and that function is identically zero away from the single
-point $y = \mu$, which the integral cannot see and the draws almost surely
-never hit. Averaging the second derivative, however the average is taken,
+derivative. The other two both return zero, for the same reason. Each averages the
+observed $\ell^{(\mu\mu)}$, by quadrature in one case and over simulated
+draws in the other, and that function is identically zero away from the
+single point $y = \mu$, which the integral cannot see and the draws almost
+surely never hit. Averaging the second derivative, however the average is taken,
 produces the expected *derivative*, which for this family really is zero. What
 fails is the identification of that quantity with the information, and only
 the strategy built on the score remains valid when it fails.
@@ -673,12 +670,12 @@ param_smoothness(laplace_distrib())
 The flag has a second use, in validation. Comparing an analytical derivative
 against a finite difference is invalid at a kink: a central difference
 straddling $y = \mu$ converges to nothing, so the *reference* is wrong, not
-the value under test. When a distribution declares a non-smooth parameter, the
-validation machinery recomputes each finite-difference reference with the step
-halved and discards the observations where the two estimates disagree, judging
-the disagreement relative to the estimates' own magnitude; observations near
-the kink are thereby excluded from the comparison, while for a smooth
-log-likelihood nothing is ever discarded and the check keeps its full strength.
+the value under test. When a distribution declares a non-smooth parameter, the validation machinery
+recomputes each finite-difference reference with the step halved and discards
+the observations where the two estimates disagree, judging the disagreement
+relative to the estimates' own magnitude. Observations near the kink are
+thereby excluded from the comparison. For a smooth log-likelihood nothing is
+ever discarded, and the check keeps its full strength.
 
 ```{r}
 #| label: consistency-distributions
