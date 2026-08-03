@@ -33,11 +33,10 @@ quadratically, which no other method in this chapter achieves, and this is the
 reason `newton()` exists.
 
 Away from a minimum the Hessian may be indefinite or singular, and the step is
-then wrong in a qualitative sense, not just inaccurate. If $H$ has a negative
-eigenvalue $\lambda < 0$ with eigenvector $v$, the model $m$ is unbounded
-below along $v$ and its stationary point is a saddle rather than a minimum;
-moreover the direction $d = -H^{-1} g$ can satisfy $g^\top d > 0$, which by
-@def-descent points uphill. The line search then finds no acceptable step and
+then wrong in a qualitative sense, not just inaccurate. If $H$ has a negative eigenvalue $\lambda < 0$ with eigenvector $v$, the
+model $m$ is unbounded below along $v$, and its stationary point is a saddle
+rather than a minimum. Moreover, the direction $d = -H^{-1} g$ can satisfy
+$g^\top d > 0$, which by @def-descent points uphill. The line search then finds no acceptable step and
 the run stops for a reason unrelated to the actual problem.
 
 $H$ must therefore be replaced by a positive definite matrix near it. Two
@@ -74,12 +73,11 @@ search can find an acceptable step.
 
 `newton()` accepts an objective with no analytic Hessian and obtains one by
 differencing the gradient once. When the gradient is analytic this is a single
-numerical differentiation and the result is accurate. When the gradient is
-itself obtained by finite differences, the Hessian becomes a difference of
-differences and the errors compound; this is the only place in the toolkit
-where two layers of numerical differentiation are composed, and it cannot be
-avoided, because a Hessian computed from function values alone has no other
-form. For this reason an objective that supplies neither derivative is better
+numerical differentiation and the result is accurate. When the gradient is itself obtained by finite differences, the Hessian
+becomes a difference of differences and the errors compound. This is the only
+place in the toolkit where two layers of numerical differentiation are
+composed, and it cannot be avoided: a Hessian computed from function values
+alone has no other form. For this reason an objective that supplies neither derivative is better
 served by `bfgs()`, which never forms a Hessian.
 :::
 
@@ -284,11 +282,11 @@ $$\beta^{FR} = \frac{g_k^\top g_k}{g_{k-1}^\top g_{k-1}}, \quad
 with $y_k = g_k - g_{k-1}$ as before, due respectively to @fletcher1964,
 @polak1969, @hestenes1952 and @dai1999. Fletcher–Reeves has the cleanest
 convergence theory and a known practical fault: after a poor step it can stall
-for many iterations. Polak–Ribière recovers immediately, because a small $y$
-sends $\beta$ towards zero and the method back to steepest descent; its known
-theoretical non-convergence is repaired by clamping $\beta$ at zero, and since
-$\beta = 0$ restarts the method at steepest descent, the clamp is recorded in
-the trace as a restart.
+for many iterations. Polak–Ribière recovers immediately, because a small $y$ sends $\beta$
+towards zero and the method back to steepest descent. Its known theoretical
+non-convergence is repaired by clamping $\beta$ at zero; since $\beta = 0$
+restarts the method at steepest descent, the clamp is recorded in the trace
+as a restart.
 
 **Barzilai–Borwein** keeps one number. The direction is $d = -\alpha g$ with
 
@@ -331,17 +329,17 @@ knitr::kable(
 ```
 
 The table shows that the amount of stored curvature matters less than its
-presence. Keeping the exact Hessian, a full approximation to its inverse,
-twenty pairs of vectors, one vector or one number changes the iteration count
-only moderately, while keeping nothing at all is the one configuration that
-fails: gradient descent is the only row that does not converge, and conjugate
+presence. Keeping the exact Hessian, a full approximation to its inverse, twenty pairs
+of vectors, one vector or one number changes the iteration count only
+moderately. Keeping nothing at all is the one configuration that fails:
+gradient descent is the only row that does not converge, and conjugate
 gradients repairs it with a single remembered direction.
 
-Every run can record its own path. With `keep_trace = TRUE` the result carries
-one row per iteration — the objective value, the gradient norm, the step taken
-and any safeguard that fired — and plotting the recorded values shows the
-difference between the rows of the table as trajectories rather than as two
-numbers:
+Every run can record its own path. With `keep_trace = TRUE` the result
+carries one row per iteration: the objective value, the gradient norm, the
+step taken and any safeguard that fired. Plotting the recorded values shows
+the difference between the rows of the table as trajectories rather than as
+two numbers:
 
 ```{r}
 #| label: trace-plot

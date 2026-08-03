@@ -7,11 +7,11 @@ source("R/_setup.R")
 ```
 
 The contract of @sec-distrib-object requires a new distribution to supply its
-density and nothing else. Everything else that the preceding sections
-described — the distribution function, the quantile function, random
-generation, derivatives of every order in the parameters and in the response —
-is provided by default implementations registered on the base classes, which
-any subclass may override but none is obliged to.
+density and nothing else. Everything else that the preceding sections described — the distribution
+function, the quantile function, random generation, derivatives of every
+order in the parameters and in the response — is provided by default
+implementations registered on the base classes. Any subclass may override
+them; none is obliged to.
 
 These defaults are what makes user-defined distributions practical: a
 distribution written by a user is a first-class citizen exactly to the extent
@@ -88,18 +88,18 @@ a Gaussian at $\mu = 1000$, for example — produces a rectangle in which the
 region $\mathcal{A}_r$ occupies a negligible corner, and the acceptance
 probability is essentially zero. The mode is located by evaluating the
 log-density on a grid over a compactified support and keeping the two cells
-around the largest value; for a unimodal density this bracket always contains
+around the largest value. For a unimodal density this bracket always contains
 the mode, and it shrinks by a factor of 64 at each pass.
 
 ::: {.callout-note}
 ## Locating the mode
 
 A golden-section search on the compactified scale is the obvious alternative
-for locating the mode, and it is not accurate enough. Its tolerance is
-expressed in the compactified variable $t$, while the derivative of the
-compactification grows with the location of the mode: under the tangent map,
-$\mathrm{d}y/\mathrm{d}t$ is of order $y^{2}$, so a fixed tolerance in $t$
-corresponds to an error in $y$ that grows quadratically with the mode. The
+for locating the mode, and it is not accurate enough. Its tolerance is expressed in the compactified variable $t$, while the
+derivative of the compactification grows with the location of the mode. Under
+the tangent map, $\mathrm{d}y/\mathrm{d}t$ is of order $y^{2}$, so a fixed
+tolerance in $t$ corresponds to an error in $y$ that grows quadratically with
+the mode. The
 grid refinement instead stops on the width of the bracket measured in $y$,
 which is the quantity that matters.
 :::
@@ -124,11 +124,10 @@ near a finite edge $a$ of the support
 $$f(y) \sim \lvert y - a \rvert^{\alpha - 1}, \qquad 0 < \alpha < 1,$$
 
 so that the density diverges as the edge is approached. Set
-$X = \lvert Y - a \rvert^{1/\lambda}$ for some $\lambda > 0$. The density of
-$X$ carries the Jacobian of the map, and a short computation replaces the
-exponent $\alpha - 1$ with $\lambda\alpha - 1$: the transformed density
-behaves like $x^{\lambda\alpha - 1}$ near the edge, which is bounded as soon
-as $\lambda\alpha > 1$, and in fact vanishes there. The sampler draws $X$ by
+$X = \lvert Y - a \rvert^{1/\lambda}$ for some $\lambda > 0$. The density of $X$ carries the Jacobian of the map, and a short computation
+replaces the exponent $\alpha - 1$ with $\lambda\alpha - 1$. The transformed
+density therefore behaves like $x^{\lambda\alpha - 1}$ near the edge, which
+is bounded as soon as $\lambda\alpha > 1$, and in fact vanishes there. The sampler draws $X$ by
 the scheme above and maps back.
 
 The exponent $\alpha$ does not need to be searched for. Taking logarithms of
@@ -198,11 +197,11 @@ deliberately conservative.
 ## Quadrature knots
 
 `expectation()` splits its integral at quantiles of the distribution, and uses
-three knots rather than nine. More knots would extend the range of extreme
-densities that can be integrated at all, but they would also convert loud
-failures into silent wrong answers: at Gamma shape $0.02$ a nine-knot rule
-returns $-54.9$ for a quantity that is exactly zero, while the three-knot rule
-reports that it could not compute the integral. In the ordinary range three
+three knots rather than nine. More knots would extend the range of extreme densities that can be
+integrated at all, but they would also convert loud failures into silent
+wrong answers. At Gamma shape $0.02$ a nine-knot rule returns $-54.9$ for a
+quantity that is exactly zero, while the three-knot rule reports that it
+could not compute the integral. In the ordinary range three
 knots are also the more accurate choice, because every additional panel
 contributes its own quadrature error. An explicit failure is preferable to a
 plausible wrong number.

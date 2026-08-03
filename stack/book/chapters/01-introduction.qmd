@@ -8,12 +8,11 @@ source("R/_setup.R")
 
 ## Duplicated infrastructure {#sec-rewritten}
 
-Almost every R modelling package contains, somewhere in its internals, a Gamma
-distribution — not *the* Gamma distribution, but that package's own private
-copy of it, written as a handful of helper functions: a `switch` on a
-character string that returns a density, a closure that computes a score, a
-block inside a fitting routine that produces whatever second derivative the
-routine happens to need. The same is true of link functions. Every package that
+Almost every R modelling package contains, somewhere in its internals, its
+own private copy of the Gamma distribution, written as a handful of helper
+functions. Typically there is a `switch` on a character string that returns a
+density, a closure that computes a score, and a block inside a fitting
+routine that produces the one second derivative that routine needs. The same is true of link functions. Every package that
 fits something positive carries its own log link, and every package that fits a
 probability carries its own logit.
 
@@ -28,11 +27,10 @@ and each capable of being wrong in its own way.
 
 The observation the toolkit is built on is that all of this is unnecessary,
 because a Gamma distribution is a fixed mathematical object. It does not vary
-from package to package. Its density, its score, its information, its third and
-fourth derivatives, its derivatives with respect to the response, its behaviour
-under any reparametrisation — all of these are determined once and for all by
-the definition, and they can therefore be written down once, correctly and
-completely, for everyone to build on.
+from package to package. Its density, score, information, third and fourth derivatives, derivatives
+with respect to the response and behaviour under reparametrisation are all
+determined by the definition, once and for all. They can therefore be written
+down once, correctly and completely, for everyone to build on.
 
 That is what `statmodels7` is: infrastructure meant to be reused, rather than
 another modelling package. The measure of its success is not how well it fits
@@ -48,19 +46,18 @@ A **link function** is a map between a constrained parameter and an
 unconstrained one, and what a modelling routine can ask of it is its value and
 its derivatives — in both directions. Almost every implementation in R carries
 the first derivative of the inverse link and stops there, which is exactly what a
-GLM fitted by iterative least squares needs and nothing more. A link in this
-toolkit carries four derivatives of the forward map and four of the inverse, so
-that it can serve a routine working to any order up to the fourth, and it knows
-its own domain so that the routine does not have to.
+GLM fitted by iterative least squares needs and nothing more. A link in this toolkit carries four derivatives of the forward map and four
+of the inverse, so it can serve a routine working at any order up to the
+fourth. It also knows its own domain, so the routine does not have to.
 
-A **distribution** supplies, or can derive, the density or mass function
-together with the cdf, the quantile function and a random generator; the score
-and the observed information; the expected information; third and fourth
-derivatives of the log-likelihood, both observed and expected; derivatives with
-respect to the response as well as the parameters; derivatives of the
-distribution function, which is what a censored observation contributes; and
-every one of these with respect to the unconstrained parameters as well as the
-natural ones.
+A **distribution** supplies, or can derive, the following. It has the density
+or mass function, the cdf, the quantile function and a random generator. It
+has the score, the observed information and the expected information, plus
+third and fourth derivatives of the log-likelihood, both observed and
+expected. It has derivatives with respect to the response as well as the
+parameters, and derivatives of the distribution function, which is what a
+censored observation contributes. Finally, it provides every one of these
+with respect to the unconstrained parameters as well as the natural ones.
 
 The items at the end of each list are the ones usually missing elsewhere, and
 they are precisely the ones a modelling framework depends on. Derivatives in the
@@ -99,10 +96,10 @@ the `7` being the S7 object system everything is built on.
 
 The destination is the last row: a framework in the spirit of the generalized
 additive models for location, scale and shape of @rigby2005, described at length
-in @stasinopoulos2017, in which
-every parameter of a distribution can be modelled rather than just the mean, the
-optimiser is pluggable, estimation can be frequentist or Bayesian, and users can
-define new model terms and drop them straight into formulas. Everything below it
+in @stasinopoulos2017. In that framework every parameter of a distribution can
+be modelled rather than just the mean, the optimiser is pluggable, and
+estimation can be frequentist or Bayesian. Users can also define new model
+terms and drop them straight into formulas. Everything below it
 exists to make that possible, and one design pressure has shaped it all: *exact
 derivatives, on the unconstrained scale, for components the framework has never
 seen before*.
@@ -111,10 +108,10 @@ seen before*.
 
 A toolkit that worked only for the sixteen links and fourteen distributions it
 ships with would have solved nothing; it would simply be one more closed
-catalogue, larger than the others. What matters is what happens when a user
-brings an object the authors never considered, and in both packages the answer is
-that it is treated exactly like the ones that came with them — there is no
-registration step, and no separate interface for the "advanced" case.
+catalogue, larger than the others. What matters is what happens when a user brings an object the authors never
+considered. In both packages the object is treated exactly like the ones that
+came with them: there is no registration step and no separate interface for
+the "advanced" case.
 
 For a link the requirement is only that the ten generics be implemented, and
 since a link is a formula and its derivatives, that is a dozen lines. Nothing
@@ -194,14 +191,15 @@ the distributions the package ships with.
 ## Validators {#sec-validators}
 
 Because users are expected to write their own distributions and links, the
-packages ship the tools to validate them. `check_link()` verifies that a link is
-invertible in both directions, strictly monotone, consistent with the inverse
-function theorem, and that each analytical derivative agrees with a numerical
-one; `check_distrib()` runs the analogous battery on a distribution — the
-density integrates to one, the cdf and the quantile function invert each other
-and agree with the density, the random generator matches the cdf, every
-derivative matches a finite-difference computation, and the expected information
-matches a Monte Carlo estimate of the variance of the score.
+packages ship the tools to validate them. `check_link()` verifies that a link is invertible in both directions,
+strictly monotone and consistent with the inverse function theorem, and that
+each analytical derivative agrees with a numerical one. `check_distrib()`
+runs the analogous battery on a distribution. It checks that the density
+integrates to one, that the cdf and the quantile function invert each other
+and agree with the density, and that the random generator matches the cdf.
+It also checks every derivative against a finite-difference computation, and
+the expected information against a Monte Carlo estimate of the variance of
+the score.
 
 Both run on any object, including one just defined — here, on the two objects
 above:
