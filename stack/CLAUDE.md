@@ -685,6 +685,15 @@ exactly 1. What was wrong was everything around them.
   `R-CMD-check` does not clear a change that depends on how code was loaded, and the
   reason the failure was legible at all is that the new tests assert on *accuracy*
   rather than on finiteness.
+- **S7 objects do not survive a pkgload/installed namespace mismatch** (2026-08-03).
+  With the package loaded from source via pkgload, `multistart`'s PSOCK workers
+  load the INSTALLED copy; an S7 optimizer built in the dev namespace, shipped to
+  a worker, dispatches against the installed namespace's methods and the inner
+  runs come back wrong *quietly* -- one iteration, converged FALSE, no error.
+  The guard is `exists(".__DEVTOOLS__", asNamespace(pkg))`: under pkgload the
+  starts run sequentially, and the parallel path belongs to installed sessions
+  (CI exercises it). General shape: any code that serialises S7 objects to
+  another R process must ensure both sides run the same namespace.
 - Reading an S7 property costs ~2.2 µs against 0.87 for a plain attribute. In hot paths,
   read properties once into locals.
 - S7 dispatch itself is ~5 µs against ~0.9 for a plain call. Irreducible.
