@@ -63,7 +63,7 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
 | `distributions7` | 14 distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
-| `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices. B-splines and Fourier so far; numerical fallbacks make an evaluation-only basis complete. Started 2026-08-03, phase 1 of `piano_basis7.txt` |
+| `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; numerical fallbacks make an evaluation-only basis complete |
 
 **Planned** — `modelterms7`, `penalties7`, and eventually the `statmodels7`
 package itself, which assembles everything into models. That last one is the destination:
@@ -472,7 +472,7 @@ it. This was found by writing the test for the new feature, not by using it.
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1538 tests, `R CMD check` OK (2026-08-03, local), CI green |
 | `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
-| `basis7` | 449 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.1.0` and a `NEWS.md` from the first commit, which neither older package has yet. |
+| `basis7` | 597 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.2.0`, a `NEWS.md` from the first commit and a vignette. Phases 1 and 2 of `piano_basis7.txt` are done; phase 3 is the tensor products. |
 
 All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
 combinations (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix
@@ -852,6 +852,17 @@ exactly 1. What was wrong was everything around them.
   created and pushed on 2026-07-31 and all three workflows ran immediately on
   that push. Worth knowing before waiting for something that has already
   happened, or firing a second run on top of it.
+- **A new repository does not serve GitHub Pages until Pages is ENABLED**, even
+  though the pkgdown workflow pushes to `gh-pages` and reports success. basis7
+  was green on all three workflows, `gh-pages` held the built site, and
+  `statmodels7.github.io/basis7/` returned 404 for hours; `gh api
+  repos/statmodels7/basis7/pages` answered 404 too, which is the diagnostic.
+  The fix is one call:
+  `gh api -X POST repos/<org>/<pkg>/pages -f "source[branch]=gh-pages" -f "source[path]=/"`.
+  Worth doing immediately after `gh repo create`, because the only thing that
+  reports the problem is `R CMD check --as-cran` flagging the package's own URL
+  as a possibly invalid one -- and that check is disabled in CI, so nothing at
+  all would have said so.
 - The Codecov action fetches its own uploader and verifies its GPG signature; when the
   keyserver does not answer that fails the whole job for a reason unrelated to the
   package. `use_pypi: true` avoids that path, and `fail_ci_if_error: false` keeps a

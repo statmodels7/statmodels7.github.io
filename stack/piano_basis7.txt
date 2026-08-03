@@ -442,6 +442,46 @@ satisfied by weakening the other:
 
 
 --------------------------------------------------------------------------------
+5b. WHAT PHASE 2 CHANGED IN THE VALIDATOR
+--------------------------------------------------------------------------------
+
+Learned 2026-08-03, building phase 2, and it belongs with the checks of
+section 5 rather than in a commit message.
+
+check_basis() compared an exact derivative against a central difference, and
+at a spline's OWN KNOTS the third derivative jumps, so the stencil returns the
+jump rather than the truncation error and the BASIS is blamed for a failure of
+the REFERENCE. A cubic B-spline of dimension 5 failed at x equal to its single
+interior knot, with the analytic value exactly 0 and the reference 7.3e-5.
+
+The fix is the device distributions7 already uses for a non-differentiable
+parameter, in its continuous form: compute each reference at a step AND at
+half of it. For a smooth point the two differ by three quarters of the
+truncation, so four times the gap bounds the reference's own error; at a knot
+the gap is large and says so. That bound becomes the slack the comparison is
+allowed, point by point -- nothing is discarded, and the factor of four is
+what halving the step does to a second-order stencil rather than a number
+chosen to make a test pass.
+
+Two rules this confirms, both already in CLAUDE.md and both earned again here:
+
+  - a tolerance chosen on one basis is a tolerance chosen on one basis. The
+    guard is checked across 22 cases -- every family, degrees 0 to 3,
+    dimensions 3 to 31, shifted intervals, and the three transforms -- because
+    a single fixed tolerance passed bspline8 and failed bspline20 for reasons
+    that had nothing to do with either being wrong;
+  - a guard that stops false failures must be re-injected against, or it has
+    merely gone blind. A five per cent error still fails at every one of the
+    22, by four orders of magnitude.
+
+A third thing, specific to this layer: a TransformedBasis registers all three
+derived methods, but each delegates to the parent and multiplies, so
+basis_is_numerical() reports the PARENT's status. Without that, a transform of
+an evaluation-only basis would have had check_basis compare a finite
+difference against a finite difference -- the exact trap the [numerical] tag
+exists to prevent, reintroduced through the wrapper.
+
+--------------------------------------------------------------------------------
 6. DECISIONS
 --------------------------------------------------------------------------------
 
@@ -522,7 +562,7 @@ join their queue and they do not block it.
 8. PHASES
 --------------------------------------------------------------------------------
 
-Phase 1 -- skeleton.
+Phase 1 -- skeleton.  ** DONE 2026-08-03, basis7 0.1.0 **
     basis class, the four generics with numerical fallbacks, bspline_basis
     and fourier_basis with exact methods, print/plot, check_basis with paired
     injections, test-extremes.R, full infrastructure of section 7.
@@ -531,7 +571,7 @@ Phase 1 -- skeleton.
     distribution -- and check_basis reports its derivative orders as
     [numerical].
 
-Phase 2 -- inner products and transforms.
+Phase 2 -- inner products and transforms.  ** DONE 2026-08-03, basis7 0.2.0 **
     basis_gram exact per class (Gauss per knot interval for splines, closed
     form for Fourier, diagonal for Legendre), quadrature fallback, the
     measure argument (Lebesgue / empirical / weighted); the TransformedBasis
@@ -546,7 +586,7 @@ Phase 2 -- inner products and transforms.
     facts on a deliberately RANK-DEFICIENT B-spline design, since surviving
     that case is the construction's selling point.
 
-Phase 3 -- multivariate.
+Phase 3 -- multivariate.  ** NEXT **
     tensor_basis() over arbitrary marginals: multi-index basis_deriv, the
     corner-anchored basis_int, the separable basis_gram; then
     basis_contract() with full-array and CP coefficient shapes.
