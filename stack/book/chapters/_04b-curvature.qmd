@@ -21,8 +21,8 @@ $$d = -M^{-1} g.$$
 The methods differ in what they use for $M$, and this section takes them in
 order of how much they store: the exact Hessian, then an approximation to its
 inverse of the same size, then the last few pairs of vectors that approximation
-was built from, then a single vector, then a single number. What is remarkable is
-how far down that list one can go before the method stops working.
+was built from, then a single vector, then a single number; the methods remain
+effective even near the bottom of the list.
 
 ### Newton's method {#sec-newton}
 
@@ -203,8 +203,8 @@ $$\beta_i = \rho_i\, y_i^\top q, \qquad q \leftarrow q + (\alpha_i - \beta_i) s_
 after which $q = H_k g$. The cost is $O(mp)$ in time and $O(mp)$ in storage,
 against $O(p^{2})$ for both in BFGS.
 
-The scaling $\gamma$ deserves a word, because it is the one part of the
-recursion that is a choice rather than an identity. It sets the initial
+The scaling $\gamma$ is the one part of the recursion that is a choice rather
+than an identity. It sets the initial
 approximation at each iteration to $\gamma I$, and $\gamma$ is the Rayleigh
 quotient of the most recent pair — an estimate of the inverse curvature along the
 direction most recently travelled. Without it the recursion starts from $I$,
@@ -247,8 +247,7 @@ knitr::kable(
 
 ### Conjugate gradients and Barzilai-Borwein {#sec-cg-bb}
 
-Two methods go further down still, and they are worth the page because between
-them they cover the case a statistical model most often presents, in which the
+Two methods store less still, and between them they cover the case a statistical model most often presents, in which the
 parameter vector is too long for a $p \times p$ anything.
 
 **Conjugate gradients** keeps one vector. Its direction is
@@ -333,8 +332,28 @@ curvature information that matters so much as whether there is any: gradient
 descent is the only row that fails, and conjugate gradients repairs it with a
 single remembered direction.
 
-Barzilai–Borwein deserves a closing remark, because the number in its row
-depends on something other than the number it stores. Its efficiency comes from
+Every run can record its own path. With `keep_trace = TRUE` the result carries
+one row per iteration — the objective value, the gradient norm, the step taken
+and any safeguard that fired — and plotting the recorded values shows the
+difference between the rows of the table as trajectories rather than as two
+numbers:
+
+```{r}
+#| label: trace-plot
+#| fig-height: 4
+#| fig-cap: "The objective along the run, Rosenbrock from the usual start. BFGS descends in a handful of iterations; gradient descent is still travelling at 500."
+rb <- optimizers7::minimize(optimizers7::bfgs(keep_trace = TRUE),
+                            f, c(-1.2, 1), gr = gr)
+rg <- optimizers7::minimize(optimizers7::gd(maxit = 500, keep_trace = TRUE),
+                            f, c(-1.2, 1), gr = gr)
+plot(rg@trace$iteration, log10(rg@trace$value), type = "l",
+     xlab = "iteration", ylab = "log10 objective")
+lines(rb@trace$iteration, log10(rb@trace$value), lty = 2)
+legend("topright", c("gradient descent", "BFGS"), lty = c(1, 2), bty = "n")
+```
+
+For Barzilai–Borwein the count in its row depends on something besides the
+number it stores. Its efficiency comes from
 steps that make the objective *worse* now in order to be aligned with the
 curvature later, and the sufficient-decrease condition of @def-armijo forbids
 exactly those. The classical remedy, due to @grippo1986, is a nonmonotone line
