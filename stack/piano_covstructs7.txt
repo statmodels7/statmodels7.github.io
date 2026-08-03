@@ -9,7 +9,12 @@
         precision is the commonest penalty in semiparametric regression,
         and the first draft would have refused it. Rank is now a declared
         property and the log-determinant is a pseudo-determinant where it
-        must be: sections 1, 2, 3(g,h), 4, 5, 6, 7h, 9 and 10
+        must be: sections 1, 2, 3(g,h), 4, 5, 6, 7h, 9 and 10;
+        and the PRECISION side made explicit (Giovanni) -- parametrising a
+        multivariate gaussian by Omega rather than Sigma needs no new
+        generic and a strict subset of the existing ones, but the object
+        gains a `role` label because a family name does not say which
+        side it parametrises: sections 1, 2, 5, 7j and 10
 ================================================================================
 
 Written in English like every other artifact of the toolkit, so that anything
@@ -99,6 +104,14 @@ One abstract S7 class:
                       BASIS rather than as its dimension alone, for the reason
                       in the note below; it is also what a consumer means by
                       "the unpenalised part of the model"
+      role            "covariance", "precision" or "either". A LABEL, not a
+                      branch: no method reads it and no mathematics depends
+                      on it (decision 7h stands). It exists because a family
+                      name does not say which side it parametrises, and the
+                      distinction is a modelling one -- see the note in
+                      section 2 -- so print(), a model's output and an
+                      assertion by a consumer all need somewhere to read it
+                      from
 
 and one subclass per parametrisation (section 3). A structure OWNS its
 dimension: log_cholesky(dim = 3) is a different object from
@@ -192,6 +205,35 @@ with the derivative matrices through these formulas, and check_covstruct()
 compares the two routes. In the rank-deficient case the same identity holds
 with the Moore-Penrose inverse in place of M^{-1}, restricted to the range
 space, and the validator uses the eigendecomposition rather than a solve.
+
+WHICH SIDE THE MATRIX PARAMETRISES CHANGES WHAT THE CONSUMER ASKS FOR, AND
+THE PRECISION SIDE ASKS FOR LESS. For a multivariate gaussian written in the
+precision, l = (1/2) log|Omega| - (1/2)(y-mu)' Omega (y-mu) + const, the
+quadratic form is a multiplication and the score in eta is
+
+    dl/deta_k = (1/2) d log|Omega|/deta_k - (1/2)(y-mu)' (dOmega/deta_k) (y-mu)
+
+whose first term IS struct_dlogdet. Written in the covariance the same
+quantities need Sigma^{-1} throughout, and the second derivatives need the
+derivatives of the INVERSE, which follow from the identity above but which
+every consumer would otherwise reassemble. So the precision route consumes
+struct_matrix, struct_logdet, struct_dlogdet, struct_dmatrix and their second
+orders, and needs neither struct_solve nor struct_factor; the covariance route
+needs all of them. Nothing in the contract changes: the precision side is a
+strict subset of it. The sign in front of the log-determinant is the
+consumer's arithmetic, not the structure's -- the structure answers what
+log|M| is, and the likelihood decides where it goes.
+
+The label of section 1 exists because the FAMILY does not settle the question.
+Some families are closed under inversion and some are not, measured: the
+inverse of a compound-symmetry matrix is compound symmetry and the inverse of
+a diagonal is diagonal (both to 1e-16), while the inverse of an AR(1) is
+tridiagonal but NOT AR(1) -- it fails the defining ratio by 0.56, which is not
+rounding. So "AR(1) covariance" and "AR(1) precision" are two different
+models, and an object that cannot say which one it is produces a printout that
+misleads. Unstructured SPD is closed as a family, but the map is not simple
+either: the lower Cholesky factor of the inverse is not a rearrangement of the
+factor of the matrix.
 
 A rank-deficient structure answers struct_solve() and struct_factor() with a
 refusal rather than with a pseudo-inverse. What a consumer of an improper
@@ -353,9 +395,26 @@ fallbacks, exactly like basis_is_numerical().
 The eventual constructor is the second of Giovanni's sketches:
 
     mvgaussian_distrib(link_mu = identity_link(), struct_sigma = log_cholesky())
+    mvgaussian_distrib(link_mu = identity_link(), struct_omega = log_cholesky())
 
--- a link for a scalar or vector parameter, a structure for a matrix one,
-and the argument's name says which contract the object must satisfy.
+-- a link for a scalar or vector parameter, a structure for a matrix one, the
+argument's name says which contract the object must satisfy, and the two
+matrix arguments are mutually exclusive: one names the covariance, the other
+the precision, and the object records which through the structure's `role`.
+
+The precision form is the one to prefer where the modelling allows it, and
+the reason is arithmetic rather than taste (section 2): the density, the
+score and the Hessian in eta are multiplications there and solves in the
+covariance form, and the mixed block between the mean and the matrix
+parameters is (dOmega/deta_k)(y-mu) against two solves.
+
+One refusal belongs at that boundary and is recorded here so the future
+mvgaussian does not rediscover it: a RANK-DEFICIENT precision is a legitimate
+PENALTY -- an improper prior, the intrinsic GMRF, the whole of section 3(g) --
+and NOT a legitimate DENSITY, since the normalising constant does not exist
+and the law is supported on a subspace. covstructs7 accepts such a structure;
+mvgaussian_distrib() must refuse one, and the rank the object already carries
+is what lets it.
 
 That constructor is NOT part of this plan. distributions7's theta contract
 is "a list of scalars (or vectors along y)", and every piece of its
@@ -476,6 +535,14 @@ keep passing next to both.
     (d log|M|_+ / d log lambda = rank) is a statement about the matrix.
     Reversible if a consumer argues otherwise.
 
+7j. `role` is a label and never a branch. It is checked by consumers and
+    printed; no method of this package reads it, and no mathematics depends
+    on it. Making it a branch would split every family in two to express a
+    fact about the caller, which is decision 7h again. The default is
+    "either" for the families that are genuinely symmetric in use
+    (log_cholesky, diag_struct), "precision" for scaled_struct and
+    sum_struct, whose consumer is a penalty.
+
 
 --------------------------------------------------------------------------------
 8. INFRASTRUCTURE -- same afternoon, not later
@@ -556,6 +623,20 @@ Phase 5 -- handoff.
     Demmler-Reinsch eigenvalues, which basis7 already computes in dr_basis(),
     so the two packages hold the same quantity by two routes and each can
     check the other.
+  - struct_invert(s): the structure of the inverse, where the family is
+    closed under inversion in closed form (diagonal, compound symmetry, and
+    unstructured SPD through a Cholesky of the inverse) and a refusal where
+    it is not (AR(1), banded). Useful the moment a consumer parametrises one
+    side and reports the other -- marginal variances from a fitted precision,
+    say -- and speculative until then.
+
+  - struct_dinverse / struct_d2inverse: the derivatives of M^{-1}, which the
+    COVARIANCE parametrisation of a multivariate gaussian needs at second
+    order and which follow mechanically from the identity in section 2. Not
+    built now because the precision parametrisation avoids them entirely and
+    is the one to prefer; build them when a consumer insists on the
+    covariance side.
+
   - Third and fourth derivative orders of the matrix maps (section 2's
     extension path).
   - Rcpp, if a profile ever contradicts 7e.
