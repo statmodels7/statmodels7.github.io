@@ -482,6 +482,51 @@ difference against a finite difference -- the exact trap the [numerical] tag
 exists to prevent, reintroduced through the wrapper.
 
 --------------------------------------------------------------------------------
+5c. WHAT PHASE 3 SETTLED, AND THE SHAPE OF ITS DEFECTS
+--------------------------------------------------------------------------------
+
+Built 2026-08-03. Three decisions were made in the writing rather than in the
+plan, and are recorded here because they are now contracts:
+
+  - A basis DECLARES its input dimension through the length of its endpoints,
+    read by basis_nvar(). A univariate basis is the case of one variable, not
+    a separate kind of object, so nothing about the existing families changed
+    except that they answer one more question. Evaluation points become a
+    matrix with one column per variable and the derivative order a
+    multi-index.
+
+  - A single non-zero `order` is REFUSED for a product. It could mean that
+    order in every coordinate or that total order, and the two are different
+    matrices; recycling one of them silently would be a choice made on the
+    caller's behalf. Zero is the exception, meaning no derivative under either
+    reading.
+
+  - The numerical fallbacks differentiate ONE coordinate at a time and refuse
+    a mixed partial, and refuse the multiple integral outright. A mixed
+    stencil carries the product of two errors, and no basis in the package
+    needs one: a tensor product computes its own exactly. Refused rather than
+    approximated badly.
+
+The two defects the tests found are the same SHAPE, and it is the shape to
+watch for in every layer that flattens a multi-index into a column index: both
+returned a perfectly finite wrong number.
+
+  - An R array is stored with the FIRST index fastest; the columns of a
+    Kronecker product run with the LAST factor fastest. Flattening a
+    coefficient array without reversing the dimensions pairs every coefficient
+    with the wrong basis function. The fix is one aperm(); the danger is that
+    a self-consistent test (contracting against the same wrong flattening)
+    reports agreement.
+  - The column NAMES had the same inversion, built with outer(), whose
+    transpose reads plausibly and labels every column but the first and the
+    last incorrectly.
+
+And one latent since 0.1.0, exposed by the multivariate work: check_basis
+compared c(n, k) against dim(), which is always integer, so a caller writing
+n = 21 rather than 21L failed a check about the basis for a reason about the
+argument. Coerce anything that will be compared with dim().
+
+--------------------------------------------------------------------------------
 6. DECISIONS
 --------------------------------------------------------------------------------
 
@@ -586,7 +631,7 @@ Phase 2 -- inner products and transforms.  ** DONE 2026-08-03, basis7 0.2.0 **
     facts on a deliberately RANK-DEFICIENT B-spline design, since surviving
     that case is the construction's selling point.
 
-Phase 3 -- multivariate.  ** NEXT **
+Phase 3 -- multivariate.  ** DONE 2026-08-03, basis7 0.3.0 **
     tensor_basis() over arbitrary marginals: multi-index basis_deriv, the
     corner-anchored basis_int, the separable basis_gram; then
     basis_contract() with full-array and CP coefficient shapes.
@@ -597,7 +642,7 @@ Phase 3 -- multivariate.  ** NEXT **
     memory profiling, not by trust); (iii) the CP contraction at rank
     F = prod(K_j) reproduces the full-array value.
 
-Phase 4 -- the book chapter.
+Phase 4 -- the book chapter.  ** NEXT **
     "The basis7 package", one .qmd pulling _-prefixed sections: what a basis
     expansion is; B-splines and their local support; the phase-shift Fourier
     derivatives; inner products and the Gram matrix; orthonormalisation as a
