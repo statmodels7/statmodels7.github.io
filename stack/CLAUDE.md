@@ -49,9 +49,11 @@ story. Lead with the reuse argument.
 ## 1. What this is
 
 `statmodels7` is an umbrella for a statistical modelling toolkit built entirely on the
-**S7** object system. The name carries the convention: every package is a *plural noun
-followed by 7*, which happens to spell `...s7` — `linkfunction**s7**`,
-`distribution**s7**`, `statmodel**s7**`. The 7 is S7; the s is the plural, not decoration.
+**S7** object system. The naming convention is simply that **every package name ends
+in 7**, the 7 being S7 — `linkfunctions7`, `distributions7`, `statmodels7`. Until
+2026-08-03 the convention also required a plural noun; Giovanni dropped that when
+naming `basis7` ("basis7 è più bello di bases7"), so the plural is history, not a
+rule — do not "fix" singular names, and do not cite the plural reading in new prose.
 
 **Built so far**
 
