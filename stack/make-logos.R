@@ -241,6 +241,55 @@ DENS_XMAX  <- 11
   write_logo("logo/basis7.svg", glyph, "basis")
 }
 
+# --- covstructs7: the ellipse a covariance IS -----------------------------
+#
+# The contours of a real bivariate gaussian, and drawn the way the package
+# computes them rather than as ellipses that happen to be elliptical: the
+# contour at radius c is the image of the circle of radius c under the Cholesky
+# factor L, and L is exactly what log_cholesky() parametrises. So the picture
+# is the parametrisation.
+#
+# Three contours, the middle one accented, because a covariance is a nested
+# family rather than one curve; the axes are drawn faintly through the centre
+# so that the tilt -- which is the correlation, the thing a diagonal structure
+# cannot express -- is visible against something straight.
+{
+  # A correlation of about a half: enough tilt to be unmistakable, not so much
+  # that the contours degenerate into a line and stop reading as a covariance.
+  sigma <- matrix(c(1, 0.42, 0.42, 0.62), 2, 2)
+  l <- t(chol(sigma))
+  tt <- seq(0, 2 * pi, length.out = 240)
+  circle <- rbind(cos(tt), sin(tt))
+
+  cx <- box$x + box$w / 2
+  cy <- box$y + box$h / 2
+  # Scaled so the outermost contour clears the box: the major axis is
+  # sqrt(largest eigenvalue) standard deviations long, and the drawing is
+  # ISOTROPIC, because an ellipse whose axis ratio has been altered is no
+  # longer the ellipse of this covariance.
+  unit <- 42
+
+  contour_path <- function(radius) {
+    z <- l %*% (radius * circle)
+    paste0("M ", paste(sprintf("%.2f %.2f", cx + unit * z[1, ],
+                               cy - unit * z[2, ]), collapse = " L "), " Z")
+  }
+
+  glyph <- paste0(
+    sprintf('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="2" opacity="0.3"/>\n',
+            cx - 118, cy, cx + 118, cy, LINE),
+    sprintf('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="2" opacity="0.3"/>\n',
+            cx, cy - 96, cx, cy + 96, LINE),
+    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="4" stroke-linecap="round" opacity="0.45"/>\n',
+            contour_path(0.75), LINE),
+    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="4" stroke-linecap="round" opacity="0.45"/>\n',
+            contour_path(1.9), LINE),
+    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="6" stroke-linecap="round"/>\n',
+            contour_path(1.32), ACCENT)
+  )
+  write_logo("logo/covstructs7.svg", glyph, "covstructs")
+}
+
 # --- statmodels7: the umbrella, both curves layered -----------------------
 {
   eta <- seq(-6, 6, length.out = 200)
@@ -266,7 +315,8 @@ for (f in list.files("logo", pattern = "[.]svg$", full.names = TRUE)) cat("  ", 
 
 # --- rasterise into each package's man/figures ---------------------------
 if (requireNamespace("magick", quietly = TRUE)) {
-  for (p in c("linkfunctions7", "distributions7", "optimizers7", "basis7")) {
+  for (p in c("linkfunctions7", "distributions7", "optimizers7", "basis7",
+              "covstructs7")) {
     src <- file.path("logo", paste0(p, ".svg"))
     dst_dir <- file.path(p, "man", "figures")
     dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)

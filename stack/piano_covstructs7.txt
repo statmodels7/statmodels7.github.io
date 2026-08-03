@@ -402,6 +402,16 @@ argument's name says which contract the object must satisfy, and the two
 matrix arguments are mutually exclusive: one names the covariance, the other
 the precision, and the object records which through the structure's `role`.
 
+ONE CONSTRUCTOR RETURNING ONE OF TWO CLASSES, not two constructors (Giovanni,
+2026-08-03, after weighing both). The two classes are unavoidable, because the
+density, the score and the Hessian are different arithmetic and branching
+inside one method on a character would be the switch this toolkit exists to
+remove. The single constructor follows the precedent already set twice:
+bounded_link() returns one of four classes according to which of lwr and upr
+it is given, and truncated() chooses between its continuous and discrete
+classes the same way. A "2" suffix was considered and rejected: a name should
+be its own definition, and mvgaussian2_distrib() is not.
+
 The precision form is the one to prefer where the modelling allows it, and
 the reason is arithmetic rather than taste (section 2): the density, the
 score and the Hessian in eta are multiplications there and solves in the
@@ -574,7 +584,7 @@ block.
 9. PHASES
 --------------------------------------------------------------------------------
 
-Phase 1 -- skeleton.
+Phase 1 -- skeleton.  ** DONE 2026-08-03, covstructs7 0.1.0 **
     The covstruct class WITH ITS RANK CONTRACT, the generics of section 2,
     log_cholesky(), diag_struct()/scalar_struct(), scaled_struct(), the
     numerical fallbacks, and check_covstruct() with its paired injections.
@@ -584,7 +594,7 @@ Phase 1 -- skeleton.
     the start instead of retrofitted. The eta orderings and free_names frozen
     here.
 
-Phase 2 -- correlations and composition.
+Phase 2 -- correlations and composition.  ** NEXT **
     corr_spherical(), dr_prod(), cs_struct(), ar1_struct(), block_diag(),
     sum_struct().
     The validator sweep extended to the composites, and the tails file
@@ -605,6 +615,50 @@ Phase 5 -- handoff.
     contract change. None of these is designed here beyond the constructor
     sketch of section 5.
 
+
+--------------------------------------------------------------------------------
+9b. WHAT PHASE 1 SETTLED
+--------------------------------------------------------------------------------
+
+Built 2026-08-03 as covstructs7 0.1.0, 377 tests. Four decisions were made in
+the writing rather than in the plan, and are now contracts:
+
+  - S7 RESERVES `dim` as a property name, so the side of the matrix is
+    `dimension`, which is what basis7 calls the analogous quantity anyway. The
+    error arrives from check_prop_names() and names no alternative.
+
+  - free_names, frozen: log_cholesky gives `log_L1 ... log_Lp` for the diagonal
+    and `L2.1, L3.1, L3.2, ...` below it, column by column. The log appears in
+    the diagonal names because there it IS the parametrisation, while
+    diag_struct's names are `d1...dp` with no link in them, because there the
+    link is an argument and baking it into a name would make the name depend on
+    a choice the caller made.
+
+  - struct_is_numerical() covers the five DERIVATIVE quantities and not
+    struct_solve/struct_factor. Their base-class versions are a Cholesky, which
+    is exact whoever performs it; calling them numerical would suggest an
+    approximation that is not there, and print() said exactly that until it was
+    corrected.
+
+  - A link is admitted by its declared RANGE and not by its family: a logit
+    reaches (0, 1), which is a restriction on a diagonal entry and not a
+    violation, so diag_struct() accepts it. What is refused is a range that
+    includes a non-positive value.
+
+Two things the writing exposed:
+
+  - ifelse() evaluates BOTH branches over the whole vector. struct_free() on a
+    log-Cholesky structure took a logarithm of the below-diagonal entries,
+    which are free to be negative, and discarded the NaNs it had just warned
+    about. Correct answer, spurious warning; the fix is to index rather than to
+    branch.
+
+  - The validator's sweep cannot be spread arbitrarily wide. Driving a
+    log-Cholesky structure over twenty-eight units of log gives a condition
+    number around 1e28, and base::solve then refuses -- a statement about
+    double precision, not about the structure. The badly-scaled case belongs
+    where it actually bites, which is a SUM of components, and it is tested
+    there against the declared null space.
 
 --------------------------------------------------------------------------------
 10. OPEN, DELIBERATELY

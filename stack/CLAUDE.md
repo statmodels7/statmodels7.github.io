@@ -64,6 +64,7 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | `distributions7` | 14 distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
+| `covstructs7` | constrained matrix parameters: a map from an unconstrained vector to a symmetric matrix, exact to 2nd order, plus the log-(pseudo-)determinant and the solves. `log_cholesky()`, `diag_struct()`/`scalar_struct()` (which reuse `linkfunctions7` links), `scaled_struct()` for a fixed matrix carried by one scale. Rank-deficient matrices ADMITTED -- a spline penalty is singular by construction, which is what makes it a penalty and not a density |
 
 **Planned** — `modelterms7`, `penalties7`, and eventually the `statmodels7`
 package itself, which assembles everything into models. That last one is the destination:
@@ -91,6 +92,7 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
     distributions7\
     optimizers7\
     basis7\
+    covstructs7\
     book\            the Quarto book (see §9); `quarto render` from inside it
     logo\            hex logos: make-logos.R draws them, run from this directory
     site\            the portal, its own repository (statmodels7.github.io)
@@ -113,7 +115,7 @@ the book: `quarto render` in `book/` **from PowerShell** (see 3), then
 because it executes R against the working tree, and it takes about twenty minutes
 now that there are four package chapters.
 
-GitHub: `github.com/statmodels7/{linkfunctions7,distributions7,optimizers7,basis7}`, all on `master`. The repositories were
+GitHub: `github.com/statmodels7/{linkfunctions7,distributions7,optimizers7,basis7,covstructs7}`, all on `master`. The repositories were
 transferred from `giovannitinervia9/*` on 2026-07-22; GitHub keeps redirects, so
 `install_github("giovannitinervia9/distributions7")` still resolves.
 
@@ -126,6 +128,7 @@ Websites, all live and rebuilt by a `pkgdown.yaml` workflow on every push:
 | distributions7 | `statmodels7.github.io/distributions7` — pkgdown, from `gh-pages` |
 | optimizers7 | `statmodels7.github.io/optimizers7` — pkgdown, from `gh-pages` |
 | basis7 | `statmodels7.github.io/basis7` — pkgdown, from `gh-pages` |
+| covstructs7 | `statmodels7.github.io/covstructs7` — pkgdown, from `gh-pages` |
 
 Predecessors, kept for reference only: `labstatr\distrib` (S3, ~8500 lines) and
 `labstatr\linkfunctions`. `distributions7` is a rewrite of `distrib`, not a port —
@@ -503,6 +506,7 @@ it. This was found by writing the test for the new feature, not by using it.
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1656 tests, `R CMD check` OK (2026-08-03, local), CI green |
 | `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
+| `covstructs7` | 377 tests, `R CMD check --as-cran` clean apart from the submission notes, created 2026-08-03. Version `0.1.0`. Phase 1 of `piano_covstructs7.txt` is done; phase 2 is correlations and composition. |
 | `basis7` | 682 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
 All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
