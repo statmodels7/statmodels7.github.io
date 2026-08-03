@@ -94,9 +94,12 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
     site\            the portal, its own repository (statmodels7.github.io)
     articoli\        papers Giovanni drops in as design input (LaTeX sources).
                      LOCAL ONLY — copyrighted material, never committed to any
-                     public repository. First entry: Rügamer, "Scalable
-                     Higher-Order Tensor Product Spline Models", AISTATS 2024,
-                     the factorized tensor-basis reference for piano_basis7 §3b
+                     public repository. Entries: Rügamer, "Scalable Higher-Order
+                     Tensor Product Spline Models" (AISTATS 2024), the factorized
+                     tensor-basis reference for piano_basis7 §3b; Bach & Klein,
+                     "Bayesian Effect Selection in Additive Models with an
+                     Application to Time-to-Event Data", whose §2 (Demmler-Reinsch
+                     basis for P-splines) drives piano_basis7 §3c
     piano_*.txt      package plans, drafted before code; carried in site/stack/
 ```
 

@@ -3,9 +3,13 @@
           basis expansions as S7 objects, with exact derivatives,
                     integrals and Gram matrices
                         drafted 2026-08-03
-        revised the same day: multivariate bases moved INTO basis7
-       (classic tensor products + the factorized evaluation of
-        Ruegamer, AISTATS 2024) -- see sections 3b, 6g and phase 3
+        revised the same day, twice:
+        - multivariate bases moved INTO basis7 (classic tensor products +
+          the factorized evaluation of Ruegamer, AISTATS 2024) -- sections
+          3b, 6g and phase 3;
+        - linear transforms unified into one wrapper (orthonormalisation,
+          constraints, and the Demmler-Reinsch construction of Bach &
+          Klein) -- sections 3c, 6b and phase 2
 ================================================================================
 
 Written in English like every other artifact of the toolkit (CLAUDE.md, the
@@ -141,18 +145,19 @@ One abstract S7 class:
         basis_params  list               whatever the subclass needs
 
 Subclasses, one per family, named CamelCase like the distribution classes
-(BsplineBasis, FourierBasis, PolyBasis, OrthonormBasis), with lowercase
-constructors (bspline_basis(), fourier_basis(), poly_basis(),
-orthonorm_basis()). Note the Windows Rd trap does NOT bite here --
+(BsplineBasis, FourierBasis, PolyBasis, TransformedBasis, TensorBasis), with
+lowercase constructors (bspline_basis(), fourier_basis(), poly_basis(),
+orthonorm_basis(), constrain_basis(), dr_basis(), tensor_basis()). Note the Windows Rd trap does NOT bite here --
 BsplineBasis.Rd and bspline_basis.Rd differ by the underscore, not only by
 case -- but the classes get documented at X-class with @aliases from day one
 anyway, and test-docs.R asks "which object in the namespace has no help
 topic", both habits copied from optimizers7 (CLAUDE.md, Documentation build).
 
-OrthonormBasis is a wrapper: it holds the parent basis and the fixed matrix
-T = L^{-T}; every method delegates to the parent and multiplies. Same
-composition rules as the distributions7 wrappers: orthonormalising twice is a
-no-op and the constructor collapses it.
+TransformedBasis is the one wrapper for every linear reparametrisation
+B -> B T (section 3c): it holds the parent basis and the fixed matrix T, and
+every method delegates to the parent and multiplies. Same composition rules
+as the distributions7 wrappers: transforming a TransformedBasis multiplies
+the two T's rather than nesting, and orthonormalising twice is a no-op.
 
 
 --------------------------------------------------------------------------------
@@ -284,6 +289,99 @@ layers, which is worth noticing: it is the first external method whose whole
 architecture decomposes into the four packages without remainder.
 
 --------------------------------------------------------------------------------
+3c. LINEAR TRANSFORMS OF A BASIS: ORTHONORMALISATION, CONSTRAINTS,
+    AND THE DEMMLER-REINSCH CONSTRUCTION
+--------------------------------------------------------------------------------
+
+Added 2026-08-03, after Bach & Klein, "Bayesian Effect Selection in Additive
+Models with an Application to Time-to-Event Data" (source in ../articoli/,
+local copy only). The paper's estimation layer -- NBPSS spike-and-slab priors,
+MCMC, the Cox model -- is modelterms7/statmodels7 territory, but its Section 2
+is basis mathematics, and it exposes a unification this plan had not made:
+
+    Every useful reparametrisation of a basis is one operation,  B -> B T,
+    with derivatives, integrals and Grams transforming by the same T.
+
+The prototype's orthonorm wrapper, identifiability constraints, and the
+Demmler-Reinsch basis are all instances. So the wrapper class generalises:
+
+    TransformedBasis        parent basis + a fixed K x r matrix T
+                            (r <= K: transforms may REDUCE dimension);
+                            every generic delegates to the parent and
+                            multiplies. Composition collapses: transforming a
+                            TransformedBasis multiplies the two T's.
+
+with three constructors in v1:
+
+  (i)   orthonorm_basis(b)          T = L^{-T} from the L2 Gram (section 1d);
+                                    square, dimension-preserving.
+
+  (ii)  constrain_basis(b, C)       C a q x K constraint matrix, meaning the
+                                    coefficients are restricted to C beta = 0;
+                                    T = an orthonormal null-space basis of C
+                                    (by SVD), r = K - rank(C). The MECHANICS
+                                    of constraining live here; WHICH
+                                    constraints a model term gets (sum-to-
+                                    zero, orthogonality to the linear part)
+                                    stays a modelterms7 decision. This
+                                    refines decision 6b rather than reversing
+                                    it: bases are complete BY DEFAULT, and
+                                    the constraint tool is available for the
+                                    layer that owns the policy.
+
+  (iii) dr_basis(b, x, K)           Bach & Klein's Algorithm 1, generalised:
+                                    given evaluation points x, a penalty
+                                    matrix K, and constraint functions
+                                    (default: constant and identity, i.e.
+                                    C = t(cbind(1, x)) %*% basis_eval(b, x)),
+                                    project onto ker(C), then solve the
+                                    generalised eigenproblem for the pair
+                                    (V0' (B'B/n) V0, V0' K V0) and set
+                                    T = V0 A. The result: empirical Gram
+                                    DIAGONAL, penalty a scalar multiple of
+                                    the identity, and (1, x)' Z = 0 exactly.
+                                    An option rescales so trace(Z'Z/n) = 1,
+                                    which is what makes one prior scale
+                                    comparable across terms.
+
+Why (iii) earns its place here rather than upstream: the paper shows the
+construction only factorises a 2 x (K) and a (K-2) x (K-2) matrix -- never
+n x n -- works when B itself is RANK-DEFICIENT (which equidistant-knot
+P-splines produce whenever the Schoenberg-Whitney interlacing fails), and
+keeps T explicit, so prediction at new points is basis_eval(parent, xnew) T,
+which is exactly what a TransformedBasis does by construction. Their Figure 3
+result is the design argument in one line: the mixed-model reparametrisations
+(Fahrmeir-Kneib-Lang, Eilers) estimate the OVERALL effect as well as DR does,
+but bias the linear/nonlinear SPLIT, because they do not satisfy
+(1, x)' Z = 0; the decomposition semantics need the orthogonality the DR
+transform provides.
+
+One prerequisite generalisation falls out of the same paper: the DR
+construction diagonalises the Gram with respect to the EMPIRICAL measure of
+the data, not Lebesgue on [lower, upper], and the paper's estimands are
+projections in L2(P^X). So basis_gram grows an optional measure argument:
+
+    basis_gram(b, order = 0)              Lebesgue on the domain (default)
+    basis_gram(b, order = 0, at = x)      empirical: crossprod(B(x))/n
+    basis_gram(b, order = 0, weight = w)  int B B' w(t) dt, w a density,
+                                          by the quadrature fallback
+
+Two independent routes for the same matrix, which is what a check_basis()
+check needs anyway (section 5.5).
+
+The penalty matrix K is a PLAIN-MATRIX INPUT to dr_basis, deliberately:
+penalties7 will depend on basis7, so basis7 cannot ask penalties7 for a
+difference matrix. A caller today builds diff(diag(K), differences = 2) in
+one line or passes basis_gram(b, order = 2); penalties7 will later pass
+whatever object it owns, reduced to its matrix.
+
+What stays upstream, with its destination: the effect-decomposition estimands
+and their consistency theory (model semantics), the NBPSS/SSGL selection
+priors and their MCMC (statmodels7's Bayesian side, already in the §1 vision:
+"the user chooses frequentist or Bayesian"), and the choice of which terms
+get decomposed at all (modelterms7).
+
+--------------------------------------------------------------------------------
 4. THE FALLBACK BARGAIN
 --------------------------------------------------------------------------------
 
@@ -355,10 +453,13 @@ satisfied by weakening the other:
     dependency beyond S7/Rcpp; rebuilding B-spline integrals by hand out of
     pride is how one introduces the defects splines2 already fixed.
 
-6b. No `intercept` argument anywhere: bases are complete. Identifiability
-    constraints belong to modelterms7 (see section 0). One argument fewer in
-    every constructor, one branch fewer in every method, and partition of
-    unity stays checkable.
+6b. No `intercept` argument anywhere: bases are complete BY DEFAULT. One
+    argument fewer in every constructor, one branch fewer in every method,
+    and partition of unity stays checkable. Refined 2026-08-03 by section 3c:
+    the MECHANICS of restricting a basis (constrain_basis, dr_basis) live in
+    basis7 as TransformedBasis constructors, because they are linear algebra
+    on the basis; the POLICY of which constraints a term receives stays in
+    modelterms7.
 
 6c. Naming. The toolkit convention is now simply "the name ends in 7, the 7
     being S7" -- the plural-noun reading was dropped on 2026-08-03 (Giovanni:
@@ -430,13 +531,20 @@ Phase 1 -- skeleton.
     distribution -- and check_basis reports its derivative orders as
     [numerical].
 
-Phase 2 -- inner products.
+Phase 2 -- inner products and transforms.
     basis_gram exact per class (Gauss per knot interval for splines, closed
-    form for Fourier, diagonal for Legendre), quadrature fallback,
-    orthonorm_basis via Cholesky, poly_basis, vignette "defining-a-basis".
-    Exit test: orthonorm_basis(bspline_basis())'s Gram is the identity to
-    machine precision, via the exact route and the quadrature route
-    independently.
+    form for Fourier, diagonal for Legendre), quadrature fallback, the
+    measure argument (Lebesgue / empirical / weighted); the TransformedBasis
+    wrapper with its three constructors -- orthonorm_basis via Cholesky,
+    constrain_basis via SVD null space, dr_basis via the generalised
+    eigenproblem of section 3c; poly_basis; vignette "defining-a-basis".
+    Exit tests: (i) orthonorm_basis(bspline_basis())'s Gram is the identity
+    to machine precision, via the exact route and the quadrature route
+    independently; (ii) for dr_basis on data x: crossprod(Z) diagonal, the
+    transformed penalty T'KT a scalar multiple of the identity, and
+    t(cbind(1, x)) %*% Z zero to machine precision -- and the same three
+    facts on a deliberately RANK-DEFICIENT B-spline design, since surviving
+    that case is the construction's selling point.
 
 Phase 3 -- multivariate.
     tensor_basis() over arbitrary marginals: multi-index basis_deriv, the
@@ -464,9 +572,14 @@ Phase 4 -- the book chapter.
 Phase 5 -- handoff.
     penalties7 gets the marginal Grams, the Kronecker-sum assembly and the
     Demmler-Reinsch df <-> lambda map (section 3b); modelterms7 gets complete
-    bases, basis_contract, and whatever constraint tooling it defines.
-    Neither is designed here beyond the interfaces already fixed in
-    sections 3 and 3b.
+    bases, basis_contract, and the TransformedBasis constructors whose
+    POLICY it owns (which terms are constrained, which are DR-decomposed
+    into linear + nonlinear); statmodels7's Bayesian side gets, eventually,
+    the NBPSS/SSGL selection priors of Bach & Klein, for which dr_basis is
+    the prerequisite (a diagonal Gram, an identity penalty and a common
+    trace scale are what make one prior comparable across terms). None of
+    these is designed here beyond the interfaces already fixed in sections
+    3, 3b and 3c.
 
 
 --------------------------------------------------------------------------------
