@@ -6,10 +6,11 @@ path, and these packages were moved here on 2026-07-22, so nothing from the earl
 sessions carries over automatically.
 
 `statmodels7/` is a plain directory, not a repository — the package repositories sit
-inside it. This file and `logo/make-logos.R` are therefore versioned in the portal
-repository (`site/`, which is `statmodels7.github.io`) and copied back up here, so a
-fresh clone can recover them. If you edit either, copy the change into `site/` and
-commit it there; `site/sync-stack-files.sh` does exactly that.
+inside it. This file, `logo/make-logos.R` and the package plans (`piano_*.txt`, the
+decision records drafted before a package's code exists) are therefore versioned in
+the portal repository (`site/`, which is `statmodels7.github.io`) and copied back up
+here, so a fresh clone can recover them. If you edit any of them, copy the change
+into `site/` and commit it there; `site/sync-stack-files.sh` does exactly that.
 
 ---
 
