@@ -1,0 +1,179 @@
+## Basis expansions {#sec-basis-expansions}
+
+```{r}
+#| label: setup-05a
+#| include: false
+source("R/_setup.R")
+source("R/basis-certificates.R")
+```
+
+### The expansion and its design matrix {#sec-basis-definition}
+
+A basis on an interval $[a, b]$ is a finite collection of known functions
+$B_1, \ldots, B_K$ defined there. The functions it represents are the linear
+combinations
+
+$$
+f(x) \;=\; \sum_{r=1}^{K} \beta_r B_r(x) \;=\; B(x)^\top \beta ,
+\qquad x \in [a, b],
+$$ {#eq-basis-expansion}
+
+where $B(x)$ is the column vector of the $K$ values and $\beta$ the vector of
+coefficients. The functions are fixed and known before any data are seen; the
+coefficients are what a model estimates. This is what makes the expansion
+useful in the framework of the previous chapters, since $f$ is nonlinear in
+$x$ while remaining linear in the parameters, and a linear predictor is what
+every routine in the toolkit already handles.
+
+Evaluated at $n$ points $x_1, \ldots, x_n$, the expansion produces the
+$n \times K$ **design matrix** $B$ with entries $B_{ir} = B_r(x_i)$, so that
+the vector of function values is $B\beta$. The design matrix is the object a
+fitting routine consumes, and everything in this chapter is either a way of
+producing one or a matrix that acts on its columns.
+
+Three further quantities follow from the same functions, and a modelling
+routine needs all of them. Differentiating @eq-basis-expansion term by term
+gives
+
+$$
+f^{(d)}(x) \;=\; \sum_{r=1}^{K} \beta_r B_r^{(d)}(x),
+$$ {#eq-basis-derivative}
+
+so a derivative of the fitted function is the same linear combination of a
+different matrix. Integrating gives the same statement for the antiderivative.
+And the integrals of the products $B_r^{(d)} B_s^{(d)}$ form the matrix that a
+roughness penalty is a quadratic form in, which is the subject of
+@sec-basis-gram.
+
+The package therefore asks four questions of a basis, and answers them in the
+same shape. `basis_eval()` returns the design matrix, `basis_deriv()` the
+matrix of $d$-th derivatives, `basis_int()` the matrix of integrals, and
+`basis_gram()` the $K \times K$ matrix of inner products. The first three have
+one row per evaluation point and one column per basis function.
+
+```{r}
+#| label: basis-object
+b <- bspline_basis(lower = 0, upper = 1, dimension = 6, degree = 3)
+b
+
+round(basis_eval(b, c(0, 0.25, 0.5, 1)), 4)
+```
+
+A basis also knows its own interval and refuses a point outside it. The
+refusal happens in the body of the generic, before dispatch, so a basis
+written outside the package inherits it without doing anything.
+
+### The integral is anchored at the lower endpoint {#sec-basis-anchor}
+
+The integral of a basis is fixed by the convention that its value at $a$ is
+zero:
+
+$$
+\left(\textstyle\int B\right)_r(x) \;=\; \int_{a}^{x} B_r(v)\,\mathrm{d}v,
+\qquad \left(\textstyle\int B\right)_r(a) \;=\; 0 .
+$$ {#eq-basis-anchor}
+
+The convention is part of the contract rather than a detail of the
+implementation, because the antiderivative is otherwise determined only up to
+a constant. Any choice of constant satisfies the check that differentiating
+the integral returns the basis, so two bases could use different constants,
+each be internally consistent, and produce a sum whose integral is wrong by
+the difference. Fixing the value at one point removes the freedom, and the
+lower endpoint is the natural point to fix it at, since it belongs to every
+basis interval.
+
+```{r}
+#| label: basis-anchor
+f <- fourier_basis(lower = -1, upper = 3, dimension = 5)
+basis_int(f, -1)
+```
+
+### Numerical methods for a basis that supplies only its values {#sec-basis-fallbacks}
+
+Only `basis_eval()` is compulsory. The derivatives, the integral and the Gram
+matrix have numerical methods registered on the base class, so a new basis is
+a subclass and one method, and a closed form supplied later replaces the
+corresponding numerical method through dispatch with no change to calling
+code. This is the arrangement `distributions7` offers a distribution defined
+by its density alone.
+
+The derivatives are computed from a single finite-difference stencil, whose
+weights are determined by the requirement that the stencil be exact on
+polynomials. Writing $\delta_1, \ldots, \delta_p$ for the offsets, in units of
+a step $h$, the Taylor expansion of the combination
+$\sum_j w_j f(x + \delta_j h)$ multiplies $f^{(i)}(x)$ by
+$h^i/i! \sum_j w_j \delta_j^i$. Requiring
+
+$$
+\sum_{j=1}^{p} w_j \delta_j^{\,i} \;=\;
+\begin{cases}
+0, & i \neq d,\\
+d!, & i = d,
+\end{cases}
+\qquad i = 0, \ldots, p-1,
+$$ {#eq-fd-weights}
+
+therefore leaves $h^d f^{(d)}(x)$ and nothing else, up to the first neglected
+term. This is a Vandermonde system in the offsets, solved once per stencil
+shape, and the derivative estimate is $h^{-d}\sum_j w_j f(x + \delta_j h)$. The
+construction is due to @fornberg1988, who gives a recurrence for the weights
+on an arbitrary set of offsets.
+
+Building the weights this way, rather than composing lower-order differences,
+is what keeps a high order usable. Each numerical differentiation multiplies
+the error of the one before it, so a fourth derivative reached by four nested
+first differences is dominated by rounding error rather than by the function.
+The same rule governs the validators of `linkfunctions7` and
+`distributions7`: one stencil, applied to the highest order available in
+closed form, and never a chain.
+
+The step is $h = \varepsilon^{1/(d+2)}\max(1, \lvert x \rvert)$, which balances
+truncation error against rounding error at order $d$, and it is capped so that
+the whole stencil fits inside the interval. Near an endpoint a symmetric
+stencil would ask for points outside the interval, where the basis is not
+defined, so those points use a one-sided stencil with the same number of nodes
+and the same order, built from the same system @eq-fd-weights with shifted
+offsets.
+
+The construction below defines a basis of Gaussian bumps by its values alone.
+Its derivative is available immediately, and agrees with the closed form
+nothing in the object knows about.
+
+```{r}
+#| label: basis-fallback
+Bumps <- S7::new_class("Bumps", parent = basis, package = NULL)
+
+S7::method(basis_eval, Bumps) <- function(basis, x, ...) {
+  p <- basis@basis_params
+  out <- exp(-0.5 * outer(x, p$centres, "-")^2 / p$width^2)
+  colnames(out) <- basis_colnames(basis)
+  out
+}
+
+bumps <- Bumps(
+  basis_name = "bumps", dimension = 5L, lower = 0, upper = 1,
+  basis_params = list(centres = seq(0.1, 0.9, length.out = 5), width = 0.15)
+)
+
+xs <- c(0.2, 0.5)
+round(basis_deriv(bumps, xs, order = 1), 6)
+
+p <- bumps@basis_params
+round(-outer(xs, p$centres, "-") / p$width^2 * basis_eval(bumps, xs), 6)
+```
+
+An object says which of its answers are numerical, so that a caller can tell
+an exact quantity from an approximated one, and so that the validator can
+report a quantity it has no independent way of checking as unchecked rather
+than as passed.
+
+```{r}
+#| label: basis-is-numerical
+basis_is_numerical(bumps)
+```
+
+```{r}
+#| label: consistency-05a
+#| include: false
+assert_expansions_ok()
+```

@@ -1,0 +1,202 @@
+## Bases of several variables {#sec-basis-tensor}
+
+```{r}
+#| label: setup-05e
+#| include: false
+source("R/_setup.R")
+source("R/basis-certificates.R")
+```
+
+### The product basis {#sec-tensor-product}
+
+A basis of several variables is built from bases of one variable by taking all
+products of their functions. Given marginal bases $B_1, \ldots, B_D$ of
+dimensions $K_1, \ldots, K_D$, the tensor product basis consists of the
+functions
+
+$$
+B_{r_1 \cdots r_D}(x_1, \ldots, x_D)
+\;=\; \prod_{j=1}^{D} B_{j,r_j}(x_j),
+\qquad r_j = 1, \ldots, K_j ,
+$$ {#eq-tensor-function}
+
+so its dimension is $K = \prod_j K_j$, and the functions it represents are the
+sums
+$f(x) = \sum_{r_1 \cdots r_D} \beta_{r_1 \cdots r_D} \prod_j B_{j,r_j}(x_j)$.
+This is the standard construction for a smooth interaction; @wood2006 gives
+the version used in additive models and discusses the penalties that go with
+it.
+
+Written as matrices, @eq-tensor-function is the row-wise Kronecker product of
+the marginal design matrices. With $B_j$ of size $n \times K_j$, the design
+matrix of the product has row $i$ equal to the Kronecker product of the $D$
+corresponding marginal rows,
+
+$$
+B \;=\; B_1 \ast B_2 \ast \cdots \ast B_D ,
+\qquad
+\left(B_1 \ast B_2\right)_{i,\, (r-1)K_2 + s} \;=\;
+\left(B_1\right)_{ir}\left(B_2\right)_{is},
+$$ {#eq-khatri-rao}
+
+which is the Khatri-Rao product. The column ordering it fixes is the one
+`kronecker()` uses, with the last marginal varying fastest, and it is the
+convention the package follows everywhere: in the column names, in the shape
+of a coefficient array, and in the Kronecker products of @eq-tensor-gram
+below.
+
+A basis states how many variables it takes through the length of its
+endpoints, so a basis of one variable is the case $D = 1$ rather than a
+separate kind of object. Evaluation points become a matrix with one column per
+variable, and the derivative order becomes a multi-index with one entry per
+variable.
+
+```{r}
+#| label: tensor-basis
+tb <- tensor_basis(bspline_basis(dimension = 4), fourier_basis(dimension = 3))
+tb
+
+c(variables = basis_nvar(tb), functions = tb@dimension)
+
+xy <- cbind(c(0.2, 0.5), c(0.7, 0.1))
+round(basis_eval(tb, xy), 4)
+```
+
+The multi-index is required rather than recycled from a single number. A
+scalar order has two readings for a product basis, that order in every
+coordinate or that total order, and the two give different matrices, so a
+single non-zero order is refused instead of being resolved silently. Zero is
+the exception, since it means no derivative under either reading.
+
+```{r}
+#| label: tensor-deriv
+dim(basis_deriv(tb, xy, order = c(1, 2)))
+
+try(basis_deriv(tb, xy, order = 1))
+```
+
+### Separability {#sec-tensor-separable}
+
+Every quantity of the previous sections follows from the marginals, because
+the product @eq-tensor-function separates. A partial derivative differentiates
+one factor and leaves the others alone,
+
+$$
+\frac{\partial^{\,d_1 + \cdots + d_D}}{\partial x_1^{d_1} \cdots \partial x_D^{d_D}}
+\prod_{j=1}^{D} B_{j,r_j}(x_j)
+\;=\; \prod_{j=1}^{D} B_{j,r_j}^{(d_j)}(x_j),
+$$ {#eq-tensor-derivative}
+
+and the integral over the box from the lower corner to a point is the product
+of the marginal integrals, so the anchor @eq-basis-anchor survives: a product
+in which every factor vanishes at the corner vanishes there.
+
+The consequence that matters most is for the inner products. The integral over
+the box of a product of separable functions factorises into $D$
+one-dimensional integrals, so
+
+$$
+G_{(d_1, \ldots, d_D)}
+\;=\; G_{1,d_1} \otimes G_{2,d_2} \otimes \cdots \otimes G_{D,d_D} .
+$$ {#eq-tensor-gram}
+
+The Gram matrix of a product therefore costs one marginal Gram matrix per
+variable and a Kronecker product, rather than an integration over a
+$D$-dimensional box. A tensor product of exactly integrated marginals is
+exactly integrated at any number of variables, where a quadrature over the box
+would need a number of nodes exponential in $D$ and would lose accuracy with
+every variable added.
+
+```{r}
+#| label: tensor-gram
+max(abs(basis_gram(tb) - kronecker(
+  basis_gram(bspline_basis(dimension = 4)),
+  basis_gram(fourier_basis(dimension = 3))
+)))
+```
+
+### Evaluating a fitted function without forming the design matrix {#sec-tensor-contract}
+
+The one quantity that does not stay cheap is the design matrix itself, whose
+column count $\prod_j K_j$ is exponential in the number of variables. Six
+variables with ten functions each give a million columns, and at that size the
+matrix cannot be formed for any useful $n$, even though the function it
+represents is perfectly ordinary.
+
+What a fit needs from the design matrix is almost never the matrix. The values
+of the fitted function, $B\beta$, are what enter a likelihood, and
+`basis_contract()` computes them from the marginal evaluations. Coefficients
+come in two shapes, and the shape decides the cost.
+
+The general shape is an **array** of dimensions $(K_1, \ldots, K_D)$, holding
+one coefficient per basis function. The rows of $x$ are then processed in
+blocks: each block forms its own piece of @eq-khatri-rao, multiplies it by the
+coefficients, and is discarded, so the peak memory is set by the block size
+rather than by $n$. The number of coefficients is still $\prod_j K_j$, so this
+route makes a large product usable but not cheap.
+
+The **canonical polyadic** shape writes the coefficient array as a sum of $F$
+outer products, one term of which is a product of vectors, one per variable.
+With factor matrices $\Gamma_j$ of size $K_j \times F$ and $\gamma_{j,f}$
+their columns, the fitted values are
+
+$$
+f(x_1, \ldots, x_D)
+\;=\; \sum_{f=1}^{F} \prod_{j=1}^{D} B_j(x_j)^\top \gamma_{j,f} ,
+$$ {#eq-cp-contraction}
+
+so each marginal is evaluated once and multiplied by its own factor matrix,
+giving $D$ matrices of size $n \times F$ whose elementwise product, summed
+across columns, is the answer. Neither the design matrix nor the coefficient
+array appears anywhere. This is the decomposition of @kolda2009, and the
+factorised tensor product spline models of @ruegamer2024 are exactly the
+models whose coefficients are constrained to this form.
+
+| coefficients | stored values | cost of a contraction |
+|---|---|---|
+| array of dimensions $(K_1, \ldots, K_D)$ | $\prod_j K_j$ | $O(n \prod_j K_j)$ |
+| factor matrices of rank $F$ | $F \sum_j K_j$ | $O(n F \sum_j K_j)$ |
+
+: The two coefficient shapes {.striped}
+
+```{r}
+#| label: tensor-contract
+big <- tensor_basis(rep(list(bspline_basis(dimension = 10)), 6))
+big@dimension # the number of columns the design matrix would have
+
+set.seed(2)
+xbig <- matrix(runif(1000 * 6), 1000, 6)
+gam <- replicate(6, matrix(rnorm(10 * 3), 10, 3), simplify = FALSE)
+
+head(basis_contract(big, xbig, gam), 3)
+```
+
+For a moderate product the two routes agree, which is what fixes the meaning
+of the factorisation.
+
+```{r}
+#| label: tensor-contract-agree
+tb2 <- tensor_basis(bspline_basis(dimension = 5), bspline_basis(dimension = 4))
+x2 <- cbind(runif(8), runif(8))
+
+cf <- array(rnorm(20), dim = c(5, 4))
+g2 <- list(matrix(rnorm(10), 5, 2), matrix(rnorm(8), 4, 2))
+full <- Reduce(`+`, lapply(1:2, function(f) outer(g2[[1]][, f], g2[[2]][, f])))
+
+c(
+  array_route = max(abs(basis_contract(tb2, x2, cf) -
+    basis_eval(tb2, x2) %*% as.numeric(aperm(cf)))),
+  cp_route = max(abs(basis_contract(tb2, x2, g2) -
+    basis_contract(tb2, x2, full)))
+)
+```
+
+Choosing the rank $F$ and estimating the factors is a modelling decision, and
+belongs to the layer that owns the parameters. Evaluating them is basis
+arithmetic, and belongs here.
+
+```{r}
+#| label: consistency-05e
+#| include: false
+assert_tensor_ok()
+```

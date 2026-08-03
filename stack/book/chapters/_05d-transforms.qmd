@@ -1,0 +1,205 @@
+## Linear transformations of a basis {#sec-basis-transforms}
+
+```{r}
+#| label: setup-05d
+#| include: false
+source("R/_setup.R")
+source("R/basis-certificates.R")
+```
+
+### One operation, three uses {#sec-transform-one}
+
+Making a basis orthonormal, restricting it so that its coefficients satisfy a
+linear constraint, and rebuilding it so that it diagonalises an inner product
+are all instances of the same operation. In each case the new functions are
+fixed linear combinations of the old ones,
+
+$$
+\widetilde{B}(x)^\top \;=\; B(x)^\top T ,
+\qquad T \in \mathbb{R}^{K \times \widetilde{K}},
+$$ {#eq-transform}
+
+and the three differ only in how $T$ is computed. The matrix may have fewer
+columns than rows, which is how a constraint reduces the dimension of the
+basis, and the coefficients of the new basis are related to the old ones by
+$\beta = T\gamma$.
+
+Every quantity of the previous sections transforms with @eq-transform and
+nothing else has to be recomputed. Differentiation and integration are linear
+and $T$ does not depend on $x$, so
+
+$$
+\widetilde{B}^{(d)}(x)^\top = B^{(d)}(x)^\top T ,
+\qquad
+\left(\textstyle\int \widetilde{B}\right)(x)^\top
+= \left(\textstyle\int B\right)(x)^\top T ,
+$$
+
+and the anchor @eq-basis-anchor survives, since a linear combination of
+columns that are all zero at $a$ is zero at $a$. The Gram matrix transforms by
+**congruence**,
+
+$$
+\widetilde{G}_d \;=\; T^\top G_d\, T ,
+$$ {#eq-transform-congruence}
+
+which follows from @eq-gram by substituting @eq-transform under the integral.
+A parent whose inner products are exact therefore passes that exactness on:
+the transformed basis is not integrated again, and no quadrature enters at any
+point.
+
+Transforms compose by multiplication rather than by nesting. Applying
+@eq-transform twice gives $B^\top T_1 T_2$, so a chain of them is stored as
+the single product and costs one matrix multiplication per evaluation however
+long the chain is.
+
+### Orthonormalisation {#sec-transform-orthonorm}
+
+An orthonormal basis is one whose Gram matrix is the identity, and
+@eq-transform-congruence turns that requirement into a matrix factorisation.
+Writing $G_d = R^\top R$ for the Cholesky factorisation of the Gram matrix,
+the choice $T = R^{-1}$ gives
+
+$$
+\widetilde{G}_d \;=\; R^{-\top} R^\top R\, R^{-1} \;=\; I .
+$$ {#eq-orthonorm}
+
+The transform is read off the Gram matrix rather than estimated on a grid of
+points, so there is no number of points to choose and no scale factor to
+correct, and the result is as exact as $G_d$ is. The factorisation exists
+whenever $G_d$ is positive definite, which at order zero holds for any basis
+whose functions are linearly independent, and fails at higher orders, where
+@sec-gram-definition showed the matrix to be singular.
+
+```{r}
+#| label: orthonorm
+b <- bspline_basis(dimension = 6, degree = 3)
+o <- orthonorm_basis(b)
+round(basis_gram(o), 12)[1:4, 1:4]
+```
+
+### Linear constraints {#sec-transform-constrain}
+
+A model term is often required to satisfy a linear constraint on its
+coefficients, $C\beta = 0$ with $C$ of rank $\mathrm{rank}(C)$. The usual case
+is a sum-to-zero condition, which removes the constant function from the span
+of a term so that it is identified against the intercept of the model;
+@wood2017 discusses the choices available and their consequences for the
+fitted component.
+
+Writing $\beta = T\gamma$ turns the constraint into $C T \gamma = 0$ for every
+$\gamma$, so $T$ must have the null space of $C$ as its column space. The
+package takes the last $K - \mathrm{rank}(C)$ right singular vectors of $C$,
+which form an orthonormal basis of that null space, so the constrained basis
+spans precisely the admissible functions and no reparameterisation of $C$
+changes the space it produces. The dimension drops by the rank of the
+constraint, not by the number of rows written down.
+
+```{r}
+#| label: constrain
+grid <- seq(0, 1, length.out = 200)
+cs <- constrain_basis(b, colSums(basis_eval(b, grid)))
+
+c(before = b@dimension, after = cs@dimension)
+max(abs(colSums(basis_eval(cs, grid))))
+```
+
+The mechanics are what the package supplies. Which constraint a term should
+carry needs to know what the term means, and belongs to the layer that does.
+
+### The Demmler-Reinsch basis {#sec-transform-dr}
+
+The third transform makes the empirical inner product and the penalty diagonal
+at the same time. Its purpose is the separation of a linear from a nonlinear
+effect: an additive component $f_j$ is written as the sum of its projection on
+$\mathrm{span}\{1, x_j\}$ and a remainder, and the remainder is expanded in a
+basis that is empirically orthogonal to those two functions. Without that
+orthogonality the sum of the two parts is still estimated correctly, but the
+split between them is not, so a statement about the size of the nonlinear
+effect depends on the basis rather than on the data. @bach2024 makes the
+decomposition precise and proves the consistency of the two parts separately.
+
+The construction has three steps, following @bach2024. The first restricts the
+basis to the null space of
+
+$$
+C \;=\; (\mathbf{1}, x)^\top B \;\in\; \mathbb{R}^{2 \times K},
+$$
+
+by the transform of @sec-transform-constrain, giving $V_0$ of size
+$K \times (K-2)$. This is where the empirical orthogonality comes from, since
+$CV_0 = 0$ says exactly that the columns of $BV_0$ are orthogonal to
+$\mathbf{1}$ and to $x$ at the observed points. The second diagonalises the
+pencil formed by the empirical Gram matrix @eq-gram-empirical and the penalty
+$P$ on that subspace: with
+
+$$
+\widetilde{G} = V_0^\top \left(B^\top B / n\right) V_0 ,
+\qquad
+\widetilde{P} = V_0^\top P\, V_0 ,
+$$
+
+the generalised eigenproblem
+$\widetilde{G} \alpha_k = \lambda_k \widetilde{P} \alpha_k$ is solved by
+factorising $\widetilde{P} = R^\top R$ and taking the ordinary
+eigendecomposition of $R^{-\top} \widetilde{G} R^{-1}$, whose eigenvectors
+$e_k$ give $\alpha_k = R^{-1} e_k$. The third step sets $T = V_0 A$, the
+columns of $A$ being the $\alpha_k$, and by default rescales so that the
+eigenvalues sum to one.
+
+The resulting design matrix $Z = BT$ satisfies the three properties the
+construction was asked for:
+
+$$
+Z^\top Z \ \text{is diagonal}, \qquad
+T^\top P\, T \propto I, \qquad
+(\mathbf{1}, x)^\top Z = 0 .
+$$ {#eq-dr-properties}
+
+The consequence is that the penalised normal equations in these coordinates
+are diagonal, so each coefficient is shrunk on its own, by a factor determined
+by its eigenvalue and the smoothing parameter, and the eigen-decomposition of
+the smoother is available without forming any matrix of the size of the
+sample. The eigenvalues $\lambda_k$ measure how much empirical variance a
+direction carries per unit of penalty, and are the Demmler-Reinsch values of
+@demmler1975.
+
+```{r}
+#| label: dr-basis
+set.seed(1)
+xd <- sort(runif(300))
+d <- dr_basis(b, xd)
+
+z <- basis_eval(d, xd)
+c(
+  off_diagonal = max(abs(crossprod(z)[upper.tri(crossprod(z))])),
+  orthogonal_to_1_and_x = max(abs(crossprod(cbind(1, xd), z)))
+)
+```
+
+Two properties of this particular route through the algebra matter in
+practice. It factorises a $2 \times K$ matrix and a $(K-2) \times (K-2)$
+matrix, never anything whose size depends on $n$. And the matrix inverted is
+the penalty rather than the design, so a rank-deficient $B$ passes through
+unharmed, which is what equally spaced knots produce whenever the data leave a
+knot span empty.
+
+```{r}
+#| label: dr-rank-deficient
+xg <- sort(c(seq(0, 0.25, length.out = 120), seq(0.78, 1, length.out = 120)))
+wide <- bspline_basis(dimension = 14)
+
+c(dimension = wide@dimension, rank = qr(basis_eval(wide, xg))$rank)
+
+zg <- basis_eval(dr_basis(wide, xg), xg)
+c(
+  off_diagonal = max(abs(crossprod(zg)[upper.tri(crossprod(zg))])),
+  orthogonal_to_1_and_x = max(abs(crossprod(cbind(1, xg), zg)))
+)
+```
+
+```{r}
+#| label: consistency-05d
+#| include: false
+assert_transforms_ok()
+```

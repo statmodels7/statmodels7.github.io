@@ -472,7 +472,7 @@ it. This was found by writing the test for the new feature, not by using it.
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1538 tests, `R CMD check` OK (2026-08-03, local), CI green |
 | `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
-| `basis7` | 677 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.0`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 3 of `piano_basis7.txt` are done; phase 4 is the book chapter. |
+| `basis7` | 681 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
 All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
 combinations (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix
@@ -1098,9 +1098,19 @@ exactly 1. What was wrong was everything around them.
   the thing several starts actually measure, and why the parallelism is at the
   level of processes. Its gate is `assert_starting_ok()`, injection-checked
   against a printed h(0) wrong by 0.5 and against independent draws replacing
-  the hypercube. What the book still lacks is anything on **censored likelihoods**, which
-  waits on the front end that does not exist yet, and it will need a chapter per
-  package as the others arrive.
+  the hypercube. Chapter 5 (added 2026-08-03) covers `basis7`: the expansion
+  and its design matrix, the anchored integral and why the constant is fixed,
+  the Vandermonde stencil; the Cox-de Boor recurrence with local support and
+  the partition of unity, the Fourier phase shift, the Legendre recurrences;
+  the Gram matrix as the matrix of a roughness penalty, its exact integration
+  knot interval by knot interval, and the three measures the inner product can
+  be taken against; orthonormalisation, constraints and Demmler-Reinsch as one
+  congruence; and tensor products, separability, and the two coefficient
+  shapes a contraction accepts. Its five gates are in
+  `book/R/basis-certificates.R`, injection-checked seventeen times. What the
+  book still lacks is anything on **censored likelihoods**, which waits on the
+  front end that does not exist yet, and it will need a chapter per package as
+  the others arrive.
 
 ---
 
@@ -1124,6 +1134,9 @@ Preface / 1 Introduction / 2 The linkfunctions7 package /
                                3.3 Fitting, 3.4 Fallbacks) /
 4 The optimizers7 package     (4.1 Descent, 4.2 Curvature, 4.3 Non-smooth,
                                4.4 Constraints, 4.5 Starting points) /
+5 The basis7 package          (5.1 Expansions, 5.2 Families, 5.3 Inner
+                               products, 5.4 Transformations, 5.5 Several
+                               variables) /
 A Notation / B References
 ```
 
@@ -1242,6 +1255,15 @@ parentheses are what disambiguate, as in `f^(k)`.
 **Truncation points are `L` and `U`**, not `l` and `u`: the lower point collided with
 the log-likelihood symbol, and both appeared in the same comparison table. The uniform
 draw in the inverse-transform formula is `V` for the same reason.
+
+The same collision decided chapter 5. `basis7` writes a basis interval
+`[l, u]` in its own documentation; the **book writes `[a, b]`**, with `r` and
+`s` for basis-function indices, `q` for the intermediate degree of the
+Cox-de Boor recurrence, `tau` for the shifted Legendre variable and
+`delta_j` for a finite-difference offset. The notation appendix carries a
+Bases table and says which symbols are reused across chapters -- `B` is a
+curvature model in chapter 4 and a design matrix in chapter 5, `m` a spline
+degree here and a truncated expectation there.
 
 **Pipes break tables.** A `|` inside math in a markdown table splits the cell; kable
 escapes it to `&#124;` and MathJax prints that verbatim (visible in the transformer

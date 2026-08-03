@@ -19,6 +19,7 @@ suppressMessages({
   pkgload::load_all(file.path(.toolkit_root, "linkfunctions7"), quiet = TRUE, export_all = FALSE)
   pkgload::load_all(file.path(.toolkit_root, "distributions7"), quiet = TRUE, export_all = FALSE)
   pkgload::load_all(file.path(.toolkit_root, "optimizers7"), quiet = TRUE, export_all = FALSE)
+  pkgload::load_all(file.path(.toolkit_root, "basis7"), quiet = TRUE, export_all = FALSE)
 })
 
 knitr::opts_chunk$set(

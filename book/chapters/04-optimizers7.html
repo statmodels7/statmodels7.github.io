@@ -85,7 +85,7 @@ div.csl-indent {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../chapters/A1-notation.html" rel="next">
+<link href="../chapters/05-basis7.html" rel="next">
 <link href="../chapters/03-distributions7.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -223,6 +223,12 @@ window.Quarto = {
   <div class="sidebar-item-container"> 
   <a href="../chapters/04-optimizers7.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">The optimizers7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-basis7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">The basis7 package</span></span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
@@ -386,7 +392,7 @@ window.Quarto = {
 </section>
 <section id="sec-descent-cost" class="level3" data-number="4.1.4">
 <h3 data-number="4.1.4" class="anchored" data-anchor-id="sec-descent-cost"><span class="header-section-number">4.1.4</span> Cost of the two searches</h3>
-<p>The two searches differ in what they evaluate. Backtracking needs only values of <span class="math inline">\(f\)</span>: it computes <span class="math inline">\(g^\top d\)</span> once, at the current point, and then evaluates <span class="math inline">\(f(x + sd)\)</span> for a shrinking sequence of <span class="math inline">\(s\)</span>. A Wolfe search must test (W), which involves <span class="math inline">\(\nabla f(x + sd)\)</span>, so it evaluates the gradient at every trial point.</p>
+<p>The two searches differ in what they evaluate. Backtracking needs only values of <span class="math inline">\(f\)</span>: it computes <span class="math inline">\(g^\top d\)</span> once, at the current point, and then evaluates <span class="math inline">\(f(x + sd)\)</span> for a shrinking sequence of <span class="math inline">\(s\)</span>. A Wolfe search must test (W), which involves <span class="math inline">\(\nabla f(x + sd)\)</span>, so it evaluates the gradient at every trial point. The comparison below, and several later in the chapter, use the function of <span class="citation" data-cites="rosenbrock1960">Rosenbrock (<a href="A2-references.html#ref-rosenbrock1960" role="doc-biblioref">1960</a>)</span>, whose narrow curved valley is the standard test of how a method behaves when the curvature changes direction along the path.</p>
 <p>The extra cost buys something specific. The gradient evaluated at the accepted point is needed by the next iteration in any case, so the additional cost is only the gradients spent at rejected trials. In exchange the method obtains <a href="#thm-zoutendijk" class="quarto-xref">Theorem&nbsp;<span>4.1</span></a> and a step length that satisfies the curvature condition, which is what <a href="#sec-bfgs" class="quarto-xref"><span>Section 4.2.2</span></a> needs to keep its approximation positive definite. A quasi-Newton method paired with a Wolfe search never has to skip an update; one paired with backtracking sometimes does.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
@@ -628,7 +634,7 @@ window.Quarto = {
 </div>
 </div>
 </div>
-<p>For Barzilai–Borwein the iteration count in the table depends on the line search as much as on the stored number. The method makes progress through steps that temporarily increase the objective in order to be aligned with the curvature later, and the sufficient-decrease condition of <a href="#def-armijo" class="quarto-xref">Definition&nbsp;<span>4.2</span></a> rejects exactly those steps. The standard remedy, due to <span class="citation" data-cites="grippo1986">Grippo, Lampariello, and Lucidi (<a href="A2-references.html#ref-grippo1986" role="doc-biblioref">1986</a>)</span>, is a nonmonotone line search, which requires improvement over the worst of the last several values instead of over the current one. <code>bb()</code> uses it by default, and with it the method reaches the minimum of Rosenbrock in 68 iterations and 77 objective evaluations, against 82 and 186 under plain backtracking.</p>
+<p>For Barzilai–Borwein the iteration count in the table depends on the line search as much as on the stored number. The method makes progress through steps that temporarily increase the objective in order to be aligned with the curvature later, and the sufficient-decrease condition of <a href="#def-armijo" class="quarto-xref">Definition&nbsp;<span>4.2</span></a> rejects exactly those steps. The standard remedy, due to <span class="citation" data-cites="grippo1986">Grippo, Lampariello, and Lucidi (<a href="A2-references.html#ref-grippo1986" role="doc-biblioref">1986</a>)</span>, is a nonmonotone line search, which requires improvement over the worst of the last several values instead of over the current one; <span class="citation" data-cites="birgin2000">Birgin, Martínez, and Raydan (<a href="A2-references.html#ref-birgin2000" role="doc-biblioref">2000</a>)</span> pairs it with Barzilai-Borwein steps and is the reference for the combination. <code>bb()</code> uses it by default, and with it the method reaches the minimum of Rosenbrock in 68 iterations and 77 objective evaluations, against 82 and 186 under plain backtracking.</p>
 </section>
 </section>
 <section id="sec-nonsmooth" class="level2" data-number="4.3">
@@ -998,6 +1004,9 @@ Audet, Charles, and J. E. Dennis. 2006. <span>“Mesh Adaptive Direct Search Alg
 <div id="ref-barzilai1988" class="csl-entry" role="listitem">
 Barzilai, Jonathan, and Jonathan M. Borwein. 1988. <span>“Two-Point Step Size Gradient Methods.”</span> <em>IMA Journal of Numerical Analysis</em> 8 (1): 141–48.
 </div>
+<div id="ref-birgin2000" class="csl-entry" role="listitem">
+Birgin, Ernesto G., José Mario Martínez, and Marcos Raydan. 2000. <span>“Nonmonotone Spectral Projected Gradient Methods on Convex Sets.”</span> <em>SIAM Journal on Optimization</em> 10 (4): 1196–1211.
+</div>
 <div id="ref-bonnans2006" class="csl-entry" role="listitem">
 Bonnans, J. Frédéric, J. Charles Gilbert, Claude Lemaréchal, and Claudia A. Sagastizábal. 2006. <em>Numerical Optimization: Theoretical and Practical Aspects</em>. 2nd ed. Berlin: Springer.
 </div>
@@ -1087,6 +1096,9 @@ Robbins, Herbert, and Sutton Monro. 1951. <span>“A Stochastic Approximation Me
 </div>
 <div id="ref-rockafellar1970" class="csl-entry" role="listitem">
 Rockafellar, R. Tyrrell. 1970. <em>Convex Analysis</em>. Princeton: Princeton University Press.
+</div>
+<div id="ref-rosenbrock1960" class="csl-entry" role="listitem">
+Rosenbrock, H. H. 1960. <span>“An Automatic Method for Finding the Greatest or Least Value of a Function.”</span> <em>The Computer Journal</em> 3 (3): 175–84.
 </div>
 <div id="ref-wolfe1969" class="csl-entry" role="listitem">
 Wolfe, Philip. 1969. <span>“Convergence Conditions for Ascent Methods.”</span> <em>SIAM Review</em> 11 (2): 226–35.
@@ -1506,8 +1518,8 @@ Zoutendijk, G. 1970. <span>“Nonlinear Programming, Computational Methods.”</
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../chapters/A1-notation.html" class="pagination-link" aria-label="Notation">
-        <span class="nav-page-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../chapters/05-basis7.html" class="pagination-link" aria-label="The basis7 package">
+        <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">The basis7 package</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

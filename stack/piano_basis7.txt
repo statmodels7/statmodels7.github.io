@@ -527,6 +527,49 @@ n = 21 rather than 21L failed a check about the basis for a reason about the
 argument. Coerce anything that will be compared with dim().
 
 --------------------------------------------------------------------------------
+5d. WHAT PHASE 4 SETTLED
+--------------------------------------------------------------------------------
+
+Written 2026-08-03 as chapter 5 of the book, five sections in
+book/chapters/_05a..._05e, gated by assert_expansions_ok(),
+assert_families_ok(), assert_gram_ok(), assert_transforms_ok() and
+assert_tensor_ok() in book/R/basis-certificates.R.
+
+Two things had to be decided in the writing.
+
+  - NOTATION. The book already spends l on the log-likelihood, and the
+    truncation section had renamed its endpoints L and U for exactly that
+    reason. The package writes a basis interval [l, u]; the book therefore
+    writes [a, b], with r and s for basis-function indices, q for the
+    intermediate degree of the Cox-de Boor recurrence, tau for the shifted
+    Legendre variable and delta_j for a stencil offset. The notation appendix
+    gained a Bases table and three more collision notes (B is a curvature
+    model in chapter 4 and a design matrix in chapter 5; m is a spline degree
+    here and a truncated expectation there).
+
+  - WHAT MAKES THE GATE INDEPENDENT. Every displayed formula is transcribed by
+    hand and compared against the package: the Cox-de Boor recurrence and the
+    B-spline derivative recurrence against splines2, the Fourier phase shift
+    at orders 0 to 4 and at -1, the first five Legendre polynomials written
+    out as explicit polynomials against the recurrence, the two closed-form
+    Gram diagonals, the Khatri-Rao column ordering and the polyadic
+    contraction. The structural claims -- orthonormality, the congruence, the
+    three Demmler-Reinsch properties, separability of the tensor Gram -- have
+    no formula to transcribe, so each is checked against an independent
+    adaptive quadrature or an independent numerical derivative, never against
+    the package's own route to the same number. Seventeen injections, all
+    caught; the Demmler-Reinsch checks were also confirmed non-vacuous by
+    asking them of an orthonormalised basis, which fails them by 0.08 and 132.
+
+The chapter found one defect in the package, and the way it was found is the
+point: the numerical derivative printed with its rows labelled "c" and "f"
+next to a closed form that printed "[1,]" and "[2,]". vapply had named the
+stencil offsets after the character vector recording which stencil each point
+uses, and those names travelled through the evaluation points into the row
+names of whatever the basis returned. Only a user-defined basis could reach
+it. Fixed in 0.3.1 with a regression test.
+
+--------------------------------------------------------------------------------
 6. DECISIONS
 --------------------------------------------------------------------------------
 
@@ -642,7 +685,7 @@ Phase 3 -- multivariate.  ** DONE 2026-08-03, basis7 0.3.0 **
     memory profiling, not by trust); (iii) the CP contraction at rank
     F = prod(K_j) reproduces the full-array value.
 
-Phase 4 -- the book chapter.  ** NEXT **
+Phase 4 -- the book chapter.  ** DONE 2026-08-03 **
     "The basis7 package", one .qmd pulling _-prefixed sections: what a basis
     expansion is; B-splines and their local support; the phase-shift Fourier
     derivatives; inner products and the Gram matrix; orthonormalisation as a
@@ -654,7 +697,7 @@ Phase 4 -- the book chapter.  ** NEXT **
     render. Portal card flips from "planned"; sync-stack-files.sh carries
     the new chapter.
 
-Phase 5 -- handoff.
+Phase 5 -- handoff.  ** NEXT **
     penalties7 gets the marginal Grams, the Kronecker-sum assembly and the
     Demmler-Reinsch df <-> lambda map (section 3b); modelterms7 gets complete
     bases, basis_contract, and the TransformedBasis constructors whose
