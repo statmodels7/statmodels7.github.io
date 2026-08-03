@@ -1,0 +1,905 @@
+================================================================================
+                       optimizers7 -- PLAN
+        general-purpose optimisation as S7 objects, algorithms in Rcpp
+                        drafted 2026-07-30
+================================================================================
+
+Written in English like every other artifact of the toolkit (CLAUDE.md, the
+book, the commit messages), so that anything here can be lifted into package
+documentation or into the book without translation.
+
+Nothing in this file is code yet. It is the set of decisions to agree on before
+any is written, plus the ones deliberately left open.
+
+
+--------------------------------------------------------------------------------
+0. WHAT IT IS, AND WHAT IT IS NOT
+--------------------------------------------------------------------------------
+
+optimizers7 is a *base* package of the toolkit, in the same sense as
+linkfunctions7: it knows nothing about statistics, nothing about likelihoods and
+nothing about the other packages. It provides optimisation algorithms as S7
+objects, with the numerical work in Rcpp.
+
+    depends on:      RcppArmadillo, S7, linkfunctions7
+    depended on by:  statmodels7         (which will also use distributions7)
+
+The dependency on linkfunctions7 was added on 2026-07-30 and is deliberate. Box
+bounds are handled by reparametrisation through bounded_link(), which already
+exists next door complete with four derivatives in both directions; writing a
+private logit inside this package would be exactly the duplication the toolkit
+argues against. linkfunctions7 itself depends on nothing, so the direction stays
+clean. See section 3b.
+
+The positioning argument is the same one CLAUDE.md section 0 makes for the
+others, and it holds at least as well here. Every R modelling package that
+optimises anything carries its own Newton loop, its own step halving, its own
+convergence test -- written inline, private, and tuned to the one objective its
+author had. They are not objects, so nothing outside can reuse them, swap them,
+or ask them what they did. An optimisation algorithm is a fixed mathematical
+object; it should be written once, carefully, with its safeguards and its
+diagnostics, and then everyone builds on top.
+
+NOT in scope:
+  - general constrained optimisation. Box bounds are supported by
+    reparametrisation (section 3b); linear and nonlinear constraints are not.
+  - IWLS and Fisher scoring. Decided 2026-07-30: they need the model structure
+    (design matrix, working response, weights), not just (f, grad), so they
+    cannot honour the generic contract. They belong to statmodels7, where that
+    structure exists. See section 9.
+  - anything requiring the objective's algebraic structure (proximal methods,
+    ADMM). Revisit only if a concrete need appears; see section 12.
+
+
+--------------------------------------------------------------------------------
+1. NAMING
+--------------------------------------------------------------------------------
+
+The package: optimizers7. Plural noun + 7, as the convention requires.
+
+The main generic: minimize(). NOT optimize() -- stats::optimize() already
+exists and is one-dimensional optimisation; defining an S7 generic of that name
+masks it, breaks existing code, and draws a CRAN comment.
+
+    minimize(optimizer, fn, par, gr = NULL, he = NULL, ...)
+    maximize(optimizer, fn, par, gr = NULL, he = NULL, ...)
+
+maximize() is thin sugar that negates the objective and its derivatives and
+flips the sign of the reported value. Everything internal minimises, always, and
+the names say so. fit_distrib() in distributions7 already minimises the negative
+log-likelihood internally, so nothing there has to change its convention.
+
+
+--------------------------------------------------------------------------------
+2. THE OBJECT MODEL
+--------------------------------------------------------------------------------
+
+Four families of S7 class. The first three are user-facing, the fourth internal.
+
+  (a) optimizer            the algorithm and its settings
+  (b) criterion            the stopping rule
+  (c) optimizer_result     what a run returns
+  (d) objective            the normalised handle the C++ side is given
+
+(a) optimizer
+-------------
+Base class `optimizer`, one subclass per algorithm, one constructor each. The
+constructor carries every setting of the algorithm, so that an optimizer object
+is a complete, inspectable, reusable specification:
+
+    newton(criterion = ..., maxit = 100, verbose = FALSE, refresh = 10,
+           line_search = "armijo", hessian_mod = "eigen", ...)
+
+Properties on the base class, shared by every algorithm without exception:
+
+    name          character, for printing
+    criterion     a `criterion` object (section 3)
+    maxit         integer
+    max_eval      integer, a budget on objective evaluations
+    verbose       logical
+    refresh       integer -- report every `refresh` iterations
+    keep_trace    logical -- store the iteration path in the result
+
+verbose/refresh were named explicitly as requirements; keep_trace is added
+because a stored path costs almost nothing and is what makes a failed run
+diagnosable, and what plot() will draw.
+
+Each subclass adds only what is genuinely its own: `lbfgs(memory = 10)`,
+`adam(alpha, beta1, beta2, eps)`, `nelder_mead(reflect, expand, contract)`.
+
+(b) criterion  -- see section 3
+(c) optimizer_result -- see section 5
+(d) objective -- see section 4
+
+
+--------------------------------------------------------------------------------
+3. CONVERGENCE CRITERIA AS COMPOSABLE OBJECTS
+--------------------------------------------------------------------------------
+
+Decided 2026-07-30. The stopping rule is not a string and not a bag of
+tolerances; it is an object, for the same reason a link is.
+
+Base class `criterion`, with:
+
+    crit_grad(tol)        max|grad| < tol            (or 2-norm, see below)
+    crit_abs_obj(tol)     |f_new - f_old| < tol
+    crit_rel_obj(tol)     |f_new - f_old| < tol * (|f_old| + tol)
+    crit_abs_par(tol)     max|x_new - x_old| < tol
+    crit_rel_par(tol)     max|x_new - x_old| / (|x_old| + tol) < tol
+    crit_maxit()          the iteration budget, always implicitly present
+
+and two combinators:
+
+    crit_any(...)         stop when any of them fires   (the usual case)
+    crit_all(...)         stop only when all of them do (conservative)
+
+so that a user writes
+
+    newton(criterion = crit_any(crit_grad(1e-8), crit_rel_obj(1e-12)))
+
+Each criterion implements one generic:
+
+    crit_met(criterion, state) -> logical
+
+where `state` carries x_new, x_old, f_new, f_old, gradient, iteration. A user
+can therefore write their own criterion and pass it in, exactly as they can
+write their own link or distribution. That is the whole point.
+
+Defaults per algorithm, chosen to match what the algorithm actually controls:
+  newton, bfgs, lbfgs   crit_any(crit_grad(1e-8), crit_rel_obj(1e-12))
+  derivative-free       crit_any(crit_rel_obj(1e-10), crit_abs_par(1e-8))
+  adam                  a fixed iteration/epoch budget; see section 7
+
+Two details worth fixing now rather than discovering later:
+  - relative criteria need a floor (`+ tol`) or they divide by zero at an
+    optimum sitting at the origin;
+  - crit_grad must state which norm it uses: crit_grad(tol, norm = c("max", "2")),
+    max-norm by default. It does not grow with the dimension the way the 2-norm
+    does, so the same tolerance means the same thing for a two-parameter problem
+    and a two-hundred-parameter one, and it is what most references mean by
+    "the gradient is small". Both are exposed, so the choice is only a default.
+
+
+--------------------------------------------------------------------------------
+3b. BOX BOUNDS BY REPARAMETRISATION, AND WHAT IT CANNOT DO
+--------------------------------------------------------------------------------
+
+Decided 2026-07-30. Rather than implement L-BFGS-B and an active-set machinery,
+box bounds are handled the way the toolkit handles every other constraint: map
+the box onto the real line and optimise there.
+
+    minimize(bfgs(), fn, par, bounds = list(c(0, Inf), c(0, 1)))
+
+Each coordinate's bounds select a link from linkfunctions7 -- bounded_link(lwr,
+upr) already returns the lower-, upper- or doubly-bounded case, and the identity
+when neither is given, which is precisely the dispatch wanted here. The
+optimiser then works on eta, and the chain rule supplies
+
+    d f / d eta_i        = (d f / d theta_i) h_i'
+    d2 f / d eta_i d eta_j = (d2 f / d theta_i d theta_j) h_i' h_j'
+                             + delta_ij (d f / d theta_i) h_i''
+
+which needs h' and h'' only -- both of which every link carries exactly. The
+diagonal Jacobian is what keeps the second line that short; it is the same
+structure distributions7 exploits at higher order in its link_scale.R.
+
+THE LIMITATION, WHICH MUST BE DOCUMENTED AND NOT DISCOVERED:
+
+Reparametrisation cannot reach a bound. If the constrained optimum lies ON a
+face of the box, the corresponding eta must go to +/- infinity to get there; the
+optimiser will march off, the objective will keep improving by less and less,
+and it will stop on a budget or a tolerance at some large eta, reporting a
+theta that is merely close to the bound. It is not a minimiser of the
+constrained problem and nothing in the numbers says so.
+
+For the statistical use this exists to serve, that is irrelevant: a variance is
+positive, a probability is interior, and an optimum on the boundary means the
+model is degenerate. For genuine box-constrained problems with active
+constraints at the solution, L-BFGS-B is the right tool and this is not it.
+
+The documentation says this plainly, and the result object records that bounds
+were handled by reparametrisation, so a user reading the output can see which
+problem was actually solved.
+
+
+--------------------------------------------------------------------------------
+4. THE OBJECTIVE, AND WHY Rcpp IS WORTH IT
+--------------------------------------------------------------------------------
+
+The honest statement of the performance question, because it drives the design:
+
+If the algorithm is C++ but `fn` is an R closure, every evaluation is a callback
+from C++ into R -- a few microseconds of overhead plus the cost of the R code
+itself. On a typical statistical objective the objective dominates and the C++
+loop saves very little over the same loop written in R. Rcpp earns its keep in
+two situations: many cheap iterations (Adam on minibatches), and objectives that
+are themselves C++, where the loop never returns to R at all.
+
+The second is exactly what statmodels7 will be: its log-likelihoods already run
+through the compiled kernels of distributions7.
+
+So optimizers7 accepts both, and distinguishes them by S7 multiple dispatch --
+verified 2026-07-30 that S7 0.2.2 dispatches on `new_S3_class("externalptr")`,
+on an XPtr tagged with an S3 class, and on an S7 wrapper.
+
+DESIGN DECISION -- where the dispatch lives:
+
+Not on minimize(). Dispatching minimize() on (optimizer, objective) would need
+one method per algorithm per objective kind -- 5 x 2 today, growing as both grow
+-- and each algorithm would be written twice. Instead:
+
+    minimize()      dispatches on `optimizer` only. The algorithm, written once.
+    as_objective()  dispatches on the objective. Returns a uniform handle.
+
+    method(as_objective, class_function)              -> R closure handle
+    method(as_objective, new_S3_class("cpp_objective")) -> raw pointer handle
+    method(as_objective, FiniteSum)                   -> sum-structured handle
+
+Each generic dispatches where there is real variation: 5 + 3 methods, not 15.
+
+THE THIRD KIND: FINITE-SUM OBJECTIVES
+-------------------------------------
+Added 2026-07-30, and it is what makes Adam's subsampling honest rather than
+imaginary.
+
+A stochastic method wants to evaluate the objective on a subset of the data. But
+`minimize(adam(), fn, par)` with a black-box `fn` has no data to subset -- the
+optimiser does not know what an observation is, and cannot be allowed to guess.
+Subsampling is not a property of the algorithm; it is a property of the
+objective, and only an objective that is a sum over observations can offer it.
+
+So it is declared:
+
+    finite_sum(fn, gr = NULL, n)
+
+    fn(par, idx)   the sum of the per-observation terms indexed by idx
+    gr(par, idx)   its gradient, likewise
+    n              the number of terms
+
+`finite_sum()` returns an S7 object; as_objective() dispatches on it and returns
+a handle that can be asked for a subsample. The full-sample value is fn(par,
+seq_len(n)), so an ordinary evaluation is a special case and nothing is
+duplicated.
+
+Consequences to honour, or the results will mislead:
+  - with resample < 1 the reported objective is a STOCHASTIC ESTIMATE. Criteria
+    that compare successive objective values (crit_abs_obj, crit_rel_obj) are
+    then meaningless and must be refused, not silently allowed to fire on noise.
+    Only budget-based stopping applies. See section 7.
+  - the FINAL value reported in the result must be recomputed on the full
+    sample, or the user is handed a noisy number presented as the optimum.
+  - passing an ordinary objective to an optimizer with resample < 1 is an error
+    with a message explaining that subsampling requires finite_sum().
+
+The same handle serves any future stochastic method (SGD, SVRG, SAGA) without
+further design.
+
+DESIGN DECISION -- tag the pointer:
+
+Accept an external pointer only if it carries the S3 class "cpp_objective"
+(set by us in a helper, or by the user deliberately). A bare externalptr may be
+anything -- a database handle, a model pointer -- and calling through the wrong
+one is a process crash, not an R error. A tag is the cheapest possible guard
+against turning a user's mistake into a segfault.
+
+MEASURED 2026-07-30, once the skeleton could run all three shapes end to end.
+Rosenbrock from (-1.2, 1), 2000 iterations of gradient descent:
+
+    compiled objective          27.2 ms      (13.6 us per iteration)
+    R closure                   44.5 ms      (22.2 us per iteration)
+    speedup                     1.63x
+
+    one crit_met() call         10.2 us
+    x 2000 iterations           20.5 ms  =  75% OF THE COMPILED RUN
+
+So with a compiled objective the bottleneck is no longer the objective at all:
+three quarters of the time is the one callback per iteration that asks the
+R-side stopping rule whether to stop. That is what caps the speedup at 1.63x on
+this problem, and it answers the question section 12 left open about whether
+criteria would ever need compiling. They would -- but only for a compiled
+objective. With an R objective the criterion callback disappears into the noise
+of the objective's own callbacks, and compiling it would buy nothing.
+
+The route, when it is worth taking: recognise the built-in criteria in C++ and
+evaluate them there, falling back to the callback for a user-written one, so
+that extensibility is not paid for by everyone. Not yet: it is an optimisation
+of a path that currently has one trivial algorithm on it, and the numbers above
+should be taken again once a real method with a line search is in place.
+
+The C++ side sees one interface, something like
+
+    struct Objective {
+      virtual double  value(const arma::vec& x) = 0;
+      virtual arma::vec gradient(const arma::vec& x) = 0;
+      virtual arma::mat hessian(const arma::vec& x) = 0;
+      virtual bool has_gradient() const = 0;
+      virtual bool has_hessian()  const = 0;
+    };
+
+with two implementations, RObjective (holds SEXPs, calls back) and CppObjective
+(holds function pointers). Every algorithm is written against Objective and
+knows nothing about where it came from.
+
+SETTLED 2026-07-30: RcppArmadillo. It buys the linear algebra Newton needs --
+Cholesky, eigen-decomposition, solve -- for free. The cost is a heavier
+dependency and a longer compile; the alternative is writing a safeguarded
+Cholesky with eigenvalue flooring by hand, which is not a good use of the
+effort.
+
+MISSING DERIVATIVES: `gr = NULL` gets a finite-difference gradient, and `he`
+likewise, following the toolkit's rule everywhere else -- a fallback exists, it
+is honest about being one, and it never nests more than one differentiation.
+The result records which derivatives were supplied and which were differenced,
+the way check_link() now reports which orders are numerical.
+
+
+--------------------------------------------------------------------------------
+5. THE RESULT
+--------------------------------------------------------------------------------
+
+S7 class `optimizer_result`, modelled on distrib_fit:
+
+    par             the minimiser
+    value           the objective there
+    gradient        the gradient there (NULL if never computed)
+    counts          evaluations of f, grad, hessian
+    iterations
+    converged       logical
+    criterion_met   which criterion fired, or "maxit", or "failed"
+    message         human-readable
+    trace           data frame of the path, when keep_trace = TRUE:
+                    iteration, objective, the quantity the criterion watches,
+                    the accepted step length, and a factor column naming the
+                    safeguard that fired at that iteration (none, hessian
+                    modified, bfgs update skipped, step halved, objective
+                    non-finite, mesh shrunk). plot() marks those iterations and
+                    summary() counts them.
+    optimizer       the object that produced it, kept for reproducibility
+    elapsed         seconds
+
+with print(), summary() and plot() methods. plot() draws the objective against
+iteration and, for two-parameter problems, the path over a contour -- which is
+the single most useful thing when an optimiser misbehaves.
+
+`converged` must never be TRUE merely because maxit was reached. This sounds
+obvious and is the most common bug in hand-written loops.
+
+
+--------------------------------------------------------------------------------
+6. THE ALGORITHMS
+--------------------------------------------------------------------------------
+
+Phase 1 -- smooth, derivative-based:
+
+  newton()    Newton-Raphson with a modified Hessian.
+              Safeguards: Cholesky attempt; on failure, eigenvalue flooring
+              (replace eigenvalues below delta by delta) or Levenberg-style
+              ridge (H + lambda I, lambda increased until PD). Line search on
+              top. Falls back to the steepest-descent direction if the modified
+              Hessian still gives an ascent direction.
+
+  bfgs()      BFGS with the inverse-Hessian update held directly.
+              Safeguards: skip the update when the curvature condition
+              s'y > eps * ||s|| ||y|| fails, rather than corrupting the matrix;
+              restart to the identity after a set number of skips.
+
+  lbfgs()     limited-memory BFGS, `memory` pairs (default 10). Two-loop
+              recursion. Same curvature guard.
+
+  adam()      see section 7.
+
+Phase 2 -- derivative-free and non-smooth. See section 6b: this is not a
+lesser tier, it is a different problem, and Nelder-Mead alone is not an answer
+to it.
+
+  nelder_mead()   the standard reflect/expand/contract/shrink, with a restart
+                  when the simplex degenerates.
+  compass()       pattern search in the MADS spirit: the robust black-box
+                  workhorse for non-smooth objectives.
+  bundle()        bundle method for convex non-smooth problems, when a
+                  subgradient can be supplied.
+
+Phase 3 -- global / non-convex:
+
+  sim_anneal()    simulated annealing.
+  cmaes()         CMA-ES -- the strongest general-purpose choice for non-convex
+                  black-box problems, and considerably more work than the rest.
+
+Every algorithm, without exception:
+  - honours criterion, maxit, max_eval, verbose, refresh, keep_trace;
+  - rejects a non-finite objective or gradient by refusing the step rather than
+    propagating NaN (this is the single most valuable safeguard in practice);
+  - guarantees monotone descent where the method admits it (all of phase 1 with
+    line search), and says in its documentation when it does not (Adam).
+
+LINE SEARCH: shared machinery, not per-algorithm. Backtracking with the Armijo
+condition as the default; strong Wolfe available, and needed if BFGS is to keep
+its curvature guarantee. Written once in C++ and used by newton, bfgs, lbfgs.
+
+
+--------------------------------------------------------------------------------
+6b. NON-DIFFERENTIABLE OBJECTIVES
+--------------------------------------------------------------------------------
+
+Raised 2026-07-30 and treated as a requirement, not an extra. The motivating
+case is the one distributions7 already documents: the location of a Laplace,
+where the objective is sum |y_i - mu|. It is convex, piecewise smooth, and has
+kinks at every observation. Every second-order method above assumes a derivative
+that does not exist there.
+
+WHY NELDER-MEAD IS NOT SUFFICIENT ON ITS OWN
+
+Not merely slow: it can be wrong. McKinnon's counterexample is a function --
+convex, well behaved -- on which the standard Nelder-Mead iteration converges to
+a point that is NOT a stationary point. The simplex collapses along a direction
+and the method stops improving while the true minimum is elsewhere. That result
+is the reason "an alternative to Nelder-Mead" is a correctness requirement and
+not a preference, and the documentation should cite it rather than implying
+Nelder-Mead is simply the slow option.
+
+TWO METHODS, COVERING DIFFERENT SITUATIONS
+
+  compass() -- pattern search, MADS.
+      Evaluates the objective on a mesh of directions around the current point,
+      accepts an improvement, shrinks the mesh when none is found. No
+      derivatives, no model of the function, no simplex to collapse. Under mild
+      conditions it converges to a Clarke stationary point even when the
+      objective is non-smooth, which is exactly the guarantee Nelder-Mead lacks.
+      Slower than a gradient method by a wide margin; that is the price of
+      assuming nothing.
+      Poll directions are drawn in the MADS manner by default, since the
+      asymptotic density of the direction set is what the convergence result
+      rests on; a fixed coordinate pattern is available as an argument. See Q7.
+      This is the default recommendation for a black-box non-smooth objective.
+
+  bundle() -- bundle method, for convex non-smooth problems.
+      Needs a subgradient oracle: at each point, ANY element of the
+      subdifferential. For sum |y_i - mu| that is sum sign(y_i - mu), which the
+      user can write in one line, and at a kink any value in [-1, 1] will do.
+      The method accumulates past subgradients into a piecewise-linear model of
+      the objective and minimises that plus a proximal term, which is what makes
+      it converge properly where the plain subgradient method merely wanders.
+      On a piecewise-linear objective like the Laplace's it is dramatically
+      faster than any derivative-free search, because it exploits precisely the
+      structure that defeats the smooth methods.
+
+WHAT IS DELIBERATELY NOT INCLUDED
+
+  - the plain subgradient method. It has no descent guarantee, needs a
+    hand-tuned diminishing step schedule, and disappoints in practice. Shipping
+    it alone would be offering a method we would then advise against.
+  - proximal gradient / ISTA. It needs the smooth-plus-nonsmooth split and a
+    prox operator, so it is not black-box; it belongs to whichever layer knows
+    the penalty. Revisit if penalties7 wants it.
+
+A NOTE ON THE CONVERGENCE CRITERIA
+
+crit_grad() is meaningless without a gradient, so the non-smooth methods must
+reject it rather than accept it and never fire. Their natural criteria are the
+mesh size (compass) and the predicted decrease of the bundle model, so each
+gets an appropriate default and refuses criteria it cannot evaluate. This is the
+same discipline as check_link() refusing to report a numerical order as passed:
+an inapplicable check must say so rather than pass vacuously.
+
+
+--------------------------------------------------------------------------------
+7. ADAM HAS A DIFFERENT CONTRACT, AND THE DOCS MUST SAY SO
+--------------------------------------------------------------------------------
+
+Adam is a stochastic-gradient method. On a deterministic smooth objective it is
+almost always worse than BFGS: it does not converge in the same sense, it has no
+line search, it does not produce monotone descent, and its "convergence" is a
+budget of iterations rather than a tolerance being met.
+
+It is worth including, because minibatch problems are exactly where the other
+methods cannot go. But its contract differs and pretending otherwise would
+mislead:
+  - default criterion is an iteration budget, not crit_grad;
+  - the result's `converged` field means "the budget was spent without
+    diverging", and the message says so;
+  - the documentation states plainly when to prefer BFGS.
+
+Same discipline as the note distributions7 carries about the Laplace: when an
+object does not satisfy the usual contract, say which one it does satisfy.
+
+THE resample ARGUMENT
+
+    adam(resample = 1, ...)      resample in (0, 1]
+
+resample = 1, the default, is full-sample Adam: no subsampling at all, and the
+method is used purely for its per-coordinate adaptive step sizes, which is a
+perfectly reasonable thing to want on a badly scaled deterministic objective.
+
+resample < 1 draws that fraction of the terms at each iteration, and REQUIRES a
+finite_sum() objective (section 4) -- a black-box function has no terms to draw
+from, and the error message says exactly that rather than failing obscurely.
+
+Details that decide whether the output is honest:
+  - the criterion may not be objective-based when resample < 1, since successive
+    values differ by sampling noise as much as by progress. The constructor
+    refuses such a criterion rather than letting it fire at random.
+  - the value reported at the end is recomputed on the full sample.
+  - the subsample is drawn with R's RNG so that set.seed() governs it, and the
+    result records the seed state, or a run cannot be reproduced.
+  - resample must give at least one term: ceiling(resample * n) >= 1.
+
+
+--------------------------------------------------------------------------------
+8. VERBOSE, REFRESH, TRACE
+--------------------------------------------------------------------------------
+
+    verbose = FALSE     nothing
+    verbose = TRUE      a header, then one line every `refresh` iterations,
+                        then a final summary
+    refresh = k         k iterations between reports; refresh = 0 means only
+                        the final summary
+
+The line shows: iteration, objective, the quantity the criterion is watching
+(gradient norm, relative change), the step length accepted by the line search,
+and any safeguard that fired (Hessian modified, BFGS update skipped, step
+halved). That last column is what turns "it did not converge" into a diagnosis.
+
+Printing from C++ must go through Rcpp::Rcout, never printf, or it will not
+interleave correctly with R's output and will be invisible in some front ends.
+Check R_CheckUserInterrupt() on every iteration so a long run stays killable --
+a C++ loop that ignores interrupts is a hung session.
+
+
+--------------------------------------------------------------------------------
+9. WHAT STATMODELS7 WILL ADD ON TOP
+--------------------------------------------------------------------------------
+
+Recorded here so the boundary stays clear and nothing drifts back down:
+
+  - IWLS and Fisher scoring: they need X, the working response and the weights.
+    statmodels7 will define them, and may express them in terms of optimizers7's
+    line search and convergence criteria, which are the reusable parts.
+  - the link-scale reparametrisation: linkfunctions7 already does it; the model
+    layer composes the two Jacobians.
+  - anything about standard errors, intervals, or the delta method: that is
+    inference, not optimisation.
+
+
+--------------------------------------------------------------------------------
+10. VALIDATION
+--------------------------------------------------------------------------------
+
+check_optimizer(), the third of its family after check_link() and
+check_distrib(), and the one that makes a user-written optimiser a first-class
+citizen.
+
+It runs the optimizer against a battery of test functions with known minima and
+reports, per function: whether the reported minimiser is within tolerance of the
+true one, whether the reported value matches the objective at the reported
+minimiser (a surprisingly common inconsistency), whether counts are consistent
+with the trace, and whether `converged` is honest.
+
+Battery: sphere (trivial), Rosenbrock (curved valley), Beale, Himmelblau (four
+minima -- checks that it finds *a* minimum, not *the* minimum), Booth, Powell
+(4-d, singular Hessian at the solution -- the one that breaks naive Newton), and
+Rastrigin (many local minima -- expected to fail for local methods, which is the
+point: the check records what a method is *for*).
+
+Testing strategy, following what the other two packages learned the hard way:
+  - assert on accuracy, not merely on "it returned something finite". The
+    factor-of-900 bug in linkfunctions7 was legible only because the tests
+    asserted on error size.
+  - test the safeguards by constructing objectives that trigger them: an
+    indefinite Hessian, a gradient that returns NaN at a particular point, an
+    objective that is Inf outside a region.
+  - test that verbose output appears at the right iterations, since refresh is
+    easy to get off by one.
+  - randomise starting points rather than fixing one, and set a seed.
+
+
+--------------------------------------------------------------------------------
+11. DOCUMENTATION AND THE BOOK
+--------------------------------------------------------------------------------
+
+Same standard as the other two, which is now the toolkit's standard:
+  - every object documented, exported or not, with @keywords internal and
+    without @noRd for the internals;
+  - \value on every exported topic and an executable example on every exported
+    function, both being what CRAN asks for and R CMD check does not enforce;
+  - a pkgdown site with an "Internals" section;
+  - README, vignettes, CI matrix from day one (a workflow added in a push does
+    not run on that push -- keep workflow_dispatch).
+
+The book gains a chapter, per the structure fixed on 2026-07-30: one chapter per
+package. `4 The optimizers7 package`, with sections along the lines of what an
+optimiser is as an object, descent and line search, the second-order methods,
+convergence criteria, derivative-free methods, and validation. It ends with the
+hidden assert_optimizers_ok() gate like the others.
+
+
+--------------------------------------------------------------------------------
+12. DECISIONS TAKEN, AND WHAT REMAINS OPEN
+--------------------------------------------------------------------------------
+
+Settled 2026-07-30:
+
+  Q1  RcppArmadillo. SETTLED: yes. Cholesky, eigen-decomposition and solve come
+      for free, and a hand-written safeguarded Cholesky with eigenvalue flooring
+      is not a good use of the effort.
+
+  Q2  Which phases. SETTLED: build all of them. Phases stay as an ORDER OF WORK
+      (section 13), not as a scope boundary.
+
+  Q3  Box constraints. SETTLED: supported, by reparametrisation through
+      linkfunctions7's bounded_link(). See section 3b, including the limitation
+      that an optimum on a bound is unreachable this way.
+
+  Q4  A `hessian` argument on methods that ignore it. SETTLED: accept it in the
+      generic and let methods ignore it, so calling code never branches.
+
+  Q5  Multi-start. SETTLED: a wrapper, multistart(optimizer, n, ...), which is
+      itself an optimizer and therefore composes -- the precedent being
+      zero_inflated() wrapping a distribution in distributions7.
+
+  Q6  Parallelism. SETTLED: yes for multistart, no for finite-difference
+      gradients.
+
+      One hard constraint to design around: R IS SINGLE-THREADED AND CANNOT BE
+      CALLED FROM MULTIPLE THREADS. An OpenMP or RcppParallel loop that calls an
+      R closure is undefined behaviour and will eventually crash, not error. So:
+        - multistart over a C++ objective may be parallelised in C++;
+        - multistart over an R objective must be parallelised in R (parallel,
+          future) at the level of whole runs, or not at all;
+        - the implementation must therefore ask the objective handle whether it
+          is callback-free before choosing the parallel path.
+      This is also the second reason not to parallelise finite differences: the
+      first is that the gain is small, the second is that with an R objective it
+      is not permitted at all.
+
+  Q7  compass() direction generation. SETTLED: MADS random directions, with the
+      strategy behind an argument.
+
+          compass(directions = c("mads", "coordinate"), ...)
+
+      "mads" is the default, because the reason for choosing it is precisely the
+      convergence theory that the fixed pattern lacks: directions drawn so that
+      the set of poll directions is asymptotically dense in the unit sphere is
+      what buys convergence to a Clarke stationary point on a non-smooth
+      objective. "coordinate" stays available as the cheap deterministic
+      alternative, and is the better choice when the objective is separable or
+      when a reproducible poll order matters more than the guarantee.
+
+      Consequence: compass() draws random numbers, so it must use R's RNG,
+      respect set.seed(), and record the seed state in the result -- the same
+      requirement Adam's resampling carries, and for the same reason. A
+      derivative-free method that cannot be reproduced is very hard to debug.
+
+  Q8  bundle()'s subgradient. SETTLED: pass it as `gr`, and document what the
+      argument means for this method. The signature is identical to every other
+      gradient-using method and only the interpretation changes -- `gr` may
+      return ANY element of the subdifferential, and at a kink any choice is
+      admissible -- so a separate objective class would be ceremony around a
+      distinction that is purely semantic.
+
+      The documentation must say this explicitly rather than leaving it to be
+      inferred, since a user who supplies a "gradient" that is undefined at some
+      points is doing something that would be an error for newton() and is
+      correct here.
+
+  Q9  Trace records the safeguards. SETTLED: yes. The trace gains a column
+      naming whichever guard fired at that iteration -- Hessian modified, BFGS
+      update skipped, step halved, non-finite objective rejected, mesh shrunk --
+      as a factor, so that plot() can mark those iterations and summary() can
+      count them. It costs nothing and it is what turns "it did not converge"
+      into a diagnosis; see section 8, where the same information is what the
+      verbose line reports as it happens.
+
+All planning questions are now settled. Nothing in this document is awaiting a
+decision; what follows is the order of work.
+
+
+--------------------------------------------------------------------------------
+13. SUGGESTED ORDER OF WORK
+--------------------------------------------------------------------------------
+
+  1. Skeleton: DESCRIPTION, S7 classes, the Objective interface in C++, the
+     R/C++ bridge, and minimize() carrying a single trivial algorithm (gradient
+     descent with a fixed step) end to end. All three objective kinds wired up,
+     including finite_sum(), even though only Adam will use the third -- getting
+     that into the frame now is cheaper than retrofitting it.
+     [DONE 2026-07-30. R CMD check clean, 94 tests. The frame cost four defects
+     to find, all recorded in the commit; the instructive one is that accepting
+     a step on f_new <= f rather than on sufficient decrease lets a reflection
+     through the minimum pass, after which the run reports convergence at a
+     point that is not a minimum.]
+  2. criterion classes and crit_met(), with tests.  [DONE 2026-07-30]
+  3. Line search in C++ (Armijo, then strong Wolfe), tested against known
+     functions.  [DONE 2026-07-30, with steps 1 and 2. It is an S7 object at the
+     R level like criterion, since its constants are worth exposing and a new
+     kind should be addable. Measured on Rosenbrock: Armijo uses exactly two
+     gradients per iteration, Wolfe slightly more and 14% fewer iterations, for
+     0.86 of the total work.]
+  4. newton, bfgs, lbfgs.  [DONE 2026-07-31. All three run through one shared
+     descent loop built on a Direction abstraction; gradient descent became a
+     Direction too and its own driver was deleted. Unifying the loop halved the
+     gradient count, the gradient at the accepted point now serving both the
+     stopping rule and the next direction. Rosenbrock from (-1.2, 1): gradient
+     descent 19384 iterations, Newton 21, BFGS 33, L-BFGS 35.]
+  5. Box bounds by reparametrisation (section 3b), which needs only h' and h''
+     from linkfunctions7 and touches every algorithm above uniformly.
+     [DONE 2026-07-31, with ONE DEVIATION from section 3b. The transform is
+     applied on every objective evaluation, so calling linkfunctions7 through R
+     for it would put a callback exactly where a compiled objective exists to
+     keep clear -- the measured 1.63x would be handed straight back. The four
+     transforms are written out in C++ instead, and the test suite asserts they
+     agree with linkinv/dlinkinv/d2linkinv of the corresponding bounded_link()
+     to 1e-12 on every run. linkfunctions7 is therefore a Suggests, the
+     reference the copy is held against, not a runtime Imports. Section 0 above
+     still says Imports and is superseded by this note.]
+  6. adam, with resample and the finite_sum path.
+     [DONE 2026-07-31. Two things the plan did not anticipate, both kept.
+     (a) Adam does not fit the shared descent loop -- no line search, no
+     monotone descent, and it draws its own gradient -- so it has its own loop
+     in src/adam.cpp, with the criterion call and the trace factored into
+     src/loop_support.h and descent.cpp moved onto them.
+     (b) Section 7 said the default criterion should be a budget rather than
+     crit_grad. That is now an object, crit_never(), and the refusal is
+     mechanical: the two objective criteria declare crit_needs = "objective",
+     the default optimizer_provides returns gradient AND objective, and Adam
+     with resample < 1 returns character(), so every rule reading a noisy
+     quantity is refused by name through the machinery that already existed.
+     Measured against bfgs on a logistic regression, n = 20000, p = 5: bfgs
+     0.08s and exact; adam full-sample 2.27s to the same value; resample 0.05
+     0.31s and 4.5 above the optimum; resample 0.01 0.10s and 12.7 above.
+     ?adam says so and points at bfgs.]
+  7. nelder_mead, compass, bundle.
+     [DONE 2026-07-31. One addition the plan did not have: none of the three can
+     use crit_grad(), since at the minimum of |x| the subgradient is +-1 and the
+     rule would never fire while sitting on the answer. So crit_stationary() was
+     added, reading a state component each method fills with its own measure --
+     simplex diameter, poll size, predicted decrease -- and all three declare
+     optimizer_provides = c("objective", "stationarity"), so a gradient rule is
+     refused by name. The trace shows a `stationarity` column instead of
+     `gnorm` for these methods and only for these methods.
+     nelder_mead carries the McKinnon safeguard: degeneracy is detected in the
+     SHAPE of the simplex (|det E| over the product of edge lengths), because
+     nothing in the values is wrong when it fails. Tests reproduce the failure
+     before the rescue -- max_restarts = 0 gives converged = TRUE at (0,0) with
+     value 0, max_restarts = 3 gives (0,-1/2) and -1/4 after one rebuild.
+     compass random polling is a fresh random orthonormal basis per poll, which
+     has the density property MADS's proof needs; it is not LTMADS verbatim and
+     the documentation says so. Measured on a diagonal kink: coordinate poll
+     stalls at 0.05, random reaches 0.0069, bundle reaches 5e-8.
+     THIS STEP FOUND A DEFECT IN STEP 5. Two bounded runs returned a parameter
+     exactly ON its bound: plogis is exactly 1 above eta = 37, and lwr+exp(eta)
+     overflows past 710. The gradient methods stall long before eta = 40, so the
+     guard had only ever been exercised where it did not bind. Fixed by clamping
+     to the adjacent representable double and to the largest finite one.
+     linkfunctions7's bounded_link() has the same bug and is left for its own
+     commit -- distributions7 validates against OPEN intervals, so it can be
+     handed a value its own validator would reject.]
+  8. multistart(), including the callback-free check that decides whether it may
+     go parallel.
+     [DONE 2026-07-31. THE CALLBACK-FREE CHECK DOES NOT EXIST, because Q6's
+     premise is false: there is no callback-free path to detect. The stopping
+     rule is an R object consulted every iteration -- the package's central
+     feature -- so a cpp_objective does not make a run callback-free and C++
+     threading is never available. Parallelism is therefore at the level of
+     processes, via a user-supplied parallel cluster, which works for EVERY
+     objective rather than only compiled ones. Measured: 24 slow starts, 46.17s
+     sequential against 11.55s on four workers, 4.00x. The recorded seed
+     reproduces a sequential run only; the workers' streams are invisible to the
+     master, and the documentation says so rather than implying otherwise.
+     The valuable output is the count of distinct optima, which goes in the
+     message. Starts are a Latin hypercube on the UNCONSTRAINED scale, so bounds
+     cost nothing and no draw is ever rejected. A failed start is recorded and
+     the rest continue; only all of them failing is an error.
+     Two things from step 7 corrected here rather than left: compass now uses
+     Q7's settled name and default ("mads", default), which step 7 had changed
+     without flagging; and Q7's requirement that a stochastic method record its
+     seed is met by a new `seed` property on optimizer_result, filled by the
+     three methods that draw. Captured WITHOUT set.seed(NULL), which reseeds
+     from the clock -- the distributions7 defect.]
+  9. check_optimizer() and the test battery.
+     [DONE 2026-07-31. The design point: THE CHECKS TEST THE CONTRACT, THE
+     BATTERY REPORTS THE POWER, reported separately. Conflating them would make
+     the function useless -- gradient descent does not solve Rosenbrock in 500
+     iterations and is not broken. Twelve numbered checks every optimiser must
+     pass however weak; a table of gaps underneath as information. Six injected
+     liars, each caught by its own check, paired with an honest optimiser of the
+     same shape that passes.
+     IT FOUND TWO REAL DEFECTS IN bundle() IMMEDIATELY.
+     (a) t0 was a bare multiplier, so the first step was as long as the gradient
+     was big: 0 serious steps in 3000 iterations on rosenbrock, beale and
+     powell, aggregate subgradient at 1e196. t0 is now a STEP LENGTH, divided by
+     |g0|, the same normalisation a line search does. rosenbrock 2e+01 -> 1e-09.
+     Note this failed no CHECK -- bundle did not lie, it merely did not work --
+     which is precisely the case for reporting contract and power separately.
+     (b) Worse: the stationarity measure was -v = t||p||^2 + alpha, which
+     carries a factor of t, and t halves at every null step. It could be driven
+     under any tolerance BY t SHRINKING rather than by stationarity, giving a
+     silent converged = TRUE after zero serious and zero null steps. Replaced by
+     the standard optimality estimate ||p||^2 + alpha. -v keeps the descent test.
+     Two further guards, both reached by tests rather than assumed: an
+     overflowing subgradient ends the run with a diagnosis, and reaching t_min
+     while still being refused stops (t_min is the limit of the only control
+     left, so no chosen constant is needed).
+     test_problems() is exported; its own solutions and gradients are tested
+     against a central difference at a point that is NOT the solution.
+     TOOLCHAIN NOTE: run Rcpp::compileAttributes() BEFORE roxygen2::roxygenise()
+     after adding a .cpp. Running roxygenise alone dropped RcppExports.R from
+     the Collate field, and the package then failed to install with "files ...
+     missing from 'Collate'", which points nowhere near the cause.]
+ 10. Documentation, README, pkgdown, CI.
+     [DONE 2026-07-31. Plus one vignette, extending-optimizers7.
+     TWO FINDINGS WORTH KEEPING.
+     (a) SEVEN MAN PAGES EXISTED ON LINUX AND NOT HERE. A page's file name comes
+     from its topic, and on a case-INSENSITIVE filesystem Adam.Rd and adam.Rd
+     are one file, so roxygen wrote both and the second replaced the first. ?Adam
+     gave the constructor's page and the built package differed by platform;
+     R CMD check passed throughout. Classes now live at X-class with the plain
+     name as an alias, applied to all nine optimiser classes so a future
+     single-word algorithm cannot reintroduce it. The collision bit AGAIN during
+     the repair: roxygen deleted Adam.Rd as obsolete, which here is adam.Rd.
+     The fix is not what prevents recurrence -- tests/testthat/test-docs.R is. It
+     asks which namespace object has no help topic, on the machine where the
+     evidence is destroyed.
+     (b) THE EXTENSION STORY WAS NOT TRUE. Writing the vignette showed that a
+     user CANNOT write a conforming optimiser: honouring `bounds` needs the
+     reparametrisation and refusing an unevaluable criterion needs the
+     crit_needs/optimizer_provides comparison, and all of it was internal. So
+     check_criterion() was factored out of prepare_objective() and exported,
+     optimizer_provides() was exported (a derivative-free method of one's own
+     MUST override it), and bounded_transform()/bounded_forward() were promoted
+     from test helpers to the documented way to remove a box from R. The
+     vignette shows the naive method failing those two checks and then passing.
+     Also: the vignette disproved a claim I had written in it -- Barzilai-Borwein
+     described as "not fast" solves a quadratic in two iterations. Corrected.
+     TOOLCHAIN: pkgdown::check_pkgdown() and devtools::build_readme() both need
+     pandoc on PATH; prefix with
+     $env:RSTUDIO_PANDOC="C:\Users\giova\AppData\Local\Programs\Quarto\bin\tools".
+     STILL TO DO BY HAND: the GitHub repository statmodels7/optimizers7 does not
+     exist, so --as-cran reports two NOTEs for 404 URLs and no workflow has ever
+     run. Creating it and the first push are Giovanni's to make.]
+ 11. The book chapter.
+     [DONE 2026-07-31. Chapter 4, "The optimizers7 package", four sections in
+     the established shape: one .qmd wrapper pulling in _04a..._04d with
+     {{< include >}}, so Quarto numbers them 4.1-4.4.
+       4.1 descent directions, Armijo and Wolfe, Zoutendijk's theorem with proof
+       4.2 Newton and the two Hessian repairs, the secant equation, BFGS with a
+           proof that it is symmetric positive definite, the two-loop recursion
+       4.3 the subdifferential, Fermat's rule, why a descent method arrives at
+           the median and reports failure, the cutting-plane model, the bundle
+           subproblem and its dual with proof, positive spanning sets
+       4.4 the box reparameterisation's diagonal chain rule, Adam's bias
+           correction and why it is not a descent method
+     R/optimizer-certificates.R holds assert_optimizers_ok(), six checks, each
+     against a route the chapter does not use. Injection-tested: a wrong sign in
+     the printed upper-bound transform, a 5% error in the lower one, and a
+     mis-scaled two-loop recursion are all caught and would kill the build.
+     THREE CLAIMS IN THE PROSE WERE DISPROVED BY THE NUMBERS AND CORRECTED.
+     (a) A table of skipped BFGS updates was going to contrast the two line
+     searches. Neither skips ANY, on any smooth problem in the collection nor on
+     a deliberately non-convex one. The table was dropped and the text now says
+     the Wolfe guarantee removes the possibility rather than a frequent
+     nuisance -- a table of zeros proves nothing.
+     (b) I wrote that a Wolfe search costs "barely more"; measured, 1.36
+     gradients per iteration against 1.03. Restated with the actual trade, which
+     is partly repaid by needing fewer iterations.
+     (c) I wrote that the bundle method solves the diagonal kink and the others
+     do not. NELDER-MEAD SOLVES IT BEST (9e-17 against bundle's 8e-09), because
+     a simplex is not a poll: it deforms and aligns itself with the ridge. The
+     paragraph was rewritten to say so, and to make the real case for the bundle
+     method -- a theorem, and a seventh of the evaluations.
+     Also corrected: the printed formula for the upper-bounded transform said
+     U - exp(-eta) where the package computes U - exp(eta). The gate now
+     transcribes all three printed cases by hand and compares them, which is
+     what caught it; comparing h' against a numerical h' would only have
+     confirmed the package against itself.
+     TOOLCHAIN: `quarto render` must be run from POWERSHELL, not Git Bash. The
+     BOM-only C:\Users\giova\.Rprofile makes every R launched from bash fail at
+     "1:1: unexpected input", and Quarto reports it as "Problem with running R
+     ... Please check your installation of R", which points nowhere near the
+     cause. Prefix with $env:PATH="C:\Program Files\R\R-4.6.0\bin;$env:PATH".]
+
+Step 1 is the one to get right and the one to review hardest: everything after
+it is an algorithm slotted into a frame that either works or does not. Step 5 is
+placed after the second-order methods on purpose -- the chain rule for the
+Hessian is only exercised once there is a method that uses a Hessian.
+
+================================================================================

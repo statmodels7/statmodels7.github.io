@@ -9,6 +9,10 @@ cp ../CLAUDE.md            stack/CLAUDE.md
 cp ../logo/make-logos.R    stack/make-logos.R
 cp ../logo/statmodels7.svg logo/statmodels7.svg
 
+# The package plans are decision records drafted before any code exists, so
+# the umbrella directory is the only place they live; carry them like CLAUDE.md.
+cp ../piano_*.txt          stack/
+
 # The book: source under stack/book (so it is versioned), rendered HTML under
 # book/ (so GitHub Pages serves it at /book/). The render itself stays a manual
 # step -- `quarto render` in ../book -- because it executes R against the

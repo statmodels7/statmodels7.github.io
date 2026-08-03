@@ -1,0 +1,366 @@
+================================================================================
+                          basis7 -- PLAN
+          basis expansions as S7 objects, with exact derivatives,
+                    integrals and Gram matrices
+                        drafted 2026-08-03
+================================================================================
+
+Written in English like every other artifact of the toolkit (CLAUDE.md, the
+book, the commit messages), so that anything here can be lifted into package
+documentation or into the book without translation.
+
+Nothing in this file is code yet. It is the set of decisions to agree on before
+any is written, plus the ones deliberately left open. It starts from Giovanni's
+prototype of 2026-08-03 (fourier_basis / bspline_basis / orthonorm_basis /
+ldo / gpf as S3 lists of closures), whose review is folded in below.
+
+
+--------------------------------------------------------------------------------
+0. WHAT IT IS, AND WHAT IT IS NOT
+--------------------------------------------------------------------------------
+
+basis7 is a *base* package of the toolkit, in the same sense as linkfunctions7:
+it knows nothing about models, nothing about penalties, nothing about data. It
+provides basis expansions -- B-splines, Fourier, orthogonal polynomials -- as S7
+objects that can be evaluated, differentiated and integrated, and that know
+their own inner products.
+
+    depends on:      S7, splines2 (see 6a)
+    depended on by:  penalties7   (consumes basis_gram for integral penalties)
+                     modelterms7  (a term = basis + penalty + data mapping)
+                     statmodels7  (through the above)
+
+The positioning argument is the standard one, and it holds here with unusual
+force. Every R package that fits smooth terms carries its own basis code:
+mgcv's smooth constructors, gamlss's pb(), fda's create.*.basis, each private,
+each exposing exactly what its author needed. A cubic B-spline is a fixed
+mathematical object. It should be written once, correctly, with everything a
+modelling routine could want already computed -- the design matrix, every
+derivative, the antiderivative, and the Gram matrices of its derivatives, which
+is what a smoothness penalty integrates. Nobody else's basis objects carry the
+inner products; this one does, exactly.
+
+What basis7 is NOT:
+
+  - It is not the penalty layer. The Gram matrix G_d = int B^(d) B^(d)' dx is
+    basis mathematics (an inner product) and lives here; a *penalty* -- which
+    matrix a term is shrunk by, the discrete difference penalties D'D of
+    Eilers-Marx that need no integral at all, the smoothing-parameter machinery
+    -- is model semantics and lives in penalties7. penalties7 will consume
+    basis_gram for O'Sullivan-type integral penalties. This settles the
+    prototype's ldo()/gpf() question: the mathematics stays, renamed to what it
+    is (a weighted Gram matrix), and nothing here is called a penalty.
+
+  - It is not the identifiability layer. Bases here are COMPLETE (a B-spline
+    basis carries all K functions and sums to one). Dropping a column, or
+    imposing a sum-to-zero constraint, is a per-term model decision and belongs
+    to modelterms7, where mgcv also puts it. Consequence: no `intercept`
+    argument anywhere (see 6b).
+
+  - It is not multivariate, in v1. Tensor-product bases are a wrapper (a
+    Kronecker product of everything, including the Gram matrices) and the
+    design does not preclude them; they wait for modelterms7 to say what shape
+    it wants. See section 9.
+
+
+--------------------------------------------------------------------------------
+1. REVIEW OF THE PROTOTYPE -- what carries over, what gets fixed
+--------------------------------------------------------------------------------
+
+Three ideas carry over unchanged in substance:
+
+  (a) The Fourier phase-shift evaluator. With z = 2*pi*(x - lower)/omega, the
+      d-th derivative of every column is sin(j z + d*pi/2) * (2*pi*j/omega)^d,
+      one formula for all orders, exact, and valid for d = -1 as the
+      antiderivative. This is the closed form the package ships.
+
+  (b) The orthonormalisation WRAPPER. An object that wraps a parent basis and
+      transforms evaluation, derivatives and integrals consistently is the
+      transformation() pattern from distributions7, and it is the right shape.
+      Only its implementation changes (see (d)).
+
+  (c) The plot method: base / derivative / antiderivative panels, y-labels as
+      expressions. Ported to S7 essentially as is.
+
+Four things get fixed in the port:
+
+  (d) orthonorm via the exact Gram matrix, not via QR on a grid. The prototype
+      evaluates the basis on npoints grid points, takes qr.R, and corrects by
+      sqrt(npoints/(upper-lower)) -- that scale factor is the tell that the
+      grid is approximating what the Gram matrix gives exactly. With
+      G = int B B' dx = L L' (Cholesky), the basis B L^{-T} is orthonormal in
+      L2([lower, upper]) exactly, grid-free, with no npoints argument and no
+      scale factor. Derivatives and integrals transform by the same L^{-T},
+      since the map is linear.
+
+  (e) The integral CONVENTION, a real defect found reviewing the formulas.
+      basis_int must return the definite integral from `lower` to x, which is
+      zero at x = lower -- this is what splines2 returns for B-splines. The
+      prototype's Fourier d = -1 returns AN antiderivative instead: at
+      x = lower the sine columns are -omega/(2*pi*j) and the intercept column
+      is `lower`, while the cosine columns happen to be 0. Half the columns
+      follow one convention and half the other, invisible in the prototype's
+      tests because lower = 0 there. Fix: subtract the value at `lower`. The
+      convention becomes a permanent check in check_basis() (section 5).
+
+  (f) The Fourier constructor REFUSES an odd number of trigonometric columns
+      instead of silently growing `dimension` by one with a warning. The
+      constructor is the only place an inconsistency can be caught, and an
+      error is worth more than a plausible number. (fda auto-adjusts; we
+      don't.)
+
+  (g) gpf's Riemann sum becomes exact integration. For a spline of degree k,
+      the integrand of G_d is piecewise polynomial of degree 2(k-d), so
+      Gauss-Legendre per knot interval is EXACT with ceiling((2(k-d)+1)/2)
+      nodes. For Fourier, G_d is closed form by orthogonality of the
+      trigonometric system (diagonal, up to the constant column). The
+      quadrature version survives only as the numerical fallback for
+      user-defined bases.
+
+
+--------------------------------------------------------------------------------
+2. THE OBJECT MODEL
+--------------------------------------------------------------------------------
+
+One abstract S7 class:
+
+    basis
+      properties:
+        basis_name    character
+        dimension     integer            number of columns, K
+        lower, upper  numeric            the interval the basis lives on
+        basis_params  list               whatever the subclass needs
+
+Subclasses, one per family, named CamelCase like the distribution classes
+(BsplineBasis, FourierBasis, PolyBasis, OrthonormBasis), with lowercase
+constructors (bspline_basis(), fourier_basis(), poly_basis(),
+orthonorm_basis()). Note the Windows Rd trap does NOT bite here --
+BsplineBasis.Rd and bspline_basis.Rd differ by the underscore, not only by
+case -- but the classes get documented at X-class with @aliases from day one
+anyway, and test-docs.R asks "which object in the namespace has no help
+topic", both habits copied from optimizers7 (CLAUDE.md, Documentation build).
+
+OrthonormBasis is a wrapper: it holds the parent basis and the fixed matrix
+T = L^{-T}; every method delegates to the parent and multiplies. Same
+composition rules as the distributions7 wrappers: orthonormalising twice is a
+no-op and the constructor collapses it.
+
+
+--------------------------------------------------------------------------------
+3. THE GENERICS
+--------------------------------------------------------------------------------
+
+Four core generics. Derivative order is an ARGUMENT, not a family of generics
+as in linkfunctions7: there the orders stop at four and the double dispatch
+was worth removing in hot paths; here the order is unbounded for analytic
+bases and the design matrix call is not a per-observation hot path.
+
+    basis_eval(basis, x)                  n x K design matrix
+    basis_deriv(basis, x, order = 1)      order >= 1; order > degree gives the
+                                          zero matrix, documented, not an error
+    basis_int(basis, x)                   int_lower^x B(t) dt; ZERO at x = lower
+    basis_gram(basis, order = 0)          G_d = int B^(d)(t) B^(d)(t)' dt, K x K
+
+plus print(), plot() (three panels as in the prototype), and check_basis().
+
+No magic order = -1: the antiderivative has its own generic, as in the
+prototype's own basis_int, and the -1 encoding stays an implementation detail
+inside the Fourier evaluator.
+
+The weighted Gram -- the prototype's gpf, i.e. the Gram of the differential
+operator L_w = sum_j w_j D^j -- comes with basis_gram(basis, w = c(...)) as an
+alternative to `order` once penalties7 asks for it; the scalar-order form is
+the special case w = e_{d+1} and ships in v1.
+
+Column names: "<basis_name><j>" (bs1, bs2, ..., sin1, cos1, ...), stable across
+eval/deriv/int, because modelterms7 will build coefficient names from them.
+
+Evaluation OUTSIDE [lower, upper] is an error in v1, symmetric with
+distributions7's open-interval validation. Extrapolation policies (linear
+continuation for P-splines a la mgcv) are a model-layer concern; revisit when
+modelterms7 needs prediction outside the training range. Recorded as an open
+item, not silently chosen.
+
+NA handling: NA in, NA row out, never dropped -- and mind the NA^0 = 1 trap
+recorded in CLAUDE.md: any column that reduces to a constant must propagate
+missingness explicitly.
+
+
+--------------------------------------------------------------------------------
+4. THE FALLBACK BARGAIN
+--------------------------------------------------------------------------------
+
+Identical to distributions7 and linkfunctions7: a user-defined basis
+implements ONLY basis_eval, and everything else works immediately.
+
+    basis_deriv   central finite differences, obeying the one-stencil rule
+                  that check_link() enforces next door: find the highest order
+                  m available analytically and apply ONE stencil of order
+                  k - m to it, never a chain of first differences. Steps
+                  shrink near lower/upper so no evaluation leaves the domain.
+    basis_int     cumulative Gauss-Legendre from `lower`, panel per requested
+                  point interval, so the x = lower convention holds by
+                  construction.
+    basis_gram    composite Gauss-Legendre on [lower, upper].
+
+Every closed form registered later takes over silently through S7 dispatch.
+The vignette ("defining-a-basis") walks through exactly this bargain with a
+basis the package does not ship -- and writing it is a test of the design,
+the lesson optimizers7 taught: if the vignette cannot be written with exported
+tools only, the package promised extensibility without supplying the parts.
+
+
+--------------------------------------------------------------------------------
+5. check_basis() -- the validator
+--------------------------------------------------------------------------------
+
+The checks, each of which already earned its place elsewhere in the toolkit:
+
+  1. shapes: every generic returns n x K (or K x K), with the declared column
+     names, for scalar and vector x.
+  2. derivative order k against ONE numerical differentiation of the analytic
+     order k-1 (never nested numDeriv; by order 3 a nested reference is
+     noise).
+  3. basis_int: differentiates back to basis_eval, and is exactly zero at
+     x = lower. This check exists because of defect 1(e).
+  4. partition of unity, where the subclass declares it (B-splines: rows of
+     basis_eval sum to 1).
+  5. basis_gram: symmetric, positive semidefinite, and within tolerance of an
+     independent quadrature -- independent meaning: if the method IS
+     quadrature, the reference uses a different rule, so the check is not the
+     same arithmetic twice (the cdf-derivative test-independence lesson).
+  6. OrthonormBasis: Gram = identity to machine precision.
+
+Test grids sit INSIDE the domain, deliberately, because numDeriv's Richardson
+stencil reaches ~8e-4*|x| and a grid point closer than that to a boundary gets
+differenced through points outside the domain. A separate test-extremes.R goes
+TO the boundaries -- evaluation at lower and upper exactly, knots at the
+boundary, degree-0 splines -- because that is where the defects live: 711
+passing interior tests hid both linkfunctions7 tail defects.
+
+Validator honesty, both injections from day one, paired so one cannot be
+satisfied by weakening the other:
+  - a WRONG method (derivative scaled by 1.05) must fail;
+  - a MISSING method must be reported as [numerical], never as a bare PASS --
+    the check_link() lesson, where an unimplemented derivative raised, left
+    NA, and the summary reduced over it with na.rm = TRUE.
+
+
+--------------------------------------------------------------------------------
+6. DECISIONS
+--------------------------------------------------------------------------------
+
+6a. splines2 as the B-spline engine: YES for v1. It is on CRAN, maintained,
+    and its derivatives and integrals are exact and already tested; the S7
+    interface hides it completely, so a native implementation (base R
+    splineDesign plus the de Boor identity for the integral) can replace it
+    later without any API change. It is the toolkit's first external
+    dependency beyond S7/Rcpp; rebuilding B-spline integrals by hand out of
+    pride is how one introduces the defects splines2 already fixed.
+
+6b. No `intercept` argument anywhere: bases are complete. Identifiability
+    constraints belong to modelterms7 (see section 0). One argument fewer in
+    every constructor, one branch fewer in every method, and partition of
+    unity stays checkable.
+
+6c. Naming. The toolkit convention is now simply "the name ends in 7, the 7
+    being S7" -- the plural-noun reading was dropped on 2026-08-03 (Giovanni:
+    basis7 is better than bases7). Portal, book chapter 1 and CLAUDE.md
+    updated the same day.
+
+6d. No Rcpp in v1. Basis evaluation is matrix algebra, splines2/splineDesign
+    are already compiled, and the 2026-07-31 measurement stands: assembly is
+    BLAS, compiled kernels pay only for irregular elementwise arithmetic.
+    Measure before adding any.
+
+6e. Fourier omega default = upper - lower (period equals the interval), as in
+    the prototype. An explicit omega is accepted and validated positive.
+
+6f. v1 bases: bspline_basis (splines2), fourier_basis (phase shift, integral
+    convention fixed), poly_basis (LEGENDRE by recurrence, shifted to
+    [lower, upper], not raw monomials -- raw powers are numerically the worst
+    choice and orthogonality makes the Gram diagonal), orthonorm_basis() as
+    the wrapper. v1.1, when modelterms7 fixes their shape: truncated-power
+    and step bases for seg()/jump(). Radial/thin-plate: later, with tensors.
+
+
+--------------------------------------------------------------------------------
+7. INFRASTRUCTURE -- same afternoon, not later
+--------------------------------------------------------------------------------
+
+The 2026-07-31 lesson is that a habit living in one package out of three is
+not a habit. basis7 starts with the full kit on day one:
+
+  - .Rproj; MIT license; README.Rmd regenerated with devtools::build_readme();
+    URLs with trailing slashes (the 301 lesson of 2026-08-03).
+  - logo from logo/make-logos.R -- same palette (chalkboard green #3D6B4C,
+    rust #9C3E11, chalk #F7F4D4), glyph: a handful of cubic B-spline bumps.
+    Favicons via the seven magick lines, not pkgdown::build_favicons().
+  - _pkgdown.yml complete; tests/testthat/test-docs.R with BOTH the
+    "every object has a help topic" question and pkgdown::check_pkgdown().
+  - R-CMD-check on the five-platform matrix + coverage, workflow_dispatch: in
+    every workflow. On a NEW repository the first push runs them by itself.
+  - \value and an executable example on every exported topic, from the start.
+  - NEWS.md from day one -- the open item neither linkfunctions7 nor
+    distributions7 has closed.
+  - roxygen: @include blocks terminated by NULL; helpers AFTER the class
+    definition they follow; internals documented with @keywords internal and
+    no @noRd.
+
+CRAN note: basis7 depends on nothing unpublished, so it can go to CRAN
+independently of the linkfunctions7/optimizers7 submissions -- it does not
+join their queue and they do not block it.
+
+
+--------------------------------------------------------------------------------
+8. PHASES
+--------------------------------------------------------------------------------
+
+Phase 1 -- skeleton.
+    basis class, the four generics with numerical fallbacks, bspline_basis
+    and fourier_basis with exact methods, print/plot, check_basis with paired
+    injections, test-extremes.R, full infrastructure of section 7.
+    Exit test: an eval-only user basis (say, Gaussian bumps) runs through all
+    four generics -- the same bargain distributions7 offers a density-only
+    distribution -- and check_basis reports its derivative orders as
+    [numerical].
+
+Phase 2 -- inner products.
+    basis_gram exact per class (Gauss per knot interval for splines, closed
+    form for Fourier, diagonal for Legendre), quadrature fallback,
+    orthonorm_basis via Cholesky, poly_basis, vignette "defining-a-basis".
+    Exit test: orthonorm_basis(bspline_basis())'s Gram is the identity to
+    machine precision, via the exact route and the quadrature route
+    independently.
+
+Phase 3 -- the book chapter.
+    "The basis7 package", one .qmd pulling _-prefixed sections: what a basis
+    expansion is; B-splines and their local support; the phase-shift Fourier
+    derivatives; inner products and the Gram matrix; orthonormalisation as a
+    congruence. Hidden gate assert_bases_ok() in book/R/basis-certificates.R:
+    printed formulas transcribed independently and compared (the
+    link-formulas.R discipline -- a gate that compares the package with
+    itself proves nothing), injection-checked before first render. Portal
+    card flips from "planned"; sync-stack-files.sh carries the new chapter.
+
+Phase 4 -- handoff.
+    penalties7 gets basis_gram (and the weighted form); modelterms7 gets
+    complete bases plus whatever constraint tooling it defines. Neither is
+    designed here beyond the interfaces already fixed in section 3.
+
+
+--------------------------------------------------------------------------------
+9. OPEN, DELIBERATELY
+--------------------------------------------------------------------------------
+
+  - Extrapolation outside [lower, upper] (error in v1; the model layer will
+    say whether it wants linear continuation, and for which bases).
+  - Tensor-product bases (a wrapper: Kronecker of designs and Grams; waits
+    for modelterms7).
+  - The weighted-Gram interface basis_gram(basis, w) (ships when penalties7
+    consumes it; the mathematics is section 1(g)).
+  - Truncated-power and step bases for seg()/jump() (v1.1, shape decided by
+    modelterms7).
+  - Natural cubic splines (splines2::naturalSpline slots straight into the
+    BsplineBasis pattern; add when a consumer asks).
+================================================================================
