@@ -276,6 +276,7 @@ distrib_pdf / cdf / quantile / rng
 distrib_gradient / hessian / expected_hessian      scale = "parameter" | "link"
 distrib_deriv3 / deriv4                            + expected =, approx =, nsim =
 distrib_grad_y / hess_y                            derivatives wrt the response
+distrib_cross_y                                    mixed d2l/dy dtheta_i, scale = as above
 expectation, mean, variance, std_dev, skewness, kurtosis, moment
 ```
 
@@ -404,6 +405,24 @@ partial-expectation integral, discrete against FD of the cdf, closed forms again
 partial expectation. Checking discrete against the partial sum gives 0.00e+00 and
 proves nothing — it is the same sum twice.
 
+**Mixed response-parameter derivatives** (`R/cross_derivatives.R`, 2026-08-03):
+`distrib_cross_y()` returns `d2 l / dy dtheta_i`, one component per parameter --
+the off-diagonal block of the joint Hessian in `(y, theta)` whose diagonals are
+`hess_y` and `hessian`. Built for `penalties7` (a penalty is a negative
+log-density at the coefficients; joint estimation of coefficients and
+hyperparameters needs this block, and so does a profiled objective's gradient
+via the implicit function theorem -- `glmm_prova.R` wrote it by hand). Link
+scale is the gradient's own first-order diagonal chain rule, reused verbatim:
+the y-derivative does not interact with a reparametrisation of theta. The
+fallback differentiates `distrib_grad_y` (one FD layer on an analytic response
+gradient; when that is itself the fallback, the two differences act on
+DIFFERENT variables and commute into the four-point mixed stencil -- cross-
+variable composition is not the forbidden same-variable nesting). Closed forms:
+gaussian and Student t. Truncation delegates exactly (log Z has no y); fixed()
+subsets. Continuous only, like grad_y. Not yet in `check_distrib()` -- for a
+user distribution both sides would be the same FD arithmetic; add the check
+when a user-facing closed-form route exists to compare against.
+
 **Truncation uses the cdf derivatives where they are exact.** `d^B Z = d^B F(U) -
 d^B F(L^-)` replaces one quadrature per component with two calls on the parent, taking
 the truncated Gaussian Hessian from ~8 ms to 0.85 ms. But the route is **gated**: it is
@@ -482,7 +501,7 @@ it. This was found by writing the test for the new feature, not by using it.
 | | |
 |---|---|
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
-| `distributions7` | 1633 tests, `R CMD check` OK (2026-08-03, local), CI green |
+| `distributions7` | 1656 tests, `R CMD check` OK (2026-08-03, local), CI green |
 | `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 | `basis7` | 682 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
