@@ -1116,6 +1116,19 @@ block) were added for this; `bibliography:` and `link-citations: true` sit in
 uncited entries — pandoc silently ignores them, so they rot unnoticed; the check
 is a shell loop over `grep -o "@[a-z]*[0-9]\{4\}"` against `^@[a-z]*{`.
 
+**Prose register, fixed 2026-08-03 (Giovanni, explicit, after two milder passes
+did not satisfy him): the book reads as a plain textbook.** Two constructions
+are banned everywhere: the announce-then-reveal opening ("Notice first what the
+definition does NOT say: ...") -- state the fact directly instead -- and the
+compressed two-beat contrast ("The point of X is not Y. It buys Z.") -- say
+"X matters because it yields Z, which Y alone does not". No second person, no
+suspense colons, no one-line punch sentences; every paragraph opens by saying
+its subject. The full restyling was done 2026-08-03, chapters 2 and 4 rewritten
+wholesale. It caught a live defect: the 4.4 box example still passed the removed
+bounds= argument, silently swallowed by ..., so its table had been computed
+UNCONSTRAINED. When rewriting prose around an executable chunk, check the chunk
+against the current API.
+
 The book is also **didactic**, and that rules out two things it used to do:
 **no punchy titles** ("The catch, stated plainly", "Below a matter", "Where the
 derivative fails" → say what the section is about), and **no over-segmented
