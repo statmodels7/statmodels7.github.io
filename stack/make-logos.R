@@ -205,6 +205,42 @@ DENS_XMAX  <- 11
   write_logo("logo/optimizers7.svg", glyph, "optimizers")
 }
 
+# --- basis7: the B-spline bumps that a basis IS ---------------------------
+#
+# Not bumps drawn to look like splines: the real cubic B-spline basis on the
+# unit interval, from the same recurrence the package calls, so the local
+# support and the unequal end shapes are the ones a reader would get.
+#
+# The colouring says the one thing the picture is about. Every function is
+# drawn faintly, and one of them -- an interior function, whose support is a
+# full four knot intervals -- is drawn in the accent colour, because a basis is
+# a collection whose members are individually addressable: that is what makes
+# it an object rather than a matrix somebody once built.
+{
+  knots <- seq(0, 1, length.out = 5)[-c(1, 5)]
+  xx <- seq(0, 1, length.out = 320)
+  bb <- splines::splineDesign(
+    knots = c(rep(0, 4), knots, rep(1, 4)), x = xx, ord = 4, outer.ok = TRUE
+  )
+  hi <- 3L # the interior function drawn in the accent colour
+
+  y0 <- box$y + box$h
+  paths <- vapply(seq_len(ncol(bb)), function(j) {
+    curve_path(xx, bb[, j], c(0, 1), c(0, 1.08), box)
+  }, character(1))
+
+  glyph <- paste0(
+    sprintf('<line x1="%d" y1="%.1f" x2="%d" y2="%.1f" stroke="%s" stroke-width="2" opacity="0.35"/>\n',
+            box$x - 10, y0, box$x + box$w + 10, y0, LINE),
+    paste0(vapply(setdiff(seq_along(paths), hi), function(j) sprintf(
+      '<path d="%s" fill="none" stroke="%s" stroke-width="4" stroke-linecap="round" opacity="0.45"/>\n',
+      paths[j], LINE), character(1)), collapse = ""),
+    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="6" stroke-linecap="round"/>\n',
+            paths[hi], ACCENT)
+  )
+  write_logo("logo/basis7.svg", glyph, "basis")
+}
+
 # --- statmodels7: the umbrella, both curves layered -----------------------
 {
   eta <- seq(-6, 6, length.out = 200)
@@ -230,7 +266,7 @@ for (f in list.files("logo", pattern = "[.]svg$", full.names = TRUE)) cat("  ", 
 
 # --- rasterise into each package's man/figures ---------------------------
 if (requireNamespace("magick", quietly = TRUE)) {
-  for (p in c("linkfunctions7", "distributions7", "optimizers7")) {
+  for (p in c("linkfunctions7", "distributions7", "optimizers7", "basis7")) {
     src <- file.path("logo", paste0(p, ".svg"))
     dst_dir <- file.path(p, "man", "figures")
     dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)
