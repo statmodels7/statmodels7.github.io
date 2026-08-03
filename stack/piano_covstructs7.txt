@@ -1,0 +1,406 @@
+================================================================================
+                        covstructs7 -- PLAN
+        constrained matrix parameters as S7 objects: parametrisations
+        of covariance-adjacent spaces, with exact derivatives on the
+                          unconstrained scale
+                        drafted 2026-08-03
+================================================================================
+
+Written in English like every other artifact of the toolkit, so that anything
+here can be lifted into package documentation or into the book without
+translation.
+
+Nothing in this file is code. It is the set of decisions to agree on before
+any is written, plus the ones deliberately left open. It grew out of the
+penalties7 design discussion of 2026-08-03: a multivariate gaussian prior
+needs a parametrised covariance, statmodels7's random effects need the same
+object, and distributions7 cannot host multivariate distributions until the
+matrix-parameter layer exists somewhere. This is that layer, built standalone
+first, which is the reason it can start now.
+
+
+--------------------------------------------------------------------------------
+0. WHAT IT IS, AND WHAT IT IS NOT
+--------------------------------------------------------------------------------
+
+Almost every R package that fits a model with a covariance matrix carries its
+own parametrisation of it, written inside the routine that needs it. nlme has
+the pdMat classes (pdSymm, pdDiag, pdCompSymm, ...), lme4 has its theta
+vector, glmmTMB has its covariance structures -- three private rewritings of
+the same mathematics, none exposing a derivative, none reusable from outside.
+Yet a covariance structure is a fixed mathematical object: the map from an
+unconstrained vector to a symmetric positive definite matrix, its inverse,
+its first and second derivatives, and the two quantities every gaussian
+likelihood asks of the matrix -- the log-determinant and the solves -- are
+all determined once and for all. They can be written once, correctly, for
+everyone to build on. That is what covstructs7 is.
+
+What it is NOT, and why:
+
+  - It is NOT a collection of links, although it does the link's job. A link
+    in linkfunctions7 is a SCALAR bijection with a diagonal Jacobian, and the
+    whole link-scale machinery of distributions7 (Faa di Bruno with partial
+    Bell polynomials) rests on that diagonality. A map eta in R^d -> Sigma
+    has a full Jacobian -- dSigma/deta_k is a list of matrices, the second
+    order an object with four indices -- and the chain rule is the
+    multivariate Faa di Bruno (Constantine & Savits 1996, already in the
+    book's bibliography). Different contract, different class, different
+    package. The two COMPOSE rather than compete: the diagonal blocks of a
+    structured matrix are scalar maps, and those are linkfunctions7 links
+    reused as they are (section 3).
+
+  - It is NOT part of distributions7, because its consumers are not all
+    distributions: statmodels7's random-effects covariances (the GLMM tau^2
+    generalised to Sigma_u) and penalties7's correlated gaussian prior need
+    the object without needing a multivariate density around it.
+
+  - It is NOT the general theory of constrained parameter spaces. The general
+    concept covers the simplex (a multinomial's probability vector: a VECTOR
+    parameter with a joint constraint, whose softmax/ALR transform has a
+    non-diagonal Jacobian and is therefore not a scalar link either),
+    row-stochastic transition matrices, factor-loading matrices, Stiefel
+    frames. v1 is deliberately covariance-adjacent -- SPD, correlation,
+    scale-times-correlation, and the economical structures -- and the name
+    says so. The rest is recorded in section 9, not forgotten and not
+    promised.
+
+The design pressure is the toolkit's usual one: exact derivatives, on the
+unconstrained scale, for arbitrary user-defined structures.
+
+
+--------------------------------------------------------------------------------
+1. THE OBJECT MODEL
+--------------------------------------------------------------------------------
+
+One abstract S7 class:
+
+    covstruct
+      struct_name     character
+      dim             integer, the side p of the matrix
+      n_free          integer, the length d of the free vector eta
+      free_names      character, one label per component of eta -- fixed at
+                      construction because every consumer builds coefficient
+                      tables from them, the same reason basis7 fixed its
+                      column names
+
+and one subclass per parametrisation (section 3). A structure OWNS its
+dimension: log_cholesky(dim = 3) is a different object from
+log_cholesky(dim = 4), with d = p(p+1)/2 = 6 and 10 respectively. The
+alternative -- a dimensionless recipe applied to whatever arrives -- would
+make free_names and n_free unanswerable at construction time, and both are
+needed before any data exist.
+
+Wrapper classes for composition (section 4): a product structure (D R D') and
+a block-diagonal structure hold their components and delegate, the same
+pattern as TransformedBasis and TensorBasis in basis7.
+
+
+--------------------------------------------------------------------------------
+2. THE GENERICS
+--------------------------------------------------------------------------------
+
+The naming follows linkfunctions7's direction convention: the MATRIX is the
+constrained object (the "theta" side), the FREE VECTOR is the unconstrained
+one (the "eta" side).
+
+Core maps:
+
+    struct_matrix(s, eta)         eta in R^d  ->  M, p x p, in the set
+    struct_free(s, M)             M -> eta, the inverse map
+
+Derivatives, exact to SECOND order in v1:
+
+    struct_dmatrix(s, eta)        list of d matrices dM/deta_k, keyed by
+                                  free_names
+    struct_d2matrix(s, eta)       the d(d+1)/2 distinct second derivatives
+                                  d2M/deta_k deta_l, keyed like hess_names --
+                                  generated from the same enumeration as the
+                                  names, never re-parsed from them (the
+                                  deriv_indices lesson of distributions7)
+
+Second order and not fourth, unlike the scalar links: the consumers actually
+sketched -- joint Newton over (beta, eta), the Laplace/REML gradient through
+the implicit function theorem -- need exactly two orders of M in eta. Nothing
+currently planned needs a third. When statmodels7's higher-order asymptotics
+ask for more, the contract extends; promising four orders of a matrix map
+now would be exactness nobody consumes, at a real cost in derivations.
+
+The likelihood byproducts, which are the point of owning the factor:
+
+    struct_logdet(s, eta)         log|M|, computed from the factor, never
+                                  from det(M)
+    struct_dlogdet(s, eta)        its gradient in eta; in log-Cholesky
+                                  log|Sigma| = 2 sum_i log L_ii is LINEAR in
+                                  the log-diagonal components of eta, so this
+                                  is sparse and exact by inspection
+    struct_d2logdet(s, eta)       its Hessian in eta
+    struct_solve(s, eta, B)       M^{-1} B through the factor, never through
+                                  an explicit inverse
+    struct_factor(s, eta)         the factor itself (L with M = L L'), for
+                                  consumers that want to whiten
+
+Identities the validator pins (section 6): d/deta_k log|M| =
+tr(M^{-1} dM/deta_k), and d/deta_k M^{-1} = -M^{-1} (dM/deta_k) M^{-1}, so
+logdet and solve derivatives are never independent claims -- they must agree
+with the derivative matrices through these formulas, and check_covstruct()
+compares the two routes.
+
+Printing and validation round out the surface: print(s) states the family,
+p, d and the free names; check_covstruct(s) is section 6.
+
+
+--------------------------------------------------------------------------------
+3. THE FAMILIES, v1
+--------------------------------------------------------------------------------
+
+(a) log_cholesky(dim)  --  unstructured SPD. Pinheiro & Bates (1996),
+    "Unconstrained parametrizations for variance-covariance matrices", is THE
+    reference and settles the choice: unique, smooth both ways, no spurious
+    boundary, and the log-determinant comes out linear in part of eta.
+    Sigma = L L' with L lower triangular, eta = (log L_11, ..., log L_pp,
+    then the below-diagonal entries of L in column-major order). The ordering
+    is FIXED NOW, diagonal first, because free_names depend on it -- the same
+    reason basis7 fixed the Kronecker column order before modelterms7 existed.
+    free_names: "log_L11", ..., "L21", "L31", ... (exact scheme decided in
+    phase 1, then frozen).
+
+(b) corr_spherical(dim)  --  correlation matrices. The canonical partial
+    correlations route (Rapisarda, Brigo & Mercurio 2007; the same object the
+    LKJ prior is written against, which matters for statmodels7's Bayesian
+    side): d = p(p-1)/2 unconstrained z_ij, partial correlations by tanh,
+    the matrix assembled by the recursive formula. Unit diagonal by
+    construction, positive definite by construction, every z free in R.
+
+(c) diag_struct(dim, link = log_link())  --  diagonal positive. Elementwise
+    scalar maps, which are linkfunctions7 objects reused as they are: the
+    Jacobian of this block IS diagonal, the exact derivatives to fourth order
+    already exist upstream, and this is the composition story stated in
+    section 0. Also the degenerate but ubiquitous case
+    scalar_struct(dim) = tau^2 I with d = 1, which is the GLMM variance and
+    the ridge precision.
+
+(d) dr_prod(d_struct, r_struct)  --  Sigma = D R D', Giovanni's own sketch
+    and the reason the design is compositional: scales and correlations have
+    different natures and different natural parametrisations, so the product
+    wrapper combines a diagonal structure and a correlation structure,
+    eta = (eta_D, eta_R), with the product rule supplying the derivatives
+    from the components'.
+
+(e) cs_struct(dim), ar1_struct(dim)  --  compound symmetry and AR(1), the
+    economical structures: d collapses to 2 (a scale and a correlation-like
+    parameter through tanh), which is the entire point -- a random effect
+    over time with p = 20 occasions is 210 free parameters unstructured and
+    2 here.
+
+(f) block_diag(s1, s2, ...)  --  the composition the model layer actually
+    hands an optimiser: several random-effects terms, each with its own
+    structure, one block each. eta is the concatenation; derivatives are
+    blockwise; free_names are prefixed per block. Flattens like
+    tensor_basis() flattens, so the components of a composite are always the
+    original structures.
+
+Factor-analytic low rank (Lambda Lambda' + Psi) is NOT in v1: its
+identification constraints (which rotations are fixed, and how) are a
+modelling decision, and building it before a consumer states them would
+freeze the wrong ones. Section 9.
+
+
+--------------------------------------------------------------------------------
+4. THE FALLBACK BARGAIN
+--------------------------------------------------------------------------------
+
+Same bargain as everywhere in the toolkit, adapted to the shape of the
+object. Compulsory: struct_matrix(), plus the three declared integers/names
+of section 1. Everything else has a numerical method registered on the base
+class:
+
+  - struct_dmatrix / struct_d2matrix by ONE finite-difference stencil per
+    eta component (matrix-valued central differences; order 2 from a single
+    stencil on the analytic order below when it exists -- basis7's
+    numerical_deriv_matrix pattern, never nested same-variable differences);
+  - struct_logdet and struct_solve through a Cholesky of struct_matrix(eta),
+    with the PD verdict from the eigenvalues, not from whether chol()
+    raises -- the chol_pd lesson of basis7 applies verbatim here, and this
+    package lives on exactly that boundary;
+  - struct_dlogdet / struct_d2logdet through the trace identities of
+    section 2 applied to the (possibly numerical) derivative matrices;
+  - struct_free by Cholesky-based inversion where the family's map makes it
+    direct, and refused otherwise: a generic optimisation-based inverse would
+    return a plausible eta for a matrix outside the set, which is a silent
+    wrong answer of the kind the toolkit refuses.
+
+So a user structure that supplies only eta -> M runs immediately, and
+whatever it later supplies in closed form replaces the corresponding
+fallback through dispatch. struct_is_numerical(s) reports which answers are
+fallbacks, exactly like basis_is_numerical().
+
+
+--------------------------------------------------------------------------------
+5. WHAT DISTRIBUTIONS7 WILL DO WITH IT, AND WHAT IT WILL NOT DO YET
+--------------------------------------------------------------------------------
+
+The eventual constructor is the second of Giovanni's sketches:
+
+    mvgaussian_distrib(link_mu = identity_link(), struct_sigma = log_cholesky())
+
+-- a link for a scalar or vector parameter, a structure for a matrix one,
+and the argument's name says which contract the object must satisfy.
+
+That constructor is NOT part of this plan. distributions7's theta contract
+is "a list of scalars (or vectors along y)", and every piece of its
+derivative bookkeeping -- align_theta, deriv_names, the Bartlett machinery,
+the link scale -- is indexed by scalar parameter. Multivariate distributions
+change that contract, and the change is distributions7's own future plan.
+covstructs7 is built and validated standalone precisely so that the two
+problems never block each other.
+
+What CAN be consumed immediately, without touching distributions7:
+
+  - penalties7's correlated gaussian branch: the quadratic penalty
+    beta' P beta with P parametrised by a structure, its logdet (the
+    normalising constant this session decided to KEEP), and the derivatives
+    in eta for estimating the penalty's own parameters;
+  - statmodels7's random effects, whenever that layer arrives: block_diag
+    over terms, tau^2 I as the simplest block, exact derivatives for the
+    Laplace machinery the GLMM experiment hand-wrote.
+
+
+--------------------------------------------------------------------------------
+6. check_covstruct() -- the validator
+--------------------------------------------------------------------------------
+
+The battery, all numerical, each check against a route the implementation
+does not take:
+
+  1. membership: struct_matrix(eta) is symmetric; SPD families have
+     min(eigenvalue) > 0 (eigenvalues, never a chol() success); correlation
+     families have unit diagonal on top of that;
+  2. round trip: struct_free(struct_matrix(eta)) recovers eta, over a random
+     sweep of eta including large components (the tails file lesson: the
+     defects live at the edges, tanh saturates, exp overflows);
+  3. first derivatives against one central stencil on struct_matrix;
+  4. second derivatives against one central stencil on the ANALYTIC first
+     derivatives when they exist, and reported as not checked when both
+     orders are fallbacks -- comparing FD with FD is the same arithmetic
+     twice (the check_link / check_basis convention, including the
+     [numerical] marking);
+  5. logdet against log of the product of eigenvalues of struct_matrix
+     (independent of the factor route); dlogdet against
+     tr(M^{-1} dM/deta_k) with the solve done by base::solve, independent
+     of struct_solve;
+  6. solve against base::solve;
+  7. free_names/n_free/dim consistency with the shapes actually returned.
+
+Tests pair every probe (the paired-injection rule): a structure made 5%
+wrong in one derivative must fail, a structure with a MISSING method must be
+reported as unchecked rather than passed, and the unbroken references must
+keep passing next to both.
+
+
+--------------------------------------------------------------------------------
+7. DECISIONS
+--------------------------------------------------------------------------------
+
+7a. Name: covstructs7 (Giovanni, 2026-08-03), named for the v1 scope --
+    covariance-adjacent spaces. The wider concept (simplex, Stiefel,
+    stochastic matrices) is real and deliberately out; if it ever arrives it
+    either widens this package's remit knowingly or gets its own home, and
+    that decision is NOT being made today.
+
+7b. Not links, by contract: vector-valued map, non-diagonal Jacobian,
+    multivariate Faa di Bruno. Composes with linkfunctions7 (diagonal
+    blocks are scalar links); therefore Imports: linkfunctions7 and nothing
+    else of the toolkit. covstructs7 sits BESIDE distributions7 on top of
+    linkfunctions7; penalties7 will import both.
+
+7c. Exact derivatives to order 2 in v1, with the extension path stated in
+    section 2. The scalar pieces that go through linkfunctions7 links keep
+    their four orders for free.
+
+7d. eta ordering and free_names frozen per family at phase 1, before any
+    consumer exists -- the kronecker-order lesson from basis7.
+
+7e. No Rcpp in v1: everything here is factor algebra and BLAS, which R calls
+    at the same speed (the measured 2026-07-31 conclusion). Compiled kernels
+    would buy nothing.
+
+7f. The PD verdict is always spectral (min(ev) <= tol * max(ev)), never a
+    chol() try/catch. Recorded as a package-wide rule, not a per-site fix.
+
+7g. struct_free is exact-or-refused, never optimisation-based (section 4).
+
+
+--------------------------------------------------------------------------------
+8. INFRASTRUCTURE -- same afternoon, not later
+--------------------------------------------------------------------------------
+
+The habits that cost a red push each when learned one at a time, applied
+from the first commit: repository under statmodels7/, master branch,
+R-CMD-check matrix (macOS, Windows, Linux devel/release/oldrel-1), coverage
+with use_pypi and fail_ci_if_error false, pkgdown workflow, GitHub Pages
+ENABLED via gh api immediately after gh repo create (the basis7 404), logo
+from make-logos.R in the toolkit palette, README.Rmd regenerated with
+build_readme(), NEWS.md from the first commit, version 0.1.0 at first
+publish, _pkgdown.yml complete and enforced by a test-docs.R that runs
+check_pkgdown() and the case-collision check, \value and an executable
+example on every exported topic, workflow_dispatch in every workflow's on:
+block.
+
+
+--------------------------------------------------------------------------------
+9. PHASES
+--------------------------------------------------------------------------------
+
+Phase 1 -- skeleton.
+    The covstruct class, the generics of section 2, log_cholesky(),
+    diag_struct()/scalar_struct(), the numerical fallbacks, and
+    check_covstruct() with its paired injections. The eta orderings and
+    free_names frozen here.
+
+Phase 2 -- correlations and composition.
+    corr_spherical(), dr_prod(), cs_struct(), ar1_struct(), block_diag().
+    The validator sweep extended to the composites, and the tails file
+    (tanh saturation, log-diagonal overflow) written alongside.
+
+Phase 3 -- the likelihood byproducts, hardened.
+    logdet/solve/factor exactness at scale, boundary behaviour (near-singular
+    M, large p), and the vignette: defining a structure from eta -> M alone,
+    then adding closed forms one generic at a time -- the defining-a-basis
+    template.
+
+Phase 4 -- the book chapter, with gates, per the toolkit convention.
+
+Phase 5 -- handoff.
+    penalties7 consumes structures for its gaussian branch; statmodels7's
+    random-effects layer consumes block_diag; distributions7's multivariate
+    plan, when drafted, consumes the whole package and owns its own theta
+    contract change. None of these is designed here beyond the constructor
+    sketch of section 5.
+
+
+--------------------------------------------------------------------------------
+10. OPEN, DELIBERATELY
+--------------------------------------------------------------------------------
+
+  - The simplex and its relatives (softmax/ALR vector maps): the first
+    non-covariance constrained space a multinomial will need. Whether it
+    widens covstructs7 or starts its own package is decided when the
+    consumer exists.
+  - Factor-analytic low rank (Lambda Lambda' + Psi): waits for the consumer
+    to state the identification constraints.
+  - The matrix logarithm parametrisation (Sigma = expm(A), A symmetric):
+    mathematically clean, computationally dear (every derivative needs the
+    Frechet derivative of expm); add only if a consumer shows log-Cholesky
+    failing it.
+  - Toeplitz, banded, tapered structures: straightforward under the same
+    contract, none has a consumer yet.
+  - Sparse or SINGULAR precision structures (GMRFs): the spline penalty read
+    as an improper gaussian prior has a rank-deficient precision, whose
+    "logdet" is a pseudo-determinant over the non-null eigenvalues -- exactly
+    the quantity the Demmler-Reinsch eigenvalues of basis7 supply. This is
+    the bridge between the quadratic branch of penalties7 and this package,
+    and it is recorded here so neither plan forgets it; it is NOT v1.
+  - Third and fourth derivative orders of the matrix maps (section 2's
+    extension path).
+  - Rcpp, if a profile ever contradicts 7e.
+================================================================================

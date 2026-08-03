@@ -1080,7 +1080,28 @@ exactly 1. What was wrong was everything around them.
   is also now **relative**, `s'y > curv_tol*||s||*||y||`, as `bfgs()` already had
   it. General lesson: a policy chosen on one problem is a policy chosen on one
   problem — the boxed case disagreed with Rosenbrock about all three constants.
-- Next packages: `modelterms7`, `basis7`, `penalties7`.
+- Next packages: `covstructs7` (plan written 2026-08-03, `piano_covstructs7.txt`:
+  constrained matrix parameters -- SPD via log-Cholesky, correlations via
+  canonical partial correlations, D R D', compound symmetry/AR(1), block
+  diagonal -- exact to order 2 on the unconstrained scale; NOT links, since the
+  Jacobian is not diagonal; imports linkfunctions7 only, sits beside
+  distributions7), then `penalties7`, then `modelterms7`.
+- **`penalties7` design decisions agreed 2026-08-03** (conversation, no plan
+  file yet -- write `piano_penalties7.txt` before code): a penalty is
+  rho(D beta; theta) -- a linear map, a scalar function, parameters. THREE
+  branches: (i) quadratic with matrix P (covers ridge, spline Grams, fused
+  quadratic; the correlated gaussian prior, later through covstructs7);
+  (ii) separable, built from a univariate distributions7 object applied
+  coordinatewise to D beta -- ridge IS fixed(gaussian_distrib(), mu = 0), the
+  heavy-tailed prior IS fixed(student_t_distrib(), mu = 0); (iii) families
+  defined by their derivative (SCAD, MCP), which are improper priors and
+  cannot come from a distribution. The NORMALISING CONSTANT IS KEPT (Giovanni,
+  explicit): dropping it makes the hyperparameter estimation degenerate
+  (lambda -> 0), and estimating nu of a t prior requires it; even so, a
+  spline's smoothing parameter needs REML/marginal likelihood, not joint
+  maximisation, so the class must serve both routes. Proximal operators and a
+  prox_grad() in optimizers7: DEFERRED, explicitly. Prerequisites already
+  built: fixed() wrapper and distrib_cross_y() in distributions7.
 - **`infer_npar()` cannot decide for a vectorised objective, and that is
   arithmetic rather than a gap.** `start_zeros()` with no `npar` and no bounds
   probes the objective, and both plausible guesses about R are wrong: recycling
