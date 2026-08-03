@@ -395,6 +395,36 @@ distribution, twelve on a discrete one; catches deliberately broken components),
 CIs built on the link scale and mapped back so they respect domains), plus `simulate()`
 and `plot()` on the fit.
 
+**`fit_distrib()` delegates its optimisation to `optimizers7`** (2026-08-03), and
+distributions7 now Imports it. Until then the function did the exact thing the
+toolkit's positioning condemns in other packages: a hand-written scoring loop with
+its own step halving, the convergence test spelled out inline, and `stats::optim`
+for the BFGS branch — an *external* optimiser while the sibling package sat unused.
+Three things made the translation nearly literal:
+
+- **Fisher scoring is `newton()` with the expected information passed as `he`.**
+  It needs no implementation of its own; `"fisher"` and `"newton"` differ only in
+  that one argument.
+- the inline test `max|U| < tol || |Δl| < tol(|l|+tol)` *is*
+  `crit_any(crit_grad(tol), crit_rel_obj(tol))`;
+- `method` now also accepts **any optimiser object**, used as given.
+
+Two things improved rather than merely moved: the line search requires sufficient
+decrease instead of mere non-decrease, and a non-PD Hessian is repaired by flooring
+its eigenvalues instead of abandoning the start, which `solve()` used to force.
+The BFGS fallback is kept for `"fisher"` and `"newton"` only — silently replacing
+an optimiser the caller *chose* would report a fit obtained by a different method.
+
+⚠️ **A catch-all for numerical failures must not swallow a configuration error.**
+The restart loop's `tryCatch(..., error = function(e) NULL)` exists to absorb a
+divergent quadrature in a numerically approximated expected information. It was
+also absorbing optimizers7's *refusal* of a stopping rule the method cannot
+evaluate, and reporting it as `"Optimisation failed from every starting value;
+supply 'start'"` — naming the wrong cause entirely. `check_criterion()` is exported
+by optimizers7 for exactly this and is now called before the loop. The general
+shape: when a `tryCatch` is there for one class of failure, check what else reaches
+it. This was found by writing the test for the new feature, not by using it.
+
 ---
 
 ## 5. Working preferences
@@ -417,7 +447,7 @@ and `plot()` on the fit.
 | | |
 |---|---|
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
-| `distributions7` | 1512 tests, `R CMD check` OK (2026-07-30, local), CI green |
+| `distributions7` | 1538 tests, `R CMD check` OK (2026-08-03, local), CI green |
 | `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 
 All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
@@ -431,8 +461,11 @@ Vignettes: `defining-a-distribution`, `fitting-a-model`,
 README with badges.
 
 `R CMD check --as-cran` on distributions7 is clean apart from submission metadata:
-new submission, version `0.0.0.9000`, the `Remotes:` field, and linkfunctions7 not being
-on CRAN. **The real CRAN blocker is that linkfunctions7 must be published first.**
+new submission, version `0.0.0.9000`, the `Remotes:` field, and its two upstream
+packages not being on CRAN. **The CRAN blocker is that BOTH linkfunctions7 and
+optimizers7 must be published first** — since 2026-08-03 distributions7 imports
+optimizers7 as well (see §4). The two are independent of each other, so they can
+be submitted in parallel rather than in sequence.
 Both names, and `modelterms7` / `basis7` / `penalties7`, are free on CRAN.
 linkfunctions7 is now in the same state: two notes, both the dev version string and
 pandoc missing from the check environment.
@@ -930,7 +963,15 @@ exactly 1. What was wrong was everything around them.
 
 - The two logistic integrals above (cosmetic — `approx = "integrate"` already delivers
   them within Monte Carlo noise).
-- Publishing `linkfunctions7` to CRAN, which unblocks `distributions7`.
+- Publishing `linkfunctions7` **and `optimizers7`** to CRAN, which together unblock
+  `distributions7`. They do not depend on each other, so they go in parallel.
+  Before either: version `0.1.0` in place of `0.0.0.9000`, a `NEWS.md` (neither has
+  one), `cran-comments.md`, and a run on win-builder.
+- **A URL of the form `https://statmodels7.github.io/<pkg>` redirects 301** to the
+  same address with a trailing slash, and `--as-cran` reports it as possibly
+  invalid. All six occurrences across the three READMEs were fixed on 2026-08-03.
+  CI never sees this: the URL check lives inside *checking CRAN incoming
+  feasibility*, which the workflow disables. CRAN would return it at submission.
 - ~~A nonmonotone line search for `bb()`~~ **done 2026-07-31.**
   `nonmonotone(c1, shrink, memory, max_step)` is a third `line_search` subclass;
   the loop keeps a `std::deque` of the last `memory` values and Armijo tests
@@ -1000,9 +1041,13 @@ exactly 1. What was wrong was everything around them.
 - The book now covers links, distributions, the transformation wrappers and fitting
   (chapter 5, added 2026-07-30: the link scale as the place to optimise, Fisher
   scoring versus Newton and why the congruence corollary makes the expected
-  information the right matrix to invert, step halving, the delta method as the same
+  information the right matrix to invert, the line search, the delta method as the same
   congruence applied to the inverse, and intervals built on the link scale and mapped
-  back), and §3.4 on the numerical fallbacks — the ratio-of-uniforms theorem, the
+  back; revised 2026-08-03, when `fit_distrib()` started delegating to
+  `optimizers7` — §5.2 now says the optimisation is not written there, the step
+  rule is the sufficient-decrease condition of §4.1 rather than plain halving,
+  the non-PD Hessian is repaired by §4.2 rather than abandoned, and a chunk shows
+  `method = lbfgs(...)`), and §3.4 on the numerical fallbacks — the ratio-of-uniforms theorem, the
   mode recentring, the divergence transform at one edge and at two, the
   discrete cumulative table, and the two warnings that belong with them. Chapter 4
   (added 2026-07-31) covers `optimizers7`: descent directions and what a line search
