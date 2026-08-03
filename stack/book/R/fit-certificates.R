@@ -97,7 +97,7 @@
 }
 
 # The gate itself. A spread of families rather than one: a two-parameter
-# continuous one, a one-parameter lattice one, a bounded one, and the Laplace,
+# continuous one, a one-parameter discrete one, a bounded one, and the Laplace,
 # whose location is exactly the non-regular case the chapter appeals to.
 assert_fit_ok <- function() {
   cases <- list(

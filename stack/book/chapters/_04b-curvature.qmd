@@ -1,4 +1,4 @@
-## Curvature, and how little of it a method needs {#sec-curvature}
+## Second-order and quasi-Newton methods {#sec-curvature}
 
 ```{r}
 #| label: setup-04b
@@ -24,7 +24,7 @@ inverse of the same size, then the last few pairs of vectors that approximation
 was built from, then a single vector, then a single number. What is remarkable is
 how far down that list one can go before the method stops working.
 
-### Newton's method, and the repair it needs {#sec-newton}
+### Newton's method {#sec-newton}
 
 The obvious choice is the true Hessian, $M = \nabla^{2} f(x)$, which makes
 $m$ the second-order Taylor expansion and the step exact for a quadratic. Near a
@@ -68,7 +68,7 @@ actually inverted is positive definite, so the direction is a descent direction,
 so the line search has something to find.
 
 ::: {.callout-note}
-## A Hessian obtained by differencing
+## Numerical Hessians
 
 `newton()` accepts an objective with no analytic Hessian and differences the
 gradient once to obtain one. When the gradient is itself analytic that is a
@@ -80,7 +80,7 @@ alone must be, but it is why an objective supplying neither derivative is better
 served by `bfgs()`, which never forms a Hessian at all.
 :::
 
-### Approximating the Hessian from gradients {#sec-bfgs}
+### The BFGS update {#sec-bfgs}
 
 The Hessian is expensive: $p(p+1)/2$ second derivatives per iteration, and a
 factorisation costing $O(p^{3})$. The quasi-Newton methods refuse to pay it and
@@ -179,7 +179,7 @@ What the Wolfe search removes is not a frequent nuisance but the possibility of
 one, and the difference shows on objectives less well behaved than any that
 appear in this book.
 
-### Limited memory {#sec-lbfgs}
+### Limited-memory BFGS {#sec-lbfgs}
 
 BFGS stores a $p \times p$ matrix, which is fine for the handful of parameters a
 distribution has and impossible for the thousands a model with covariates may
@@ -245,7 +245,7 @@ knitr::kable(
 )
 ```
 
-### Below a matrix {#sec-cg-bb}
+### Conjugate gradients and Barzilai-Borwein {#sec-cg-bb}
 
 Two methods go further down still, and they are worth the page because between
 them they cover the case a statistical model most often presents, in which the

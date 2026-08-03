@@ -202,7 +202,7 @@ zero_density_certificate <- function() {
 
     e_dens <- rel_err(book, distrib_pdf(d, y, th, log = TRUE))
 
-    # total mass: sum over the lattice, or integral plus the atom
+    # total mass: sum over the support, or integral plus the atom
     tot <- if (is_disc) {
       numerical_series(function(k) distrib_pdf(d, k, th), d@bounds[1], d@bounds[2])
     } else {

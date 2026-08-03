@@ -17,7 +17,7 @@ inherits them. The catalogue comes second, with particular attention to the
 places where the parametrisation chosen here differs from the one base R uses,
 since those are the places where a reader is most likely to be surprised.
 
-### The object and its contract {#sec-distrib-object}
+### The distrib class {#sec-distrib-object}
 
 A distribution is an S7 object carrying its name, its dimensionality, the
 bounds of its support, the names and interpretations of its parameters, their
@@ -234,7 +234,7 @@ terms is the Bell number $B_k$ — one, two, five and fifteen for
 $k = 1, \dots, 4$ — so the computation stays small at every order the toolkit
 supports.
 
-#### Three ways to take an expectation {#sec-approx}
+#### Approximating expected derivatives {#sec-approx}
 
 When a distribution has no closed-form expected derivative, the expectation has
 to be approximated, and the derivative generics accept an `approx` argument
@@ -257,7 +257,7 @@ quantities part company, and the one that still deserves the name
 "information" is the Bartlett one — a point @sec-nonregular makes concrete.
 
 ::: {.callout-note}
-## Why the quadrature uses three knots and not nine
+## Quadrature knots
 
 The `expectation()` engine splits its integral at quantiles of the
 distribution, and it uses three knots rather than nine. More knots would extend
@@ -386,7 +386,7 @@ And the number of terms in the general sum is $\prod_t m_t$ — at most eight fo
 the orders the toolkit supports — so the computation remains trivial even at
 fourth order.
 
-#### The expected Hessian transforms more simply {#sec-link-scale-expected}
+#### The expected Hessian on the link scale {#sec-link-scale-expected}
 
 For expected second derivatives something pleasant happens: the awkward
 first-order term drops out on its own.
@@ -414,7 +414,7 @@ automatically. Had one instead transformed the *observed* Hessian and then
 averaged numerically, the $\ell^{(a)} h_a''$ term would have survived and that
 guarantee would have been lost.
 
-#### Where the transformation lives {#sec-link-scale-impl}
+#### Implementation {#sec-link-scale-impl}
 
 The change of scale is implemented once, in the body of each derivative
 generic, between the dispatch and the return: a method always computes
@@ -441,7 +441,7 @@ touches `scale` itself. Omitting the declaration makes dispatch fail.
 
 Besides derivatives in the parameters, continuous distributions provide
 $\partial\ell/\partial y$ and $\partial^{2}\ell/\partial y^{2}$ through
-`distrib_grad_y()` and `distrib_hess_y()`; for a lattice variable there is
+`distrib_grad_y()` and `distrib_hess_y()`; for a discrete variable there is
 nothing to differentiate, so discrete distributions have no such methods. These
 quantities feed quantile residuals and smoothness criteria further up the
 toolkit. The default implementation is a central finite difference of the
@@ -582,7 +582,7 @@ arithmetic.
 for (id in names(DISTRIBS)) render_distrib_entry(id, DISTRIBS[[id]])
 ```
 
-### When the model is not regular {#sec-nonregular}
+### Non-regular models {#sec-nonregular}
 
 The Laplace distribution, with density
 $f(y) = (2b)^{-1} e^{-|y-\mu|/b}$, is the catalogue's standing counterexample
