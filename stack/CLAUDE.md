@@ -289,7 +289,19 @@ observed derivatives to 4th order (Rcpp kernels in `src/*_hd.cpp`).
 
 **Wrappers**: `zero_inflated()`, `zero_adjusted()`, `truncated()`, `transformation()`
 (12 transformers: log, exp, sqrt, inverse, power, box-cox, yeo-johnson, softplus, asinh,
-logit, expit, affine). All propagate `params_smooth`; all validate their parent in the
+logit, expit, affine), and `fixed()` (2026-08-03), which holds parameters at known
+values -- the only wrapper that REMOVES parameters. It derives nothing: every method
+splices the fixed values into theta and delegates, and the derivatives are the parent's
+components among the free parameters, subset BY NAME from the same enumeration
+(`deriv_names`/`hess_names` on the free set produce the parent's strings because the
+free set preserves the parent's order -- never re-parse a component name). `n_params = 0`
+is legal (a fully known prior); fixing a wrapper's own parameter is legal and useful
+(`fixed(zero_inflated(d), zi = 0.3)`); `fixed()` of `fixed()` collapses. Built as the
+prerequisite of `penalties7`: ridge is `fixed(gaussian_distrib(), mu = 0)` with the
+scale free. One S7 trap found writing its `print`: a method registered on a BASE
+generic is an S3 method, so the parent's is reached with `NextMethod()` --
+`S7::super()` only works inside S7 generics and `S7::method()` only retrieves from
+them. All propagate `params_smooth`; all validate their parent in the
 constructor (see §7). `zero_adjusted()` of a **continuous** parent is a **mixed**
 distribution — a density plus an atom — and declares that atom through
 `distrib_atoms()`, which `check_distrib()` consults.
@@ -470,7 +482,7 @@ it. This was found by writing the test for the new feature, not by using it.
 | | |
 |---|---|
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
-| `distributions7` | 1538 tests, `R CMD check` OK (2026-08-03, local), CI green |
+| `distributions7` | 1633 tests, `R CMD check` OK (2026-08-03, local), CI green |
 | `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 | `basis7` | 682 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
