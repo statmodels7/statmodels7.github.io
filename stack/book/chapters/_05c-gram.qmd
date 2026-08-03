@@ -1,0 +1,163 @@
+## Inner products {#sec-basis-gram}
+
+```{r}
+#| label: setup-05c
+#| include: false
+source("R/_setup.R")
+source("R/basis-certificates.R")
+```
+
+### The Gram matrix and the roughness penalty {#sec-gram-definition}
+
+The **Gram matrix** of order $d$ collects the inner products of the $d$-th
+derivatives of the basis functions,
+
+$$
+\left(G_d\right)_{rs} \;=\;
+\int_{a}^{b} B_r^{(d)}(x)\, B_s^{(d)}(x)\, \mathrm{d}x ,
+\qquad r, s = 1, \ldots, K .
+$$ {#eq-gram}
+
+Its importance comes from @eq-basis-derivative. Squaring that expansion and
+integrating gives
+
+$$
+\int_{a}^{b} \left\{ f^{(d)}(x) \right\}^2 \mathrm{d}x
+\;=\; \beta^\top G_d\, \beta ,
+$$ {#eq-gram-quadratic-form}
+
+so the integrated squared $d$-th derivative of the fitted function, which is
+the standard measure of its roughness, is a quadratic form in the coefficients
+with $G_d$ as its matrix. Penalised estimation adds
+$\lambda \beta^\top G_d \beta$ to the negative log-likelihood, and the
+quantity the penalty needs is exactly @eq-gram. The formulation is that of
+@wahba1990 and @greensilverman1994, and @wood2017 gives the modern account in
+the additive model setting.
+
+$G_d$ is symmetric and positive semidefinite by construction, and for
+$d \ge 1$ it is singular: any $\beta$ whose expansion is a polynomial of
+degree below $d$ contributes nothing to the integral, so the null space has
+dimension at least $d$ whenever the basis contains those polynomials. The
+null space is the **unpenalised** part of the model, the set of functions the
+penalty leaves alone however large $\lambda$ becomes, and for $d = 2$ it is
+the straight lines.
+
+```{r}
+#| label: gram-quadratic-form
+b <- bspline_basis(dimension = 6, degree = 3)
+
+set.seed(1)
+beta <- rnorm(6)
+f2 <- function(v) (basis_deriv(b, v, order = 2) %*% beta)^2
+
+c(
+  quadratic_form = drop(t(beta) %*% basis_gram(b, order = 2) %*% beta),
+  integral = integrate(function(v) apply(cbind(v), 1, f2), 0, 1)$value
+)
+```
+
+A difference penalty on the coefficients,
+$\beta^\top \Delta_d^\top \Delta_d \beta$ with $\Delta_d$ the $d$-th
+difference operator, is the alternative in common use and is the P-spline
+construction of @eilers1996. It is a different matrix, cheaper to form and
+approximating @eq-gram for equally spaced knots, and the package accepts
+either wherever a penalty is an argument. The distinction matters because
+@eq-gram is a property of the basis functions alone, while a difference
+penalty is a property of how the coefficients are indexed.
+
+### Exact integration {#sec-gram-exact}
+
+The integrand of @eq-gram is a product of two piecewise polynomials, so the
+integral can be computed without approximation. On each knot interval the
+order-$d$ derivative of a spline of degree $m$ is a polynomial of degree
+$m - d$, so the integrand there has degree $2(m-d)$. A Gauss-Legendre rule
+with $p$ nodes integrates polynomials of degree up to $2p - 1$ exactly, so
+$p = m - d + 1$ nodes leave no quadrature error at all, and the result carries
+only floating-point error. The rule is applied interval by interval, and the
+whole matrix is one crossproduct of the weighted derivative matrix evaluated
+at the collected nodes.
+
+The nodes and weights are computed rather than tabulated, by the construction
+of @golub1969: the nodes are the eigenvalues of the symmetric tridiagonal
+Jacobi matrix of the Legendre recurrence @eq-legendre-recurrence, and the
+weights come from the first component of each normalised eigenvector.
+Computing them keeps any node count available, which the rule above needs,
+since the count depends on the degree and on the derivative order.
+
+The other two families do better still. Over a whole period the trigonometric
+functions are mutually orthogonal, and they remain so after differentiation,
+since @eq-fourier-shift only rescales a function and shifts its phase. The
+Gram matrix is therefore diagonal, with entries
+
+$$
+\omega \ \text{ for the constant at } d = 0, \qquad
+0 \ \text{ for the constant at } d \ge 1, \qquad
+\frac{\omega}{2}\left(\frac{2\pi j}{\omega}\right)^{2d}
+\ \text{ for both members of pair } j .
+$$ {#eq-fourier-gram}
+
+For the Legendre polynomials the orthogonality relation
+$\int_{-1}^{1} P_n P_{n'} \,\mathrm{d}\tau$, which is $2/(2n+1)$ when
+$n = n'$ and zero otherwise, gives after the change of variable a diagonal
+matrix with entries $(b - a)/(2n+1)$ at order zero. Their derivatives are not orthogonal, but the integrand remains a
+polynomial of degree at most $2(K - 1 - d)$, so a single rule with $K$ nodes
+is exact on the whole interval.
+
+```{r}
+#| label: gram-closed-forms
+round(basis_gram(fourier_basis(dimension = 5), order = 1), 4)
+
+round(basis_gram(poly_basis(lower = 0, upper = 2, dimension = 4)), 6)
+```
+
+The local support of @sec-basis-bspline shows in the spline case as a band:
+$\left(G_d\right)_{rs}$ is zero whenever $\lvert r - s \rvert > m$, since the
+supports of the two functions do not overlap.
+
+```{r}
+#| label: gram-band
+round(basis_gram(bspline_basis(dimension = 8, degree = 2), order = 1), 2)
+```
+
+### The measure the inner product is taken against {#sec-gram-measure}
+
+@eq-gram integrates against Lebesgue measure on $[a, b]$, which is the measure
+a roughness penalty uses: the penalty is a statement about the function on its
+whole interval, and does not depend on where the data lie. Two other measures
+are needed elsewhere, and both are supplied as arguments to the same generic.
+
+The **empirical measure** of a set of points replaces the integral by the
+average over them,
+
+$$
+\left(\widehat{G}_d\right)_{rs}
+\;=\; \frac{1}{n}\sum_{i=1}^{n} B_r^{(d)}(x_i)\, B_s^{(d)}(x_i)
+\;=\; \frac{1}{n} \left(B^{(d)\top} B^{(d)}\right)_{rs} ,
+$$ {#eq-gram-empirical}
+
+which is the matrix a design matrix actually produces, and the one that
+appears wherever a construction is meant to depend on the design. It is what
+@sec-basis-transforms diagonalises. A **weighted** Lebesgue measure, given by
+a density $w$, integrates $B_r^{(d)} B_s^{(d)} w$ instead, and is what appears
+when the penalty is meant to follow the distribution of the covariate rather
+than the interval.
+
+Both are handled in the body of the generic, before dispatch, so a method
+never sees them and never has to implement them; a family always returns the
+plain Lebesgue matrix, and the two alternatives are computed the same way for
+every basis in the package and for every basis outside it.
+
+```{r}
+#| label: gram-measures
+set.seed(1)
+xs <- rbeta(4000, 2, 2)
+
+round(basis_gram(b, at = xs)[1:3, 1:3], 4)
+round(basis_gram(b, weight = function(v) dbeta(v, 2, 2))[1:3, 1:3], 4)
+```
+
+```{r}
+#| label: consistency-05c
+#| include: false
+assert_gram_ok()
+```

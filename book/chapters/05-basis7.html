@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>5&nbsp; The basis7 package – The statmodels7 Framework</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/A1-notation.html" rel="next">
+<link href="../chapters/04-optimizers7.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e986b704c747e817427b29ebc19a759e.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a2ce0b05719297c8ab99eac5b5b92eaa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/05-basis7.html"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">The basis7 package</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="../index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">The statmodels7 Framework</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-linkfunctions7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">The linkfunctions7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-distributions7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">The distributions7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-optimizers7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">The optimizers7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-basis7.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">The basis7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A1-notation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A2-references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-basis-expansions" id="toc-sec-basis-expansions" class="nav-link active" data-scroll-target="#sec-basis-expansions"><span class="header-section-number">5.1</span> Basis expansions</a>
+  <ul>
+  <li><a href="#sec-basis-definition" id="toc-sec-basis-definition" class="nav-link" data-scroll-target="#sec-basis-definition"><span class="header-section-number">5.1.1</span> The expansion and its design matrix</a></li>
+  <li><a href="#sec-basis-anchor" id="toc-sec-basis-anchor" class="nav-link" data-scroll-target="#sec-basis-anchor"><span class="header-section-number">5.1.2</span> The integral is anchored at the lower endpoint</a></li>
+  <li><a href="#sec-basis-fallbacks" id="toc-sec-basis-fallbacks" class="nav-link" data-scroll-target="#sec-basis-fallbacks"><span class="header-section-number">5.1.3</span> Numerical methods for a basis that supplies only its values</a></li>
+  </ul></li>
+  <li><a href="#sec-basis-families" id="toc-sec-basis-families" class="nav-link" data-scroll-target="#sec-basis-families"><span class="header-section-number">5.2</span> The three families</a>
+  <ul>
+  <li><a href="#sec-basis-bspline" id="toc-sec-basis-bspline" class="nav-link" data-scroll-target="#sec-basis-bspline"><span class="header-section-number">5.2.1</span> B-splines</a></li>
+  <li><a href="#sec-basis-fourier" id="toc-sec-basis-fourier" class="nav-link" data-scroll-target="#sec-basis-fourier"><span class="header-section-number">5.2.2</span> The Fourier basis</a></li>
+  <li><a href="#sec-basis-legendre" id="toc-sec-basis-legendre" class="nav-link" data-scroll-target="#sec-basis-legendre"><span class="header-section-number">5.2.3</span> The Legendre polynomials</a></li>
+  </ul></li>
+  <li><a href="#sec-basis-gram" id="toc-sec-basis-gram" class="nav-link" data-scroll-target="#sec-basis-gram"><span class="header-section-number">5.3</span> Inner products</a>
+  <ul>
+  <li><a href="#sec-gram-definition" id="toc-sec-gram-definition" class="nav-link" data-scroll-target="#sec-gram-definition"><span class="header-section-number">5.3.1</span> The Gram matrix and the roughness penalty</a></li>
+  <li><a href="#sec-gram-exact" id="toc-sec-gram-exact" class="nav-link" data-scroll-target="#sec-gram-exact"><span class="header-section-number">5.3.2</span> Exact integration</a></li>
+  <li><a href="#sec-gram-measure" id="toc-sec-gram-measure" class="nav-link" data-scroll-target="#sec-gram-measure"><span class="header-section-number">5.3.3</span> The measure the inner product is taken against</a></li>
+  </ul></li>
+  <li><a href="#sec-basis-transforms" id="toc-sec-basis-transforms" class="nav-link" data-scroll-target="#sec-basis-transforms"><span class="header-section-number">5.4</span> Linear transformations of a basis</a>
+  <ul>
+  <li><a href="#sec-transform-one" id="toc-sec-transform-one" class="nav-link" data-scroll-target="#sec-transform-one"><span class="header-section-number">5.4.1</span> One operation, three uses</a></li>
+  <li><a href="#sec-transform-orthonorm" id="toc-sec-transform-orthonorm" class="nav-link" data-scroll-target="#sec-transform-orthonorm"><span class="header-section-number">5.4.2</span> Orthonormalisation</a></li>
+  <li><a href="#sec-transform-constrain" id="toc-sec-transform-constrain" class="nav-link" data-scroll-target="#sec-transform-constrain"><span class="header-section-number">5.4.3</span> Linear constraints</a></li>
+  <li><a href="#sec-transform-dr" id="toc-sec-transform-dr" class="nav-link" data-scroll-target="#sec-transform-dr"><span class="header-section-number">5.4.4</span> The Demmler-Reinsch basis</a></li>
+  </ul></li>
+  <li><a href="#sec-basis-tensor" id="toc-sec-basis-tensor" class="nav-link" data-scroll-target="#sec-basis-tensor"><span class="header-section-number">5.5</span> Bases of several variables</a>
+  <ul>
+  <li><a href="#sec-tensor-product" id="toc-sec-tensor-product" class="nav-link" data-scroll-target="#sec-tensor-product"><span class="header-section-number">5.5.1</span> The product basis</a></li>
+  <li><a href="#sec-tensor-separable" id="toc-sec-tensor-separable" class="nav-link" data-scroll-target="#sec-tensor-separable"><span class="header-section-number">5.5.2</span> Separability</a></li>
+  <li><a href="#sec-tensor-contract" id="toc-sec-tensor-contract" class="nav-link" data-scroll-target="#sec-tensor-contract"><span class="header-section-number">5.5.3</span> Evaluating a fitted function without forming the design matrix</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span id="sec-basis7" class="quarto-section-identifier"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">The basis7 package</span></span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The three previous chapters describe a parameter of a distribution as a single number carried through a link function. A model makes that parameter depend on covariates, and the dependence is rarely linear. This chapter presents the representation <code>basis7</code> uses for a function of one or more covariates: a fixed collection of known functions, of which the model estimates a linear combination.</p>
+<p>The mathematics is classical. <span class="citation" data-cites="deboor2001">Boor (<a href="A2-references.html#ref-deboor2001" role="doc-biblioref">2001</a>)</span> is the standard account of splines, <span class="citation" data-cites="schumaker2007">Schumaker (<a href="A2-references.html#ref-schumaker2007" role="doc-biblioref">2007</a>)</span> the more general one, and <span class="citation" data-cites="wood2017">Wood (<a href="A2-references.html#ref-wood2017" role="doc-biblioref">2017</a>)</span> the reference for their use in additive models; <span class="citation" data-cites="wahba1990">Wahba (<a href="A2-references.html#ref-wahba1990" role="doc-biblioref">1990</a>)</span> and <span class="citation" data-cites="greensilverman1994">Green and Silverman (<a href="A2-references.html#ref-greensilverman1994" role="doc-biblioref">1994</a>)</span> cover the penalised formulation these bases are built for. The results the implementation rests on are stated here with a citation for each, and the arguments are not reproduced.</p>
+<p><a href="#sec-basis-expansions" class="quarto-xref"><span>Section 5.1</span></a> defines a basis expansion and the four quantities the package computes from it: the values of the basis functions, their derivatives, their integrals and their inner products. It also describes what happens when a basis supplies only the first of these, since a numerical method for the other three is what allows a user-defined basis to work at once.</p>
+<p><a href="#sec-basis-families" class="quarto-xref"><span>Section 5.2</span></a> presents the three families the package ships. B-splines are piecewise polynomials with local support, built from a recurrence that also gives their derivatives and integrals. The Fourier basis is generated by a single phase-shift identity that covers every derivative order and the antiderivative as well. The Legendre polynomials replace raw powers, whose Gram matrix is the Hilbert matrix and is unusable beyond a handful of terms.</p>
+<p><a href="#sec-basis-gram" class="quarto-xref"><span>Section 5.3</span></a> is about the matrix of inner products of the basis functions. It is the quantity that separates this package from the basis code found elsewhere, because a roughness penalty is a quadratic form in it, and because it can be computed exactly rather than approximated on a grid.</p>
+<p><a href="#sec-basis-transforms" class="quarto-xref"><span>Section 5.4</span></a> treats the linear transformations of a basis. Making a basis orthonormal, restricting it to satisfy a linear constraint, and rebuilding it so that it diagonalises an inner product are the same operation with three different matrices, and the section derives each matrix from the property it is asked to produce. The last of the three is the Demmler-Reinsch construction, which is how the separation of a linear from a nonlinear effect is made exact.</p>
+<p><a href="#sec-basis-tensor" class="quarto-xref"><span>Section 5.5</span></a> builds a basis of several variables as a product of bases of one. The product separates, which makes every quantity of the previous sections computable from the marginals, and the section states what each of them costs. The design matrix is the one thing that does not stay cheap, and the section ends with the two ways of evaluating a fitted function without forming it.</p>
+<section id="sec-basis-expansions" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="sec-basis-expansions"><span class="header-section-number">5.1</span> Basis expansions</h2>
+<section id="sec-basis-definition" class="level3" data-number="5.1.1">
+<h3 data-number="5.1.1" class="anchored" data-anchor-id="sec-basis-definition"><span class="header-section-number">5.1.1</span> The expansion and its design matrix</h3>
+<p>A basis on an interval <span class="math inline">\([a, b]\)</span> is a finite collection of known functions <span class="math inline">\(B_1, \ldots, B_K\)</span> defined there. The functions it represents are the linear combinations</p>
+<p><span id="eq-basis-expansion"><span class="math display">\[
+f(x) \;=\; \sum_{r=1}^{K} \beta_r B_r(x) \;=\; B(x)^\top \beta ,
+\qquad x \in [a, b],
+\tag{5.1}\]</span></span></p>
+<p>where <span class="math inline">\(B(x)\)</span> is the column vector of the <span class="math inline">\(K\)</span> values and <span class="math inline">\(\beta\)</span> the vector of coefficients. The functions are fixed and known before any data are seen; the coefficients are what a model estimates. This is what makes the expansion useful in the framework of the previous chapters, since <span class="math inline">\(f\)</span> is nonlinear in <span class="math inline">\(x\)</span> while remaining linear in the parameters, and a linear predictor is what every routine in the toolkit already handles.</p>
+<p>Evaluated at <span class="math inline">\(n\)</span> points <span class="math inline">\(x_1, \ldots, x_n\)</span>, the expansion produces the <span class="math inline">\(n \times K\)</span> <strong>design matrix</strong> <span class="math inline">\(B\)</span> with entries <span class="math inline">\(B_{ir} = B_r(x_i)\)</span>, so that the vector of function values is <span class="math inline">\(B\beta\)</span>. The design matrix is the object a fitting routine consumes, and everything in this chapter is either a way of producing one or a matrix that acts on its columns.</p>
+<p>Three further quantities follow from the same functions, and a modelling routine needs all of them. Differentiating <a href="#eq-basis-expansion" class="quarto-xref">Equation&nbsp;<span>5.1</span></a> term by term gives</p>
+<p><span id="eq-basis-derivative"><span class="math display">\[
+f^{(d)}(x) \;=\; \sum_{r=1}^{K} \beta_r B_r^{(d)}(x),
+\tag{5.2}\]</span></span></p>
+<p>so a derivative of the fitted function is the same linear combination of a different matrix. Integrating gives the same statement for the antiderivative. And the integrals of the products <span class="math inline">\(B_r^{(d)} B_s^{(d)}\)</span> form the matrix that a roughness penalty is a quadratic form in, which is the subject of <a href="#sec-basis-gram" class="quarto-xref"><span>Section 5.3</span></a>.</p>
+<p>The package therefore asks four questions of a basis, and answers them in the same shape. <code>basis_eval()</code> returns the design matrix, <code>basis_deriv()</code> the matrix of <span class="math inline">\(d\)</span>-th derivatives, <code>basis_int()</code> the matrix of integrals, and <code>basis_gram()</code> the <span class="math inline">\(K \times K\)</span> matrix of inner products. The first three have one row per evaluation point and one column per basis function.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">bspline_basis</span>(<span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">1</span>, <span class="at">dimension =</span> <span class="dv">6</span>, <span class="at">degree =</span> <span class="dv">3</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>b</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Basis: bspline</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Functions: 6   Variables: 1</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Domain: [0, 1]</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameters:</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   degree          3</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   knots           0.3333, 0.6667</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   boundary_knots  0, 1</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Numerical: none</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_eval</span>(b, <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.25</span>, <span class="fl">0.5</span>, <span class="dv">1</span>)), <span class="dv">4</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         bs1    bs2    bs3    bs4    bs5 bs6</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] 1.0000 0.0000 0.0000 0.0000 0.0000   0</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] 0.0156 0.4570 0.4570 0.0703 0.0000   0</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [3,] 0.0000 0.0312 0.4687 0.4687 0.0312   0</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [4,] 0.0000 0.0000 0.0000 0.0000 0.0000   1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A basis also knows its own interval and refuses a point outside it. The refusal happens in the body of the generic, before dispatch, so a basis written outside the package inherits it without doing anything.</p>
+</section>
+<section id="sec-basis-anchor" class="level3" data-number="5.1.2">
+<h3 data-number="5.1.2" class="anchored" data-anchor-id="sec-basis-anchor"><span class="header-section-number">5.1.2</span> The integral is anchored at the lower endpoint</h3>
+<p>The integral of a basis is fixed by the convention that its value at <span class="math inline">\(a\)</span> is zero:</p>
+<p><span id="eq-basis-anchor"><span class="math display">\[
+\left(\textstyle\int B\right)_r(x) \;=\; \int_{a}^{x} B_r(v)\,\mathrm{d}v,
+\qquad \left(\textstyle\int B\right)_r(a) \;=\; 0 .
+\tag{5.3}\]</span></span></p>
+<p>The convention is part of the contract rather than a detail of the implementation, because the antiderivative is otherwise determined only up to a constant. Any choice of constant satisfies the check that differentiating the integral returns the basis, so two bases could use different constants, each be internally consistent, and produce a sum whose integral is wrong by the difference. Fixing the value at one point removes the freedom, and the lower endpoint is the natural point to fix it at, since it belongs to every basis interval.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>f <span class="ot">&lt;-</span> <span class="fu">fourier_basis</span>(<span class="at">lower =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">upper =</span> <span class="dv">3</span>, <span class="at">dimension =</span> <span class="dv">5</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">basis_int</span>(f, <span class="sc">-</span><span class="dv">1</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      const sin1 cos1 sin2 cos2</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,]     0    0    0    0    0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-basis-fallbacks" class="level3" data-number="5.1.3">
+<h3 data-number="5.1.3" class="anchored" data-anchor-id="sec-basis-fallbacks"><span class="header-section-number">5.1.3</span> Numerical methods for a basis that supplies only its values</h3>
+<p>Only <code>basis_eval()</code> is compulsory. The derivatives, the integral and the Gram matrix have numerical methods registered on the base class, so a new basis is a subclass and one method, and a closed form supplied later replaces the corresponding numerical method through dispatch with no change to calling code. This is the arrangement <code>distributions7</code> offers a distribution defined by its density alone.</p>
+<p>The derivatives are computed from a single finite-difference stencil, whose weights are determined by the requirement that the stencil be exact on polynomials. Writing <span class="math inline">\(\delta_1, \ldots, \delta_p\)</span> for the offsets, in units of a step <span class="math inline">\(h\)</span>, the Taylor expansion of the combination <span class="math inline">\(\sum_j w_j f(x + \delta_j h)\)</span> multiplies <span class="math inline">\(f^{(i)}(x)\)</span> by <span class="math inline">\(h^i/i! \sum_j w_j \delta_j^i\)</span>. Requiring</p>
+<p><span id="eq-fd-weights"><span class="math display">\[
+\sum_{j=1}^{p} w_j \delta_j^{\,i} \;=\;
+\begin{cases}
+0, &amp; i \neq d,\\
+d!, &amp; i = d,
+\end{cases}
+\qquad i = 0, \ldots, p-1,
+\tag{5.4}\]</span></span></p>
+<p>therefore leaves <span class="math inline">\(h^d f^{(d)}(x)\)</span> and nothing else, up to the first neglected term. This is a Vandermonde system in the offsets, solved once per stencil shape, and the derivative estimate is <span class="math inline">\(h^{-d}\sum_j w_j f(x + \delta_j h)\)</span>. The construction is due to <span class="citation" data-cites="fornberg1988">Fornberg (<a href="A2-references.html#ref-fornberg1988" role="doc-biblioref">1988</a>)</span>, who gives a recurrence for the weights on an arbitrary set of offsets.</p>
+<p>Building the weights this way, rather than composing lower-order differences, is what keeps a high order usable. Each numerical differentiation multiplies the error of the one before it, so a fourth derivative reached by four nested first differences is dominated by rounding error rather than by the function. The same rule governs the validators of <code>linkfunctions7</code> and <code>distributions7</code>: one stencil, applied to the highest order available in closed form, and never a chain.</p>
+<p>The step is <span class="math inline">\(h = \varepsilon^{1/(d+2)}\max(1, \lvert x \rvert)\)</span>, which balances truncation error against rounding error at order <span class="math inline">\(d\)</span>, and it is capped so that the whole stencil fits inside the interval. Near an endpoint a symmetric stencil would ask for points outside the interval, where the basis is not defined, so those points use a one-sided stencil with the same number of nodes and the same order, built from the same system <a href="#eq-fd-weights" class="quarto-xref">Equation&nbsp;<span>5.4</span></a> with shifted offsets.</p>
+<p>The construction below defines a basis of Gaussian bumps by its values alone. Its derivative is available immediately, and agrees with the closed form nothing in the object knows about.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>Bumps <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"Bumps"</span>, <span class="at">parent =</span> basis, <span class="at">package =</span> <span class="cn">NULL</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(basis_eval, Bumps) <span class="ot">&lt;-</span> <span class="cf">function</span>(basis, x, ...) {</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> basis<span class="sc">@</span>basis_params</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">outer</span>(x, p<span class="sc">$</span>centres, <span class="st">"-"</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> p<span class="sc">$</span>width<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">colnames</span>(out) <span class="ot">&lt;-</span> <span class="fu">basis_colnames</span>(basis)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  out</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>bumps <span class="ot">&lt;-</span> <span class="fu">Bumps</span>(</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">basis_name =</span> <span class="st">"bumps"</span>, <span class="at">dimension =</span> <span class="dv">5</span>L, <span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">1</span>,</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">basis_params =</span> <span class="fu">list</span>(<span class="at">centres =</span> <span class="fu">seq</span>(<span class="fl">0.1</span>, <span class="fl">0.9</span>, <span class="at">length.out =</span> <span class="dv">5</span>), <span class="at">width =</span> <span class="fl">0.15</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>xs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.2</span>, <span class="fl">0.5</span>)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_deriv</span>(bumps, xs, <span class="at">order =</span> <span class="dv">1</span>), <span class="dv">6</span>)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            bu1       bu2     bu3      bu4      bu5</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] -3.558833  3.558833 1.80447 0.085909 0.000581</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] -0.507831 -3.654331 0.00000 3.654331 0.507831</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> bumps<span class="sc">@</span>basis_params</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="sc">-</span><span class="fu">outer</span>(xs, p<span class="sc">$</span>centres, <span class="st">"-"</span>) <span class="sc">/</span> p<span class="sc">$</span>width<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> <span class="fu">basis_eval</span>(bumps, xs), <span class="dv">6</span>)</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            bu1       bu2     bu3      bu4      bu5</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] -3.558833  3.558833 1.80447 0.085909 0.000581</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] -0.507831 -3.654331 0.00000 3.654331 0.507831</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>An object says which of its answers are numerical, so that a caller can tell an exact quantity from an approximated one, and so that the validator can report a quantity it has no independent way of checking as unchecked rather than as passed.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">basis_is_numerical</span>(bumps)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; basis_deriv   basis_int  basis_gram </span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        TRUE        TRUE        TRUE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-basis-families" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="sec-basis-families"><span class="header-section-number">5.2</span> The three families</h2>
+<p>The package ships three families, chosen so that the common shapes of covariate effect are covered: a local one for effects with no global form, a periodic one for effects that repeat, and a global polynomial one for effects that do have a form and need only a few terms. Each is generated by a recurrence or an identity that produces its derivatives and its integral as well as its values, so no order is computed by differencing.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">6</span>, <span class="at">degree =</span> <span class="dv">3</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">fourier_basis</span>(<span class="at">dimension =</span> <span class="dv">5</span>))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">poly_basis</span>(<span class="at">dimension =</span> <span class="dv">5</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-basis-families" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-basis-families-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="05-basis7_files/figure-html/fig-basis-families-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-basis-families-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5.1: The three families on <span class="math inline">\([0, 1]\)</span>: a cubic B-spline basis of six functions, a Fourier basis of five, and the first five Legendre polynomials.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<section id="sec-basis-bspline" class="level3" data-number="5.2.1">
+<h3 data-number="5.2.1" class="anchored" data-anchor-id="sec-basis-bspline"><span class="header-section-number">5.2.1</span> B-splines</h3>
+<p>A B-spline basis is determined by a degree <span class="math inline">\(m\)</span> and a non-decreasing knot vector <span class="math inline">\(t_1 \le t_2 \le \cdots \le t_{K+m+1}\)</span>. The package places the knots so that the endpoints are repeated <span class="math inline">\(m+1\)</span> times each and the <span class="math inline">\(K - m - 1\)</span> interior knots are equally spaced in between, which is the configuration that makes the basis span all piecewise polynomials of degree <span class="math inline">\(m\)</span> on <span class="math inline">\([a, b]\)</span> with <span class="math inline">\(m-1\)</span> continuous derivatives at the interior knots. The dimension <span class="math inline">\(K\)</span> and the degree therefore determine the number of interior knots, and <span class="math inline">\(K \ge m + 1\)</span> is required, with equality giving the polynomials of degree <span class="math inline">\(m\)</span> on the whole interval and no interior knot at all.</p>
+<p>The functions themselves come from the recurrence of <span class="citation" data-cites="cox1972">Cox (<a href="A2-references.html#ref-cox1972" role="doc-biblioref">1972</a>)</span> and <span class="citation" data-cites="deboor1972">Boor (<a href="A2-references.html#ref-deboor1972" role="doc-biblioref">1972</a>)</span>, which starts from indicators of the knot intervals and raises the degree one step at a time:</p>
+<p><span id="eq-bspline-zero"><span class="math display">\[
+B_{i,0}(x) \;=\;
+\begin{cases}
+1, &amp; t_i \le x &lt; t_{i+1},\\
+0, &amp; \text{otherwise,}
+\end{cases}
+\tag{5.5}\]</span></span></p>
+<p><span id="eq-cox-de-boor"><span class="math display">\[
+B_{i,q}(x) \;=\;
+\frac{x - t_i}{t_{i+q} - t_i}\, B_{i,q-1}(x)
+\;+\;
+\frac{t_{i+q+1} - x}{t_{i+q+1} - t_{i+1}}\, B_{i+1,q-1}(x),
+\qquad q = 1, \ldots, m,
+\tag{5.6}\]</span></span></p>
+<p>with the convention that a term whose denominator vanishes is taken to be zero, which is what repeated knots produce. <span class="citation" data-cites="deboor2001">Boor (<a href="A2-references.html#ref-deboor2001" role="doc-biblioref">2001</a>)</span> is the reference account of the recurrence and of its numerical behaviour, which is the reason it is used in preference to any explicit polynomial form: every coefficient in <a href="#eq-cox-de-boor" class="quarto-xref">Equation&nbsp;<span>5.6</span></a> is a convex weight, so no cancellation occurs and the evaluation is stable at any degree.</p>
+<p>Two properties of the resulting functions matter for what follows. The first is <strong>local support</strong>: <span class="math inline">\(B_{i,m}\)</span> vanishes outside <span class="math inline">\([t_i, t_{i+m+1}]\)</span>, so at any <span class="math inline">\(x\)</span> at most <span class="math inline">\(m+1\)</span> of the <span class="math inline">\(K\)</span> functions are non-zero. The design matrix is therefore banded, and so is the Gram matrix of <a href="#sec-basis-gram" class="quarto-xref"><span>Section 5.3</span></a>, which is what keeps a spline model of a thousand coefficients tractable. The second is that the functions form a <strong>partition of unity</strong>, <span class="math inline">\(\sum_{i=1}^{K} B_{i,m}(x) = 1\)</span> on <span class="math inline">\([a, b]\)</span>, so the constant function is in the span and the basis needs no separate intercept.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">8</span>, <span class="at">degree =</span> <span class="dv">3</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_eval</span>(b, <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span>)), <span class="dv">3</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        bs1   bs2   bs3   bs4   bs5   bs6   bs7   bs8</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] 0.125 0.594 0.260 0.021 0.000 0.000 0.000 0.000</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] 0.000 0.000 0.021 0.479 0.479 0.021 0.000 0.000</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [3,] 0.000 0.000 0.000 0.000 0.021 0.260 0.594 0.125</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="fu">rowSums</span>(<span class="fu">basis_eval</span>(b, <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="at">length.out =</span> <span class="dv">5</span>)))</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1 1 1 1 1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Derivatives are not computed by differencing <a href="#eq-cox-de-boor" class="quarto-xref">Equation&nbsp;<span>5.6</span></a> but by a second recurrence of the same kind, which expresses the derivative of a spline of degree <span class="math inline">\(q\)</span> through two splines of degree <span class="math inline">\(q-1\)</span>:</p>
+<p><span id="eq-bspline-derivative"><span class="math display">\[
+B_{i,q}'(x) \;=\; q \left(
+\frac{B_{i,q-1}(x)}{t_{i+q} - t_i}
+\;-\;
+\frac{B_{i+1,q-1}(x)}{t_{i+q+1} - t_{i+1}}
+\right).
+\tag{5.7}\]</span></span></p>
+<p>Applying it <span class="math inline">\(d\)</span> times gives the <span class="math inline">\(d\)</span>-th derivative exactly, and shows why a spline of degree <span class="math inline">\(m\)</span> has exactly <span class="math inline">\(m\)</span> non-trivial derivatives: each application lowers the degree by one, and a derivative of order above <span class="math inline">\(m\)</span> is the zero function. The package returns the zero matrix for such an order, which is the value of that derivative rather than a refusal. The integral obeys a recurrence of the same family, and the package takes it in the form that already satisfies <a href="#eq-basis-anchor" class="quarto-xref">Equation&nbsp;<span>5.3</span></a>.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_deriv</span>(b, <span class="fl">0.4</span>, <span class="at">order =</span> <span class="dv">2</span>), <span class="dv">3</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      bs1 bs2 bs3 bs4 bs5 bs6 bs7 bs8</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,]   0   0  25 -50  25   0   0   0</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># a cubic spline has no fourth derivative</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">all</span>(<span class="fu">basis_deriv</span>(b, <span class="fl">0.4</span>, <span class="at">order =</span> <span class="dv">4</span>) <span class="sc">==</span> <span class="dv">0</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-basis-fourier" class="level3" data-number="5.2.2">
+<h3 data-number="5.2.2" class="anchored" data-anchor-id="sec-basis-fourier"><span class="header-section-number">5.2.2</span> The Fourier basis</h3>
+<p>The Fourier basis holds the constant function together with <span class="math inline">\(J\)</span> sine-cosine pairs of increasing frequency. Writing <span class="math inline">\(\omega\)</span> for the period and</p>
+<p><span class="math display">\[
+z \;=\; \frac{2\pi (x - a)}{\omega}
+\]</span></p>
+<p>for the phase, the functions are <span class="math inline">\(1\)</span>, and <span class="math inline">\(\sin(jz)\)</span>, <span class="math inline">\(\cos(jz)\)</span> for <span class="math inline">\(j = 1, \ldots, J\)</span>, so the dimension is <span class="math inline">\(K = 2J + 1\)</span> and is necessarily odd. A sine kept without its cosine would give a basis able to represent a wave at one phase and not at another, so a dimension that would leave half a pair is refused rather than adjusted.</p>
+<p>Every derivative and the antiderivative come from one identity. Differentiating a sinusoid rescales it and advances its phase by a quarter period, and iterating that statement gives</p>
+<p><span id="eq-fourier-shift"><span class="math display">\[
+\frac{\mathrm{d}^{k}}{\mathrm{d}x^{k}} \sin(jz)
+\;=\; \left(\frac{2\pi j}{\omega}\right)^{k}
+\sin\!\left(jz + \frac{k\pi}{2}\right),
+\tag{5.8}\]</span></span></p>
+<p>and the same with the cosine in both places. No order is special: the identity is one line of code for every <span class="math inline">\(k\)</span>, and it holds for negative <span class="math inline">\(k\)</span> as well, where it gives an antiderivative. That antiderivative is not the one <a href="#eq-basis-anchor" class="quarto-xref">Equation&nbsp;<span>5.3</span></a> asks for, and the two differ by a constant that is not the same in every column, since at <span class="math inline">\(x = a\)</span> the raw sine columns take the value <span class="math inline">\(-\omega/(2\pi j)\)</span> while the cosine columns are already zero. Subtracting the value at the lower endpoint corrects every column at once.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fb <span class="ot">&lt;-</span> <span class="fu">fourier_basis</span>(<span class="at">dimension =</span> <span class="dv">5</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">basis_colnames</span>(fb)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "const" "sin1"  "cos1"  "sin2"  "cos2"</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_deriv</span>(fb, <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.6</span>), <span class="at">order =</span> <span class="dv">3</span>), <span class="dv">4</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      const      sin1      cos1      sin2     cos2</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,]     0 -200.6768  145.8003 -613.2139 1887.278</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,]     0  200.6768 -145.8003 -613.2139 1887.278</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The period defaults to the width of the interval, which is what makes the functions orthogonal on it and gives the closed-form Gram matrix of <a href="#sec-basis-gram" class="quarto-xref"><span>Section 5.3</span></a>. A different period is accepted, and the basis then spans a non-integer number of periods, so the orthogonality is lost and the inner products are computed by quadrature instead.</p>
+</section>
+<section id="sec-basis-legendre" class="level3" data-number="5.2.3">
+<h3 data-number="5.2.3" class="anchored" data-anchor-id="sec-basis-legendre"><span class="header-section-number">5.2.3</span> The Legendre polynomials</h3>
+<p>The third family is the polynomials of degree below <span class="math inline">\(K\)</span> on <span class="math inline">\([a, b]\)</span>, expressed in the Legendre basis rather than in raw powers. The two span the same space, so the choice between them is entirely numerical. The Gram matrix of the raw powers on <span class="math inline">\([0,1]\)</span> has entries <span class="math inline">\(1/(r+s-1)\)</span>, which is the Hilbert matrix, whose condition number grows like <span class="math inline">\(e^{3.5K}\)</span>; a basis of ten raw powers is already close to singular in double precision. The Legendre polynomials are orthogonal, so their Gram matrix is diagonal and perfectly conditioned.</p>
+<p>They are defined on <span class="math inline">\([-1, 1]\)</span> by the three-term recurrence</p>
+<p><span id="eq-legendre-recurrence"><span class="math display">\[
+(n+1) P_{n+1}(\tau) \;=\; (2n+1)\, \tau\, P_n(\tau) \;-\; n\, P_{n-1}(\tau),
+\qquad P_0(\tau) = 1, \quad P_1(\tau) = \tau,
+\tag{5.9}\]</span></span></p>
+<p>and carried to the basis interval by the affine change of variable <span class="math inline">\(\tau = 2(x - a)/(b - a) - 1\)</span>. <span class="citation" data-cites="abramowitz1964">Abramowitz and Stegun (<a href="A2-references.html#ref-abramowitz1964" role="doc-biblioref">1964</a>)</span> collects the standard identities, of which two more are used here. Differentiating</p>
+<p><span class="math display">\[
+P_{n+1}'(\tau) - P_{n-1}'(\tau) \;=\; (2n+1) P_n(\tau)
+\]</span></p>
+<p><span class="math inline">\(d-1\)</span> further times gives a recurrence that produces each derivative order from the one below it,</p>
+<p><span id="eq-legendre-derivative"><span class="math display">\[
+P_{n+1}^{(d)}(\tau) \;=\; P_{n-1}^{(d)}(\tau) \;+\; (2n+1) P_{n}^{(d-1)}(\tau),
+\tag{5.10}\]</span></span></p>
+<p>so every order is exact and none is reached by differencing; the change of variable contributes a factor <span class="math inline">\(\left(2/(b-a)\right)^{d}\)</span>. Reading the same identity as an antiderivative gives</p>
+<p><span id="eq-legendre-integral"><span class="math display">\[
+\int P_n \,\mathrm{d}\tau \;=\; \frac{P_{n+1} - P_{n-1}}{2n+1},
+\qquad n \ge 1,
+\tag{5.11}\]</span></span></p>
+<p>which satisfies <a href="#eq-basis-anchor" class="quarto-xref">Equation&nbsp;<span>5.3</span></a> without a correction, because at <span class="math inline">\(\tau = -1\)</span> the combination <span class="math inline">\(P_{n+1} - P_{n-1}\)</span> is <span class="math inline">\((-1)^{n+1} - (-1)^{n-1} = 0\)</span>.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">&lt;-</span> <span class="fu">poly_basis</span>(<span class="at">dimension =</span> <span class="dv">5</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_eval</span>(pb, <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.5</span>, <span class="dv">1</span>)), <span class="dv">4</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      P0 P1   P2 P3    P4</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,]  1 -1  1.0 -1 1.000</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,]  1  0 -0.5  0 0.375</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [3,]  1  1  1.0  1 1.000</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co"># the same span as the raw powers, in a better conditioned form</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="at">length.out =</span> <span class="dv">40</span>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">lm.fit</span>(<span class="fu">basis_eval</span>(pb, x), x<span class="sc">^</span><span class="dv">3</span>)<span class="sc">$</span>fitted.values <span class="sc">-</span> x<span class="sc">^</span><span class="dv">3</span>))</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.03559e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-basis-gram" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="sec-basis-gram"><span class="header-section-number">5.3</span> Inner products</h2>
+<section id="sec-gram-definition" class="level3" data-number="5.3.1">
+<h3 data-number="5.3.1" class="anchored" data-anchor-id="sec-gram-definition"><span class="header-section-number">5.3.1</span> The Gram matrix and the roughness penalty</h3>
+<p>The <strong>Gram matrix</strong> of order <span class="math inline">\(d\)</span> collects the inner products of the <span class="math inline">\(d\)</span>-th derivatives of the basis functions,</p>
+<p><span id="eq-gram"><span class="math display">\[
+\left(G_d\right)_{rs} \;=\;
+\int_{a}^{b} B_r^{(d)}(x)\, B_s^{(d)}(x)\, \mathrm{d}x ,
+\qquad r, s = 1, \ldots, K .
+\tag{5.12}\]</span></span></p>
+<p>Its importance comes from <a href="#eq-basis-derivative" class="quarto-xref">Equation&nbsp;<span>5.2</span></a>. Squaring that expansion and integrating gives</p>
+<p><span id="eq-gram-quadratic-form"><span class="math display">\[
+\int_{a}^{b} \left\{ f^{(d)}(x) \right\}^2 \mathrm{d}x
+\;=\; \beta^\top G_d\, \beta ,
+\tag{5.13}\]</span></span></p>
+<p>so the integrated squared <span class="math inline">\(d\)</span>-th derivative of the fitted function, which is the standard measure of its roughness, is a quadratic form in the coefficients with <span class="math inline">\(G_d\)</span> as its matrix. Penalised estimation adds <span class="math inline">\(\lambda \beta^\top G_d \beta\)</span> to the negative log-likelihood, and the quantity the penalty needs is exactly <a href="#eq-gram" class="quarto-xref">Equation&nbsp;<span>5.12</span></a>. The formulation is that of <span class="citation" data-cites="wahba1990">Wahba (<a href="A2-references.html#ref-wahba1990" role="doc-biblioref">1990</a>)</span> and <span class="citation" data-cites="greensilverman1994">Green and Silverman (<a href="A2-references.html#ref-greensilverman1994" role="doc-biblioref">1994</a>)</span>, and <span class="citation" data-cites="wood2017">Wood (<a href="A2-references.html#ref-wood2017" role="doc-biblioref">2017</a>)</span> gives the modern account in the additive model setting.</p>
+<p><span class="math inline">\(G_d\)</span> is symmetric and positive semidefinite by construction, and for <span class="math inline">\(d \ge 1\)</span> it is singular: any <span class="math inline">\(\beta\)</span> whose expansion is a polynomial of degree below <span class="math inline">\(d\)</span> contributes nothing to the integral, so the null space has dimension at least <span class="math inline">\(d\)</span> whenever the basis contains those polynomials. The null space is the <strong>unpenalised</strong> part of the model, the set of functions the penalty leaves alone however large <span class="math inline">\(\lambda\)</span> becomes, and for <span class="math inline">\(d = 2\)</span> it is the straight lines.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">6</span>, <span class="at">degree =</span> <span class="dv">3</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">6</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>f2 <span class="ot">&lt;-</span> <span class="cf">function</span>(v) (<span class="fu">basis_deriv</span>(b, v, <span class="at">order =</span> <span class="dv">2</span>) <span class="sc">%*%</span> beta)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">quadratic_form =</span> <span class="fu">drop</span>(<span class="fu">t</span>(beta) <span class="sc">%*%</span> <span class="fu">basis_gram</span>(b, <span class="at">order =</span> <span class="dv">2</span>) <span class="sc">%*%</span> beta),</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">integral =</span> <span class="fu">integrate</span>(<span class="cf">function</span>(v) <span class="fu">apply</span>(<span class="fu">cbind</span>(v), <span class="dv">1</span>, f2), <span class="dv">0</span>, <span class="dv">1</span>)<span class="sc">$</span>value</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; quadratic_form       integral </span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       954.9932       954.9932</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A difference penalty on the coefficients, <span class="math inline">\(\beta^\top \Delta_d^\top \Delta_d \beta\)</span> with <span class="math inline">\(\Delta_d\)</span> the <span class="math inline">\(d\)</span>-th difference operator, is the alternative in common use and is the P-spline construction of <span class="citation" data-cites="eilers1996">Eilers and Marx (<a href="A2-references.html#ref-eilers1996" role="doc-biblioref">1996</a>)</span>. It is a different matrix, cheaper to form and approximating <a href="#eq-gram" class="quarto-xref">Equation&nbsp;<span>5.12</span></a> for equally spaced knots, and the package accepts either wherever a penalty is an argument. The distinction matters because <a href="#eq-gram" class="quarto-xref">Equation&nbsp;<span>5.12</span></a> is a property of the basis functions alone, while a difference penalty is a property of how the coefficients are indexed.</p>
+</section>
+<section id="sec-gram-exact" class="level3" data-number="5.3.2">
+<h3 data-number="5.3.2" class="anchored" data-anchor-id="sec-gram-exact"><span class="header-section-number">5.3.2</span> Exact integration</h3>
+<p>The integrand of <a href="#eq-gram" class="quarto-xref">Equation&nbsp;<span>5.12</span></a> is a product of two piecewise polynomials, so the integral can be computed without approximation. On each knot interval the order-<span class="math inline">\(d\)</span> derivative of a spline of degree <span class="math inline">\(m\)</span> is a polynomial of degree <span class="math inline">\(m - d\)</span>, so the integrand there has degree <span class="math inline">\(2(m-d)\)</span>. A Gauss-Legendre rule with <span class="math inline">\(p\)</span> nodes integrates polynomials of degree up to <span class="math inline">\(2p - 1\)</span> exactly, so <span class="math inline">\(p = m - d + 1\)</span> nodes leave no quadrature error at all, and the result carries only floating-point error. The rule is applied interval by interval, and the whole matrix is one crossproduct of the weighted derivative matrix evaluated at the collected nodes.</p>
+<p>The nodes and weights are computed rather than tabulated, by the construction of <span class="citation" data-cites="golub1969">Golub and Welsch (<a href="A2-references.html#ref-golub1969" role="doc-biblioref">1969</a>)</span>: the nodes are the eigenvalues of the symmetric tridiagonal Jacobi matrix of the Legendre recurrence <a href="#eq-legendre-recurrence" class="quarto-xref">Equation&nbsp;<span>5.9</span></a>, and the weights come from the first component of each normalised eigenvector. Computing them keeps any node count available, which the rule above needs, since the count depends on the degree and on the derivative order.</p>
+<p>The other two families do better still. Over a whole period the trigonometric functions are mutually orthogonal, and they remain so after differentiation, since <a href="#eq-fourier-shift" class="quarto-xref">Equation&nbsp;<span>5.8</span></a> only rescales a function and shifts its phase. The Gram matrix is therefore diagonal, with entries</p>
+<p><span id="eq-fourier-gram"><span class="math display">\[
+\omega \ \text{ for the constant at } d = 0, \qquad
+0 \ \text{ for the constant at } d \ge 1, \qquad
+\frac{\omega}{2}\left(\frac{2\pi j}{\omega}\right)^{2d}
+\ \text{ for both members of pair } j .
+\tag{5.14}\]</span></span></p>
+<p>For the Legendre polynomials the orthogonality relation <span class="math inline">\(\int_{-1}^{1} P_n P_{n'} \,\mathrm{d}\tau\)</span>, which is <span class="math inline">\(2/(2n+1)\)</span> when <span class="math inline">\(n = n'\)</span> and zero otherwise, gives after the change of variable a diagonal matrix with entries <span class="math inline">\((b - a)/(2n+1)\)</span> at order zero. Their derivatives are not orthogonal, but the integrand remains a polynomial of degree at most <span class="math inline">\(2(K - 1 - d)\)</span>, so a single rule with <span class="math inline">\(K\)</span> nodes is exact on the whole interval.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_gram</span>(<span class="fu">fourier_basis</span>(<span class="at">dimension =</span> <span class="dv">5</span>), <span class="at">order =</span> <span class="dv">1</span>), <span class="dv">4</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       const    sin1    cos1    sin2    cos2</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; const     0  0.0000  0.0000  0.0000  0.0000</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sin1      0 19.7392  0.0000  0.0000  0.0000</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cos1      0  0.0000 19.7392  0.0000  0.0000</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sin2      0  0.0000  0.0000 78.9568  0.0000</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cos2      0  0.0000  0.0000  0.0000 78.9568</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_gram</span>(<span class="fu">poly_basis</span>(<span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">2</span>, <span class="at">dimension =</span> <span class="dv">4</span>)), <span class="dv">6</span>)</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    P0       P1  P2       P3</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; P0  2 0.000000 0.0 0.000000</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; P1  0 0.666667 0.0 0.000000</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; P2  0 0.000000 0.4 0.000000</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; P3  0 0.000000 0.0 0.285714</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The local support of <a href="#sec-basis-bspline" class="quarto-xref"><span>Section 5.2.1</span></a> shows in the spline case as a band: <span class="math inline">\(\left(G_d\right)_{rs}\)</span> is zero whenever <span class="math inline">\(\lvert r - s \rvert &gt; m\)</span>, since the supports of the two functions do not overlap.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_gram</span>(<span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">8</span>, <span class="at">degree =</span> <span class="dv">2</span>), <span class="at">order =</span> <span class="dv">1</span>), <span class="dv">2</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     bs1 bs2 bs3 bs4 bs5 bs6 bs7 bs8</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs1   8  -6  -2   0   0   0   0   0</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs2  -6   8  -1  -1   0   0   0   0</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs3  -2  -1   6  -2  -1   0   0   0</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs4   0  -1  -2   6  -2  -1   0   0</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs5   0   0  -1  -2   6  -2  -1   0</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs6   0   0   0  -1  -2   6  -1  -2</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs7   0   0   0   0  -1  -1   8  -6</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs8   0   0   0   0   0  -2  -6   8</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-gram-measure" class="level3" data-number="5.3.3">
+<h3 data-number="5.3.3" class="anchored" data-anchor-id="sec-gram-measure"><span class="header-section-number">5.3.3</span> The measure the inner product is taken against</h3>
+<p><a href="#eq-gram" class="quarto-xref">Equation&nbsp;<span>5.12</span></a> integrates against Lebesgue measure on <span class="math inline">\([a, b]\)</span>, which is the measure a roughness penalty uses: the penalty is a statement about the function on its whole interval, and does not depend on where the data lie. Two other measures are needed elsewhere, and both are supplied as arguments to the same generic.</p>
+<p>The <strong>empirical measure</strong> of a set of points replaces the integral by the average over them,</p>
+<p><span id="eq-gram-empirical"><span class="math display">\[
+\left(\widehat{G}_d\right)_{rs}
+\;=\; \frac{1}{n}\sum_{i=1}^{n} B_r^{(d)}(x_i)\, B_s^{(d)}(x_i)
+\;=\; \frac{1}{n} \left(B^{(d)\top} B^{(d)}\right)_{rs} ,
+\tag{5.15}\]</span></span></p>
+<p>which is the matrix a design matrix actually produces, and the one that appears wherever a construction is meant to depend on the design. It is what <a href="#sec-basis-transforms" class="quarto-xref"><span>Section 5.4</span></a> diagonalises. A <strong>weighted</strong> Lebesgue measure, given by a density <span class="math inline">\(w\)</span>, integrates <span class="math inline">\(B_r^{(d)} B_s^{(d)} w\)</span> instead, and is what appears when the penalty is meant to follow the distribution of the covariate rather than the interval.</p>
+<p>Both are handled in the body of the generic, before dispatch, so a method never sees them and never has to implement them; a family always returns the plain Lebesgue matrix, and the two alternatives are computed the same way for every basis in the package and for every basis outside it.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>xs <span class="ot">&lt;-</span> <span class="fu">rbeta</span>(<span class="dv">4000</span>, <span class="dv">2</span>, <span class="dv">2</span>)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_gram</span>(b, <span class="at">at =</span> xs)[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="dv">4</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        bs1    bs2    bs3</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs1 0.0116 0.0144 0.0043</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs2 0.0144 0.0621 0.0572</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs3 0.0043 0.0572 0.1456</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_gram</span>(b, <span class="at">weight =</span> <span class="cf">function</span>(v) <span class="fu">dbeta</span>(v, <span class="dv">2</span>, <span class="dv">2</span>))[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="dv">4</span>)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        bs1    bs2    bs3</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs1 0.0110 0.0141 0.0042</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs2 0.0141 0.0617 0.0574</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bs3 0.0042 0.0574 0.1458</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-basis-transforms" class="level2" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="sec-basis-transforms"><span class="header-section-number">5.4</span> Linear transformations of a basis</h2>
+<section id="sec-transform-one" class="level3" data-number="5.4.1">
+<h3 data-number="5.4.1" class="anchored" data-anchor-id="sec-transform-one"><span class="header-section-number">5.4.1</span> One operation, three uses</h3>
+<p>Making a basis orthonormal, restricting it so that its coefficients satisfy a linear constraint, and rebuilding it so that it diagonalises an inner product are all instances of the same operation. In each case the new functions are fixed linear combinations of the old ones,</p>
+<p><span id="eq-transform"><span class="math display">\[
+\widetilde{B}(x)^\top \;=\; B(x)^\top T ,
+\qquad T \in \mathbb{R}^{K \times \widetilde{K}},
+\tag{5.16}\]</span></span></p>
+<p>and the three differ only in how <span class="math inline">\(T\)</span> is computed. The matrix may have fewer columns than rows, which is how a constraint reduces the dimension of the basis, and the coefficients of the new basis are related to the old ones by <span class="math inline">\(\beta = T\gamma\)</span>.</p>
+<p>Every quantity of the previous sections transforms with <a href="#eq-transform" class="quarto-xref">Equation&nbsp;<span>5.16</span></a> and nothing else has to be recomputed. Differentiation and integration are linear and <span class="math inline">\(T\)</span> does not depend on <span class="math inline">\(x\)</span>, so</p>
+<p><span class="math display">\[
+\widetilde{B}^{(d)}(x)^\top = B^{(d)}(x)^\top T ,
+\qquad
+\left(\textstyle\int \widetilde{B}\right)(x)^\top
+= \left(\textstyle\int B\right)(x)^\top T ,
+\]</span></p>
+<p>and the anchor <a href="#eq-basis-anchor" class="quarto-xref">Equation&nbsp;<span>5.3</span></a> survives, since a linear combination of columns that are all zero at <span class="math inline">\(a\)</span> is zero at <span class="math inline">\(a\)</span>. The Gram matrix transforms by <strong>congruence</strong>,</p>
+<p><span id="eq-transform-congruence"><span class="math display">\[
+\widetilde{G}_d \;=\; T^\top G_d\, T ,
+\tag{5.17}\]</span></span></p>
+<p>which follows from <a href="#eq-gram" class="quarto-xref">Equation&nbsp;<span>5.12</span></a> by substituting <a href="#eq-transform" class="quarto-xref">Equation&nbsp;<span>5.16</span></a> under the integral. A parent whose inner products are exact therefore passes that exactness on: the transformed basis is not integrated again, and no quadrature enters at any point.</p>
+<p>Transforms compose by multiplication rather than by nesting. Applying <a href="#eq-transform" class="quarto-xref">Equation&nbsp;<span>5.16</span></a> twice gives <span class="math inline">\(B^\top T_1 T_2\)</span>, so a chain of them is stored as the single product and costs one matrix multiplication per evaluation however long the chain is.</p>
+</section>
+<section id="sec-transform-orthonorm" class="level3" data-number="5.4.2">
+<h3 data-number="5.4.2" class="anchored" data-anchor-id="sec-transform-orthonorm"><span class="header-section-number">5.4.2</span> Orthonormalisation</h3>
+<p>An orthonormal basis is one whose Gram matrix is the identity, and <a href="#eq-transform-congruence" class="quarto-xref">Equation&nbsp;<span>5.17</span></a> turns that requirement into a matrix factorisation. Writing <span class="math inline">\(G_d = R^\top R\)</span> for the Cholesky factorisation of the Gram matrix, the choice <span class="math inline">\(T = R^{-1}\)</span> gives</p>
+<p><span id="eq-orthonorm"><span class="math display">\[
+\widetilde{G}_d \;=\; R^{-\top} R^\top R\, R^{-1} \;=\; I .
+\tag{5.18}\]</span></span></p>
+<p>The transform is read off the Gram matrix rather than estimated on a grid of points, so there is no number of points to choose and no scale factor to correct, and the result is as exact as <span class="math inline">\(G_d\)</span> is. The factorisation exists whenever <span class="math inline">\(G_d\)</span> is positive definite, which at order zero holds for any basis whose functions are linearly independent, and fails at higher orders, where <a href="#sec-gram-definition" class="quarto-xref"><span>Section 5.3.1</span></a> showed the matrix to be singular.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">6</span>, <span class="at">degree =</span> <span class="dv">3</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>o <span class="ot">&lt;-</span> <span class="fu">orthonorm_basis</span>(b)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_gram</span>(o), <span class="dv">12</span>)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>]</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     on1 on2 on3 on4</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; on1   1   0   0   0</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; on2   0   1   0   0</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; on3   0   0   1   0</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; on4   0   0   0   1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-transform-constrain" class="level3" data-number="5.4.3">
+<h3 data-number="5.4.3" class="anchored" data-anchor-id="sec-transform-constrain"><span class="header-section-number">5.4.3</span> Linear constraints</h3>
+<p>A model term is often required to satisfy a linear constraint on its coefficients, <span class="math inline">\(C\beta = 0\)</span> with <span class="math inline">\(C\)</span> of rank <span class="math inline">\(\mathrm{rank}(C)\)</span>. The usual case is a sum-to-zero condition, which removes the constant function from the span of a term so that it is identified against the intercept of the model; <span class="citation" data-cites="wood2017">Wood (<a href="A2-references.html#ref-wood2017" role="doc-biblioref">2017</a>)</span> discusses the choices available and their consequences for the fitted component.</p>
+<p>Writing <span class="math inline">\(\beta = T\gamma\)</span> turns the constraint into <span class="math inline">\(C T \gamma = 0\)</span> for every <span class="math inline">\(\gamma\)</span>, so <span class="math inline">\(T\)</span> must have the null space of <span class="math inline">\(C\)</span> as its column space. The package takes the last <span class="math inline">\(K - \mathrm{rank}(C)\)</span> right singular vectors of <span class="math inline">\(C\)</span>, which form an orthonormal basis of that null space, so the constrained basis spans precisely the admissible functions and no reparameterisation of <span class="math inline">\(C\)</span> changes the space it produces. The dimension drops by the rank of the constraint, not by the number of rows written down.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>grid <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="at">length.out =</span> <span class="dv">200</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>cs <span class="ot">&lt;-</span> <span class="fu">constrain_basis</span>(b, <span class="fu">colSums</span>(<span class="fu">basis_eval</span>(b, grid)))</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">before =</span> b<span class="sc">@</span>dimension, <span class="at">after =</span> cs<span class="sc">@</span>dimension)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; before  after </span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      6      5</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">colSums</span>(<span class="fu">basis_eval</span>(cs, grid))))</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.01679e-14</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The mechanics are what the package supplies. Which constraint a term should carry needs to know what the term means, and belongs to the layer that does.</p>
+</section>
+<section id="sec-transform-dr" class="level3" data-number="5.4.4">
+<h3 data-number="5.4.4" class="anchored" data-anchor-id="sec-transform-dr"><span class="header-section-number">5.4.4</span> The Demmler-Reinsch basis</h3>
+<p>The third transform makes the empirical inner product and the penalty diagonal at the same time. Its purpose is the separation of a linear from a nonlinear effect: an additive component <span class="math inline">\(f_j\)</span> is written as the sum of its projection on <span class="math inline">\(\mathrm{span}\{1, x_j\}\)</span> and a remainder, and the remainder is expanded in a basis that is empirically orthogonal to those two functions. Without that orthogonality the sum of the two parts is still estimated correctly, but the split between them is not, so a statement about the size of the nonlinear effect depends on the basis rather than on the data. <span class="citation" data-cites="bach2024">Bach and Klein (<a href="A2-references.html#ref-bach2024" role="doc-biblioref">2024</a>)</span> makes the decomposition precise and proves the consistency of the two parts separately.</p>
+<p>The construction has three steps, following <span class="citation" data-cites="bach2024">Bach and Klein (<a href="A2-references.html#ref-bach2024" role="doc-biblioref">2024</a>)</span>. The first restricts the basis to the null space of</p>
+<p><span class="math display">\[
+C \;=\; (\mathbf{1}, x)^\top B \;\in\; \mathbb{R}^{2 \times K},
+\]</span></p>
+<p>by the transform of <a href="#sec-transform-constrain" class="quarto-xref"><span>Section 5.4.3</span></a>, giving <span class="math inline">\(V_0\)</span> of size <span class="math inline">\(K \times (K-2)\)</span>. This is where the empirical orthogonality comes from, since <span class="math inline">\(CV_0 = 0\)</span> says exactly that the columns of <span class="math inline">\(BV_0\)</span> are orthogonal to <span class="math inline">\(\mathbf{1}\)</span> and to <span class="math inline">\(x\)</span> at the observed points. The second diagonalises the pencil formed by the empirical Gram matrix <a href="#eq-gram-empirical" class="quarto-xref">Equation&nbsp;<span>5.15</span></a> and the penalty <span class="math inline">\(P\)</span> on that subspace: with</p>
+<p><span class="math display">\[
+\widetilde{G} = V_0^\top \left(B^\top B / n\right) V_0 ,
+\qquad
+\widetilde{P} = V_0^\top P\, V_0 ,
+\]</span></p>
+<p>the generalised eigenproblem <span class="math inline">\(\widetilde{G} \alpha_k = \lambda_k \widetilde{P} \alpha_k\)</span> is solved by factorising <span class="math inline">\(\widetilde{P} = R^\top R\)</span> and taking the ordinary eigendecomposition of <span class="math inline">\(R^{-\top} \widetilde{G} R^{-1}\)</span>, whose eigenvectors <span class="math inline">\(e_k\)</span> give <span class="math inline">\(\alpha_k = R^{-1} e_k\)</span>. The third step sets <span class="math inline">\(T = V_0 A\)</span>, the columns of <span class="math inline">\(A\)</span> being the <span class="math inline">\(\alpha_k\)</span>, and by default rescales so that the eigenvalues sum to one.</p>
+<p>The resulting design matrix <span class="math inline">\(Z = BT\)</span> satisfies the three properties the construction was asked for:</p>
+<p><span id="eq-dr-properties"><span class="math display">\[
+Z^\top Z \ \text{is diagonal}, \qquad
+T^\top P\, T \propto I, \qquad
+(\mathbf{1}, x)^\top Z = 0 .
+\tag{5.19}\]</span></span></p>
+<p>The consequence is that the penalised normal equations in these coordinates are diagonal, so each coefficient is shrunk on its own, by a factor determined by its eigenvalue and the smoothing parameter, and the eigen-decomposition of the smoother is available without forming any matrix of the size of the sample. The eigenvalues <span class="math inline">\(\lambda_k\)</span> measure how much empirical variance a direction carries per unit of penalty, and are the Demmler-Reinsch values of <span class="citation" data-cites="demmler1975">Demmler and Reinsch (<a href="A2-references.html#ref-demmler1975" role="doc-biblioref">1975</a>)</span>.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>xd <span class="ot">&lt;-</span> <span class="fu">sort</span>(<span class="fu">runif</span>(<span class="dv">300</span>))</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">dr_basis</span>(b, xd)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>z <span class="ot">&lt;-</span> <span class="fu">basis_eval</span>(d, xd)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">off_diagonal =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">crossprod</span>(z)[<span class="fu">upper.tri</span>(<span class="fu">crossprod</span>(z))])),</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">orthogonal_to_1_and_x =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">crossprod</span>(<span class="fu">cbind</span>(<span class="dv">1</span>, xd), z)))</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          off_diagonal orthogonal_to_1_and_x </span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          3.991252e-14          5.240253e-14</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Two properties of this particular route through the algebra matter in practice. It factorises a <span class="math inline">\(2 \times K\)</span> matrix and a <span class="math inline">\((K-2) \times (K-2)\)</span> matrix, never anything whose size depends on <span class="math inline">\(n\)</span>. And the matrix inverted is the penalty rather than the design, so a rank-deficient <span class="math inline">\(B\)</span> passes through unharmed, which is what equally spaced knots produce whenever the data leave a knot span empty.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>xg <span class="ot">&lt;-</span> <span class="fu">sort</span>(<span class="fu">c</span>(<span class="fu">seq</span>(<span class="dv">0</span>, <span class="fl">0.25</span>, <span class="at">length.out =</span> <span class="dv">120</span>), <span class="fu">seq</span>(<span class="fl">0.78</span>, <span class="dv">1</span>, <span class="at">length.out =</span> <span class="dv">120</span>)))</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>wide <span class="ot">&lt;-</span> <span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">14</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">dimension =</span> wide<span class="sc">@</span>dimension, <span class="at">rank =</span> <span class="fu">qr</span>(<span class="fu">basis_eval</span>(wide, xg))<span class="sc">$</span>rank)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; dimension      rank </span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        14        12</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>zg <span class="ot">&lt;-</span> <span class="fu">basis_eval</span>(<span class="fu">dr_basis</span>(wide, xg), xg)</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">off_diagonal =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">crossprod</span>(zg)[<span class="fu">upper.tri</span>(<span class="fu">crossprod</span>(zg))])),</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">orthogonal_to_1_and_x =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">crossprod</span>(<span class="fu">cbind</span>(<span class="dv">1</span>, xg), zg)))</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          off_diagonal orthogonal_to_1_and_x </span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          3.108624e-14          7.571721e-14</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-basis-tensor" class="level2" data-number="5.5">
+<h2 data-number="5.5" class="anchored" data-anchor-id="sec-basis-tensor"><span class="header-section-number">5.5</span> Bases of several variables</h2>
+<section id="sec-tensor-product" class="level3" data-number="5.5.1">
+<h3 data-number="5.5.1" class="anchored" data-anchor-id="sec-tensor-product"><span class="header-section-number">5.5.1</span> The product basis</h3>
+<p>A basis of several variables is built from bases of one variable by taking all products of their functions. Given marginal bases <span class="math inline">\(B_1, \ldots, B_D\)</span> of dimensions <span class="math inline">\(K_1, \ldots, K_D\)</span>, the tensor product basis consists of the functions</p>
+<p><span id="eq-tensor-function"><span class="math display">\[
+B_{r_1 \cdots r_D}(x_1, \ldots, x_D)
+\;=\; \prod_{j=1}^{D} B_{j,r_j}(x_j),
+\qquad r_j = 1, \ldots, K_j ,
+\tag{5.20}\]</span></span></p>
+<p>so its dimension is <span class="math inline">\(K = \prod_j K_j\)</span>, and the functions it represents are the sums <span class="math inline">\(f(x) = \sum_{r_1 \cdots r_D} \beta_{r_1 \cdots r_D} \prod_j B_{j,r_j}(x_j)\)</span>. This is the standard construction for a smooth interaction; <span class="citation" data-cites="wood2006">Wood (<a href="A2-references.html#ref-wood2006" role="doc-biblioref">2006</a>)</span> gives the version used in additive models and discusses the penalties that go with it.</p>
+<p>Written as matrices, <a href="#eq-tensor-function" class="quarto-xref">Equation&nbsp;<span>5.20</span></a> is the row-wise Kronecker product of the marginal design matrices. With <span class="math inline">\(B_j\)</span> of size <span class="math inline">\(n \times K_j\)</span>, the design matrix of the product has row <span class="math inline">\(i\)</span> equal to the Kronecker product of the <span class="math inline">\(D\)</span> corresponding marginal rows,</p>
+<p><span id="eq-khatri-rao"><span class="math display">\[
+B \;=\; B_1 \ast B_2 \ast \cdots \ast B_D ,
+\qquad
+\left(B_1 \ast B_2\right)_{i,\, (r-1)K_2 + s} \;=\;
+\left(B_1\right)_{ir}\left(B_2\right)_{is},
+\tag{5.21}\]</span></span></p>
+<p>which is the Khatri-Rao product. The column ordering it fixes is the one <code>kronecker()</code> uses, with the last marginal varying fastest, and it is the convention the package follows everywhere: in the column names, in the shape of a coefficient array, and in the Kronecker products of <a href="#eq-tensor-gram" class="quarto-xref">Equation&nbsp;<span>5.23</span></a> below.</p>
+<p>A basis states how many variables it takes through the length of its endpoints, so a basis of one variable is the case <span class="math inline">\(D = 1\)</span> rather than a separate kind of object. Evaluation points become a matrix with one column per variable, and the derivative order becomes a multi-index with one entry per variable.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>tb <span class="ot">&lt;-</span> <span class="fu">tensor_basis</span>(<span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">4</span>), <span class="fu">fourier_basis</span>(<span class="at">dimension =</span> <span class="dv">3</span>))</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>tb</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Basis: tensor(bspline, fourier)</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Functions: 12   Variables: 2</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Domain: [0, 1] x [0, 1]</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameters:</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   marginal_dimensions  4, 3</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Numerical: none</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">variables =</span> <span class="fu">basis_nvar</span>(tb), <span class="at">functions =</span> tb<span class="sc">@</span>dimension)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; variables functions </span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         2        12</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>xy <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">c</span>(<span class="fl">0.2</span>, <span class="fl">0.5</span>), <span class="fu">c</span>(<span class="fl">0.7</span>, <span class="fl">0.1</span>))</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">basis_eval</span>(tb, xy), <span class="dv">4</span>)</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      bs1.const bs1.sin1 bs1.cos1 bs2.const bs2.sin1 bs2.cos1 bs3.const bs3.sin1</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,]     0.512  -0.4869  -0.1582     0.384  -0.3652  -0.1187     0.096  -0.0913</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,]     0.125   0.0735   0.1011     0.375   0.2204   0.3034     0.375   0.2204</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      bs3.cos1 bs4.const bs4.sin1 bs4.cos1</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,]  -0.0297     0.008  -0.0076  -0.0025</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,]   0.3034     0.125   0.0735   0.1011</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The multi-index is required rather than recycled from a single number. A scalar order has two readings for a product basis, that order in every coordinate or that total order, and the two give different matrices, so a single non-zero order is refused instead of being resolved silently. Zero is the exception, since it means no derivative under either reading.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">basis_deriv</span>(tb, xy, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>)))</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  2 12</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">basis_deriv</span>(tb, xy, <span class="at">order =</span> <span class="dv">1</span>))</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : 'order' must have one entry per variable (2), or be 0. A single non-zero order is ambiguous for a basis of several variables: it could mean that order in each coordinate, or that total order.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-tensor-separable" class="level3" data-number="5.5.2">
+<h3 data-number="5.5.2" class="anchored" data-anchor-id="sec-tensor-separable"><span class="header-section-number">5.5.2</span> Separability</h3>
+<p>Every quantity of the previous sections follows from the marginals, because the product <a href="#eq-tensor-function" class="quarto-xref">Equation&nbsp;<span>5.20</span></a> separates. A partial derivative differentiates one factor and leaves the others alone,</p>
+<p><span id="eq-tensor-derivative"><span class="math display">\[
+\frac{\partial^{\,d_1 + \cdots + d_D}}{\partial x_1^{d_1} \cdots \partial x_D^{d_D}}
+\prod_{j=1}^{D} B_{j,r_j}(x_j)
+\;=\; \prod_{j=1}^{D} B_{j,r_j}^{(d_j)}(x_j),
+\tag{5.22}\]</span></span></p>
+<p>and the integral over the box from the lower corner to a point is the product of the marginal integrals, so the anchor <a href="#eq-basis-anchor" class="quarto-xref">Equation&nbsp;<span>5.3</span></a> survives: a product in which every factor vanishes at the corner vanishes there.</p>
+<p>The consequence that matters most is for the inner products. The integral over the box of a product of separable functions factorises into <span class="math inline">\(D\)</span> one-dimensional integrals, so</p>
+<p><span id="eq-tensor-gram"><span class="math display">\[
+G_{(d_1, \ldots, d_D)}
+\;=\; G_{1,d_1} \otimes G_{2,d_2} \otimes \cdots \otimes G_{D,d_D} .
+\tag{5.23}\]</span></span></p>
+<p>The Gram matrix of a product therefore costs one marginal Gram matrix per variable and a Kronecker product, rather than an integration over a <span class="math inline">\(D\)</span>-dimensional box. A tensor product of exactly integrated marginals is exactly integrated at any number of variables, where a quadrature over the box would need a number of nodes exponential in <span class="math inline">\(D\)</span> and would lose accuracy with every variable added.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">basis_gram</span>(tb) <span class="sc">-</span> <span class="fu">kronecker</span>(</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">basis_gram</span>(<span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">4</span>)),</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">basis_gram</span>(<span class="fu">fourier_basis</span>(<span class="at">dimension =</span> <span class="dv">3</span>))</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>)))</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-tensor-contract" class="level3" data-number="5.5.3">
+<h3 data-number="5.5.3" class="anchored" data-anchor-id="sec-tensor-contract"><span class="header-section-number">5.5.3</span> Evaluating a fitted function without forming the design matrix</h3>
+<p>The one quantity that does not stay cheap is the design matrix itself, whose column count <span class="math inline">\(\prod_j K_j\)</span> is exponential in the number of variables. Six variables with ten functions each give a million columns, and at that size the matrix cannot be formed for any useful <span class="math inline">\(n\)</span>, even though the function it represents is perfectly ordinary.</p>
+<p>What a fit needs from the design matrix is almost never the matrix. The values of the fitted function, <span class="math inline">\(B\beta\)</span>, are what enter a likelihood, and <code>basis_contract()</code> computes them from the marginal evaluations. Coefficients come in two shapes, and the shape decides the cost.</p>
+<p>The general shape is an <strong>array</strong> of dimensions <span class="math inline">\((K_1, \ldots, K_D)\)</span>, holding one coefficient per basis function. The rows of <span class="math inline">\(x\)</span> are then processed in blocks: each block forms its own piece of <a href="#eq-khatri-rao" class="quarto-xref">Equation&nbsp;<span>5.21</span></a>, multiplies it by the coefficients, and is discarded, so the peak memory is set by the block size rather than by <span class="math inline">\(n\)</span>. The number of coefficients is still <span class="math inline">\(\prod_j K_j\)</span>, so this route makes a large product usable but not cheap.</p>
+<p>The <strong>canonical polyadic</strong> shape writes the coefficient array as a sum of <span class="math inline">\(F\)</span> outer products, one term of which is a product of vectors, one per variable. With factor matrices <span class="math inline">\(\Gamma_j\)</span> of size <span class="math inline">\(K_j \times F\)</span> and <span class="math inline">\(\gamma_{j,f}\)</span> their columns, the fitted values are</p>
+<p><span id="eq-cp-contraction"><span class="math display">\[
+f(x_1, \ldots, x_D)
+\;=\; \sum_{f=1}^{F} \prod_{j=1}^{D} B_j(x_j)^\top \gamma_{j,f} ,
+\tag{5.24}\]</span></span></p>
+<p>so each marginal is evaluated once and multiplied by its own factor matrix, giving <span class="math inline">\(D\)</span> matrices of size <span class="math inline">\(n \times F\)</span> whose elementwise product, summed across columns, is the answer. Neither the design matrix nor the coefficient array appears anywhere. This is the decomposition of <span class="citation" data-cites="kolda2009">Kolda and Bader (<a href="A2-references.html#ref-kolda2009" role="doc-biblioref">2009</a>)</span>, and the factorised tensor product spline models of <span class="citation" data-cites="ruegamer2024">Rügamer (<a href="A2-references.html#ref-ruegamer2024" role="doc-biblioref">2024</a>)</span> are exactly the models whose coefficients are constrained to this form.</p>
+<table class="table-striped caption-top table">
+<caption>The two coefficient shapes</caption>
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>coefficients</th>
+<th>stored values</th>
+<th>cost of a contraction</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>array of dimensions <span class="math inline">\((K_1, \ldots, K_D)\)</span></td>
+<td><span class="math inline">\(\prod_j K_j\)</span></td>
+<td><span class="math inline">\(O(n \prod_j K_j)\)</span></td>
+</tr>
+<tr class="even">
+<td>factor matrices of rank <span class="math inline">\(F\)</span></td>
+<td><span class="math inline">\(F \sum_j K_j\)</span></td>
+<td><span class="math inline">\(O(n F \sum_j K_j)\)</span></td>
+</tr>
+</tbody>
+</table>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>big <span class="ot">&lt;-</span> <span class="fu">tensor_basis</span>(<span class="fu">rep</span>(<span class="fu">list</span>(<span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">10</span>)), <span class="dv">6</span>))</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>big<span class="sc">@</span>dimension <span class="co"># the number of columns the design matrix would have</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1000000</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>xbig <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">runif</span>(<span class="dv">1000</span> <span class="sc">*</span> <span class="dv">6</span>), <span class="dv">1000</span>, <span class="dv">6</span>)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>gam <span class="ot">&lt;-</span> <span class="fu">replicate</span>(<span class="dv">6</span>, <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">10</span> <span class="sc">*</span> <span class="dv">3</span>), <span class="dv">10</span>, <span class="dv">3</span>), <span class="at">simplify =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">basis_contract</span>(big, xbig, gam), <span class="dv">3</span>)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  0.022765658 -0.042417143  0.006351721</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>For a moderate product the two routes agree, which is what fixes the meaning of the factorisation.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>tb2 <span class="ot">&lt;-</span> <span class="fu">tensor_basis</span>(<span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">5</span>), <span class="fu">bspline_basis</span>(<span class="at">dimension =</span> <span class="dv">4</span>))</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>x2 <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">runif</span>(<span class="dv">8</span>), <span class="fu">runif</span>(<span class="dv">8</span>))</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>cf <span class="ot">&lt;-</span> <span class="fu">array</span>(<span class="fu">rnorm</span>(<span class="dv">20</span>), <span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">4</span>))</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>g2 <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">10</span>), <span class="dv">5</span>, <span class="dv">2</span>), <span class="fu">matrix</span>(<span class="fu">rnorm</span>(<span class="dv">8</span>), <span class="dv">4</span>, <span class="dv">2</span>))</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>full <span class="ot">&lt;-</span> <span class="fu">Reduce</span>(<span class="st">`</span><span class="at">+</span><span class="st">`</span>, <span class="fu">lapply</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="cf">function</span>(f) <span class="fu">outer</span>(g2[[<span class="dv">1</span>]][, f], g2[[<span class="dv">2</span>]][, f])))</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">array_route =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">basis_contract</span>(tb2, x2, cf) <span class="sc">-</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">basis_eval</span>(tb2, x2) <span class="sc">%*%</span> <span class="fu">as.numeric</span>(<span class="fu">aperm</span>(cf)))),</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">cp_route =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">basis_contract</span>(tb2, x2, g2) <span class="sc">-</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">basis_contract</span>(tb2, x2, full)))</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  array_route     cp_route </span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 0.000000e+00 1.110223e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Choosing the rank <span class="math inline">\(F\)</span> and estimating the factors is a modelling decision, and belongs to the layer that owns the parameters. Evaluating them is basis arithmetic, and belongs here.</p>
+
+
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-abramowitz1964" class="csl-entry" role="listitem">
+Abramowitz, Milton, and Irene A. Stegun, eds. 1964. <em>Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables</em>. Washington: National Bureau of Standards.
+</div>
+<div id="ref-bach2024" class="csl-entry" role="listitem">
+Bach, Paul, and Nadja Klein. 2024. <span>“Bayesian Effect Selection in Additive Models with an Application to Time-to-Event Data.”</span>
+</div>
+<div id="ref-deboor1972" class="csl-entry" role="listitem">
+Boor, Carl de. 1972. <span>“On Calculating with <span>B</span>-Splines.”</span> <em>Journal of Approximation Theory</em> 6 (1): 50–62.
+</div>
+<div id="ref-deboor2001" class="csl-entry" role="listitem">
+———. 2001. <em>A Practical Guide to Splines</em>. Revised. New York: Springer.
+</div>
+<div id="ref-cox1972" class="csl-entry" role="listitem">
+Cox, Maurice G. 1972. <span>“The Numerical Evaluation of <span>B</span>-Splines.”</span> <em>IMA Journal of Applied Mathematics</em> 10 (2): 134–49.
+</div>
+<div id="ref-demmler1975" class="csl-entry" role="listitem">
+Demmler, A., and C. Reinsch. 1975. <span>“Oscillation Matrices with Spline Smoothing.”</span> <em>Numerische Mathematik</em> 24 (5): 375–82.
+</div>
+<div id="ref-eilers1996" class="csl-entry" role="listitem">
+Eilers, Paul H. C., and Brian D. Marx. 1996. <span>“Flexible Smoothing with <span>B</span>-Splines and Penalties.”</span> <em>Statistical Science</em> 11 (2): 89–121.
+</div>
+<div id="ref-fornberg1988" class="csl-entry" role="listitem">
+Fornberg, Bengt. 1988. <span>“Generation of Finite Difference Formulas on Arbitrarily Spaced Grids.”</span> <em>Mathematics of Computation</em> 51 (184): 699–706.
+</div>
+<div id="ref-golub1969" class="csl-entry" role="listitem">
+Golub, Gene H., and John H. Welsch. 1969. <span>“Calculation of <span>G</span>auss Quadrature Rules.”</span> <em>Mathematics of Computation</em> 23 (106): 221–30.
+</div>
+<div id="ref-greensilverman1994" class="csl-entry" role="listitem">
+Green, Peter J., and Bernard W. Silverman. 1994. <em>Nonparametric Regression and Generalized Linear Models: A Roughness Penalty Approach</em>. London: Chapman; Hall.
+</div>
+<div id="ref-kolda2009" class="csl-entry" role="listitem">
+Kolda, Tamara G., and Brett W. Bader. 2009. <span>“Tensor Decompositions and Applications.”</span> <em>SIAM Review</em> 51 (3): 455–500.
+</div>
+<div id="ref-ruegamer2024" class="csl-entry" role="listitem">
+Rügamer, David. 2024. <span>“Scalable Higher-Order Tensor Product Spline Models.”</span> In <em>Proceedings of the 27th International Conference on Artificial Intelligence and Statistics</em>. Vol. 238. Proceedings of Machine Learning Research.
+</div>
+<div id="ref-schumaker2007" class="csl-entry" role="listitem">
+Schumaker, Larry L. 2007. <em>Spline Functions: Basic Theory</em>. 3rd ed. Cambridge: Cambridge University Press.
+</div>
+<div id="ref-wahba1990" class="csl-entry" role="listitem">
+Wahba, Grace. 1990. <em>Spline Models for Observational Data</em>. Philadelphia: Society for Industrial; Applied Mathematics.
+</div>
+<div id="ref-wood2006" class="csl-entry" role="listitem">
+Wood, Simon N. 2006. <span>“Low-Rank Scale-Invariant Tensor Product Smooths for Generalized Additive Mixed Models.”</span> <em>Biometrics</em> 62 (4): 1025–36.
+</div>
+<div id="ref-wood2017" class="csl-entry" role="listitem">
+———. 2017. <em>Generalized Additive Models: An Introduction with r</em>. 2nd ed. Boca Raton: Chapman; Hall/CRC.
+</div>
+</div>
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/04-optimizers7.html" class="pagination-link" aria-label="The optimizers7 package">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">The optimizers7 package</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/A1-notation.html" class="pagination-link" aria-label="Notation">
+        <span class="nav-page-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>The statmodels7 Framework</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
