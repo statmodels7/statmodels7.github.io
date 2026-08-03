@@ -63,8 +63,9 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
 | `distributions7` | 14 distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
+| `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices. B-splines and Fourier so far; numerical fallbacks make an evaluation-only basis complete. Started 2026-08-03, phase 1 of `piano_basis7.txt` |
 
-**Planned** — `modelterms7`, `basis7`, `penalties7`, and eventually the `statmodels7`
+**Planned** — `modelterms7`, `penalties7`, and eventually the `statmodels7`
 package itself, which assembles everything into models. That last one is the destination:
 a GAMLSS-like framework but far more organised, where
 
@@ -89,6 +90,7 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
     linkfunctions7\
     distributions7\
     optimizers7\
+    basis7\
     book\            the Quarto book (see §9); `quarto render` from inside it
     logo\            hex logos: make-logos.R draws them, run from this directory
     site\            the portal, its own repository (statmodels7.github.io)
@@ -111,7 +113,7 @@ the book: `quarto render` in `book/` **from PowerShell** (see 3), then
 because it executes R against the working tree, and it takes about twenty minutes
 now that there are four package chapters.
 
-GitHub: `github.com/statmodels7/{linkfunctions7,distributions7,optimizers7}`, all on `master`. The repositories were
+GitHub: `github.com/statmodels7/{linkfunctions7,distributions7,optimizers7,basis7}`, all on `master`. The repositories were
 transferred from `giovannitinervia9/*` on 2026-07-22; GitHub keeps redirects, so
 `install_github("giovannitinervia9/distributions7")` still resolves.
 
@@ -123,6 +125,7 @@ Websites, all live and rebuilt by a `pkgdown.yaml` workflow on every push:
 | linkfunctions7 | `statmodels7.github.io/linkfunctions7` — pkgdown, from `gh-pages` |
 | distributions7 | `statmodels7.github.io/distributions7` — pkgdown, from `gh-pages` |
 | optimizers7 | `statmodels7.github.io/optimizers7` — pkgdown, from `gh-pages` |
+| basis7 | `statmodels7.github.io/basis7` — pkgdown, from `gh-pages` |
 
 Predecessors, kept for reference only: `labstatr\distrib` (S3, ~8500 lines) and
 `labstatr\linkfunctions`. `distributions7` is a rewrite of `distrib`, not a port —
@@ -469,6 +472,7 @@ it. This was found by writing the test for the new feature, not by using it.
 | `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
 | `distributions7` | 1538 tests, `R CMD check` OK (2026-08-03, local), CI green |
 | `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
+| `basis7` | 449 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.1.0` and a `NEWS.md` from the first commit, which neither older package has yet. |
 
 All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
 combinations (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix
