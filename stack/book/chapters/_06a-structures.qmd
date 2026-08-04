@@ -1,0 +1,175 @@
+## Matrix parameters {#sec-covstruct-contract}
+
+```{r}
+#| label: setup-06a
+#| include: false
+source("R/_setup.R")
+source("R/covstruct-certificates.R")
+```
+
+### The map and its free vector {#sec-covstruct-map}
+
+Let $\mathcal{M}$ be a set of symmetric $p \times p$ matrices defined by a
+constraint: positive definite matrices, positive definite matrices with a
+prescribed pattern of zeros, correlation matrices, or positive semidefinite
+matrices of a fixed null space. A **structure** is a map
+
+$$
+M : \mathbb{R}^{d} \longrightarrow \mathcal{M}, \qquad \eta \longmapsto M(\eta),
+$$ {#eq-covstruct-map}
+
+whose image is the whole of $\mathcal{M}$ and which is one-to-one, together
+with the derivatives of that map and the quantities a likelihood asks of its
+value. The vector $\eta$ is called **free** because it carries no constraint:
+every point of $\mathbb{R}^{d}$ is admissible, and an optimiser may take any
+step from any point without leaving the domain. This is the same bargain a
+link function offers for a scalar, and for the same reason: the constraint is
+absorbed into the map so that the estimation problem is unconstrained.
+
+The number $d$ of free values is the dimension of $\mathcal{M}$ as a manifold,
+not $p^2$ or $p(p+1)/2$ in general. A full positive definite matrix has
+$d = p(p+1)/2$; a diagonal one has $d = p$; a matrix that is a fixed matrix
+times an unknown scale has $d = 1$. A structure therefore owns its dimension:
+a map for $3 \times 3$ matrices and a map for $4 \times 4$ matrices are
+different objects, with different $d$ and different names for the free values,
+and both are needed before any data exist because they determine the shape of
+the parameter vector.
+
+Each free value carries a label, and the labels are fixed at construction. The
+distribution of @sec-multivariate builds its parameter names from them, the
+derivative components of the likelihood are keyed by them, and the printed
+summary of a fit reports them, so they are part of the interface rather than a
+convenience.
+
+### Why this is not a link {#sec-covstruct-not-link}
+
+A link function of @sec-links is a scalar map $g$ applied to each parameter
+separately. Applied to a vector of parameters, it produces a **diagonal**
+Jacobian, which is what makes the chain rule of @sec-link-scale factorise: the
+$k$th derivative in the $k$th direction involves only $h^{(j)}$ for that one
+coordinate, and Faà di Bruno's formula reduces to a product of partial Bell
+polynomials in one variable.
+
+A matrix parametrisation has no such structure. Changing one free value of a
+log-Cholesky map changes an entire row and column of the matrix it produces,
+so $\partial M / \partial \eta_k$ is a matrix rather than a number and the
+Jacobian $\partial \mathrm{vech}(M) / \partial \eta$ is dense. The chain rule
+still holds, but it is a matrix chain rule, and the quantities a consumer
+needs from it are traces rather than products. Nothing that `linkfunctions7`
+computes would be reusable, and a consumer that treated a matrix parametrisation
+as a link would be wrong in a way that produces plausible numbers.
+
+The two constructions therefore stay apart, and meet at the one place where
+they agree, which is a diagonal matrix. There the Jacobian **is** diagonal, and
+`covstructs7` reuses the link objects exactly as they are rather than writing
+its own positive maps; see @sec-covstruct-diagonal.
+
+### What a consumer asks {#sec-covstruct-generics}
+
+A likelihood that carries a matrix parameter asks four things of it, and a
+structure answers all four.
+
+The **matrix** itself, $M(\eta)$, is the only compulsory one; everything else
+has a numerical method available from it alone.
+
+The **derivatives** $A_k = \partial M/\partial \eta_k$ and
+$A_{kl} = \partial^2 M/\partial \eta_k \partial \eta_l$ are what the score and
+the observed information of @sec-mvgaussian are built from. Only the
+$d(d+1)/2$ distinct second derivatives are computed, keyed by the same
+enumeration that names them. Recovering an index by splitting a name on its
+separator is the obvious route and it is wrong, since a free value whose own
+label contains the separator splits into the wrong number of pieces; the
+package generates indices and names from one enumeration so that the two
+cannot disagree.
+
+The **log-determinant** $\log|M|$ and its first two derivatives are the
+normalising constant of a gaussian and its derivatives. The identity behind
+them is
+
+$$
+\frac{\partial \log|M|}{\partial \eta_k}
+  = \mathrm{tr}\!\left(M^{-1} A_k\right),
+$$ {#eq-covstruct-dlogdet}
+
+which is @magnus1999's, and which makes a closed-form log-determinant
+derivative something other than an independent claim: it must agree with the
+derivative of the matrix through @eq-covstruct-dlogdet, and the package's
+validator compares the two routes.
+
+The **solve** $M^{-1}B$ is what a quadratic form needs. It is computed through
+a factorisation rather than by forming an inverse, which is both cheaper and
+better conditioned; a family that knows its own factor supplies it, and the
+rest obtain one from the matrix.
+
+```{r}
+#| label: covstruct-demo
+s <- covstructs7::log_cholesky(3)
+s
+
+eta <- c(0.1, -0.2, 0.3, 0.5, -0.4, 0.2)
+round(covstructs7::struct_matrix(s, eta), 4)
+```
+
+The sign in front of the log-determinant is the consumer's arithmetic and not
+the structure's. A gaussian written in the covariance carries
+$-\frac{1}{2}\log|\Sigma|$ and one written in the precision carries
+$+\frac{1}{2}\log|\Omega|$, so the structure returns $\log|M|$ for the matrix
+it parametrises and lets the distribution attach the sign. The same holds for
+the two derivatives.
+
+### The inverse map {#sec-covstruct-free}
+
+A structure also answers the reverse question: given a matrix in
+$\mathcal{M}$, which free vector produces it? This is what allows a fit to be
+started from a sample covariance, and what allows a marginal of
+@sec-mv-marginal to be expressed in the free values of a smaller structure.
+
+The map is exact or refused, never obtained by optimisation. An
+optimisation-based inverse would return a plausible $\eta$ for a matrix
+**outside** $\mathcal{M}$, which is a wrong answer wearing the shape of a right
+one, and a caller has no way to tell the two apart. A family whose map has no
+closed-form inverse therefore refuses, and so does the base class on behalf of
+any structure that does not implement one.
+
+```{r}
+#| label: covstruct-roundtrip
+m <- covstructs7::struct_matrix(s, eta)
+max(abs(covstructs7::struct_free(s, m) - eta))
+```
+
+### What a new structure has to write {#sec-covstruct-fallbacks}
+
+Only @eq-covstruct-map is compulsory. A structure that implements nothing but
+the matrix receives numerical methods for the derivatives, the log-determinant
+and its derivatives, and the solve, registered on the base class exactly as
+the numerical fallbacks of @sec-fallbacks are registered for a distribution.
+It is therefore usable the moment it exists, and each closed form supplied
+later replaces the corresponding numerical method through dispatch, with no
+change to anything that consumes it.
+
+The numerical derivatives obey the rule of @sec-fallbacks: one central
+difference applied to the highest analytical order available, never a chain of
+first differences. A structure that supplies its own first derivative gets a
+second derivative accurate to the square root of machine precision rather than
+to its fourth root.
+
+The validator `check_covstruct()` puts a structure through the same checks the
+shipped families face. It compares the derivatives against finite differences,
+the log-determinant against the determinant of the assembled matrix, its
+derivative against @eq-covstruct-dlogdet, and the solve against a direct
+solution, and it reports which orders came from a closed form and which from
+the fallback, for the reason `check_link()` does: an order that comes from a
+fallback would otherwise be compared against a numerical differentiation of
+the order below, which is the same arithmetic twice and agrees however wrong
+the structure is.
+
+```{r}
+#| label: covstruct-check
+covstructs7::check_covstruct(s, verbose = TRUE)
+```
+
+```{r}
+#| label: consistency-06a
+#| include: false
+assert_covstruct_ok()
+```

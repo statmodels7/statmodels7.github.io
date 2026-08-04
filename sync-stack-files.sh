@@ -1,6 +1,6 @@
 #!/bin/sh
-# statmodels7/ is a plain directory, so the files that belong to the stack as a
-# whole -- the orientation file, the logo generator, and the book -- have no
+# statmodels7/ is a plain directory, so the files that belong to the toolkit as
+# a whole -- the orientation file, the logo generator, and the book -- have no
 # repository of their own. They live here, and this copies the working versions in.
 #
 # Run from statmodels7/site:  sh sync-stack-files.sh

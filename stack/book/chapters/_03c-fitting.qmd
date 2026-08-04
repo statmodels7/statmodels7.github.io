@@ -78,7 +78,12 @@ observed information $-H(\eta)$; **Fisher scoring** uses the expected
 information $-\mathbb{E}[H(\eta)]$; **BFGS** uses neither, and builds an
 approximation from successive gradients. The first two are the same algorithm
 of @sec-newton with a different second-order argument, so Fisher scoring
-requires no separate implementation. They are treated together in @green1984,
+requires no separate implementation --- which is why it is not an optimiser
+but an object saying which matrix to use, `fisher_scoring()`, handed to the
+same argument that would otherwise carry `optimizers7::newton()` or
+`optimizers7::lbfgs()`. What that object does carry, and an optimiser could
+not, is how the expected information is to be obtained when the family has no
+closed form for it. They are treated together in @green1984,
 whose presentation of scoring as iteratively reweighted least squares is the
 one on which @mccullagh1989 builds the generalized linear model, while
 @nocedal2006 is the reference for the third.
@@ -137,22 +142,47 @@ right definition of information for a non-regular family.
 ### Starting values {#sec-fit-starts}
 
 A likelihood need not be concave, and a fit started at a poor point can
-converge to a local maximum, to a boundary, or not at all. Two mechanisms
-handle this automatically.
+converge to a local maximum, to a boundary, or not at all. How far the start
+is from the answer is not a detail of the implementation but a property of the
+problem, and it decides whether the fit takes one step or never arrives.
 
-When no starting value is supplied, several are drawn at random from the
-admissible region with `generate_random_theta()` and tried in turn, keeping
-the first that converges. The chosen method can fail from a given start: by exceeding its iteration
-budget, by producing a non-finite step, or by raising an error, which a
-numerically approximated expected information can do when its quadrature
-diverges at an unfavourable parameter value. In that case the fit falls back
-to BFGS from the same start before moving to the next. BFGS is
+The starting value comes from a distribution's own `distrib_start()`, which
+receives the data. A family that knows an estimator of its parameters returns
+it, and the fit then begins where a moment estimator or an exact maximum
+likelihood estimator already is; a family that says nothing gets several
+random draws from the admissible region, tried in turn. The multivariate
+gaussian is the case where the difference is total: its maximum likelihood
+estimator for an unstructured covariance is the sample mean and the sample
+second moment, so it starts at the answer and confirms it in a single
+iteration.
+
+```{r}
+#| label: fit-start
+d4 <- mvgaussian_distrib(4)
+y4 <- as.matrix(iris[, 1:4])
+
+# what the family proposes, against what the data say
+start <- distrib_start(d4, y4)[[1]]
+rbind(proposed = mv_location(d4, start), sample = colMeans(y4))
+
+# and the fit it leads to
+f4 <- fit_distrib(d4, y4)
+c(iterations = f4@iterations, converged = f4@converged)
+```
+
+The chosen method can still fail from a given start: by exceeding its
+iteration budget, by producing a non-finite step, or by raising an error,
+which a numerically approximated expected information can do when its
+quadrature diverges at an unfavourable parameter value. In that case the fit
+falls back to BFGS from the same start before moving to the next. BFGS is
 slower and uses no second-order information, but it makes fewer demands on the
 objective, and a slow answer is preferable to none.
 
-Only when every start has failed by every route does `fit_distrib()` stop, and
-it then reports the failure and asks for a starting value instead of returning
-an unusable result.
+Across the starts the fit keeps the best run rather than the last: a converged
+run in preference to one that stopped without meeting its rule, and among runs
+of the same status the one with the higher likelihood. Only when every start
+has failed by every route does `fit_distrib()` stop, and it then reports the
+failure and asks for a starting value instead of returning an unusable result.
 
 The fallback belongs to the two named second-order strategies. An optimiser
 supplied explicitly is used as given and is never replaced, since substituting

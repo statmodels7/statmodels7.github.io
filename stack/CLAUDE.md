@@ -61,7 +61,7 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | package | what it provides |
 |---|---|
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
-| `distributions7` | 14 distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE |
+| `distributions7` | 18 univariate distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE; **2 multivariate families** (gaussian, Student t) whose matrix parameter comes from `covstructs7` |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
 | `covstructs7` | constrained matrix parameters: a map from an unconstrained vector to a symmetric matrix, exact to 2nd order, plus the log-(pseudo-)determinant and the solves. `log_cholesky()`, `diag_struct()`/`scalar_struct()` (which reuse `linkfunctions7` links), `scaled_struct()` for a fixed matrix carried by one scale. Rank-deficient matrices ADMITTED -- a spline penalty is singular by construction, which is what makes it a penalty and not a density |
@@ -287,9 +287,49 @@ expectation, mean, variance, std_dev, skewness, kurtosis, moment
 cdf by quadrature, quantile by root-finding, RNG by Generalized Ratio-of-Uniforms,
 derivatives by finite differences. See `vignettes/defining-a-distribution.Rmd`.
 
-**14 distributions**: gaussian, cauchy, logistic, student_t, laplace, pseudohuber, gamma,
-invgauss, lognormal, beta, bernoulli, binomial, poisson, negbin. All have closed-form
-observed derivatives to 4th order (Rcpp kernels in `src/*_hd.cpp`).
+**18 distributions**: gaussian, cauchy, logistic, student_t, laplace, pseudohuber, gamma,
+invgauss, lognormal, beta, bernoulli, binomial, poisson, negbin -- the original
+fourteen, all with closed-form observed derivatives to 4th order (Rcpp kernels
+in `src/*_hd.cpp`) -- plus **weibull, gumbel, skewnormal, skewt** (2026-08-04),
+which are closed form to order 2 and take orders 3 and 4 from the numerical
+fallbacks. `laplace` was already like that, so it is the established shape for
+a family rather than a shortfall; adding a kernel later changes nothing above.
+
+The four new ones, and what is worth knowing about each:
+
+- **weibull** `(mu = scale, sigma = shape)`, gamlss's `WEI`. `mu` is NOT the
+  mean -- that is `mu*Gamma(1+1/sigma)`, and a mean parametrisation would make
+  every derivative a derivative of the gamma function and of its inverse.
+- **gumbel** `(mu, sigma)`, for maxima. Location-scale with a FIXED shape: its
+  skewness `12*sqrt(6)*zeta(3)/pi^3 = 1.1395` and excess kurtosis `12/5` are
+  constants. Note that `E[l_mu_sigma]` does NOT vanish -- the density is
+  skewed, so location and scale are not orthogonal, unlike in a symmetric
+  location-scale family.
+- The two share an expectation. In the Weibull `u = (Y/mu)^sigma` is standard
+  exponential whatever the parameters, and in the Gumbel so is `w = exp(-Z)`,
+  so EVERY expectation either needs is a derivative of `Gamma` at 2:
+  `E[u] = 1`, `E[u log u] = 1-gamma`, `E[u (log u)^2] = (1-gamma)^2 + pi^2/6 - 1`.
+  Both expected informations are therefore closed form in one line. The two
+  families are also one another: `exp(-Gumbel)` is Weibull.
+- **skewnormal** `(mu, sigma, alpha)`, Azzalini. Everything is written in the
+  inverse Mills ratio `R = phi/Phi` and `R' = -R(t+R)`; `mills_ratio()` forms it
+  ON THE LOG SCALE, because below about `t = -38` both phi and Phi underflow
+  while the ratio is finite and close to `-t`. The cdf uses **Owen's T**
+  (`owen_t()`), one bounded 1-D quadrature per point, which beats the base
+  class's semi-infinite integral of the density. Two things to know: the
+  expected information is **singular at alpha = 0**, which is a property of the
+  parametrisation and not a defect, and the skewness the family can reach is
+  bounded by 0.9953 -- which is the reason the skew t exists.
+- **skewt** `(mu, sigma, alpha, nu)`, the four-parameter family a
+  location-scale-shape framework actually wants. Score and Hessian are closed
+  form in `(mu, sigma, alpha)`; everything involving `nu` is NOT, because the
+  density carries `T_{nu+1}` and the derivative of a Student t cdf in its
+  degrees of freedom has no elementary form -- the same obstruction as the
+  gamma and beta cdf in their shape. Those components come from ONE five-point
+  stencil (`fd5_first`, `fd5_second`) applied to an analytic quantity: to the
+  log-density for the `nu` score and `nu_nu`, and to the CLOSED-FORM score for
+  the mixed `(par, nu)` entries. `method = "newton"` is much the cheaper way to
+  fit it, since the expected information would be quadrature per component.
 
 **Wrappers**: `zero_inflated()`, `zero_adjusted()`, `truncated()`, `transformation()`
 (12 transformers: log, exp, sqrt, inverse, power, box-cox, yeo-johnson, softplus, asinh,
@@ -463,7 +503,16 @@ Three things made the translation nearly literal:
   It needs no implementation of its own; `"fisher"` and `"newton"` differ only in
   that one argument.
 - the inline test `max|U| < tol || |Δl| < tol(|l|+tol)` *is*
-  `crit_any(crit_grad(tol), crit_rel_obj(tol))`;
+  `crit_any(crit_grad(tol), crit_rel_obj(tol))` — **replaced on 2026-08-04 by
+  `crit_grad(tol)` alone** (Giovanni, explicit). The OR was the weaker of the
+  two rules in practice: the objective is flat near the maximum, so
+  `crit_rel_obj` fired first and the run stopped at whatever gradient it
+  happened to have. Dropping it costs iterations (the 2-d gaussian of the book
+  goes from a handful to 78) and buys a stationary point: the summed score
+  per observation lands at 1e-16 where before it was platform-dependent
+  between 1e-15 and 1e-8. A test that asserted digits of the *point* rather
+  than of the *objective* was what exposed the difference, and it had already
+  gone red on macOS once;
 - `method` now also accepts **any optimiser object**, used as given.
 
 Two things improved rather than merely moved: the line search requires sufficient
@@ -481,6 +530,99 @@ supply 'start'"` — naming the wrong cause entirely. `check_criterion()` is exp
 by optimizers7 for exactly this and is now called before the loop. The general
 shape: when a `tryCatch` is there for one class of failure, check what else reaches
 it. This was found by writing the test for the new feature, not by using it.
+
+**`fisher_scoring()`** (2026-08-04, Giovanni, after correcting an earlier
+attempt). `fit_distrib()` takes ONE argument saying how to optimise, and it
+takes either an `optimizers7` optimiser or `fisher_scoring(approx =, nsim =,
+criterion =, maxit =)`. The loose `approx`/`nsim` arguments are gone: how the
+expected information is approximated is a property of Fisher scoring, and had
+no business sitting next to optimisers that never look at it. Fisher scoring
+is not an algorithm of its own -- it is `newton()` with one matrix replaced --
+which is exactly why it is an object and not an optimiser:
+
+| `method =` | what it does |
+|---|---|
+| `fisher_scoring()` (default) | Newton with the **expected** information |
+| `optimizers7::newton()` | Newton with the **observed** Hessian |
+| `optimizers7::lbfgs()` etc. | whatever that optimiser does |
+| `"fisher"` / `"newton"` / `"bfgs"` | kept as short names |
+
+A strategy chosen where it would be ignored is refused, through
+`has_exact_expected_hessian()` -- see section 7 for the shadowing bug that made
+that predicate answer backwards.
+
+**Multivariate distributions** (2026-08-03/04). Base class `multivariate_distrib`
+sits beside `continuous_distrib`/`discrete_distrib` and **not under** it: the
+one-dimensional defaults registered there — a cdf by quadrature, a quantile by
+root finding — have no counterpart, and a cdf on R^p is an orthant probability
+while a quantile needs an ordering of R^p. Both are refused rather than
+approximated.
+
+The design decision that makes everything else free: **the matrix parameter is
+flattened into scalars**. A p-variate family's parameters are `mu1..mup`
+followed by the `free_names` of a `covstructs7` structure, every one of them a
+scalar with an identity link, so `align_theta`, `deriv_names`, `hess_names`, the
+link scale and `fit_distrib` need no special case at all. The constraint lives
+in the structure, where it belongs — it is a constraint on the matrix as a
+whole and a scalar link cannot express it.
+
+- `mvgaussian_distrib(n_dim, struct_sigma=, struct_omega=)` — **one** constructor,
+  the two arguments mutually exclusive, not two constructors. Score
+  `-½∂_k log|Σ| + ½ w'A_k w` with `w = Σ⁻¹r`; the expected information is
+  `-½tr(Σ⁻¹A_kΣ⁻¹A_l)` and needs **no `A_kl`**, the mixed mean-matrix block being
+  exactly 0 since `E[w] = 0`. For the precision form `∂Σ/∂η = -ΣA_kΣ`.
+- `mvstudent_t_distrib(n_dim, struct_sigma, link_nu)` — the gaussian's score
+  with every data term multiplied by `c = (ν+p)/(ν+q)`, plus a `ν` component;
+  the only multivariate family whose link scale is **not** its parameter scale.
+  `mv_sigma()` is the **scale** matrix and `variance()` the covariance
+  (`νΣ/(ν−2)`, infinite for `ν ≤ 2`) — keeping the two apart is what lets it be
+  fitted where the second moment does not exist. Marginals keep the **same** ν.
+- `check_distrib()` runs a **nine-check multivariate battery** (importance
+  sampling for the normalisation, both Bartlett identities, the moments).
+- `mv_marginal()` is a generic; the base class **refuses**, because a numerical
+  marginal would be a different object with the same name. It exists because a
+  panel of a pairs plot *is* a marginal.
+- `plot()` on a multivariate distribution or fit draws a panel matrix: marginal
+  density on the diagonal (plus a kernel estimate when there are data), contours
+  below, correlation above. Refused above three coordinates, with `which=` /
+  `mv_which=` offered instead.
+- `n_obs()` is the row count, not the length. A parameter may **not** vary by
+  observation here: the structure describes one matrix for the whole sample.
+- **The structure's free names are PREFIXED by the matrix they describe**
+  (2026-08-04, Giovanni): `sigma_log_L1` for a covariance or a scale matrix,
+  `omega_log_L1` for a precision. A free name says how the matrix is BUILT and
+  not WHICH matrix it is, so the same structure on the two sides of a model
+  gave identical parameter names for two genuinely different models. The
+  distribution applies the prefix, not the structure -- the structure does not
+  know which side it has been handed to. `mv_prefixed_names()` in
+  `multivariate.R`.
+- **A fit reports the quantities a reader reads, not the coordinates**
+  (`mv_summary()`, `mv_derived()`, `R/mv_summary.R`). Nobody reads the
+  logarithm of a diagonal entry of a Cholesky factor; what a fitted
+  multivariate gaussian is about is `Sigma = D R D`, so the standard deviations
+  and correlations get the estimate, the standard error and the interval, and
+  `print()` shows them in blocks. Three parts worth keeping:
+  - the standard errors are the **delta method**, `J V J'`, with `J` closed
+    form: `d s_j/d eta = A_k[j,j]/(2 s_j)` and
+    `d rho_jk/d eta = A[j,k]/(s_j s_k) - (rho/2)(A[j,j]/S_jj + A[k,k]/S_kk)`,
+    where `A_k` is the structure's own `struct_dmatrix` -- nothing new is
+    computed;
+  - each **interval is built on the scale that keeps the quantity in its own
+    set** and mapped back, exactly as `fit_distrib()` does for a univariate
+    parameter: log for a standard deviation, Fisher's z for a correlation. On
+    the raw scale a correlation's interval routinely exceeds 1;
+  - a **precision** parametrisation reports the same standard deviations and
+    correlations (they are properties of the law) and ADDS the readings that
+    are its own: the conditional standard deviations `1/sqrt(Omega_jj)` and the
+    partial correlations `-Omega_jk/sqrt(Omega_jj Omega_kk)`. At `p = 2` the
+    partial correlation IS the correlation, so it is not printed twice.
+  The base-class method returns the distinct entries of `mv_sigma()` named
+  `sigma_v1_v2`, with a numerical Jacobian, so a family that decomposes into
+  nothing still reports its matrix on its own scale rather than a coordinate.
+  The **t** names its diagonal quantities `scale_sd_` -- the matrix is a scale
+  matrix and those are not standard deviations of the response -- while its
+  correlations need no qualification, a positive multiple of a matrix having
+  the same correlations.
 
 ---
 
@@ -503,13 +645,13 @@ it. This was found by writing the test for the new feature, not by using it.
 
 | | |
 |---|---|
-| `linkfunctions7` | 886 tests, `R CMD check` OK, CI green |
-| `distributions7` | 1656 tests, `R CMD check` OK (2026-08-03, local), CI green |
-| `optimizers7` | 660 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
-| `covstructs7` | 377 tests, `R CMD check --as-cran` clean apart from the submission notes, created 2026-08-03. Version `0.1.0`. Phase 1 of `piano_covstructs7.txt` is done; phase 2 is correlations and composition. |
-| `basis7` | 682 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
+| `linkfunctions7` | 890 tests, `R CMD check` OK, CI green |
+| `distributions7` | 2132 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-04, local), CI green |
+| `optimizers7` | 696 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
+| `covstructs7` | 379 tests, `R CMD check --as-cran` clean apart from the submission notes, created 2026-08-03. Version `0.1.0`. Phase 1 of `piano_covstructs7.txt` is done; phase 2 is correlations and composition. |
+| `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
-All three repositories run `R-CMD-check` on macOS, Windows and three Linux/R
+All five repositories run `R-CMD-check` on macOS, Windows and three Linux/R
 combinations (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix
 matters for the two that ship Rcpp kernels, `distributions7` and `optimizers7`: until the
 CI existed those had only ever been compiled by one compiler on one machine.
@@ -541,8 +683,29 @@ hook being noise CRAN would query.
 Two things that only bite at submission and that `R CMD check` does not raise locally:
 **`\value` on every exported topic** and **an executable example on every exported
 function**. Both were missing throughout linkfunctions7 and are the two most common
-reasons a first submission comes back. Closed there; worth checking before any future
-package is submitted.
+reasons a first submission comes back.
+
+**And they were still missing throughout distributions7 until 2026-08-04**, which
+is the point of the item rather than an aside: the gap was closed in the package
+where it was found and nowhere else, exactly the failure mode below calls *a habit
+that lives in one package out of three is not a habit*. The audit found 13 exported
+topics with no `\value`, 61 with no executable example, and 101 internal pages with
+no `\value` -- 174 in all. The guard is now `tests/testthat/test-docs.R`, **copied
+into all five packages**, which asks four questions: does every exported object
+appear in `_pkgdown.yml`, does every object in the namespace have a help topic, do
+any two topics collide when case is ignored, and does every exported topic carry a
+`\value` and an example.
+
+Two things learned closing it. `S7::method(coef, cls) <- fn` at the top level of a
+package **creates a binding `coef` in the namespace**, because the replacement form
+expands to an assignment; those are S7's shims over the base generics and belong in
+the test's exclusion list next to `print`/`plot`/`summary`/`mean`/`simulate`. And
+adding a test that calls `pkgdown::check_pkgdown()` **needs pkgdown in `Suggests`**
+-- the same *"'::' import not declared"* warning §3 already records, walked into a
+second time, and then a THIRD time the same day for `numDeriv`, used in the
+tests of the skew families. The rule is mechanical and worth applying without
+thinking about it: **any package a test names with `::` goes in `Suggests`,
+added in the same edit as the test.**
 
 ---
 
@@ -747,10 +910,13 @@ exactly 1. What was wrong was everything around them.
   A **second instance of the same shape**, found while planning `covstructs7`
   (2026-08-03): counting eigenvalues above a relative tolerance is not a rank
   test either. On a tensor-product penalty `l1*P1 + l2*P2` of true rank 28 out
-  of 32, the count reads 28 at `l1 == l2`, 26 at a ratio of 1e8 and **16** at
-  1e12 -- the small contributions sink below the tolerance and are read as
-  zeros -- while the null-space residual `max|M N| / max|M|` never moves off
-  3e-16 across the whole range. Smoothing parameters twelve orders of
+  of 32, the count reads 28 while the two are comparable and **24** once the
+  ratio reaches 1e10 -- the small contributions sink below the tolerance and
+  are read as zeros -- while the null-space residual `max|M N| / max|M|` never
+  moves off 3e-16 across the whole range. (Re-measured 2026-08-04 at a
+  tolerance of 1e-10, which is what the book prints and its gate checks; an
+  earlier draft of this note quoted 26 at 1e8 and 16 at 1e12, from a different
+  tolerance.) Smoothing parameters ten orders of
   magnitude apart are an ordinary fitted model, not a pathology. So a rank
   comes from the **stacked, individually normalised components** (the null
   space of a sum of PSD matrices is the intersection of the null spaces) and
@@ -765,6 +931,182 @@ exactly 1. What was wrong was everything around them.
   the rule is not about `covr`: a green R-CMD-check matrix does not clear a
   change whose outcome depends on floating-point luck, because five platforms
   agreeing is five draws from the same coin. Read a red coverage job.
+
+### Renaming a parameter reaches further than the package
+
+Prefixing the multivariate free names with `sigma_`/`omega_` (2026-08-04)
+touched 97 literals across the package, its tests, the README and the book. Two
+of the places a mechanical sweep does NOT reach are worth knowing in advance:
+
+- **Hessian component names are CONCATENATIONS of parameter names**, so
+  `eh[["mu1_log_L1"]]` had to become `eh[["mu1_sigma_log_L1"]]`. A regex with a
+  word boundary correctly refuses to touch `log_L1` inside `mu1_log_L1` --
+  which is what makes it safe, and also what makes it miss these.
+- **The book's gate built its lookup from `struct@free_names`**, the
+  STRUCTURE's names, not the distribution's. After the rename every component
+  it looked up was NULL, and the failure surfaced as
+  *"non-numeric argument to mathematical function"* several frames away from
+  the cause. Anywhere a consumer reconstructs a parameter name from the
+  structure rather than reading `distrib@params`, a rename will break it
+  silently or confusingly.
+
+### An argument named after a class shadows it
+
+`has_exact_expected_hessian()` took an argument called `distrib`, and the base
+class of the package is also called `distrib`. Inside the function the
+argument won, so the line meant to ask *is this method registered on the base
+class?* compared the owning class with the DISTRIBUTION OBJECT instead. It was
+therefore false for every family whose expected information comes from the
+base class -- which is precisely the set the predicate exists to identify --
+and the function answered "closed form" for all of them (2026-08-04).
+
+The visible consequence was the refusal firing backwards: `fisher_scoring()`
+with an `approx` was refused on the skew normal, which needs it, and accepted
+on families that would ignore it. The three sibling checks in the same
+expression, against `continuous_distrib`, `discrete_distrib` and
+`multivariate_distrib`, were fine, because nothing shadows those -- so the
+multivariate t behaved correctly while the skew families did not, which is
+what makes this kind of bug slow to see.
+
+**The argument is now `x`.** General shape: in a package whose classes and
+whose arguments are drawn from the same vocabulary, an argument named after a
+class is a silent rebinding. Grep for a formal whose name matches an exported
+class before trusting a comparison against that class.
+
+### A starting value is not a detail
+
+Found on `mvgaussian_distrib(4)` fitted to `iris[, 1:4]` (2026-08-04, Giovanni
+reported it as "the fitting takes really long -- maybe because we have not put
+in Rcpp what should be in Rcpp?"). It was not Rcpp. Measured, from the same
+data, the same derivatives, the same optimiser:
+
+| start | iterations | -logLik | time |
+|---|---|---|---|
+| zeros on the link scale | 500, DID NOT CONVERGE | 836.17 | 2.31 s |
+| sample mean + covariance | **1**, converged | **379.914630** | 0.00 s |
+
+The gradient at the closed-form maximum is 2.5e-12, so nothing was wrong with
+the mathematics. `fit_distrib()` was starting at `eta = 0`, which for a
+multivariate gaussian is a zero mean and a unit covariance, and on data whose
+scale is nothing like that the run never arrives.
+
+- **`distrib_start(distrib, y, n_start)`** is the fix: a generic returning a
+  starting value computed from the DATA. The default is the old random draw
+  from the parameter domains, so a family that says nothing loses nothing; the
+  multivariate gaussian returns the sample mean and covariance -- its own MLE
+  for an unstructured matrix -- and the t returns those with `nu = 8`. For a
+  precision structure the covariance is inverted first, and for a structure
+  that cannot represent the sample covariance exactly, `struct_free()` refuses
+  and a short least-squares fit stands in. That last fallback is allowed to be
+  approximate BECAUSE it is a starting value; `struct_free()` itself must stay
+  exact-or-refuse, which is the contract covstructs7 documents.
+- **The restart loop kept the LAST start's result, not the best.** With five
+  random starts and none converging, the fit reported whichever start came
+  last -- a mean of 2.03 where the data's mean is 5.84. The rule is now:
+  a converged run beats a non-converged one, and among runs of equal status
+  the lower objective wins.
+- **AIC and BIC differed between the covariance and the precision
+  parametrisation** of the same model (1594 against 812.9). That was the same
+  bug seen from the other end: neither run had converged, so the two were
+  comparing accidents. They now agree to the digit, which is the invariance a
+  reparametrisation has to satisfy and a useful thing to assert.
+- **optimizers7's gradient check fires at a stationary start.** The difference
+  of `fn` along a direction of no slope is its own truncation error, so
+  comparing it with a gradient of the same order compares two kinds of
+  nothing -- and it warned at precisely the caller who had done the best
+  possible thing, handing in the exact MLE. It now skips when the gradient
+  norm is negligible against the size of the objective.
+
+Read together with the item above on finite differences inside a score: both
+are cases where the arithmetic was right and the run still reported failure.
+
+### Finite differences inside a score
+
+Three things learned adding the skew t (2026-08-04), all of which apply to any
+family whose score is not entirely closed form.
+
+- **A stopping rule on the gradient cannot be met below the error of the
+  finite difference inside the gradient.** The skew t's `nu` score is one
+  stencil on the log-density; measured, its error on the SUMMED score is
+  1e-11 to 1e-9 depending on n and nu. `fit_distrib()` defaults to
+  `crit_grad(1e-10)`, which is at or under that floor, so the run reaches the
+  maximum -- the three closed-form components go to 1e-13 -- and then spends
+  its whole iteration budget reporting `converged = FALSE` at the maximum.
+  `tol = 1e-8` is the honest ask for such a family, and the constructor's page
+  says so. Note this is a NEW consequence of dropping `crit_rel_obj` from the
+  criterion the same day: the old OR would have stopped on the objective and
+  reported success.
+- **The step is measured, not chosen.** Swept over nu from 2 to 30 and n from
+  500 to 4000: a three-point stencil bottoms out at ~1e-8 (truncation, which
+  is a BIAS and so does not cancel over the sum), while a five-point one at a
+  relative step of 1e-3 reaches 1e-11 to 1e-9. Going smaller makes it worse --
+  the five-point stencil amplifies rounding by 18/(12h). Two extra density
+  evaluations bought an order of magnitude, which was the difference between a
+  fit that converges and one that does not.
+- **Never let the numerical Hessian differentiate a numerical gradient.** The
+  base fallback differentiates `distrib_gradient` once; if that gradient is
+  itself a difference in the same variable, the result is the nested
+  differencing the toolkit forbids everywhere. So the skew t registers its own
+  Hessian: closed form where it can, one stencil on the log-density for
+  `nu_nu`, and one stencil on the CLOSED-FORM score for the mixed `(par, nu)`
+  entries. A mixed stencil differences two DIFFERENT variables and is therefore
+  a single stencil, not a difference of a difference.
+- Corollary for testing: a gradient that contains a difference must be checked
+  against **Richardson extrapolation** (`numDeriv::grad`), never against a plain
+  central difference, which would be the same arithmetic twice.
+
+### A run that reached a point is not a run that failed
+
+`fit_distrib()`'s restart loop discarded a BFGS fallback that ran but did not
+converge, so `res` stayed NULL and the caller got
+*"Optimisation failed from every starting value; supply 'start'"* for a fit
+that existed and was correct (found on the skew t at the default tolerance,
+2026-08-04). The fallback is now kept as a last resort when the chosen method
+raised, and the loop keeps the last result it obtained. General shape: an
+error message that names a cause is worse than useless when the cause is not
+the real one -- the same lesson as the `check_criterion()` item in section 4.
+
+### Multivariate distributions
+
+- **A rank read off an assembled matrix is not a property of the family.** The
+  measured case, on a tensor-product penalty `l1*P1 + l2*P2` of true rank 28 out
+  of 32: counting eigenvalues above a relative tolerance of 1e-10 gives 28 while
+  the two are comparable and **24** once the ratio reaches 1e10, while the
+  residual `max|M N| / max|M|` against the stored null basis never leaves 3e-16
+  across the whole range. (An earlier note here said 26 at 1e8 and 16 at 1e12;
+  those came from a different tolerance. The numbers above are the ones the book
+  now prints and its gate now checks, so they are the ones to quote.) Note also
+  that the 1-D pair -- second and first differences on 8 coefficients -- does
+  **not** reproduce the effect at any ratio up to 1e14. A demonstration of this
+  needs the tensor case; a smaller example silently demonstrates nothing.
+- **A `covstruct` refuses `struct_solve()` when it is rank deficient**, and that
+  is deliberate rather than an omission: what a consumer of an improper prior
+  needs is the quadratic form and the log pseudo-determinant, since the matrix it
+  actually inverts is `X'X + lambda P`, which is non-singular. I wrote a book
+  section claiming a Moore-Penrose solve before checking, and the code was right.
+- **The matrix parameter is flattened into scalars.** Everything else in
+  distributions7 then applies unchanged -- see section 4. The corollary worth
+  keeping is negative: a multivariate distribution must NOT inherit from
+  `continuous_distrib`, because the defaults registered there (cdf by quadrature,
+  quantile by root finding) are one-dimensional and would silently produce
+  numbers.
+- **The gaussian's expected information needs no second derivative of the
+  structure.** `E[l^(kl)] = -0.5*tr(Sigma^-1 A_k Sigma^-1 A_l)`: both
+  second-derivative terms cancel under expectation, and the mixed mean-matrix
+  block is exactly 0 because `E[w] = 0`. That is why Fisher scoring is cheaper
+  than Newton here and not merely differently accurate.
+- **A multivariate t is the gaussian score reweighted.** Every data term carries
+  `c = (nu+p)/(nu+q)`; only the `nu` component is new. Marginals keep the SAME
+  `nu` -- it follows from the scale-mixture representation, since conditioning on
+  the mixing variable leaves a gaussian.
+- **The scale matrix and the covariance are different objects and must stay
+  apart.** `mv_sigma()` returns what the parametrisation carries, `variance()`
+  the moment. Conflating them makes the family undescribable at `nu <= 2`, which
+  is exactly the regime it exists for.
+- **A test harness that evaluates chunks in the global environment must not
+  use short names of its own.** A scratch script looping `for (s in starts)`
+  clobbered the structure each chapter chunk had just built, and reported the
+  chapter as broken. The chapter was fine.
 
 ### Random number generation
 
@@ -1098,12 +1440,26 @@ exactly 1. What was wrong was everything around them.
   is also now **relative**, `s'y > curv_tol*||s||*||y||`, as `bfgs()` already had
   it. General lesson: a policy chosen on one problem is a policy chosen on one
   problem — the boxed case disagreed with Rosenbrock about all three constants.
-- Next packages: `covstructs7` (plan written 2026-08-03, `piano_covstructs7.txt`:
-  constrained matrix parameters -- SPD via log-Cholesky, correlations via
-  canonical partial correlations, D R D', compound symmetry/AR(1), block
-  diagonal -- exact to order 2 on the unconstrained scale; NOT links, since the
-  Jacobian is not diagonal; imports linkfunctions7 only, sits beside
-  distributions7), then `penalties7`, then `modelterms7`.
+- Next packages: **`covstructs7` phase 2** (`piano_covstructs7.txt`:
+  correlations via canonical partial correlations, D R D', compound
+  symmetry/AR(1), block diagonal, composition -- phase 1 shipped 2026-08-03),
+  then `penalties7`, then `modelterms7`.
+- **More distributions for `distributions7`** (assessment 2026-08-04, Giovanni
+  asked whether it was worth it). What the fourteen do NOT cover, in the order
+  the model layer will want them:
+  - ~~**Weibull** and **Gumbel/extreme value**~~ **done 2026-08-04.**
+  - ~~**Skew normal / skew t**~~ **done 2026-08-04.**
+  - **STILL TO DO**, in this order: **generalised Pareto** for tails;
+    **Dirichlet**, the first multivariate family that is not elliptical and so
+    the right second test of that layer -- its marginals ARE beta, so
+    `mv_marginal()` exists for it, which is what makes it a useful case rather
+    than merely a refusal; **multinomial** for categorical responses, which is
+    also the first multivariate DISCRETE family and will need `check_distrib`'s
+    multivariate battery to learn about support points.
+  - **Skipped deliberately**: anything obtained by a wrapper already
+    (`truncated`, `zero_*`, `transformation` cover lognormal-like families,
+    hurdle models and Box-Cox families), and anything whose only interest is a
+    reparametrisation of a family already present.
 - **`penalties7` design decisions agreed 2026-08-03** (conversation, no plan
   file yet -- write `piano_penalties7.txt` before code): a penalty is
   rho(D beta; theta) -- a linear map, a scalar function, parameters. THREE
@@ -1145,7 +1501,8 @@ exactly 1. What was wrong was everything around them.
   if profiling shows it matters.
 - **Third and fourth cdf derivatives** would let truncation drop quadrature at orders
   3-4 as well.
-- No `NEWS.md` on either package.
+- No `NEWS.md` on linkfunctions7, distributions7 or optimizers7. `basis7` and
+  `covstructs7` have one from their first commit, which is the right habit.
 - **`expected_by_bartlett()` recomputes too much.** Inside the integrand it calls
   `observed_deriv()` for a whole order and keeps one component, once per block per
   partition per component — and the integrand runs at every quadrature node. Memoising
@@ -1195,7 +1552,32 @@ exactly 1. What was wrong was everything around them.
   be taken against; orthonormalisation, constraints and Demmler-Reinsch as one
   congruence; and tensor products, separability, and the two coefficient
   shapes a contraction accepts. Its five gates are in
-  `book/R/basis-certificates.R`, injection-checked seventeen times. What the
+  `book/R/basis-certificates.R`, injection-checked seventeen times.
+  Section 3.5 (added 2026-08-04) covers the multivariate families: the
+  flattening of a matrix parameter into scalars, the gaussian's score and
+  Hessian in terms of the structure's `A_k` and `A_kl`, the collapse of the
+  expected information onto `-0.5*tr(Sigma^-1 A_k Sigma^-1 A_l)`, the Student t
+  as a scale mixture with its weight `c = (nu+p)/(nu+q)`, marginals and what a
+  pairs plot shows, and what is refused (the cdf, the quantile). Chapter 6
+  (added 2026-08-04) covers `covstructs7`: the map and its free vector, why the
+  construction is not a link -- the Jacobian is dense, and that is the whole
+  reason -- the four things a consumer asks and the trace identity behind the
+  log-determinant; the log-Cholesky map with its two derivative formulas and
+  its log-determinant linear in the free vector, the diagonal families that
+  reuse `linkfunctions7` links, and the fixed matrix carried by one scale;
+  then rank, the pseudo-determinant, `lambda = r/(b'Pb)`, why an eigenvalue
+  count is not a rank test, and why the solve is refused rather than replaced
+  by a pseudo-inverse. Their gates are `book/R/multivariate-certificates.R`
+  and `book/R/covstruct-certificates.R`, injection-checked three times each.
+  Section 3.5 gained a part on **what a fit reports** (2026-08-04): the delta
+  method carrying the variance matrix onto the standard deviations and
+  correlations, their Jacobian written out, and why each interval is built on
+  log or on Fisher's z. Its gate transcribes that Jacobian by hand and also
+  checks it against `numDeriv`, which shares no code with either --
+  and the third covstructs7 injection is worth keeping: the free-vector
+  ordering could not be tested at `p = 3`, where reading the below-diagonal
+  entries by row and by column give the SAME sequence, so the gate carries a
+  `p = 4` case as well. What the
   book still lacks is anything on **censored likelihoods**, which waits on the
   front end that does not exist yet, and it will need a chapter per package as
   the others arrive.
@@ -1219,12 +1601,15 @@ on distributions with a chapter on links attached. Now:
 ```
 Preface / 1 Introduction / 2 The linkfunctions7 package /
 3 The distributions7 package  (3.1 Distributions, 3.2 Transformations,
-                               3.3 Fitting, 3.4 Fallbacks) /
+                               3.3 Fitting, 3.4 Fallbacks,
+                               3.5 Several dimensions) /
 4 The optimizers7 package     (4.1 Descent, 4.2 Curvature, 4.3 Non-smooth,
                                4.4 Constraints, 4.5 Starting points) /
 5 The basis7 package          (5.1 Expansions, 5.2 Families, 5.3 Inner
                                products, 5.4 Transformations, 5.5 Several
                                variables) /
+6 The covstructs7 package     (6.1 Matrix parameters, 6.2 The families,
+                               6.3 Rank and the null space) /
 A Notation / B References
 ```
 

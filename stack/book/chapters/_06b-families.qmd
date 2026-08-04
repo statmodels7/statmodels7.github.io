@@ -1,0 +1,165 @@
+## The families {#sec-covstruct-families}
+
+```{r}
+#| label: setup-06b
+#| include: false
+source("R/_setup.R")
+source("R/covstruct-certificates.R")
+```
+
+### The log-Cholesky map {#sec-covstruct-logchol}
+
+The general positive definite case is parametrised through the Cholesky
+factor. Every positive definite $M$ has a unique factorisation
+$M = L L^\top$ with $L$ lower triangular and $L_{ii} > 0$, and the
+correspondence is a bijection. Taking the logarithm of the diagonal removes
+the only remaining constraint, so
+
+$$
+\eta = \bigl(\log L_{11}, \ldots, \log L_{pp},\;
+             L_{21}, L_{31}, \ldots, L_{p,p-1}\bigr)
+$$ {#eq-logchol-free}
+
+ranges over the whole of $\mathbb{R}^{d}$ with $d = p(p+1)/2$, and
+$M(\eta) = L L^\top$ is onto the positive definite cone. This is the
+parametrisation of @pinheiro1996. The ordering above is fixed rather than
+incidental: the diagonal comes first, then the below-diagonal entries column
+by column, and the labels of the free values follow it.
+
+The logarithm on the diagonal is intrinsic to the map and not a swappable
+link. A different positive map would give a different parametrisation of the
+same set, but it would not compose with anything, since the constraint being
+removed is on the factor and not on an entry of $M$.
+
+Differentiating is straightforward once the factor is written as a function of
+the free vector. Let $L_k = \partial L/\partial \eta_k$, which is the matrix
+with a single non-zero entry: $L_{ii}$ itself in a diagonal direction, because
+the entry is $e^{\eta}$, and $1$ in a below-diagonal direction. Then
+
+$$
+A_k = L_k L^\top + L L_k^\top ,
+\qquad
+A_{kl} = L_k L_l^\top + L_l L_k^\top + \delta_{kl}^{\,\mathrm{diag}}
+         \left( L_k L^\top + L L_k^\top \right),
+$$ {#eq-logchol-derivs}
+
+where the last term appears only when $k = l$ and the direction is a diagonal
+one, since $\partial^2 L/\partial \eta_k^2 = L_k$ there and vanishes
+elsewhere. The factor is linear in every below-diagonal free value, which is
+why nothing else survives the second derivative.
+
+The log-determinant is the reason this parametrisation is comfortable. Since
+$|M| = |L|^2$ and $L$ is triangular,
+
+$$
+\log|M| = 2\sum_{i=1}^{p} \log L_{ii} = 2\sum_{i \in \mathrm{diag}} \eta_i ,
+$$ {#eq-logchol-logdet}
+
+which is **linear** in the free vector. Its gradient is the constant $2$ in
+each diagonal direction and $0$ in every other, and its Hessian vanishes
+identically. A term that would otherwise cost a trace per component per
+observation costs nothing at all.
+
+```{r}
+#| label: logchol-logdet
+s <- covstructs7::log_cholesky(3)
+covstructs7::struct_dlogdet(s, c(0.1, -0.2, 0.3, 0.5, -0.4, 0.2))
+covstructs7::struct_dlogdet(s, c(-2, 3, 0.7, -1.1, 0.4, 2.5))
+```
+
+### Diagonal matrices, and where the two packages meet {#sec-covstruct-diagonal}
+
+A diagonal matrix with positive entries is the case in which a matrix
+parametrisation and a scalar link agree. The Jacobian of
+
+$$
+M(\eta) = \mathrm{diag}\bigl(h(\eta_1), \ldots, h(\eta_p)\bigr)
+$$ {#eq-diag-struct}
+
+is diagonal, which is exactly the contract a link satisfies, so `covstructs7`
+takes $h$ from `linkfunctions7` instead of writing a positive map of its own.
+Any link whose range is the positive half-line serves, and its exact
+derivatives to fourth order come with it. The derivatives of the structure are
+then $A_k = h'(\eta_k) e_k e_k^\top$ and $A_{kk} = h''(\eta_k) e_k e_k^\top$,
+with every mixed second derivative zero, and the log-determinant is
+$\sum_i \log h(\eta_i)$.
+
+```{r}
+#| label: diag-struct
+covstructs7::struct_matrix(covstructs7::diag_struct(3), c(0, 0.5, -0.5))
+covstructs7::struct_matrix(
+  covstructs7::diag_struct(2, link = linkfunctions7::sqrt_link()), c(1, 2)
+)
+```
+
+A single free value shared by every entry gives $\sigma^2 I$, which is the
+independent case a variance component or a ridge starts from. It is the same
+construction with $d = 1$.
+
+### A fixed matrix carried by one scale {#sec-covstruct-scaled}
+
+The third family is different in kind. Here the matrix is
+
+$$
+M(\eta) = \lambda P, \qquad \lambda = h(\eta),
+$$ {#eq-scaled-struct}
+
+with $P$ a **known** symmetric positive semidefinite matrix and $\lambda$ the
+only unknown. This is the commonest penalty in semiparametric regression: $P$
+may be the Gram matrix of a basis derivative from @sec-basis-gram, a
+difference penalty $\Delta^\top \Delta$, a neighbourhood matrix, or the
+identity, in which case the structure is a ridge.
+
+Nothing here needs deriving. With the default log link, $\lambda = e^{\eta}$
+and every quantity is a constant times a function of the scale:
+
+$$
+\partial_\eta M = M, \qquad \partial^2_\eta M = M,
+$$
+
+$$
+\log|M|_{+} = r\,\eta + \log|P|_{+}, \qquad
+\partial_\eta \log|M|_{+} = r, \qquad
+\partial^2_\eta \log|M|_{+} = 0,
+$$ {#eq-scaled-logdet}
+
+with $r$ the rank of $P$ and $|\cdot|_{+}$ the pseudo-determinant of
+@sec-covstruct-pseudodet. The constant $\log|P|_{+}$ is computed once at
+construction, since $P$ does not change.
+
+```{r}
+#| label: scaled-struct
+# a ridge: the identity, scaled
+r <- covstructs7::scaled_struct(diag(4))
+c(rank = r@rank, logdet_at_zero = covstructs7::struct_logdet(r, 0))
+
+# a second-difference penalty on six coefficients
+dm <- diff(diag(6), differences = 2)
+pen <- covstructs7::scaled_struct(crossprod(dm))
+c(dimension = pen@dimension, rank = pen@rank)
+```
+
+### Which side of a model a family parametrises {#sec-covstruct-role}
+
+The name of a family does not say whether the matrix it produces is a
+covariance or a precision, and the two are different models. Imposing a
+structure on $\Sigma$ and imposing the same structure on $\Omega = \Sigma^{-1}$
+give the same family only when the structure is closed under inversion.
+Diagonal matrices are, and so is compound symmetry, whose inverse is again
+compound symmetry with different constants. An AR(1) correlation matrix is not:
+its inverse is tridiagonal, which is a different pattern of zeros, so an AR(1)
+covariance and an AR(1) precision are genuinely different assumptions about
+the same data.
+
+A structure therefore carries a label recording which side it is meant for.
+Nothing computed depends on it and no method reads it; it exists so that the
+object says what it is, and so that a consumer that cares can ask. The
+distribution of @sec-mvgaussian takes the structure on either side and adjusts
+its own derivatives accordingly, which is the only place the difference has
+arithmetic consequences.
+
+```{r}
+#| label: consistency-06b
+#| include: false
+assert_covstruct_families_ok()
+```
