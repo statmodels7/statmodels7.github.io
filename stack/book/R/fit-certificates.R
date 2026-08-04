@@ -139,9 +139,66 @@ assert_fit_ok <- function() {
     problems <- c(problems, res)
   }
 
+  problems <- c(problems, .certify_starting_values())
+
   if (length(problems)) {
     stop("Chapter 5 consistency gate failed:\n  ",
          paste(problems, collapse = "\n  "), call. = FALSE)
   }
   invisible(TRUE)
+}
+
+
+# The section on starting values makes two claims: that a family which knows
+# an estimator returns it, and that starting there is what lets the fit
+# converge. Both are checked against arithmetic done here, and the second is
+# checked the only way it can be -- by starting somewhere else and watching
+# the same fit fail.
+.certify_starting_values <- function() {
+  out <- character()
+  d <- mvgaussian_distrib(4)
+  y <- as.matrix(datasets::iris[, 1:4])
+
+  st <- distrib_start(d, y)[[1]]
+  if (max(abs(as.numeric(mv_location(d, st)) - colMeans(y))) > 1e-10) {
+    out <- c(out, "the proposed start is not the sample mean")
+  }
+  s_hat <- crossprod(sweep(y, 2L, colMeans(y))) / nrow(y)
+  if (max(abs(unname(mv_sigma(d, st)) - unname(s_hat))) > 1e-8) {
+    out <- c(out, "the proposed start is not the sample second moment")
+  }
+
+  # The exact maximum, in closed form, and the fit that must reach it.
+  ll_hat <- sum(distrib_pdf(d, y, st, log = TRUE))
+  f <- fit_distrib(d, y)
+  if (!f@converged) {
+    out <- c(out, "the four-dimensional gaussian fit did not converge")
+  }
+  if (abs(as.numeric(logLik(f)) - ll_hat) > 1e-8) {
+    out <- c(out, sprintf(
+      "the fit reached %s where the closed-form maximum is %s",
+      format(as.numeric(logLik(f)), digits = 10), format(ll_hat, digits = 10)
+    ))
+  }
+  if (f@iterations > 3) {
+    out <- c(out, sprintf(
+      "the fit took %d iterations from its own start, not the one it claims",
+      f@iterations
+    ))
+  }
+
+  # And the counterfactual: the same everything, started at the origin, does
+  # not get there. Without this the claim would be untested -- a fit that
+  # converges quickly from a good start proves nothing about the start unless
+  # a bad one is shown to fail.
+  zero <- as.list(stats::setNames(rep(0, d@n_params), d@params))
+  fz <- fit_distrib(d, y, start = zero, maxit = 500)
+  if (isTRUE(fz@converged) &&
+      abs(as.numeric(logLik(fz)) - ll_hat) < 1e-8) {
+    out <- c(out, paste0(
+      "the fit started at the origin now reaches the maximum too, so the ",
+      "section's claim about starting values no longer has a counterexample"
+    ))
+  }
+  out
 }

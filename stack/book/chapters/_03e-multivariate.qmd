@@ -1,0 +1,427 @@
+## Several dimensions {#sec-multivariate}
+
+```{r}
+#| label: setup-03e
+#| include: false
+source("R/_setup.R")
+source("R/multivariate-certificates.R")
+```
+
+The families of @sec-distributions all place their mass on the real line, and
+an observation is a number. This section describes what changes when an
+observation is a vector of $p$ numbers, and what does not. The likelihood
+theory of @sec-likelihood is unaffected: the score, the observed information,
+the Bartlett identities and the change of scale are statements about a
+parametric family and say nothing about the dimension of its support. What
+changes is the parametrisation, because a multivariate family carries a matrix
+where a univariate one carries a variance, and a matrix is constrained.
+
+The two families presented here are the elliptical ones the toolkit needs
+first. @kotz2004 is the reference for the multivariate $t$ and @lange1989 for
+its use as a robust replacement for the gaussian.
+
+### The response and the parameters {#sec-mv-parameters}
+
+A multivariate distribution places its mass on $\mathbb{R}^p$, and a sample of
+$n$ observations is the $n \times p$ matrix $Y$ whose $i$th row is $y_i$. The
+number of observations is the row count rather than the length, which is the
+only structural change the response requires.
+
+The parameters need more care. A $p$-variate gaussian has a mean vector
+$\mu \in \mathbb{R}^p$ and a covariance matrix $\Sigma$, and $\Sigma$ is not a
+free object: it must be symmetric and positive definite. A parameter of this
+kind is what @sec-covstructs7 is about. All this section needs from it is the
+contract: a **structure** is a map
+
+$$
+\eta \;\longmapsto\; M(\eta), \qquad \eta \in \mathbb{R}^{d},
+$$ {#eq-mv-structure}
+
+from an unconstrained vector of length $d$ to a symmetric matrix in the
+constrained set, supplying the derivatives
+$A_k = \partial M / \partial \eta_k$ and
+$A_{kl} = \partial^2 M / \partial \eta_k \partial \eta_l$, the
+log-determinant and its derivatives, and the solves $M^{-1}B$. The map is
+onto the set and one-to-one, so $\eta$ ranges over the whole of
+$\mathbb{R}^{d}$ with no constraint of its own.
+
+The parameters of a multivariate distribution are then the $p$ components of
+the mean together with the $d$ free values of the structure, and every one of
+them is a **scalar**. This is what lets the rest of the package apply
+unchanged. A parameter vector $\theta$ is a named list of numbers, the
+derivative components are keyed by parameter names exactly as in
+@sec-likelihood, and the enumeration that produces `hess_names()` produces
+the same strings whether the parameters are $(\mu, \sigma)$ or
+$(\mu_1, \mu_2, \log L_{11}, \log L_{22}, L_{21})$. Nothing in `align_theta()`,
+in the link scale of @sec-link-scale, or in the fitting routine of
+@sec-fitting has to be told that the family is multivariate.
+
+Every one of these scalars is unconstrained, so every link is the identity.
+The constraint that would otherwise need a link has been moved into the
+structure, where it belongs: it is a constraint on the matrix as a whole and
+not on any one entry, and a scalar link cannot express it. A multivariate
+gaussian therefore has a link scale that coincides with its parameter scale.
+A multivariate $t$ does not, because its degrees of freedom are a genuine
+positive scalar and carry a log link.
+
+There is one restriction, and it comes from what a parameter means here. In a
+univariate family a parameter may vary from observation to observation, which
+is what a regression does. Here it may not: the structure's free values
+describe one matrix for the whole sample. A model in which the matrix varies
+by observation belongs to the layer that owns the regression, not to the
+distribution, and the constructor refuses a parameter of length greater than
+one rather than silently using its first entry.
+
+The names of the free values carry a prefix saying which matrix they describe,
+`sigma_` for a covariance and `omega_` for a precision. The name a structure
+gives a free value records how the matrix is built and not which matrix it is,
+so the same structure on the two sides of a model would otherwise produce
+identical parameter names for two different models. The distribution applies
+the prefix rather than the structure, since the structure does not know which
+side it has been handed to.
+
+### The gaussian {#sec-mvgaussian}
+
+The $p$-variate gaussian has density
+
+$$
+f(y) \;=\; (2\pi)^{-p/2} \, |\Sigma|^{-1/2}
+  \exp\!\left\{ -\tfrac{1}{2} (y-\mu)^\top \Sigma^{-1} (y-\mu) \right\},
+$$ {#eq-mvgaussian-density}
+
+so that with $r = y - \mu$ and $w = \Sigma^{-1} r$ the log-density is
+$\ell = -\tfrac{p}{2}\log(2\pi) - \tfrac{1}{2}\log|\Sigma|
+- \tfrac{1}{2} r^\top w$.
+
+Differentiating with respect to the mean gives $\partial \ell/\partial \mu = w$,
+one component per coordinate. For the matrix directions, the derivative of the
+quadratic form follows from $\partial_k \Sigma^{-1} = -\Sigma^{-1} A_k
+\Sigma^{-1}$, which is the derivative of an inverse, so that
+$\partial_k (r^\top \Sigma^{-1} r) = -w^\top A_k w$. Together with the
+structure's own $\partial_k \log|\Sigma|$,
+
+$$
+\ell^{(\mu_a)} = w_a, \qquad
+\ell^{(\eta_k)} = -\tfrac{1}{2}\,\partial_k \log|\Sigma|
+   \;+\; \tfrac{1}{2}\, w^\top A_k w .
+$$ {#eq-mvgaussian-score}
+
+Both pieces on the right come from the structure, and neither depends on which
+family of matrices it belongs to. The distribution is written once and works
+with any structure that satisfies the contract.
+
+The second derivatives follow by differentiating again. The mean block is
+$-\Sigma^{-1}$, constant in $y$; the mixed block is
+$\ell^{(\mu_a \eta_k)} = -(\Sigma^{-1} A_k w)_a$; and the matrix block is
+
+$$
+\ell^{(\eta_k \eta_l)} = -\tfrac{1}{2}\,\partial_{kl} \log|\Sigma|
+  + \tfrac{1}{2}\, w^\top A_{kl} w
+  - w^\top A_l \Sigma^{-1} A_k w .
+$$ {#eq-mvgaussian-hessian}
+
+The expected information is where the multivariate case is more pleasant than
+it looks. Taking expectations uses only $\mathbb{E}[w] = 0$ and
+$\mathbb{E}[w w^\top] = \Sigma^{-1}$. The first kills the mixed block exactly,
+so the mean and the matrix are orthogonal; the second turns each quadratic
+form into a trace. Both second-derivative terms of the matrix block then
+collapse, and
+
+$$
+\mathbb{E}\!\left[\ell^{(\mu_a \mu_b)}\right] = -(\Sigma^{-1})_{ab},
+\qquad
+\mathbb{E}\!\left[\ell^{(\mu_a \eta_k)}\right] = 0,
+\qquad
+\mathbb{E}\!\left[\ell^{(\eta_k \eta_l)}\right]
+  = -\tfrac{1}{2}\,\mathrm{tr}\!\left(\Sigma^{-1} A_k \Sigma^{-1} A_l\right).
+$$ {#eq-mvgaussian-information}
+
+The second derivatives $A_{kl}$ have disappeared, and so has the second
+derivative of the log-determinant. The information needs only the first
+derivatives of the structure, which is what makes Fisher scoring cheaper here
+than a Newton step, and it is what @sec-fit-scoring already predicted in
+one dimension.
+
+```{r}
+#| label: mvgaussian-demo
+d <- mvgaussian_distrib(2)
+d@params
+
+theta <- list(mu1 = 0.5, mu2 = -0.3, sigma_log_L1 = 0.1, sigma_log_L2 = -0.2, sigma_L2.1 = 0.4)
+mv_sigma(d, theta)
+```
+
+A gaussian may equally be written in the precision $\Omega = \Sigma^{-1}$, and
+which of the two a model parametrises is a modelling decision rather than a
+notational one: a structure imposed on $\Sigma$ is a different family from the
+same structure imposed on $\Omega$, since the inverse of a compound-symmetry
+matrix is compound symmetry while the inverse of an AR(1) is not AR(1). The
+constructor takes the structure on either side, and everything above still
+applies, because $\partial \Sigma / \partial \eta_k = -\Sigma A_k \Sigma$ when
+$A_k$ is a derivative of the precision. The two parametrisations describe the
+same law when the matrices are matched.
+
+```{r}
+#| label: mvgaussian-precision
+do <- mvgaussian_distrib(2, struct_omega = covstructs7::log_cholesky(2))
+eta_o <- covstructs7::struct_free(do@struct, solve(mv_sigma(d, theta)))
+theta_o <- as.list(stats::setNames(c(0.5, -0.3, eta_o), do@params))
+
+y <- rbind(c(0, 0), c(1, -1), c(-0.5, 0.8))
+max(abs(distrib_pdf(do, y, theta_o, log = TRUE) -
+        distrib_pdf(d, y, theta, log = TRUE)))
+```
+
+### The Student t {#sec-mvstudent-t}
+
+The multivariate $t$ replaces the exponential tail with a polynomial one. With
+$q = (y - \mu)^\top \Sigma^{-1} (y - \mu)$ its density is
+
+$$
+f(y) \;=\;
+\frac{\Gamma\!\left(\frac{\nu+p}{2}\right)}
+     {\Gamma\!\left(\frac{\nu}{2}\right) (\nu\pi)^{p/2} |\Sigma|^{1/2}}
+\left( 1 + \frac{q}{\nu} \right)^{-(\nu+p)/2}.
+$$ {#eq-mvt-density}
+
+Here $\Sigma$ is the **scale** matrix and not the covariance. The covariance is
+$\nu\Sigma/(\nu-2)$ where it exists, and for $\nu \le 2$ it does not exist at
+all while the distribution is perfectly well defined; the mean exists for
+$\nu > 1$. Keeping the two apart is what allows a heavy-tailed family to be
+described and fitted at degrees of freedom where its second moment is
+infinite, so the package returns the scale matrix from `mv_sigma()` and the
+covariance from `variance()`.
+
+The distribution is the scale mixture
+
+$$
+Y \mid V \sim N_p\!\left(\mu,\; \tfrac{\nu}{V}\,\Sigma \right),
+\qquad V \sim \chi^2_\nu,
+$$ {#eq-mvt-mixture}
+
+which is how the package generates from it and where the shape of its score
+comes from. Writing
+
+$$
+c \;=\; \frac{\nu + p}{\nu + q}
+$$ {#eq-mvt-weight}
+
+for the weight an observation receives, the derivatives with respect to the
+mean and the structure are those of the gaussian, @eq-mvgaussian-score, with
+every term involving the data multiplied by $c$:
+
+$$
+\ell^{(\mu_a)} = c \, w_a, \qquad
+\ell^{(\eta_k)} = -\tfrac{1}{2}\,\partial_k \log|\Sigma|
+   \;+\; \tfrac{1}{2}\, c \, w^\top A_k w .
+$$ {#eq-mvt-score}
+
+The weight is what makes the family resistant. An observation with a large
+Mahalanobis distance has a large $q$, hence a small $c$, and contributes
+proportionally less to the estimate of both the location and the scale; as
+$\nu \to \infty$ the weight tends to $1$ uniformly and the gaussian is
+recovered. A gaussian fitted to data containing a few distant rows has no such
+mechanism and inflates $\Sigma$ until it covers them.
+
+The degrees of freedom contribute one further component,
+
+$$
+\ell^{(\nu)} = \tfrac{1}{2}\left[
+  \psi\!\left(\tfrac{\nu+p}{2}\right) - \psi\!\left(\tfrac{\nu}{2}\right)
+  - \frac{p}{\nu} - \log\!\left(1 + \frac{q}{\nu}\right)
+  + \frac{(\nu+p)\,q}{\nu(\nu+q)} \right],
+$$ {#eq-mvt-score-nu}
+
+with $\psi$ the digamma function. The first three terms come from the
+normalising constant and do not involve the data; the last two are the
+derivative of the kernel. Since $\nu > 0$ it carries a log link, and the
+derivative on the link scale is $\nu\,\ell^{(\nu)}$ by the chain rule of
+@sec-link-scale, with no change to the rest.
+
+The expected information of the $t$ has no closed form in the package, so it
+is approximated by one of the strategies of @sec-approx, and
+`fit_distrib()` accepts the choice through its `approx` argument. It accepts
+it only for a family that has no closed form, since for one that has, the
+argument would be silently ignored and the fit would report a method it did
+not use.
+
+```{r}
+#| label: mvt-demo
+dt <- mvstudent_t_distrib(2)
+theta_t <- list(mu1 = 0.5, mu2 = -0.3, sigma_log_L1 = 0.1, sigma_log_L2 = -0.2,
+                sigma_L2.1 = 0.4, nu = 4)
+
+# the scale matrix is what the parametrisation carries; the covariance is a
+# moment, and at nu = 4 it is twice as large
+mv_sigma(dt, theta_t)
+variance(dt, theta_t)
+```
+
+### Marginals and what a picture shows {#sec-mv-marginal}
+
+Integrating a density over the coordinates one is not interested in has no
+closed form for most families. It has one for the elliptical families, where
+the marginal belongs to the same family with the mean subsetted and the matrix
+reduced to the corresponding block. For the gaussian this is the classical
+result; for the $t$ the marginal is a $t$ on the subset with the **same**
+degrees of freedom, which follows from @eq-mvt-mixture, since conditioning on
+$V$ leaves a gaussian whose marginal is a gaussian with the same mixing
+variable.
+
+This is what makes a picture of a multivariate density possible, because every
+panel of a pairs plot displays a marginal. The diagonal shows the univariate
+marginal density of each coordinate, the lower triangle the contours of each
+bivariate marginal, and, when the plot is drawn from a fit, the observations
+and their kernel density estimate are drawn in the same frame. The kernel
+estimate is the comparison that does not assume the model.
+
+Beyond three coordinates the panel matrix stops being readable, so a larger
+distribution is refused with the suggestion of choosing coordinates rather
+than being drawn illegibly. A family with no closed-form marginal is refused
+outright: a numerical marginal would be a different object wearing the same
+name.
+
+```{r}
+#| label: mvt-pairs
+#| fig-width: 7
+#| fig-height: 6.4
+#| fig-cap: "A two-dimensional Student t with four degrees of freedom: the marginal densities on the diagonal and the contours of the bivariate density below it."
+plot(dt, theta_t)
+```
+
+Two quantities of the univariate case have no multivariate counterpart and are
+refused rather than approximated. A distribution function on $\mathbb{R}^p$
+would be an orthant probability, which is not a one-dimensional integral and
+does not reduce to one; a quantile function would need an ordering of
+$\mathbb{R}^p$, and there is none. Everything that depends on either is
+therefore unavailable here, which is why a multivariate distribution does not
+inherit the defaults of `continuous_distrib` but sits on a class of its own.
+
+### Fitting {#sec-mv-fitting}
+
+A fit proceeds exactly as in @sec-fitting. The objective is the sum of the log
+densities over the rows of $Y$, the optimisation happens on the link scale,
+and the standard errors come from the inverse of the information by the delta
+method. For the gaussian the maximum likelihood estimator is known in closed
+form, the sample mean and the sample second moment about it, which makes it
+the natural check on the whole apparatus.
+
+```{r}
+#| label: mvgaussian-fit
+set.seed(11)
+y_big <- distrib_rng(d, 2000, theta)
+fit <- fit_distrib(d, y_big)
+
+mu_hat <- colMeans(y_big)
+s_hat <- crossprod(sweep(y_big, 2L, mu_hat)) / nrow(y_big)
+
+c(
+  loglik_gap = as.numeric(logLik(fit)) -
+    sum(distrib_pdf(d, y_big, as.list(stats::setNames(
+      c(mu_hat, covstructs7::struct_free(d@struct, s_hat)), d@params
+    )), log = TRUE)),
+  mean_gap = max(abs(mv_location(d, coef(fit)) - mu_hat)),
+  cov_gap = max(abs(mv_sigma(d, coef(fit)) - s_hat))
+)
+```
+
+### What a fit reports {#sec-mv-reporting}
+
+The free values are coordinates chosen so that an optimiser can move without
+constraint, and they are not quantities anybody reads. The logarithm of a
+diagonal entry of a Cholesky factor has an estimate and a standard error, and
+neither answers a question about the data. What a reader of a fitted
+multivariate gaussian wants is the standard deviations and the correlations,
+which are the decomposition $\Sigma = D R D$ with $D$ the diagonal matrix of
+standard deviations.
+
+Carrying the uncertainty onto them is the delta method, which
+@sec-fit-delta already applies to a univariate parameter. Writing
+$g$ for the map from the parameters to the quantities of interest,
+
+$$
+\widehat{\operatorname{Var}}\{g(\hat\theta)\}
+  = J \, \widehat{\operatorname{Var}}(\hat\theta) \, J^\top,
+\qquad
+J = \frac{\partial g}{\partial \theta},
+$$ {#eq-mv-delta}
+
+and the Jacobian is closed form. With $s_j = \sqrt{\Sigma_{jj}}$ and
+$\rho_{jk} = \Sigma_{jk}/(s_j s_k)$,
+
+$$
+\frac{\partial s_j}{\partial \eta_k} = \frac{A_k[j,j]}{2 s_j},
+\qquad
+\frac{\partial \rho_{jk}}{\partial \eta_l}
+  = \frac{A_l[j,k]}{s_j s_k}
+    - \frac{\rho_{jk}}{2}
+      \left(\frac{A_l[j,j]}{\Sigma_{jj}}
+           + \frac{A_l[k,k]}{\Sigma_{kk}}\right),
+$$ {#eq-mv-sdcor-jacobian}
+
+with $A_k = \partial\Sigma/\partial\eta_k$ the structure's own derivative,
+which @eq-mv-structure already requires it to supply. Nothing new has to be
+computed.
+
+The interval each quantity gets is built on the scale that keeps it in the set
+it belongs to and then mapped back, which is the discipline of
+@sec-fit-scale applied to a derived quantity rather than to a parameter: a
+standard deviation is intervalled on the log scale and a correlation on
+Fisher's $z = \operatorname{artanh}\rho$. An interval built on the raw scale
+would put a correlation above one whenever the estimate is large and the
+sample small.
+
+```{r}
+#| label: mvgaussian-fit-print
+fit
+```
+
+A gaussian written in the precision reports the same standard deviations and
+correlations, since those are properties of the law and not of the
+parametrisation, and adds the two readings that belong to $\Omega$ itself. The
+first is the **conditional variance**
+
+$$
+\frac{1}{\Omega_{jj}} \;=\; \operatorname{Var}(Y_j \mid Y_{-j}),
+$$ {#eq-mv-conditional-variance}
+
+the variance that remains after regressing that coordinate on all the others,
+so that its ratio to the marginal variance is $1 - R_j^2$ for that regression.
+The variance is the quantity with that reading and its square root is not,
+which is why it is the variance that is reported. The second is the **partial
+correlation**
+
+$$
+-\frac{\Omega_{jk}}{\sqrt{\Omega_{jj}\Omega_{kk}}}
+  \;=\; \operatorname{Cor}(Y_j, Y_k \mid Y_{-jk}),
+$$ {#eq-mv-partial-correlation}
+
+the correlation of two coordinates given all the others, which is zero exactly
+where the precision has a zero --- and that is the reason for parametrising a
+model in $\Omega$ at all, since a zero there is a conditional independence.
+In two dimensions there is nothing to condition on and the partial correlation
+is the correlation, so it is not printed twice.
+
+Both parametrisations describe the same law, so a fit of one and a fit of the
+other reach the same maximised likelihood and the same information criteria.
+That is an invariance worth checking rather than assuming: two runs that
+disagree on it have not both converged.
+
+For the Student $t$ the matrix is the scale matrix, so the diagonal quantities
+are not standard deviations of the response and are named `scale_sd` to say so.
+The correlations need no such qualification: the covariance is
+$\nu\Sigma/(\nu-2)$, and a positive multiple of a matrix has the same
+correlations.
+
+```{r}
+#| label: mvt-fit-summary
+set.seed(12)
+y_t <- distrib_rng(dt, 800, theta_t)
+mv_summary(fit_distrib(dt, y_t, method = optimizers7::newton(), tol = 1e-8))
+```
+
+```{r}
+#| label: consistency-03e
+#| include: false
+assert_multivariate_ok()
+```

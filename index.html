@@ -153,9 +153,10 @@
 
       <a class="card" href="https://statmodels7.github.io/distributions7">
         <h3>distributions<span>7</span></h3>
-        <p>Fourteen distributions carrying closed-form score, information and
-           third and fourth derivatives — with respect to the parameters, the
-           response, and the unconstrained scale.</p>
+        <p>Fourteen univariate distributions and two multivariate ones,
+           carrying closed-form score, information and third and fourth
+           derivatives — with respect to the parameters, the response, and the
+           unconstrained scale.</p>
       </a>
 
       <a class="card" href="https://statmodels7.github.io/optimizers7">
@@ -223,6 +224,74 @@ distrib_gradient(d, y, theta)                   <span class="c"># score</span>
 distrib_expected_hessian(d, y, theta)           <span class="c"># information</span>
 distrib_deriv4(d, y, theta)                     <span class="c"># fourth order</span>
 distrib_gradient(d, y, theta, scale = "link")   <span class="c"># w.r.t. eta</span></pre>
+  </section>
+
+  <section>
+    <h2>Matrix parameters</h2>
+    <p>A parameter is not always a number. A covariance matrix must be positive
+       definite, a correlation matrix has ones on its diagonal, a spline
+       penalty is positive semidefinite and singular by construction. A link
+       function cannot express any of these, because it acts on one number at a
+       time and produces a diagonal Jacobian, while changing one free value of
+       a matrix parametrisation changes an entire row and column.</p>
+    <p><code>covstructs7</code> supplies the missing object: a map from an
+       unconstrained vector to a constrained matrix, exact to second order,
+       together with the log-determinant and the solves a likelihood asks for.
+       Its consumers are the multivariate distributions below and, when it
+       arrives, <code>penalties7</code>.</p>
+<pre><span class="c"># a covariance, with every free value ranging over R</span>
+s &lt;- log_cholesky(3)
+struct_matrix(s, eta)          <span class="c"># the matrix</span>
+struct_dmatrix(s, eta)         <span class="c"># dM/deta, one per free value</span>
+struct_logdet(s, eta)          <span class="c"># log|M|, linear in eta here</span>
+
+<span class="c"># a second-difference penalty: singular, and that is the point</span>
+d &lt;- diff(diag(10), differences = 2)
+p &lt;- scaled_struct(crossprod(d))
+p@rank                         <span class="c"># 8 of 10</span>
+struct_dlogdet(p, eta)         <span class="c"># the rank, at any scale</span></pre>
+  </section>
+
+  <section>
+    <h2>Vectors, not just numbers</h2>
+    <p>A multivariate distribution is the same object with a matrix parameter.
+       Its mean contributes one scalar per coordinate and the covariance
+       contributes the free values of whatever structure parametrises it, so
+       the parameter vector stays a list of numbers and every generic in the
+       package indexes it as it always did — including the derivatives, the
+       validator and the fitting routine.</p>
+<pre>d &lt;- mvgaussian_distrib(3)
+d@params                 <span class="c"># the mean, then the structure</span>
+
+fit &lt;- fit_distrib(d, y) <span class="c"># the same fit_distrib()</span>
+plot(fit)                <span class="c"># contours against the data</span>
+
+<span class="c"># heavy-tailed: nu is estimated with everything else</span>
+mvstudent_t_distrib(3)</pre>
+    <p>Where a fit begins is part of the model, not of the implementation, so a
+       family is asked for its own starting value. One that knows an estimator
+       returns it: a multivariate gaussian starts at the sample mean and
+       covariance, which for an unstructured matrix is the answer, and the fit
+       confirms it in a single iteration.</p>
+    <p>A gaussian may be parametrised by its precision instead of its
+       covariance, which is a different model whenever the structure is not
+       closed under inversion, and the constructor takes either side; the
+       parameter names say which of the two, so a printed table is never
+       ambiguous. The Student <em>t</em> keeps its scale matrix and its
+       covariance apart, so it can be described and fitted at degrees of
+       freedom where the second moment does not exist.</p>
+    <p>A Cholesky coordinate is not something anyone reads, and it is not what
+       a fit prints. What it prints is the quantities that are read: standard
+       deviations and correlations, each with a standard error carried across
+       by the delta method and an interval built on a scale it cannot escape
+       from — the log scale for a standard deviation, Fisher's <em>z</em> for a
+       correlation. A precision parametrisation adds the conditional variances
+       and partial correlations, which are what it describes directly.</p>
+<pre>mv_summary(fit)
+<span class="c">#            Estimate  Std. Error     2.5%    97.5%</span>
+<span class="c"># sd_v1        1.0687      0.0182   1.0337   1.1048</span>
+<span class="c"># sd_v2        0.8956      0.0156   0.8655   0.9268</span>
+<span class="c"># cor_v1_v2    0.4254      0.0197   0.3860   0.4634</span></pre>
   </section>
 
   <section>

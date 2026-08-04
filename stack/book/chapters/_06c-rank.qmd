@@ -1,0 +1,194 @@
+## Rank and the null space {#sec-covstruct-rank}
+
+```{r}
+#| label: setup-06c
+#| include: false
+source("R/_setup.R")
+source("R/covstruct-certificates.R")
+```
+
+### Why a singular matrix is admitted {#sec-covstruct-singular}
+
+A covariance matrix must be positive definite for the density it describes to
+exist, and a precision matrix must be positive definite for the same reason: a
+singular covariance puts the whole distribution on a subspace, and a singular
+precision leaves the density unnormalisable. Both readings of a multivariate
+gaussian therefore require full rank, and the distribution of @sec-mvgaussian
+refuses a rank-deficient structure.
+
+A penalty is not a density. Writing a quadratic penalty
+$\frac{\lambda}{2}\beta^\top P \beta$ as a negative log prior makes it a
+gaussian with precision $\lambda P$, and the whole point of a smoothing
+penalty is that $P$ is singular: its null space is the set of functions the
+penalty leaves alone. A second-difference penalty on a spline has the
+constants and the straight lines in its null space, which is what makes the
+penalty shrink towards a straight line rather than towards zero. That prior is
+improper, and its impropriety is the modelling assumption rather than a defect.
+
+The package therefore admits rank-deficient matrices, and everything a
+consumer asks of one has to be redefined so that it still means something.
+
+### The pseudo-determinant {#sec-covstruct-pseudodet}
+
+The determinant of a singular matrix is zero, so $\log|M|$ is $-\infty$ and
+useless. The quantity that takes its place is the **pseudo-determinant**, the
+product of the non-zero eigenvalues,
+
+$$
+\log|M|_{+} \;=\; \sum_{j : \, \nu_j \neq 0} \log \nu_j ,
+$$ {#eq-pseudodet}
+
+which is the normalising constant of the proper gaussian the penalty induces
+on the complement of its null space. One generic returns both, because a
+consumer asks the same question of either matrix — what normalising constant
+does this contribute — and the object knows which answer is right, through the
+rank it declares.
+
+The gradient identity @eq-covstruct-dlogdet survives with the Moore-Penrose
+inverse in place of $M^{-1}$, and for the scaled family of
+@sec-covstruct-scaled it collapses to the constant of @eq-scaled-logdet.
+
+That constant is what makes the scale estimable. The penalised objective seen
+as a negative log posterior contributes
+
+$$
+\frac{\lambda}{2}\,\beta^\top P \beta \;-\; \frac{r}{2}\log\lambda ,
+$$ {#eq-scaled-objective}
+
+and setting its derivative in $\lambda$ to zero gives
+
+$$
+\hat{\lambda} = \frac{r}{\beta^\top P \beta}.
+$$ {#eq-scaled-lambda}
+
+Dropping the second term of @eq-scaled-objective, which is what a treatment
+that regards the penalty as a penalty rather than as a prior does, leaves a
+derivative of one sign and sends $\lambda$ to zero. The normalising constant is
+therefore kept, and the rank in @eq-scaled-lambda is the reason the rank has
+to be right.
+
+```{r}
+#| label: pseudodet-lambda
+dm <- diff(diag(8), differences = 2)
+pen <- covstructs7::scaled_struct(crossprod(dm))
+p_mat <- crossprod(dm)
+
+set.seed(3)
+beta <- as.numeric(rnorm(8))
+quad <- drop(t(beta) %*% p_mat %*% beta)
+
+# the stationary point of (lambda/2) b'Pb - (r/2) log lambda, and the same
+# point found by minimising the objective numerically
+obj <- function(lambda) 0.5 * lambda * quad - 0.5 * pen@rank * log(lambda)
+c(closed_form = pen@rank / quad,
+  numerical = stats::optimize(obj, c(1e-8, 1e8))$minimum)
+```
+
+### Determining the rank {#sec-covstruct-rank-determination}
+
+The rank of a matrix is a statement about the matrix, and a numerical
+procedure that reads it off an assembled matrix does not always make that
+statement. Counting eigenvalues above a relative tolerance is the obvious
+route, and it fails on exactly the object this package exists to carry.
+
+Consider a tensor-product penalty $\lambda_1 P_1 + \lambda_2 P_2$ on a
+$4 \times 8$ grid of coefficients, where $P_1$ penalises second differences
+along one margin and $P_2$ along the other. Its true rank is 28 out of 32.
+Counting eigenvalues of the assembled matrix above a relative tolerance gives
+28 while the two smoothing parameters are comparable and 24 once they are ten
+orders of magnitude apart, because the contributions of the smaller term sink
+below the tolerance and are read as exact zeros. Smoothing parameters that far
+apart are an ordinary fitted model rather than a pathology, so the count is
+not a property of the family at all.
+
+What is stable is the null space. The null space of a sum of positive
+semidefinite matrices is the **intersection** of their null spaces, since
+$\beta^\top(P_1 + P_2)\beta = 0$ with both terms non-negative forces both to
+vanish. The intersection is the null space of the stacked matrix
+$\begin{pmatrix} P_1 \\ P_2 \end{pmatrix}$, so the rank comes from the
+components, individually normalised and stacked, and never from an assembled
+combination. Membership of the null space is then tested against the stored
+basis rather than by counting eigenvalues again.
+
+```{r}
+#| label: rank-scale-invariance
+d2 <- function(k) crossprod(diff(diag(k), differences = 2))
+p1 <- kronecker(d2(4), diag(8))
+p2 <- kronecker(diag(4), d2(8))
+
+count_ev <- function(m, tol = 1e-10) {
+  ev <- eigen(m, symmetric = TRUE, only.values = TRUE)$values
+  sum(ev > tol * max(ev))
+}
+
+# the stored null basis, and the residual it leaves in the assembled matrix
+ns <- covstructs7::struct_null_basis(list(p1, p2))
+
+ratios <- c(1, 1e4, 1e8, 1e10, 1e12)
+data.frame(
+  ratio = ratios,
+  eigen_count = vapply(ratios, function(f) count_ev(p1 + f * p2), numeric(1)),
+  stacked_rank = ns$rank,
+  null_residual = vapply(ratios, function(f) {
+    m <- p1 + f * p2
+    max(abs(m %*% ns$null_basis)) / max(abs(m))
+  }, numeric(1))
+)
+```
+
+The count moves and the null space does not. The residual $\lVert M N \rVert /
+\lVert M \rVert$, with $N$ the stored basis, stays at the level of rounding
+across the whole range, which is the statement that the four directions really
+are annihilated by the penalty at every combination of smoothing parameters.
+
+The same doubt applies wherever a Cholesky factorisation is used to decide a
+branch. On a matrix with an exactly zero eigenvalue the pivot that ought to be
+zero comes out positive or negative according to rounding, so a
+`tryCatch(chol(...))` used as a rank test answers differently on different
+machines for the same matrix. A verdict of that kind belongs to the
+eigenvalues, which describe the matrix, rather than to the arithmetic that was
+performed on it.
+
+### The solve, which a singular matrix does not have {#sec-covstruct-singular-solve}
+
+The remaining quantity is the solve, and it is the one that is refused rather
+than redefined. A Moore-Penrose solve $M^{+}B$ exists and is easy to compute,
+but no consumer of an improper prior asks for it. What a penalised fit inverts
+is $X^\top X + \lambda P$, which is non-singular even when $P$ is not, and
+which the consumer assembles from the penalty and its own design; what it asks
+of the penalty itself is the quadratic form $\beta^\top P \beta$ and the log
+pseudo-determinant. Returning a pseudo-inverse would be a plausible matrix
+answering a question nobody asked, and a caller that used it would be wrong
+without being told.
+
+```{r}
+#| label: singular-solve
+#| error: true
+covstructs7::struct_solve(pen, 0)
+```
+
+What the null space is for, instead, is membership. A basis of it is stored at
+construction, so a consumer can ask whether a coefficient vector lies in the
+space the penalty leaves alone — for a second-difference penalty, whether it
+is a straight line — without touching an eigenvalue.
+
+```{r}
+#| label: nullspace-membership
+n_basis <- pen@null_basis
+line <- 1 + 2 * seq_len(8)
+quad_of <- function(b) drop(t(b) %*% p_mat %*% b)
+
+c(
+  columns = ncol(n_basis),
+  penalty_of_a_line = quad_of(line),
+  penalty_of_a_curve = quad_of(seq_len(8)^2),
+  line_is_in_the_null_space =
+    max(abs(line - n_basis %*% crossprod(n_basis, line))) < 1e-10
+)
+```
+
+```{r}
+#| label: consistency-06c
+#| include: false
+assert_covstruct_rank_ok()
+```

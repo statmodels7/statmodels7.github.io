@@ -231,6 +231,12 @@ window.Quarto = {
  <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">The basis7 package</span></span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/06-covstructs7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">The covstructs7 package</span></span></a>
+  </div>
+</li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
@@ -340,6 +346,15 @@ window.Quarto = {
   <li><a href="#sec-fallbacks-discrete" id="toc-sec-fallbacks-discrete" class="nav-link" data-scroll-target="#sec-fallbacks-discrete"><span class="header-section-number">3.4.4</span> Discrete distributions</a></li>
   <li><a href="#sec-fallbacks-caveat" id="toc-sec-fallbacks-caveat" class="nav-link" data-scroll-target="#sec-fallbacks-caveat"><span class="header-section-number">3.4.5</span> Limitations</a></li>
   </ul></li>
+  <li><a href="#sec-multivariate" id="toc-sec-multivariate" class="nav-link" data-scroll-target="#sec-multivariate"><span class="header-section-number">3.5</span> Several dimensions</a>
+  <ul>
+  <li><a href="#sec-mv-parameters" id="toc-sec-mv-parameters" class="nav-link" data-scroll-target="#sec-mv-parameters"><span class="header-section-number">3.5.1</span> The response and the parameters</a></li>
+  <li><a href="#sec-mvgaussian" id="toc-sec-mvgaussian" class="nav-link" data-scroll-target="#sec-mvgaussian"><span class="header-section-number">3.5.2</span> The gaussian</a></li>
+  <li><a href="#sec-mvstudent-t" id="toc-sec-mvstudent-t" class="nav-link" data-scroll-target="#sec-mvstudent-t"><span class="header-section-number">3.5.3</span> The Student t</a></li>
+  <li><a href="#sec-mv-marginal" id="toc-sec-mv-marginal" class="nav-link" data-scroll-target="#sec-mv-marginal"><span class="header-section-number">3.5.4</span> Marginals and what a picture shows</a></li>
+  <li><a href="#sec-mv-fitting" id="toc-sec-mv-fitting" class="nav-link" data-scroll-target="#sec-mv-fitting"><span class="header-section-number">3.5.5</span> Fitting</a></li>
+  <li><a href="#sec-mv-reporting" id="toc-sec-mv-reporting" class="nav-link" data-scroll-target="#sec-mv-reporting"><span class="header-section-number">3.5.6</span> What a fit reports</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -366,9 +381,10 @@ window.Quarto = {
 
 
 <p><a href="02-linkfunctions7.html" class="quarto-xref"><span>Chapter 2</span></a> dealt with the transformation of a single number; this chapter deals with the object that transformation serves, a parametric family of probability distributions carrying its density together with everything a modelling routine needs to know about it.</p>
-<p>The chapter divides into four parts, which can be read in order or separately. <a href="#sec-distributions" class="quarto-xref"><span>Section 3.1</span></a> sets out what a <code>distrib</code> object provides and develops the likelihood theory the package rests on: score, observed and expected information, and the Bartlett identities in full generality. The same section transports derivatives onto the unconstrained scale by Faà di Bruno’s formula, and covers derivatives with respect to the response and derivatives of the distribution function, which censored likelihoods require. It then presents the fourteen families.</p>
+<p>The chapter divides into five parts, which can be read in order or separately. <a href="#sec-distributions" class="quarto-xref"><span>Section 3.1</span></a> sets out what a <code>distrib</code> object provides and develops the likelihood theory the package rests on: score, observed and expected information, and the Bartlett identities in full generality. The same section transports derivatives onto the unconstrained scale by Faà di Bruno’s formula, and covers derivatives with respect to the response and derivatives of the distribution function, which censored likelihoods require. It then presents the fourteen families.</p>
 <p><a href="#sec-transformations" class="quarto-xref"><span>Section 3.2</span></a> treats <strong>operators on distributions</strong>: a change of variables, zero-inflation, zero-adjustment and truncation, each of which takes a distribution and returns another with the same machinery intact. The derivatives of the constructed model must be assembled from those of its parent, and doing so at fourth order in full generality requires some combinatorics of set partitions.</p>
 <p><a href="#sec-fitting" class="quarto-xref"><span>Section 3.3</span></a> applies the apparatus to the simplest problem that exercises all of it, maximum likelihood for an i.i.d. sample. <a href="#sec-fallbacks" class="quarto-xref"><span>Section 3.4</span></a> describes what a distribution receives when it implements nothing but its density, which is the part of the package that makes user-defined families practical.</p>
+<p><a href="#sec-multivariate" class="quarto-xref"><span>Section 3.5</span></a> treats families whose observations are vectors. The likelihood theory is unchanged, and the section shows how the matrix parameter such a family carries is reduced to a list of scalars, so that everything the previous four sections describe applies to it without alteration.</p>
 <section id="sec-distributions" class="level2" data-number="3.1">
 <h2 data-number="3.1" class="anchored" data-anchor-id="sec-distributions"><span class="header-section-number">3.1</span> Distributions</h2>
 <p>This chapter develops the likelihood theory that the toolkit implements and then presents the fourteen distributions that <code>distributions7</code> ships. The theory comes first because it is shared: the score, the two informations, the Bartlett identities and the change of scale are defined once, at the level of the base class, and every distribution, including a user-defined one, inherits them. The catalogue follows, with particular attention to the places where the parametrisation chosen here differs from the one used by base R, because those are the places where misreadings arise.</p>
@@ -1699,7 +1715,7 @@ H(\eta) = \sum_{i=1}^{n} \frac{\partial^{2} \ell_i}{\partial \eta \,\partial \et
 <p>The optimisation itself is not written here. <code>fit_distrib()</code> assembles the objective, the score and the information on the link scale and hands them to <code>optimizers7</code>, whose methods are the subject of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a>. What this section describes is the choice of matrix to invert, which belongs to the likelihood rather than to the algorithm.</p>
 <p>The three named strategies share one structure: approximate the log-likelihood near the current point by a quadratic and step to the maximum of that quadratic. Writing <span class="math inline">\(I\)</span> for the matrix that plays the role of the negative curvature, the update is</p>
 <p><span class="math display">\[\eta^{(t+1)} = \eta^{(t)} + I^{-1} U\big(\eta^{(t)}\big),\]</span></p>
-<p>and the methods differ only in the choice of <span class="math inline">\(I\)</span>. <strong>Newton–Raphson</strong> uses the observed information <span class="math inline">\(-H(\eta)\)</span>; <strong>Fisher scoring</strong> uses the expected information <span class="math inline">\(-\mathbb{E}[H(\eta)]\)</span>; <strong>BFGS</strong> uses neither, and builds an approximation from successive gradients. The first two are the same algorithm of <a href="04-optimizers7.html#sec-newton" class="quarto-xref"><span>Section 4.2.1</span></a> with a different second-order argument, so Fisher scoring requires no separate implementation. They are treated together in <span class="citation" data-cites="green1984">Green (<a href="A2-references.html#ref-green1984" role="doc-biblioref">1984</a>)</span>, whose presentation of scoring as iteratively reweighted least squares is the one on which <span class="citation" data-cites="mccullagh1989">McCullagh and Nelder (<a href="A2-references.html#ref-mccullagh1989" role="doc-biblioref">1989</a>)</span> builds the generalized linear model, while <span class="citation" data-cites="nocedal2006">Nocedal and Wright (<a href="A2-references.html#ref-nocedal2006" role="doc-biblioref">2006</a>)</span> is the reference for the third.</p>
+<p>and the methods differ only in the choice of <span class="math inline">\(I\)</span>. <strong>Newton–Raphson</strong> uses the observed information <span class="math inline">\(-H(\eta)\)</span>; <strong>Fisher scoring</strong> uses the expected information <span class="math inline">\(-\mathbb{E}[H(\eta)]\)</span>; <strong>BFGS</strong> uses neither, and builds an approximation from successive gradients. The first two are the same algorithm of <a href="04-optimizers7.html#sec-newton" class="quarto-xref"><span>Section 4.2.1</span></a> with a different second-order argument, so Fisher scoring requires no separate implementation — which is why it is not an optimiser but an object saying which matrix to use, <code>fisher_scoring()</code>, handed to the same argument that would otherwise carry <code>optimizers7::newton()</code> or <code>optimizers7::lbfgs()</code>. What that object does carry, and an optimiser could not, is how the expected information is to be obtained when the family has no closed form for it. They are treated together in <span class="citation" data-cites="green1984">Green (<a href="A2-references.html#ref-green1984" role="doc-biblioref">1984</a>)</span>, whose presentation of scoring as iteratively reweighted least squares is the one on which <span class="citation" data-cites="mccullagh1989">McCullagh and Nelder (<a href="A2-references.html#ref-mccullagh1989" role="doc-biblioref">1989</a>)</span> builds the generalized linear model, while <span class="citation" data-cites="nocedal2006">Nocedal and Wright (<a href="A2-references.html#ref-nocedal2006" role="doc-biblioref">2006</a>)</span> is the reference for the third.</p>
 <p>The default is Fisher scoring, for a reason supplied by <a href="#cor-congruence" class="quarto-xref">Corollary&nbsp;<span>3.1</span></a>. On the link scale the expected information is</p>
 <p><span class="math display">\[\mathbb{E}[I_\eta] = \operatorname{diag}(h')\,\mathbb{E}[I_\theta]\,\operatorname{diag}(h'),\]</span></p>
 <p>a congruence transform, and a congruence transform of a positive definite matrix is positive definite. If the model is identified on the parameter scale, the matrix Fisher scoring inverts is therefore positive definite on the link scale as well, and the step it computes is an ascent direction without any repair. The observed Hessian carries no such guarantee: away from the optimum, <span class="math inline">\(-H\)</span> can fail to be positive definite, and the raw Newton step can then point downhill, which is why <a href="04-optimizers7.html#sec-newton" class="quarto-xref"><span>Section 4.2.1</span></a> floors the eigenvalues of the matrix it inverts. This comparison concerns the behaviour of the iterations, not the quality of the estimators; at the optimum the two informations agree in expectation.</p>
@@ -1725,9 +1741,27 @@ H(\eta) = \sum_{i=1}^{n} \frac{\partial^{2} \ell_i}{\partial \eta \,\partial \et
 </section>
 <section id="sec-fit-starts" class="level3" data-number="3.3.3">
 <h3 data-number="3.3.3" class="anchored" data-anchor-id="sec-fit-starts"><span class="header-section-number">3.3.3</span> Starting values</h3>
-<p>A likelihood need not be concave, and a fit started at a poor point can converge to a local maximum, to a boundary, or not at all. Two mechanisms handle this automatically.</p>
-<p>When no starting value is supplied, several are drawn at random from the admissible region with <code>generate_random_theta()</code> and tried in turn, keeping the first that converges. The chosen method can fail from a given start: by exceeding its iteration budget, by producing a non-finite step, or by raising an error, which a numerically approximated expected information can do when its quadrature diverges at an unfavourable parameter value. In that case the fit falls back to BFGS from the same start before moving to the next. BFGS is slower and uses no second-order information, but it makes fewer demands on the objective, and a slow answer is preferable to none.</p>
-<p>Only when every start has failed by every route does <code>fit_distrib()</code> stop, and it then reports the failure and asks for a starting value instead of returning an unusable result.</p>
+<p>A likelihood need not be concave, and a fit started at a poor point can converge to a local maximum, to a boundary, or not at all. How far the start is from the answer is not a detail of the implementation but a property of the problem, and it decides whether the fit takes one step or never arrives.</p>
+<p>The starting value comes from a distribution’s own <code>distrib_start()</code>, which receives the data. A family that knows an estimator of its parameters returns it, and the fit then begins where a moment estimator or an exact maximum likelihood estimator already is; a family that says nothing gets several random draws from the admissible region, tried in turn. The multivariate gaussian is the case where the difference is total: its maximum likelihood estimator for an unstructured covariance is the sample mean and the sample second moment, so it starts at the answer and confirms it in a single iteration.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>d4 <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">4</span>)</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>y4 <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(iris[, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>])</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a><span class="co"># what the family proposes, against what the data say</span></span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>start <span class="ot">&lt;-</span> <span class="fu">distrib_start</span>(d4, y4)[[<span class="dv">1</span>]]</span>
+<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">proposed =</span> <span class="fu">mv_location</span>(d4, start), <span class="at">sample =</span> <span class="fu">colMeans</span>(y4))</span>
+<span id="cb43-7"><a href="#cb43-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                v1       v2    v3       v4</span></span>
+<span id="cb43-8"><a href="#cb43-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; proposed 5.843333 3.057333 3.758 1.199333</span></span>
+<span id="cb43-9"><a href="#cb43-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sample   5.843333 3.057333 3.758 1.199333</span></span>
+<span id="cb43-10"><a href="#cb43-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb43-11"><a href="#cb43-11" aria-hidden="true" tabindex="-1"></a><span class="co"># and the fit it leads to</span></span>
+<span id="cb43-12"><a href="#cb43-12" aria-hidden="true" tabindex="-1"></a>f4 <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d4, y4)</span>
+<span id="cb43-13"><a href="#cb43-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">iterations =</span> f4<span class="sc">@</span>iterations, <span class="at">converged =</span> f4<span class="sc">@</span>converged)</span>
+<span id="cb43-14"><a href="#cb43-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; iterations  converged </span></span>
+<span id="cb43-15"><a href="#cb43-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          1          1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The chosen method can still fail from a given start: by exceeding its iteration budget, by producing a non-finite step, or by raising an error, which a numerically approximated expected information can do when its quadrature diverges at an unfavourable parameter value. In that case the fit falls back to BFGS from the same start before moving to the next. BFGS is slower and uses no second-order information, but it makes fewer demands on the objective, and a slow answer is preferable to none.</p>
+<p>Across the starts the fit keeps the best run rather than the last: a converged run in preference to one that stopped without meeting its rule, and among runs of the same status the one with the higher likelihood. Only when every start has failed by every route does <code>fit_distrib()</code> stop, and it then reports the failure and asks for a starting value instead of returning an unusable result.</p>
 <p>The fallback belongs to the two named second-order strategies. An optimiser supplied explicitly is used as given and is never replaced, since substituting a different algorithm for the one the caller chose would report a fit obtained by a method other than the one requested.</p>
 </section>
 <section id="sec-fit-delta" class="level3" data-number="3.3.4">
@@ -1748,77 +1782,78 @@ h_j\big(\,\cdot\,\big).
 <section id="sec-fit-example" class="level3" data-number="3.3.5">
 <h3 data-number="3.3.5" class="anchored" data-anchor-id="sec-fit-example"><span class="header-section-number">3.3.5</span> A complete example</h3>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">20260730</span>)</span>
-<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
-<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">500</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">sigma2 =</span> <span class="dv">6</span>))</span>
-<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, y)</span>
-<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a>fit</span>
-<span id="cb43-7"><a href="#cb43-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: gamma</span></span>
-<span id="cb43-8"><a href="#cb43-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 500   Log-likelihood: -1090   AIC: 2184   BIC: 2192</span></span>
-<span id="cb43-9"><a href="#cb43-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring (converged in 5 iterations)</span></span>
-<span id="cb43-10"><a href="#cb43-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb43-11"><a href="#cb43-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameter scale:</span></span>
-<span id="cb43-12"><a href="#cb43-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
-<span id="cb43-13"><a href="#cb43-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       4.0937     0.1088 3.8859 4.3127</span></span>
-<span id="cb43-14"><a href="#cb43-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   5.9233     0.4744 5.0628 6.9301</span></span>
-<span id="cb43-15"><a href="#cb43-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb43-16"><a href="#cb43-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Link scale (log, log):</span></span>
-<span id="cb43-17"><a href="#cb43-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
-<span id="cb43-18"><a href="#cb43-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       1.4095     0.0266 1.3573 1.4616</span></span>
-<span id="cb43-19"><a href="#cb43-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   1.7789     0.0801 1.6219 1.9359</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">20260730</span>)</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">500</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">sigma2 =</span> <span class="dv">6</span>))</span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, y)</span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>fit</span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: gamma</span></span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 500   Log-likelihood: -1090   AIC: 2184   BIC: 2192</span></span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 5   evaluations: f 6, g 6</span></span>
+<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-10)</span></span>
+<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameter scale:</span></span>
+<span id="cb44-13"><a href="#cb44-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
+<span id="cb44-14"><a href="#cb44-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       4.0937     0.1088 3.8859 4.3127</span></span>
+<span id="cb44-15"><a href="#cb44-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   5.9233     0.4744 5.0628 6.9301</span></span>
+<span id="cb44-16"><a href="#cb44-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb44-17"><a href="#cb44-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Link scale:</span></span>
+<span id="cb44-18"><a href="#cb44-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
+<span id="cb44-19"><a href="#cb44-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       1.4095     0.0266 1.3573 1.4616</span></span>
+<span id="cb44-20"><a href="#cb44-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   1.7789     0.0801 1.6219 1.9359</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The estimates are close to the values the sample was generated from, and the interval for <code>sigma2</code> is visibly asymmetric — longer to the right, as expected for a variance estimated on a log scale. All components of the fit are available individually, on either scale:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit)</span>
-<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
-<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.093717 5.923300</span></span>
-<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a><span class="fu">vcov</span>(fit)</span>
-<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                mu     sigma2</span></span>
-<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     0.01184660 0.03428227</span></span>
-<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 0.03428227 0.22506371</span></span>
-<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)</span>
-<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
-<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.409453 1.778894</span></span>
-<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)   <span class="co"># symmetric here</span></span>
-<span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%    97.5%</span></span>
-<span id="cb44-13"><a href="#cb44-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     1.357343 1.461564</span></span>
-<span id="cb44-14"><a href="#cb44-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 1.621916 1.935871</span></span>
-<span id="cb44-15"><a href="#cb44-15" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit)                   <span class="co"># its image under the inverse link</span></span>
-<span id="cb44-16"><a href="#cb44-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%    97.5%</span></span>
-<span id="cb44-17"><a href="#cb44-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     3.885854 4.312700</span></span>
-<span id="cb44-18"><a href="#cb44-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 5.062783 6.930078</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit)</span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.093717 5.923300</span></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="fu">vcov</span>(fit)</span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                mu     sigma2</span></span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     0.01184660 0.03428227</span></span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 0.03428227 0.22506371</span></span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)</span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
+<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.409453 1.778894</span></span>
+<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)   <span class="co"># symmetric here</span></span>
+<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%    97.5%</span></span>
+<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     1.357343 1.461564</span></span>
+<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 1.621916 1.935871</span></span>
+<span id="cb45-15"><a href="#cb45-15" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit)                   <span class="co"># its image under the inverse link</span></span>
+<span id="cb45-16"><a href="#cb45-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%    97.5%</span></span>
+<span id="cb45-17"><a href="#cb45-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     3.885854 4.312700</span></span>
+<span id="cb45-18"><a href="#cb45-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 5.062783 6.930078</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Because the optimisation is delegated rather than written in, <code>method</code> accepts any optimiser of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a> in place of one of the three named strategies, and the object carries its own stopping rule with it:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(optimizers7)</span>
-<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>fits <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
-<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">fisher =</span> <span class="fu">fit_distrib</span>(d, y),</span>
-<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lbfgs  =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">lbfgs</span>(<span class="at">criterion =</span> <span class="fu">crit_grad</span>(<span class="fl">1e-12</span>))),</span>
-<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">nelder =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">nelder_mead</span>(<span class="at">maxit =</span> <span class="dv">5000</span>))</span>
-<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(fits, <span class="cf">function</span>(f) <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f)), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
-<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    fisher     lbfgs    nelder </span></span>
-<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -1089.907 -1089.907 -1089.907</span></span>
-<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(fits, <span class="cf">function</span>(f) f<span class="sc">@</span>method, <span class="fu">character</span>(<span class="dv">1</span>))</span>
-<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           fisher            lbfgs           nelder </span></span>
-<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; "Fisher scoring"         "L-BFGS"    "nelder-mead"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(optimizers7)</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>fits <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">fisher =</span> <span class="fu">fit_distrib</span>(d, y),</span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lbfgs  =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">lbfgs</span>(<span class="at">criterion =</span> <span class="fu">crit_grad</span>(<span class="fl">1e-12</span>))),</span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">nelder =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">nelder_mead</span>(<span class="at">maxit =</span> <span class="dv">5000</span>))</span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(fits, <span class="cf">function</span>(f) <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f)), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    fisher     lbfgs    nelder </span></span>
+<span id="cb46-10"><a href="#cb46-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -1089.907 -1089.907 -1089.907</span></span>
+<span id="cb46-11"><a href="#cb46-11" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(fits, <span class="cf">function</span>(f) f<span class="sc">@</span>method, <span class="fu">character</span>(<span class="dv">1</span>))</span>
+<span id="cb46-12"><a href="#cb46-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           fisher            lbfgs           nelder </span></span>
+<span id="cb46-13"><a href="#cb46-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; "Fisher scoring"         "L-BFGS"    "nelder-mead"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The three agree on the maximised log-likelihood, which is the statement that matters: the algorithm decides how the optimum is reached, not where it is.</p>
 <p>The relation between the two variance matrices is the diagonal Jacobian congruence of <a href="#sec-fit-delta" class="quarto-xref"><span>Section 3.3.4</span></a>, and it can be verified directly:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>J <span class="ot">&lt;-</span> <span class="fu">vapply</span>(<span class="fu">seq_along</span>(d<span class="sc">@</span>params), <span class="cf">function</span>(i) {</span>
-<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>  linkfunctions7<span class="sc">::</span><span class="fu">dlinkinv</span>(d<span class="sc">@</span>link_params[[d<span class="sc">@</span>params[i]]], fit<span class="sc">@</span>eta[i])</span>
-<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
-<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a><span class="fu">diag</span>(J) <span class="sc">%*%</span> fit<span class="sc">@</span>vcov_eta <span class="sc">%*%</span> <span class="fu">diag</span>(J)</span>
-<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            [,1]       [,2]</span></span>
-<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] 0.01184660 0.03428227</span></span>
-<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] 0.03428227 0.22506371</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>J <span class="ot">&lt;-</span> <span class="fu">vapply</span>(<span class="fu">seq_along</span>(d<span class="sc">@</span>params), <span class="cf">function</span>(i) {</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>  linkfunctions7<span class="sc">::</span><span class="fu">dlinkinv</span>(d<span class="sc">@</span>link_params[[d<span class="sc">@</span>params[i]]], fit<span class="sc">@</span>eta[i])</span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a><span class="fu">diag</span>(J) <span class="sc">%*%</span> fit<span class="sc">@</span>vcov_eta <span class="sc">%*%</span> <span class="fu">diag</span>(J)</span>
+<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            [,1]       [,2]</span></span>
+<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] 0.01184660 0.03428227</span></span>
+<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] 0.03428227 0.22506371</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The maximised log-likelihood, the information criteria, the number of iterations and the method actually used are all carried on the fitted object. The method recorded may differ from the one requested when the fallback was taken. The <code>simulate()</code> and <code>plot()</code> methods compare the fitted distribution against the data it came from.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -1830,11 +1865,11 @@ h_j\big(\,\cdot\,\big).
 </div>
 <p><code>simulate()</code> draws new samples of the original size from the fitted distribution, which is the ingredient a parametric bootstrap needs: under the fitted model, a statistic computed on the simulated samples has the same distribution that it has under repeated sampling.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>sims <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">200</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
-<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>boot_means <span class="ot">&lt;-</span> <span class="fu">vapply</span>(sims, mean, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
-<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">observed =</span> <span class="fu">mean</span>(y), <span class="at">boot_se =</span> <span class="fu">sd</span>(boot_means))</span>
-<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  observed   boot_se </span></span>
-<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.0937172 0.1127172</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>sims <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">200</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>boot_means <span class="ot">&lt;-</span> <span class="fu">vapply</span>(sims, mean, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">observed =</span> <span class="fu">mean</span>(y), <span class="at">boot_se =</span> <span class="fu">sd</span>(boot_means))</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  observed   boot_se </span></span>
+<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.0937172 0.1127172</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-fit-scope" class="level3" data-number="3.3.6">
@@ -1899,18 +1934,18 @@ h_j\big(\,\cdot\,\big).
 <p><span class="math display">\[T(u) = \frac{u^{p}}{u^{p} + (1-u)^{q}}, \qquad Y = a + (b-a)\,T(U),\]</span></p>
 <p>which increases from <span class="math inline">\(0\)</span> to <span class="math inline">\(1\)</span>, behaves like <span class="math inline">\(u^{p}\)</span> on the left and like <span class="math inline">\(1 - (1-u)^{q}\)</span> on the right, and has a closed-form derivative. The density of <span class="math inline">\(U\)</span> then carries the exponents <span class="math inline">\(p\alpha - 1\)</span> and <span class="math inline">\(q\beta - 1\)</span> at the two ends and is bounded as soon as <span class="math inline">\(p\alpha &gt; 1\)</span> and <span class="math inline">\(q\beta &gt; 1\)</span>. Both exponents come from the same probe as before, run once at each edge.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="co"># a shape below one: the density is unbounded at zero</span></span>
-<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
-<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fl">0.4</span>, <span class="at">sigma2 =</span> <span class="dv">1</span>)</span>
-<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
-<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">5000</span>, th)</span>
-<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">mean =</span> <span class="fu">mean</span>(x), <span class="at">theoretical =</span> <span class="fl">0.4</span>)</span>
-<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        mean theoretical </span></span>
-<span id="cb49-9"><a href="#cb49-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   0.4041797   0.4000000</span></span>
-<span id="cb49-10"><a href="#cb49-10" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">var =</span> <span class="fu">var</span>(x), <span class="at">theoretical =</span> <span class="dv">1</span>)</span>
-<span id="cb49-11"><a href="#cb49-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         var theoretical </span></span>
-<span id="cb49-12"><a href="#cb49-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    1.156008    1.000000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="co"># a shape below one: the density is unbounded at zero</span></span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fl">0.4</span>, <span class="at">sigma2 =</span> <span class="dv">1</span>)</span>
+<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
+<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">5000</span>, th)</span>
+<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">mean =</span> <span class="fu">mean</span>(x), <span class="at">theoretical =</span> <span class="fl">0.4</span>)</span>
+<span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        mean theoretical </span></span>
+<span id="cb50-9"><a href="#cb50-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   0.4041797   0.4000000</span></span>
+<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">var =</span> <span class="fu">var</span>(x), <span class="at">theoretical =</span> <span class="dv">1</span>)</span>
+<span id="cb50-11"><a href="#cb50-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         var theoretical </span></span>
+<span id="cb50-12"><a href="#cb50-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    1.156008    1.000000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-fallbacks-discrete" class="level3" data-number="3.4.4">
@@ -1934,6 +1969,240 @@ h_j\big(\,\cdot\,\big).
 <div class="callout-body-container callout-body">
 <p><code>expectation()</code> splits its integral at quantiles of the distribution, and uses three knots rather than nine. More knots would extend the range of extreme densities that can be integrated at all, but they would also convert loud failures into silent wrong answers. At Gamma shape <span class="math inline">\(0.02\)</span> a nine-knot rule returns <span class="math inline">\(-54.9\)</span> for a quantity that is exactly zero, while the three-knot rule reports that it could not compute the integral. In the ordinary range three knots are also the more accurate choice, because every additional panel contributes its own quadrature error. An explicit failure is preferable to a plausible wrong number.</p>
 </div>
+</div>
+</section>
+</section>
+<section id="sec-multivariate" class="level2" data-number="3.5">
+<h2 data-number="3.5" class="anchored" data-anchor-id="sec-multivariate"><span class="header-section-number">3.5</span> Several dimensions</h2>
+<p>The families of <a href="#sec-distributions" class="quarto-xref"><span>Section 3.1</span></a> all place their mass on the real line, and an observation is a number. This section describes what changes when an observation is a vector of <span class="math inline">\(p\)</span> numbers, and what does not. The likelihood theory of <a href="#sec-likelihood" class="quarto-xref"><span>Section 3.1.2</span></a> is unaffected: the score, the observed information, the Bartlett identities and the change of scale are statements about a parametric family and say nothing about the dimension of its support. What changes is the parametrisation, because a multivariate family carries a matrix where a univariate one carries a variance, and a matrix is constrained.</p>
+<p>The two families presented here are the elliptical ones the toolkit needs first. <span class="citation" data-cites="kotz2004">Kotz and Nadarajah (<a href="A2-references.html#ref-kotz2004" role="doc-biblioref">2004</a>)</span> is the reference for the multivariate <span class="math inline">\(t\)</span> and <span class="citation" data-cites="lange1989">Lange, Little, and Taylor (<a href="A2-references.html#ref-lange1989" role="doc-biblioref">1989</a>)</span> for its use as a robust replacement for the gaussian.</p>
+<section id="sec-mv-parameters" class="level3" data-number="3.5.1">
+<h3 data-number="3.5.1" class="anchored" data-anchor-id="sec-mv-parameters"><span class="header-section-number">3.5.1</span> The response and the parameters</h3>
+<p>A multivariate distribution places its mass on <span class="math inline">\(\mathbb{R}^p\)</span>, and a sample of <span class="math inline">\(n\)</span> observations is the <span class="math inline">\(n \times p\)</span> matrix <span class="math inline">\(Y\)</span> whose <span class="math inline">\(i\)</span>th row is <span class="math inline">\(y_i\)</span>. The number of observations is the row count rather than the length, which is the only structural change the response requires.</p>
+<p>The parameters need more care. A <span class="math inline">\(p\)</span>-variate gaussian has a mean vector <span class="math inline">\(\mu \in \mathbb{R}^p\)</span> and a covariance matrix <span class="math inline">\(\Sigma\)</span>, and <span class="math inline">\(\Sigma\)</span> is not a free object: it must be symmetric and positive definite. A parameter of this kind is what <a href="06-covstructs7.html" class="quarto-xref"><span>Chapter 6</span></a> is about. All this section needs from it is the contract: a <strong>structure</strong> is a map</p>
+<p><span id="eq-mv-structure"><span class="math display">\[
+\eta \;\longmapsto\; M(\eta), \qquad \eta \in \mathbb{R}^{d},
+\tag{3.1}\]</span></span></p>
+<p>from an unconstrained vector of length <span class="math inline">\(d\)</span> to a symmetric matrix in the constrained set, supplying the derivatives <span class="math inline">\(A_k = \partial M / \partial \eta_k\)</span> and <span class="math inline">\(A_{kl} = \partial^2 M / \partial \eta_k \partial \eta_l\)</span>, the log-determinant and its derivatives, and the solves <span class="math inline">\(M^{-1}B\)</span>. The map is onto the set and one-to-one, so <span class="math inline">\(\eta\)</span> ranges over the whole of <span class="math inline">\(\mathbb{R}^{d}\)</span> with no constraint of its own.</p>
+<p>The parameters of a multivariate distribution are then the <span class="math inline">\(p\)</span> components of the mean together with the <span class="math inline">\(d\)</span> free values of the structure, and every one of them is a <strong>scalar</strong>. This is what lets the rest of the package apply unchanged. A parameter vector <span class="math inline">\(\theta\)</span> is a named list of numbers, the derivative components are keyed by parameter names exactly as in <a href="#sec-likelihood" class="quarto-xref"><span>Section 3.1.2</span></a>, and the enumeration that produces <code>hess_names()</code> produces the same strings whether the parameters are <span class="math inline">\((\mu, \sigma)\)</span> or <span class="math inline">\((\mu_1, \mu_2, \log L_{11}, \log L_{22}, L_{21})\)</span>. Nothing in <code>align_theta()</code>, in the link scale of <a href="#sec-link-scale" class="quarto-xref"><span>Section 3.1.4</span></a>, or in the fitting routine of <a href="#sec-fitting" class="quarto-xref"><span>Section 3.3</span></a> has to be told that the family is multivariate.</p>
+<p>Every one of these scalars is unconstrained, so every link is the identity. The constraint that would otherwise need a link has been moved into the structure, where it belongs: it is a constraint on the matrix as a whole and not on any one entry, and a scalar link cannot express it. A multivariate gaussian therefore has a link scale that coincides with its parameter scale. A multivariate <span class="math inline">\(t\)</span> does not, because its degrees of freedom are a genuine positive scalar and carry a log link.</p>
+<p>There is one restriction, and it comes from what a parameter means here. In a univariate family a parameter may vary from observation to observation, which is what a regression does. Here it may not: the structure’s free values describe one matrix for the whole sample. A model in which the matrix varies by observation belongs to the layer that owns the regression, not to the distribution, and the constructor refuses a parameter of length greater than one rather than silently using its first entry.</p>
+<p>The names of the free values carry a prefix saying which matrix they describe, <code>sigma_</code> for a covariance and <code>omega_</code> for a precision. The name a structure gives a free value records how the matrix is built and not which matrix it is, so the same structure on the two sides of a model would otherwise produce identical parameter names for two different models. The distribution applies the prefix rather than the structure, since the structure does not know which side it has been handed to.</p>
+</section>
+<section id="sec-mvgaussian" class="level3" data-number="3.5.2">
+<h3 data-number="3.5.2" class="anchored" data-anchor-id="sec-mvgaussian"><span class="header-section-number">3.5.2</span> The gaussian</h3>
+<p>The <span class="math inline">\(p\)</span>-variate gaussian has density</p>
+<p><span id="eq-mvgaussian-density"><span class="math display">\[
+f(y) \;=\; (2\pi)^{-p/2} \, |\Sigma|^{-1/2}
+  \exp\!\left\{ -\tfrac{1}{2} (y-\mu)^\top \Sigma^{-1} (y-\mu) \right\},
+\tag{3.2}\]</span></span></p>
+<p>so that with <span class="math inline">\(r = y - \mu\)</span> and <span class="math inline">\(w = \Sigma^{-1} r\)</span> the log-density is <span class="math inline">\(\ell = -\tfrac{p}{2}\log(2\pi) - \tfrac{1}{2}\log|\Sigma|
+- \tfrac{1}{2} r^\top w\)</span>.</p>
+<p>Differentiating with respect to the mean gives <span class="math inline">\(\partial \ell/\partial \mu = w\)</span>, one component per coordinate. For the matrix directions, the derivative of the quadratic form follows from <span class="math inline">\(\partial_k \Sigma^{-1} = -\Sigma^{-1} A_k
+\Sigma^{-1}\)</span>, which is the derivative of an inverse, so that <span class="math inline">\(\partial_k (r^\top \Sigma^{-1} r) = -w^\top A_k w\)</span>. Together with the structure’s own <span class="math inline">\(\partial_k \log|\Sigma|\)</span>,</p>
+<p><span id="eq-mvgaussian-score"><span class="math display">\[
+\ell^{(\mu_a)} = w_a, \qquad
+\ell^{(\eta_k)} = -\tfrac{1}{2}\,\partial_k \log|\Sigma|
+   \;+\; \tfrac{1}{2}\, w^\top A_k w .
+\tag{3.3}\]</span></span></p>
+<p>Both pieces on the right come from the structure, and neither depends on which family of matrices it belongs to. The distribution is written once and works with any structure that satisfies the contract.</p>
+<p>The second derivatives follow by differentiating again. The mean block is <span class="math inline">\(-\Sigma^{-1}\)</span>, constant in <span class="math inline">\(y\)</span>; the mixed block is <span class="math inline">\(\ell^{(\mu_a \eta_k)} = -(\Sigma^{-1} A_k w)_a\)</span>; and the matrix block is</p>
+<p><span id="eq-mvgaussian-hessian"><span class="math display">\[
+\ell^{(\eta_k \eta_l)} = -\tfrac{1}{2}\,\partial_{kl} \log|\Sigma|
+  + \tfrac{1}{2}\, w^\top A_{kl} w
+  - w^\top A_l \Sigma^{-1} A_k w .
+\tag{3.4}\]</span></span></p>
+<p>The expected information is where the multivariate case is more pleasant than it looks. Taking expectations uses only <span class="math inline">\(\mathbb{E}[w] = 0\)</span> and <span class="math inline">\(\mathbb{E}[w w^\top] = \Sigma^{-1}\)</span>. The first kills the mixed block exactly, so the mean and the matrix are orthogonal; the second turns each quadratic form into a trace. Both second-derivative terms of the matrix block then collapse, and</p>
+<p><span id="eq-mvgaussian-information"><span class="math display">\[
+\mathbb{E}\!\left[\ell^{(\mu_a \mu_b)}\right] = -(\Sigma^{-1})_{ab},
+\qquad
+\mathbb{E}\!\left[\ell^{(\mu_a \eta_k)}\right] = 0,
+\qquad
+\mathbb{E}\!\left[\ell^{(\eta_k \eta_l)}\right]
+  = -\tfrac{1}{2}\,\mathrm{tr}\!\left(\Sigma^{-1} A_k \Sigma^{-1} A_l\right).
+\tag{3.5}\]</span></span></p>
+<p>The second derivatives <span class="math inline">\(A_{kl}\)</span> have disappeared, and so has the second derivative of the log-determinant. The information needs only the first derivatives of the structure, which is what makes Fisher scoring cheaper here than a Newton step, and it is what <a href="#sec-fit-scoring" class="quarto-xref"><span>Section 3.3.2</span></a> already predicted in one dimension.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">2</span>)</span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>d<span class="sc">@</span>params</span>
+<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu1"          "mu2"          "sigma_log_L1" "sigma_log_L2" "sigma_L2.1"</span></span>
+<span id="cb51-4"><a href="#cb51-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb51-5"><a href="#cb51-5" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu1 =</span> <span class="fl">0.5</span>, <span class="at">mu2 =</span> <span class="sc">-</span><span class="fl">0.3</span>, <span class="at">sigma_log_L1 =</span> <span class="fl">0.1</span>, <span class="at">sigma_log_L2 =</span> <span class="sc">-</span><span class="fl">0.2</span>, <span class="at">sigma_L2.1 =</span> <span class="fl">0.4</span>)</span>
+<span id="cb51-6"><a href="#cb51-6" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_sigma</span>(d, theta)</span>
+<span id="cb51-7"><a href="#cb51-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           v1        v2</span></span>
+<span id="cb51-8"><a href="#cb51-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 1.2214028 0.4420684</span></span>
+<span id="cb51-9"><a href="#cb51-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 0.4420684 0.8303200</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A gaussian may equally be written in the precision <span class="math inline">\(\Omega = \Sigma^{-1}\)</span>, and which of the two a model parametrises is a modelling decision rather than a notational one: a structure imposed on <span class="math inline">\(\Sigma\)</span> is a different family from the same structure imposed on <span class="math inline">\(\Omega\)</span>, since the inverse of a compound-symmetry matrix is compound symmetry while the inverse of an AR(1) is not AR(1). The constructor takes the structure on either side, and everything above still applies, because <span class="math inline">\(\partial \Sigma / \partial \eta_k = -\Sigma A_k \Sigma\)</span> when <span class="math inline">\(A_k\)</span> is a derivative of the precision. The two parametrisations describe the same law when the matrices are matched.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>do <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">2</span>, <span class="at">struct_omega =</span> covstructs7<span class="sc">::</span><span class="fu">log_cholesky</span>(<span class="dv">2</span>))</span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>eta_o <span class="ot">&lt;-</span> covstructs7<span class="sc">::</span><span class="fu">struct_free</span>(do<span class="sc">@</span>struct, <span class="fu">solve</span>(<span class="fu">mv_sigma</span>(d, theta)))</span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>theta_o <span class="ot">&lt;-</span> <span class="fu">as.list</span>(stats<span class="sc">::</span><span class="fu">setNames</span>(<span class="fu">c</span>(<span class="fl">0.5</span>, <span class="sc">-</span><span class="fl">0.3</span>, eta_o), do<span class="sc">@</span>params))</span>
+<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="sc">-</span><span class="dv">1</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.8</span>))</span>
+<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">distrib_pdf</span>(do, y, theta_o, <span class="at">log =</span> <span class="cn">TRUE</span>) <span class="sc">-</span></span>
+<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a>        <span class="fu">distrib_pdf</span>(d, y, theta, <span class="at">log =</span> <span class="cn">TRUE</span>)))</span>
+<span id="cb52-8"><a href="#cb52-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4.440892e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-mvstudent-t" class="level3" data-number="3.5.3">
+<h3 data-number="3.5.3" class="anchored" data-anchor-id="sec-mvstudent-t"><span class="header-section-number">3.5.3</span> The Student t</h3>
+<p>The multivariate <span class="math inline">\(t\)</span> replaces the exponential tail with a polynomial one. With <span class="math inline">\(q = (y - \mu)^\top \Sigma^{-1} (y - \mu)\)</span> its density is</p>
+<p><span id="eq-mvt-density"><span class="math display">\[
+f(y) \;=\;
+\frac{\Gamma\!\left(\frac{\nu+p}{2}\right)}
+     {\Gamma\!\left(\frac{\nu}{2}\right) (\nu\pi)^{p/2} |\Sigma|^{1/2}}
+\left( 1 + \frac{q}{\nu} \right)^{-(\nu+p)/2}.
+\tag{3.6}\]</span></span></p>
+<p>Here <span class="math inline">\(\Sigma\)</span> is the <strong>scale</strong> matrix and not the covariance. The covariance is <span class="math inline">\(\nu\Sigma/(\nu-2)\)</span> where it exists, and for <span class="math inline">\(\nu \le 2\)</span> it does not exist at all while the distribution is perfectly well defined; the mean exists for <span class="math inline">\(\nu &gt; 1\)</span>. Keeping the two apart is what allows a heavy-tailed family to be described and fitted at degrees of freedom where its second moment is infinite, so the package returns the scale matrix from <code>mv_sigma()</code> and the covariance from <code>variance()</code>.</p>
+<p>The distribution is the scale mixture</p>
+<p><span id="eq-mvt-mixture"><span class="math display">\[
+Y \mid V \sim N_p\!\left(\mu,\; \tfrac{\nu}{V}\,\Sigma \right),
+\qquad V \sim \chi^2_\nu,
+\tag{3.7}\]</span></span></p>
+<p>which is how the package generates from it and where the shape of its score comes from. Writing</p>
+<p><span id="eq-mvt-weight"><span class="math display">\[
+c \;=\; \frac{\nu + p}{\nu + q}
+\tag{3.8}\]</span></span></p>
+<p>for the weight an observation receives, the derivatives with respect to the mean and the structure are those of the gaussian, <a href="#eq-mvgaussian-score" class="quarto-xref">Equation&nbsp;<span>3.3</span></a>, with every term involving the data multiplied by <span class="math inline">\(c\)</span>:</p>
+<p><span id="eq-mvt-score"><span class="math display">\[
+\ell^{(\mu_a)} = c \, w_a, \qquad
+\ell^{(\eta_k)} = -\tfrac{1}{2}\,\partial_k \log|\Sigma|
+   \;+\; \tfrac{1}{2}\, c \, w^\top A_k w .
+\tag{3.9}\]</span></span></p>
+<p>The weight is what makes the family resistant. An observation with a large Mahalanobis distance has a large <span class="math inline">\(q\)</span>, hence a small <span class="math inline">\(c\)</span>, and contributes proportionally less to the estimate of both the location and the scale; as <span class="math inline">\(\nu \to \infty\)</span> the weight tends to <span class="math inline">\(1\)</span> uniformly and the gaussian is recovered. A gaussian fitted to data containing a few distant rows has no such mechanism and inflates <span class="math inline">\(\Sigma\)</span> until it covers them.</p>
+<p>The degrees of freedom contribute one further component,</p>
+<p><span id="eq-mvt-score-nu"><span class="math display">\[
+\ell^{(\nu)} = \tfrac{1}{2}\left[
+  \psi\!\left(\tfrac{\nu+p}{2}\right) - \psi\!\left(\tfrac{\nu}{2}\right)
+  - \frac{p}{\nu} - \log\!\left(1 + \frac{q}{\nu}\right)
+  + \frac{(\nu+p)\,q}{\nu(\nu+q)} \right],
+\tag{3.10}\]</span></span></p>
+<p>with <span class="math inline">\(\psi\)</span> the digamma function. The first three terms come from the normalising constant and do not involve the data; the last two are the derivative of the kernel. Since <span class="math inline">\(\nu &gt; 0\)</span> it carries a log link, and the derivative on the link scale is <span class="math inline">\(\nu\,\ell^{(\nu)}\)</span> by the chain rule of <a href="#sec-link-scale" class="quarto-xref"><span>Section 3.1.4</span></a>, with no change to the rest.</p>
+<p>The expected information of the <span class="math inline">\(t\)</span> has no closed form in the package, so it is approximated by one of the strategies of <a href="#sec-approx" class="quarto-xref"><span>Section 3.1.3.1</span></a>, and <code>fit_distrib()</code> accepts the choice through its <code>approx</code> argument. It accepts it only for a family that has no closed form, since for one that has, the argument would be silently ignored and the fit would report a method it did not use.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>dt <span class="ot">&lt;-</span> <span class="fu">mvstudent_t_distrib</span>(<span class="dv">2</span>)</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>theta_t <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu1 =</span> <span class="fl">0.5</span>, <span class="at">mu2 =</span> <span class="sc">-</span><span class="fl">0.3</span>, <span class="at">sigma_log_L1 =</span> <span class="fl">0.1</span>, <span class="at">sigma_log_L2 =</span> <span class="sc">-</span><span class="fl">0.2</span>,</span>
+<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>                <span class="at">sigma_L2.1 =</span> <span class="fl">0.4</span>, <span class="at">nu =</span> <span class="dv">4</span>)</span>
+<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb53-5"><a href="#cb53-5" aria-hidden="true" tabindex="-1"></a><span class="co"># the scale matrix is what the parametrisation carries; the covariance is a</span></span>
+<span id="cb53-6"><a href="#cb53-6" aria-hidden="true" tabindex="-1"></a><span class="co"># moment, and at nu = 4 it is twice as large</span></span>
+<span id="cb53-7"><a href="#cb53-7" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_sigma</span>(dt, theta_t)</span>
+<span id="cb53-8"><a href="#cb53-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           v1        v2</span></span>
+<span id="cb53-9"><a href="#cb53-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 1.2214028 0.4420684</span></span>
+<span id="cb53-10"><a href="#cb53-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 0.4420684 0.8303200</span></span>
+<span id="cb53-11"><a href="#cb53-11" aria-hidden="true" tabindex="-1"></a><span class="fu">variance</span>(dt, theta_t)</span>
+<span id="cb53-12"><a href="#cb53-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           v1        v2</span></span>
+<span id="cb53-13"><a href="#cb53-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 2.4428055 0.8841367</span></span>
+<span id="cb53-14"><a href="#cb53-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 0.8841367 1.6606401</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-mv-marginal" class="level3" data-number="3.5.4">
+<h3 data-number="3.5.4" class="anchored" data-anchor-id="sec-mv-marginal"><span class="header-section-number">3.5.4</span> Marginals and what a picture shows</h3>
+<p>Integrating a density over the coordinates one is not interested in has no closed form for most families. It has one for the elliptical families, where the marginal belongs to the same family with the mean subsetted and the matrix reduced to the corresponding block. For the gaussian this is the classical result; for the <span class="math inline">\(t\)</span> the marginal is a <span class="math inline">\(t\)</span> on the subset with the <strong>same</strong> degrees of freedom, which follows from <a href="#eq-mvt-mixture" class="quarto-xref">Equation&nbsp;<span>3.7</span></a>, since conditioning on <span class="math inline">\(V\)</span> leaves a gaussian whose marginal is a gaussian with the same mixing variable.</p>
+<p>This is what makes a picture of a multivariate density possible, because every panel of a pairs plot displays a marginal. The diagonal shows the univariate marginal density of each coordinate, the lower triangle the contours of each bivariate marginal, and, when the plot is drawn from a fit, the observations and their kernel density estimate are drawn in the same frame. The kernel estimate is the comparison that does not assume the model.</p>
+<p>Beyond three coordinates the panel matrix stops being readable, so a larger distribution is refused with the suggestion of choosing coordinates rather than being drawn illegibly. A family with no closed-form marginal is refused outright: a numerical marginal would be a different object wearing the same name.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(dt, theta_t)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="03-distributions7_files/figure-html/mvt-pairs-1.png" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>A two-dimensional Student t with four degrees of freedom: the marginal densities on the diagonal and the contours of the bivariate density below it.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Two quantities of the univariate case have no multivariate counterpart and are refused rather than approximated. A distribution function on <span class="math inline">\(\mathbb{R}^p\)</span> would be an orthant probability, which is not a one-dimensional integral and does not reduce to one; a quantile function would need an ordering of <span class="math inline">\(\mathbb{R}^p\)</span>, and there is none. Everything that depends on either is therefore unavailable here, which is why a multivariate distribution does not inherit the defaults of <code>continuous_distrib</code> but sits on a class of its own.</p>
+</section>
+<section id="sec-mv-fitting" class="level3" data-number="3.5.5">
+<h3 data-number="3.5.5" class="anchored" data-anchor-id="sec-mv-fitting"><span class="header-section-number">3.5.5</span> Fitting</h3>
+<p>A fit proceeds exactly as in <a href="#sec-fitting" class="quarto-xref"><span>Section 3.3</span></a>. The objective is the sum of the log densities over the rows of <span class="math inline">\(Y\)</span>, the optimisation happens on the link scale, and the standard errors come from the inverse of the information by the delta method. For the gaussian the maximum likelihood estimator is known in closed form, the sample mean and the sample second moment about it, which makes it the natural check on the whole apparatus.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>y_big <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">2000</span>, theta)</span>
+<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, y_big)</span>
+<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a>mu_hat <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(y_big)</span>
+<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a>s_hat <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(<span class="fu">sweep</span>(y_big, <span class="dv">2</span>L, mu_hat)) <span class="sc">/</span> <span class="fu">nrow</span>(y_big)</span>
+<span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-8"><a href="#cb55-8" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb55-9"><a href="#cb55-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">loglik_gap =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit)) <span class="sc">-</span></span>
+<span id="cb55-10"><a href="#cb55-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="fu">distrib_pdf</span>(d, y_big, <span class="fu">as.list</span>(stats<span class="sc">::</span><span class="fu">setNames</span>(</span>
+<span id="cb55-11"><a href="#cb55-11" aria-hidden="true" tabindex="-1"></a>      <span class="fu">c</span>(mu_hat, covstructs7<span class="sc">::</span><span class="fu">struct_free</span>(d<span class="sc">@</span>struct, s_hat)), d<span class="sc">@</span>params</span>
+<span id="cb55-12"><a href="#cb55-12" aria-hidden="true" tabindex="-1"></a>    )), <span class="at">log =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb55-13"><a href="#cb55-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">mean_gap =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">mv_location</span>(d, <span class="fu">coef</span>(fit)) <span class="sc">-</span> mu_hat)),</span>
+<span id="cb55-14"><a href="#cb55-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">cov_gap =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">mv_sigma</span>(d, <span class="fu">coef</span>(fit)) <span class="sc">-</span> s_hat))</span>
+<span id="cb55-15"><a href="#cb55-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb55-16"><a href="#cb55-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loglik_gap     mean_gap      cov_gap </span></span>
+<span id="cb55-17"><a href="#cb55-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9.094947e-13 0.000000e+00 2.220446e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-mv-reporting" class="level3" data-number="3.5.6">
+<h3 data-number="3.5.6" class="anchored" data-anchor-id="sec-mv-reporting"><span class="header-section-number">3.5.6</span> What a fit reports</h3>
+<p>The free values are coordinates chosen so that an optimiser can move without constraint, and they are not quantities anybody reads. The logarithm of a diagonal entry of a Cholesky factor has an estimate and a standard error, and neither answers a question about the data. What a reader of a fitted multivariate gaussian wants is the standard deviations and the correlations, which are the decomposition <span class="math inline">\(\Sigma = D R D\)</span> with <span class="math inline">\(D\)</span> the diagonal matrix of standard deviations.</p>
+<p>Carrying the uncertainty onto them is the delta method, which <a href="#sec-fit-delta" class="quarto-xref"><span>Section 3.3.4</span></a> already applies to a univariate parameter. Writing <span class="math inline">\(g\)</span> for the map from the parameters to the quantities of interest,</p>
+<p><span id="eq-mv-delta"><span class="math display">\[
+\widehat{\operatorname{Var}}\{g(\hat\theta)\}
+  = J \, \widehat{\operatorname{Var}}(\hat\theta) \, J^\top,
+\qquad
+J = \frac{\partial g}{\partial \theta},
+\tag{3.11}\]</span></span></p>
+<p>and the Jacobian is closed form. With <span class="math inline">\(s_j = \sqrt{\Sigma_{jj}}\)</span> and <span class="math inline">\(\rho_{jk} = \Sigma_{jk}/(s_j s_k)\)</span>,</p>
+<p><span id="eq-mv-sdcor-jacobian"><span class="math display">\[
+\frac{\partial s_j}{\partial \eta_k} = \frac{A_k[j,j]}{2 s_j},
+\qquad
+\frac{\partial \rho_{jk}}{\partial \eta_l}
+  = \frac{A_l[j,k]}{s_j s_k}
+    - \frac{\rho_{jk}}{2}
+      \left(\frac{A_l[j,j]}{\Sigma_{jj}}
+           + \frac{A_l[k,k]}{\Sigma_{kk}}\right),
+\tag{3.12}\]</span></span></p>
+<p>with <span class="math inline">\(A_k = \partial\Sigma/\partial\eta_k\)</span> the structure’s own derivative, which <a href="#eq-mv-structure" class="quarto-xref">Equation&nbsp;<span>3.1</span></a> already requires it to supply. Nothing new has to be computed.</p>
+<p>The interval each quantity gets is built on the scale that keeps it in the set it belongs to and then mapped back, which is the discipline of <a href="#sec-fit-scale" class="quarto-xref"><span>Section 3.3.1</span></a> applied to a derived quantity rather than to a parameter: a standard deviation is intervalled on the log scale and a correlation on Fisher’s <span class="math inline">\(z = \operatorname{artanh}\rho\)</span>. An interval built on the raw scale would put a correlation above one whenever the estimate is large and the sample small.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>fit</span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: multivariate gaussian [2d, sigma=log_cholesky]</span></span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 2000   Log-likelihood: -5424   AIC: 10859   BIC: 10887</span></span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 1   evaluations: f 2, g 2</span></span>
+<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-10)</span></span>
+<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Location:</span></span>
+<span id="cb56-8"><a href="#cb56-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    Estimate Std. Error    2.5%   97.5%</span></span>
+<span id="cb56-9"><a href="#cb56-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1   0.5034     0.0158  0.4725  0.5344</span></span>
+<span id="cb56-10"><a href="#cb56-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2  -0.2811     0.0130 -0.3066 -0.2555</span></span>
+<span id="cb56-11"><a href="#cb56-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb56-12"><a href="#cb56-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Standard deviations:</span></span>
+<span id="cb56-13"><a href="#cb56-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       Estimate Std. Error   2.5%  97.5%</span></span>
+<span id="cb56-14"><a href="#cb56-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v1   1.0996     0.0117 1.0770 1.1228</span></span>
+<span id="cb56-15"><a href="#cb56-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v2   0.9080     0.0100 0.8887 0.9278</span></span>
+<span id="cb56-16"><a href="#cb56-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb56-17"><a href="#cb56-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Correlations:</span></span>
+<span id="cb56-18"><a href="#cb56-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           Estimate Std. Error   2.5%  97.5%</span></span>
+<span id="cb56-19"><a href="#cb56-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2    0.469     0.0118 0.4455 0.4918</span></span>
+<span id="cb56-20"><a href="#cb56-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb56-21"><a href="#cb56-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; The link scale is the parameter scale: every link is the identity.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A gaussian written in the precision reports the same standard deviations and correlations, since those are properties of the law and not of the parametrisation, and adds the two readings that belong to <span class="math inline">\(\Omega\)</span> itself. The first is the <strong>conditional variance</strong></p>
+<p><span id="eq-mv-conditional-variance"><span class="math display">\[
+\frac{1}{\Omega_{jj}} \;=\; \operatorname{Var}(Y_j \mid Y_{-j}),
+\tag{3.13}\]</span></span></p>
+<p>the variance that remains after regressing that coordinate on all the others, so that its ratio to the marginal variance is <span class="math inline">\(1 - R_j^2\)</span> for that regression. The variance is the quantity with that reading and its square root is not, which is why it is the variance that is reported. The second is the <strong>partial correlation</strong></p>
+<p><span id="eq-mv-partial-correlation"><span class="math display">\[
+-\frac{\Omega_{jk}}{\sqrt{\Omega_{jj}\Omega_{kk}}}
+  \;=\; \operatorname{Cor}(Y_j, Y_k \mid Y_{-jk}),
+\tag{3.14}\]</span></span></p>
+<p>the correlation of two coordinates given all the others, which is zero exactly where the precision has a zero — and that is the reason for parametrising a model in <span class="math inline">\(\Omega\)</span> at all, since a zero there is a conditional independence. In two dimensions there is nothing to condition on and the partial correlation is the correlation, so it is not printed twice.</p>
+<p>Both parametrisations describe the same law, so a fit of one and a fit of the other reach the same maximised likelihood and the same information criteria. That is an invariance worth checking rather than assuming: two runs that disagree on it have not both converged.</p>
+<p>For the Student <span class="math inline">\(t\)</span> the matrix is the scale matrix, so the diagonal quantities are not standard deviations of the response and are named <code>scale_sd</code> to say so. The correlations need no such qualification: the covariance is <span class="math inline">\(\nu\Sigma/(\nu-2)\)</span>, and a positive multiple of a matrix has the same correlations.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">12</span>)</span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>y_t <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(dt, <span class="dv">800</span>, theta_t)</span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_summary</span>(<span class="fu">fit_distrib</span>(dt, y_t, <span class="at">method =</span> optimizers7<span class="sc">::</span><span class="fu">newton</span>(), <span class="at">tol =</span> <span class="fl">1e-8</span>))</span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              Estimate Std. Error      2.5%     97.5%</span></span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v1 0.9858552 0.02162270 0.9443735 1.0291590</span></span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v2 0.8955000 0.01988342 0.8573650 0.9353312</span></span>
+<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2   0.4348344 0.02247637 0.3897611 0.4778293</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 
@@ -1983,8 +2252,14 @@ Kinderman, A. J., and J. F. Monahan. 1977. <span>“Computer Generation of Rando
 <div id="ref-klein2003" class="csl-entry" role="listitem">
 Klein, John P., and Melvin L. Moeschberger. 2003. <em>Survival Analysis: Techniques for Censored and Truncated Data</em>. 2nd ed. New York: Springer.
 </div>
+<div id="ref-kotz2004" class="csl-entry" role="listitem">
+Kotz, Samuel, and Saralees Nadarajah. 2004. <em>Multivariate <span><em>t</em></span> Distributions and Their Applications</em>. Cambridge: Cambridge University Press.
+</div>
 <div id="ref-lambert1992" class="csl-entry" role="listitem">
 Lambert, Diane. 1992. <span>“Zero-Inflated <span>P</span>oisson Regression, with an Application to Defects in Manufacturing.”</span> <em>Technometrics</em> 34 (1): 1–14.
+</div>
+<div id="ref-lange1989" class="csl-entry" role="listitem">
+Lange, Kenneth L., Roderick J. A. Little, and Jeremy M. G. Taylor. 1989. <span>“Robust Statistical Modeling Using the <span><em>t</em></span> Distribution.”</span> <em>Journal of the American Statistical Association</em> 84 (408): 881–96.
 </div>
 <div id="ref-lehmann1998" class="csl-entry" role="listitem">
 Lehmann, E. L., and George Casella. 1998. <em>Theory of Point Estimation</em>. 2nd ed. New York: Springer.
