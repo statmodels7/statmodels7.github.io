@@ -633,8 +633,16 @@ whole and a scalar link cannot express it.
 - **No code generators that require Mathematica.** Wolfram output is hand-transcribed
   into Rcpp and validated numerically. He rejected a generator explicitly: *"non ha senso"*
   that the package only builds because Mathematica happens to be installed.
-- **Commit messages explain why, not what.** The reasoning in the history is deliberate —
-  it is what stops a future reader from "simplifying" a decision that was measured.
+- **Commit messages are short and factual** (Giovanni, 2026-08-04, explicit, and
+  he had the whole history rewritten to match). A subject line saying what was
+  done, in the imperative, under about 65 characters; a body of a few plain
+  lines listing the changes, and the measured numbers where they matter. No
+  rhetorical subjects, no two-beat contrasts, no capitals for emphasis, no
+  narrative of how the work went. "Add multistart with Latin hypercube starts",
+  not "Multi-start, and the answer to Q6 turns out to be the opposite of the
+  premise". This supersedes the earlier rule that messages should explain why
+  rather than what: the reasoning belongs in this file and in the code
+  comments, where it is read, not in the history.
 - **Verify, do not assume.** Several times a suspected bug turned out to be a bad test,
   and several times a "cosmetic" finding turned out to be a real defect. Measure first.
 - Report failures faithfully, with the numbers.
