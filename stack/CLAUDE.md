@@ -1587,15 +1587,17 @@ point says so, never because the move failed.**
 - The portal is hand-written HTML. If the toolkit grows past a handful of packages it may
   deserve a generator, but not yet.
 - The book now covers links, distributions, the transformation wrappers and fitting
-  (chapter 5, added 2026-07-30: the link scale as the place to optimise, Fisher
+  (§3.3, written 2026-07-30 as a chapter of its own and folded in when the book
+  went to one chapter per package: the link scale as the place to optimise, Fisher
   scoring versus Newton and why the congruence corollary makes the expected
   information the right matrix to invert, the line search, the delta method as the same
   congruence applied to the inverse, and intervals built on the link scale and mapped
   back; revised 2026-08-03, when `fit_distrib()` started delegating to
-  `optimizers7` — §5.2 now says the optimisation is not written there, the step
+  `optimizers7` — §3.3 now says the optimisation is not written there, the step
   rule is the sufficient-decrease condition of §4.1 rather than plain halving,
   the non-PD Hessian is repaired by §4.2 rather than abandoned, and a chunk shows
-  `method = lbfgs(...)`), and §3.4 on the numerical fallbacks — the ratio-of-uniforms theorem, the
+  `method = lbfgs(...)`; revised again 2026-08-04 for the averaged objective and
+  for `distrib_start()`), and §3.4 on the numerical fallbacks — the ratio-of-uniforms theorem, the
   mode recentring, the divergence transform at one edge and at two, the
   discrete cumulative table, and the two warnings that belong with them. Chapter 4
   (added 2026-07-31) covers `optimizers7`: descent directions and what a line search
@@ -1830,7 +1832,7 @@ it — every setup and gate chunk is `include: false`, which matters more than i
 looks, since one of the files sourced is named `transformation-certificates.R` and
 a visible `source()` line would leak the whole apparatus.
 
-`assert_fit_ok()` (chapter 5, `book/R/fit-certificates.R`) checks the four things
+`assert_fit_ok()` (§3.3, `book/R/fit-certificates.R`) checks the four things
 that chapter claims, each against a route the chapter does not itself use: that the
 link-scale score really vanishes at the reported optimum, that
 `V_theta = diag(h') V_eta diag(h')` with `h'` taken fresh from linkfunctions7, that
@@ -1849,6 +1851,20 @@ under `linkinv()`, mapped independently of the package's own mapping and sorted,
 since a link may decrease. Both are injection-checked: shifting one end of the
 link-scale interval by 0.05 and inflating the parameter-scale one by 5% are each
 caught, and the gate passes again once they are removed.
+
+Extended again 2026-08-04 with `.certify_starting_values()` and
+`.certify_objective_scale()`. The first pins that `distrib_start()` returns the
+sample mean and second moment for a multivariate gaussian and that the fit
+confirms them in one iteration; its counterexample **had to be rewritten**,
+because with the expected information corrected the iris fit started at the
+origin now reaches the same maximum in 42 iterations rather than failing at
+500. So the section's claim was weakened to what remains true — a start buys
+work, not an answer — and the gate measures the ratio of iterations. **A
+counterexample that stops holding is a statement in the prose that stopped
+being true**, and the gate is what said so. The second checks the averaged
+objective: the maximum against a closed form, `se(mu)` and `se(sigma)` against
+`sigma/sqrt(n)` and `sigma/sqrt(2n)`, and the averaged score at the reported
+optimum. Injection-checked at a factor of `sqrt(n)` (70.7) and at 5%.
 
 `assert_optimizers_ok()` (chapter 4, `book/R/optimizer-certificates.R`) does the
 same for six claims: that an accepted step really satisfies the condition claimed
