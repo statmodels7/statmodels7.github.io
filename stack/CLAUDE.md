@@ -782,6 +782,21 @@ appear in `_pkgdown.yml`, does every object in the namespace have a help topic, 
 any two topics collide when case is ignored, and does every exported topic carry a
 `\value` and an example.
 
+⚠️ **"Copied into all five" was true of the file name and not of the file**
+(corrected 2026-08-05). Three of the five carried weaker versions that could
+not ask the second question at all, and seven undocumented objects were sitting
+in exactly those three. The file is now generated from one source and is
+byte-identical apart from the package name; section 7 has the census. It also
+excludes a package landing page from the `\value` requirement, which every
+package now has: `?linkfunctions7`, `?distributions7`, `?optimizers7`,
+`?basis7`, `?parameters7` all reach a page carrying the title, the description,
+the logo and the URLs from `DESCRIPTION`. Two packages had one and three did
+not; the block is the standard `#' @keywords internal` before `"_PACKAGE"`, and
+it is deliberately **not** listed in any `_pkgdown.yml` — pkgdown drops a
+keyword-internal topic from the reference index without reporting it missing,
+so listing it in one package and not the others was the asymmetry rather than
+the fix.
+
 Two things learned closing it. `S7::method(coef, cls) <- fn` at the top level of a
 package **creates a binding `coef` in the namespace**, because the replacement form
 expands to an assignment; those are S7's shims over the base generics and belong in
