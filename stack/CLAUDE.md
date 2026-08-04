@@ -61,10 +61,10 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | package | what it provides |
 |---|---|
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
-| `distributions7` | 18 univariate distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE; **2 multivariate families** (gaussian, Student t) whose matrix parameter comes from `covstructs7` |
+| `distributions7` | 18 univariate distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE; **2 multivariate families** (gaussian, Student t) whose matrix parameter comes from `parameters7` |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
-| `covstructs7` | constrained matrix parameters: a map from an unconstrained vector to a symmetric matrix, exact to 2nd order, plus the log-(pseudo-)determinant and the solves. `log_cholesky()`, `diag_struct()`/`scalar_struct()` (which reuse `linkfunctions7` links), `scaled_struct()` for a fixed matrix carried by one scale. Rank-deficient matrices ADMITTED -- a spline penalty is singular by construction, which is what makes it a penalty and not a density |
+| `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()` (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
 
 **Planned** — `modelterms7`, `penalties7`, and eventually the `statmodels7`
 package itself, which assembles everything into models. That last one is the destination:
@@ -92,7 +92,7 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
     distributions7\
     optimizers7\
     basis7\
-    covstructs7\
+    parameters7\
     book\            the Quarto book (see §9); `quarto render` from inside it
     logo\            hex logos: make-logos.R draws them, run from this directory
     site\            the portal, its own repository (statmodels7.github.io)
@@ -115,7 +115,7 @@ the book: `quarto render` in `book/` **from PowerShell** (see 3), then
 because it executes R against the working tree, and it takes about twenty minutes
 now that there are four package chapters.
 
-GitHub: `github.com/statmodels7/{linkfunctions7,distributions7,optimizers7,basis7,covstructs7}`, all on `master`. The repositories were
+GitHub: `github.com/statmodels7/{linkfunctions7,distributions7,optimizers7,basis7,parameters7}`, all on `master`. The repositories were
 transferred from `giovannitinervia9/*` on 2026-07-22; GitHub keeps redirects, so
 `install_github("giovannitinervia9/distributions7")` still resolves.
 
@@ -128,7 +128,7 @@ Websites, all live and rebuilt by a `pkgdown.yaml` workflow on every push:
 | distributions7 | `statmodels7.github.io/distributions7` — pkgdown, from `gh-pages` |
 | optimizers7 | `statmodels7.github.io/optimizers7` — pkgdown, from `gh-pages` |
 | basis7 | `statmodels7.github.io/basis7` — pkgdown, from `gh-pages` |
-| covstructs7 | `statmodels7.github.io/covstructs7` — pkgdown, from `gh-pages` |
+| parameters7 | `statmodels7.github.io/parameters7` — pkgdown, from `gh-pages` |
 
 Predecessors, kept for reference only: `labstatr\distrib` (S3, ~8500 lines) and
 `labstatr\linkfunctions`. `distributions7` is a rewrite of `distrib`, not a port —
@@ -587,18 +587,18 @@ approximated.
 
 The design decision that makes everything else free: **the matrix parameter is
 flattened into scalars**. A p-variate family's parameters are `mu1..mup`
-followed by the `free_names` of a `covstructs7` structure, every one of them a
+followed by the `free_names` of a `parameters7` structure, every one of them a
 scalar with an identity link, so `align_theta`, `deriv_names`, `hess_names`, the
 link scale and `fit_distrib` need no special case at all. The constraint lives
 in the structure, where it belongs — it is a constraint on the matrix as a
 whole and a scalar link cannot express it.
 
-- `mvgaussian_distrib(n_dim, struct_sigma=, struct_omega=)` — **one** constructor,
+- `mvgaussian_distrib(n_dim, sigma=, omega=)` — **one** constructor,
   the two arguments mutually exclusive, not two constructors. Score
   `-½∂_k log|Σ| + ½ w'A_k w` with `w = Σ⁻¹r`; the expected information is
   `-½tr(Σ⁻¹A_kΣ⁻¹A_l)` and needs **no `A_kl`**, the mixed mean-matrix block being
   exactly 0 since `E[w] = 0`. For the precision form `∂Σ/∂η = -ΣA_kΣ`.
-- `mvstudent_t_distrib(n_dim, struct_sigma, link_nu)` — the gaussian's score
+- `mvstudent_t_distrib(n_dim, sigma, link_nu)` — the gaussian's score
   with every data term multiplied by `c = (ν+p)/(ν+q)`, plus a `ν` component;
   the only multivariate family whose link scale is **not** its parameter scale.
   `mv_sigma()` is the **scale** matrix and `variance()` the covariance
@@ -649,7 +649,7 @@ whole and a scalar link cannot express it.
   - the standard errors are the **delta method**, `J V J'`, with `J` closed
     form: `d s_j/d eta = A_k[j,j]/(2 s_j)` and
     `d rho_jk/d eta = A[j,k]/(s_j s_k) - (rho/2)(A[j,j]/S_jj + A[k,k]/S_kk)`,
-    where `A_k` is the structure's own `struct_dmatrix` -- nothing new is
+    where `A_k` is the structure's own `param_d1` -- nothing new is
     computed;
   - each **interval is built on the scale that keeps the quantity in its own
     set** and mapped back, exactly as `fit_distrib()` does for a univariate
@@ -700,7 +700,7 @@ whole and a scalar link cannot express it.
 | `linkfunctions7` | 890 tests, `R CMD check` OK, CI green |
 | `distributions7` | 2262 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-04, local), CI green |
 | `optimizers7` | 710 tests, `R CMD check --as-cran` OK with vignettes, two notes (2026-08-04). Published 2026-07-31; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
-| `covstructs7` | 379 tests, `R CMD check --as-cran` clean apart from the submission notes, created 2026-08-03. Version `0.1.0`. Phase 1 of `piano_covstructs7.txt` is done; phase 2 is correlations and composition. |
+| `parameters7` | 496 tests, renamed from covstructs7 on 2026-08-04 (clean cut, no aliases; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.2.0`: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log. Phase 2 of the covariance side (correlations, composition) still open. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
 All five repositories run `R-CMD-check` on macOS, Windows and three Linux/R
@@ -959,7 +959,7 @@ exactly 1. What was wrong was everything around them.
   free next to what both callers already do (`chol_pd()` in
   `R/transformed_basis.R`). Anywhere a `tryCatch(chol(...))` decides a branch,
   the same doubt applies.
-  A **second instance of the same shape**, found while planning `covstructs7`
+  A **second instance of the same shape**, found while planning `parameters7`
   (2026-08-03): counting eigenvalues above a relative tolerance is not a rank
   test either. On a tensor-product penalty `l1*P1 + l2*P2` of true rank 28 out
   of 32, the count reads 28 while the two are comparable and **24** once the
@@ -984,6 +984,43 @@ exactly 1. What was wrong was everything around them.
   change whose outcome depends on floating-point luck, because five platforms
   agreeing is five draws from the same coin. Read a red coverage job.
 
+### Renaming a PACKAGE reaches further still (covstructs7 -> parameters7)
+
+Done 2026-08-04 (Giovanni: the old name was too narrow once simplex-valued
+and transition-matrix parameters arrived, and "structure"/"struct_" named
+nothing). Decisions and mechanics worth keeping:
+
+- **`gh repo rename` keeps git and web redirects but the PAGES SITE DOES NOT
+  redirect**: statmodels7.github.io/covstructs7/ died the moment the repo
+  became parameters7. Every link in the portal, READMEs and book had to be
+  swept by hand; `install_github("statmodels7/covstructs7")` still resolves.
+- **A clean cut beats aliases** for a package not on CRAN with one consumer:
+  struct_* -> param_*, covstruct -> parameter, and distributions7 swept in the
+  same afternoon -- pushing distributions7 BEFORE its sweep would have broken
+  its CI, because the renamed repo installs a package named parameters7.
+- **The base/branch split is what made the rename worth it**: `parameter`
+  keeps only the map; `matrix_parameter` owns dimension/rank/null
+  basis/logdet/solve/factor, so a simplex has no logdet BY CONSTRUCTION
+  rather than by run-time refusal. Registrations that read `@rank` moved down
+  with it; ad-hoc subclasses in tests had to re-parent.
+- **The Daleckii-Krein/Opitz machinery earns a note**: Frechet derivatives of
+  expm contract direction chains against divided differences of exp; computed
+  by the quotient recursion those cancel catastrophically under near-repeated
+  eigenvalues, while the Opitz route (expm of a small upper bidiagonal, read
+  off the corner) is exact there -- validated at eigenvalue gaps of 1e-9.
+  The multilinear form sums over ALL orderings of the directions: summing the
+  DISTINCT orderings requires the prod(mult!) factor, and the first draft of
+  the multivariate gaussian's P-tensor recursion double-counted mixed terms
+  the same way (error ~1e2, caught only by the stencil validation). The
+  correct expansion of the derivative of an inverse is the sum over ORDERED
+  BLOCK PARTITIONS, `P_t = sum (-1)^q P A_B1 P ... A_Bq P`, implemented
+  recursively rather than transcribed.
+- **The multivariate gaussian's d3/d4 are now closed** on top of
+  param_d3/param_d4 (0.14 s against the fallback's 3.9 s at p = 4, order 3),
+  both parametrisations validated at 4e-10/5e-7. The multivariate t stays on
+  the disciplined fallback: nu blocks closure exactly as in the univariate
+  skew t.
+
 ### Renaming a parameter reaches further than the package
 
 Prefixing the multivariate free names with `sigma_`/`omega_` (2026-08-04)
@@ -994,7 +1031,7 @@ of the places a mechanical sweep does NOT reach are worth knowing in advance:
   `eh[["mu1_log_L1"]]` had to become `eh[["mu1_sigma_log_L1"]]`. A regex with a
   word boundary correctly refuses to touch `log_L1` inside `mu1_log_L1` --
   which is what makes it safe, and also what makes it miss these.
-- **The book's gate built its lookup from `struct@free_names`**, the
+- **The book's gate built its lookup from `param@free_names`**, the
   STRUCTURE's names, not the distribution's. After the rename every component
   it looked up was NULL, and the failure surfaced as
   *"non-numeric argument to mathematical function"* several frames away from
@@ -1059,10 +1096,10 @@ be hiding inside the first one's evidence.
   multivariate gaussian returns the sample mean and covariance -- its own MLE
   for an unstructured matrix -- and the t returns those with `nu = 8`. For a
   precision structure the covariance is inverted first, and for a structure
-  that cannot represent the sample covariance exactly, `struct_free()` refuses
+  that cannot represent the sample covariance exactly, `param_free()` refuses
   and a short least-squares fit stands in. That last fallback is allowed to be
-  approximate BECAUSE it is a starting value; `struct_free()` itself must stay
-  exact-or-refuse, which is the contract covstructs7 documents.
+  approximate BECAUSE it is a starting value; `param_free()` itself must stay
+  exact-or-refuse, which is the contract parameters7 documents.
 - **The restart loop kept the LAST start's result, not the best.** With five
   random starts and none converging, the fit reported whichever start came
   last -- a mean of 2.03 where the data's mean is 5.84. The rule is now:
@@ -1194,12 +1231,12 @@ What closing the d3/d4 gap on the five families taught, beyond the formulas:
   all three references fight over crumbs. The asymptotic form (here
   `psi''' ~ -2/t^3`) is what settles it, and it sided with the kernel.
 - **Multivariate d3/d4 stay on the fallback, and analytic ones are blocked on
-  covstructs7's API**: the components with three or four structure indices
-  need `struct_d3matrix`/`struct_d4matrix`, which the covstructs7 contract
+  parameters7's API**: the components with three or four structure indices
+  need `struct_d3matrix`/`struct_d4matrix`, which the parameters7 contract
   (exact to 2nd order) does not offer. Cost of the fallback, measured at
   n = 50: order 3 takes 0.14 s at p = 2, 0.55 at p = 3, 3.9 at p = 4 (560
   components, two Hessians each); order 4 takes 2.7 s already at p = 3.
-  Extending covstructs7 is a design decision for Giovanni, not a patch.
+  Extending parameters7 is a design decision for Giovanni, not a patch.
 - The multivariate base class now **refuses `grad_y`/`hess_y`/`cross_y`**
   (the univariate fallbacks difference along a line and would return numbers
   of the wrong shape); the gaussian and the t override with closed forms. The
@@ -1287,7 +1324,7 @@ point says so, never because the move failed.**
   that the 1-D pair -- second and first differences on 8 coefficients -- does
   **not** reproduce the effect at any ratio up to 1e14. A demonstration of this
   needs the tensor case; a smaller example silently demonstrates nothing.
-- **A `covstruct` refuses `struct_solve()` when it is rank deficient**, and that
+- **A `parameter` refuses `param_solve()` when it is rank deficient**, and that
   is deliberate rather than an omission: what a consumer of an improper prior
   needs is the quadratic form and the log pseudo-determinant, since the matrix it
   actually inverts is `X'X + lambda P`, which is non-singular. I wrote a book
@@ -1658,12 +1695,12 @@ point says so, never because the move failed.**
   is also now **relative**, `s'y > curv_tol*||s||*||y||`, as `bfgs()` already had
   it. General lesson: a policy chosen on one problem is a policy chosen on one
   problem — the boxed case disagreed with Rosenbrock about all three constants.
-- Next packages: **`covstructs7` phase 2** (`piano_covstructs7.txt`:
+- Next packages: **`parameters7` phase 2** (`piano_covstructs7.txt`:
   correlations via canonical partial correlations, D R D', compound
   symmetry/AR(1), block diagonal, composition -- phase 1 shipped 2026-08-03),
   then `penalties7`, then `modelterms7`.
-- **covstructs7 orders 3-4?** Analytic multivariate d3/d4 need
-  `struct_d3matrix`/`struct_d4matrix`, which the covstructs7 contract (exact
+- **parameters7 orders 3-4?** Analytic multivariate d3/d4 need
+  `struct_d3matrix`/`struct_d4matrix`, which the parameters7 contract (exact
   to 2nd order) does not offer; for log-Cholesky they are cheap (the diagonal
   is the only nonlinearity). The numerical fallback costs 3.9 s at p = 4 for
   order 3 alone (560 components, two Hessians each), so the extension becomes
@@ -1689,7 +1726,7 @@ point says so, never because the move failed.**
   file yet -- write `piano_penalties7.txt` before code): a penalty is
   rho(D beta; theta) -- a linear map, a scalar function, parameters. THREE
   branches: (i) quadratic with matrix P (covers ridge, spline Grams, fused
-  quadratic; the correlated gaussian prior, later through covstructs7);
+  quadratic; the correlated gaussian prior, later through parameters7);
   (ii) separable, built from a univariate distributions7 object applied
   coordinatewise to D beta -- ridge IS fixed(gaussian_distrib(), mu = 0), the
   heavy-tailed prior IS fixed(student_t_distrib(), mu = 0); (iii) families
@@ -1727,7 +1764,7 @@ point says so, never because the move failed.**
 - **Third and fourth cdf derivatives** would let truncation drop quadrature at orders
   3-4 as well.
 - No `NEWS.md` on linkfunctions7, distributions7 or optimizers7. `basis7` and
-  `covstructs7` have one from their first commit, which is the right habit.
+  `parameters7` have one from their first commit, which is the right habit.
 - **`expected_by_bartlett()` recomputes too much.** Inside the integrand it calls
   `observed_deriv()` for a whole order and keeps one component, once per block per
   partition per component — and the integrand runs at every quadrature node. Memoising
@@ -1786,7 +1823,7 @@ point says so, never because the move failed.**
   expected information onto `-0.5*tr(Sigma^-1 A_k Sigma^-1 A_l)`, the Student t
   as a scale mixture with its weight `c = (nu+p)/(nu+q)`, marginals and what a
   pairs plot shows, and what is refused (the cdf, the quantile). Chapter 6
-  (added 2026-08-04) covers `covstructs7`: the map and its free vector, why the
+  (added 2026-08-04) covers `parameters7`: the map and its free vector, why the
   construction is not a link -- the Jacobian is dense, and that is the whole
   reason -- the four things a consumer asks and the trace identity behind the
   log-determinant; the log-Cholesky map with its two derivative formulas and
@@ -1795,13 +1832,13 @@ point says so, never because the move failed.**
   then rank, the pseudo-determinant, `lambda = r/(b'Pb)`, why an eigenvalue
   count is not a rank test, and why the solve is refused rather than replaced
   by a pseudo-inverse. Their gates are `book/R/multivariate-certificates.R`
-  and `book/R/covstruct-certificates.R`, injection-checked three times each.
+  and `book/R/parameter-certificates.R`, injection-checked three times each.
   Section 3.5 gained a part on **what a fit reports** (2026-08-04): the delta
   method carrying the variance matrix onto the standard deviations and
   correlations, their Jacobian written out, and why each interval is built on
   log or on Fisher's z. Its gate transcribes that Jacobian by hand and also
   checks it against `numDeriv`, which shares no code with either --
-  and the third covstructs7 injection is worth keeping: the free-vector
+  and the third parameters7 injection is worth keeping: the free-vector
   ordering could not be tested at `p = 3`, where reading the below-diagonal
   entries by row and by column give the SAME sequence, so the gate carries a
   `p = 4` case as well. What the
@@ -1835,7 +1872,7 @@ Preface / 1 Introduction / 2 The linkfunctions7 package /
 5 The basis7 package          (5.1 Expansions, 5.2 Families, 5.3 Inner
                                products, 5.4 Transformations, 5.5 Several
                                variables) /
-6 The covstructs7 package     (6.1 Matrix parameters, 6.2 The families,
+6 The parameters7 package     (6.1 Matrix parameters, 6.2 The families,
                                6.3 Rank and the null space) /
 A Notation / B References
 ```

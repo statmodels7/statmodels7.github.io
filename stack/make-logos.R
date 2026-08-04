@@ -241,7 +241,7 @@ DENS_XMAX  <- 11
   write_logo("logo/basis7.svg", glyph, "basis")
 }
 
-# --- covstructs7: the ellipse a covariance IS -----------------------------
+# --- parameters7: the ellipse a covariance IS -----------------------------
 #
 # The contours of a real bivariate gaussian, and drawn the way the package
 # computes them rather than as ellipses that happen to be elliptical: the
@@ -287,7 +287,7 @@ DENS_XMAX  <- 11
     sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="6" stroke-linecap="round"/>\n',
             contour_path(1.32), ACCENT)
   )
-  write_logo("logo/covstructs7.svg", glyph, "covstructs")
+  write_logo("logo/parameters7.svg", glyph, "parameters")
 }
 
 # --- statmodels7: the umbrella, both curves layered -----------------------
@@ -316,7 +316,7 @@ for (f in list.files("logo", pattern = "[.]svg$", full.names = TRUE)) cat("  ", 
 # --- rasterise into each package's man/figures ---------------------------
 if (requireNamespace("magick", quietly = TRUE)) {
   for (p in c("linkfunctions7", "distributions7", "optimizers7", "basis7",
-              "covstructs7")) {
+              "parameters7")) {
     src <- file.path("logo", paste0(p, ".svg"))
     dst_dir <- file.path(p, "man", "figures")
     dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)

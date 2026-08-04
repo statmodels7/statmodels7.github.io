@@ -48,15 +48,15 @@
 # log-Cholesky scale, a handful of observations including one far out, and the
 # ingredients the printed equations are written in.
 .mv_fixture <- function(nu = NULL) {
-  s <- covstructs7::log_cholesky(2)
+  s <- parameters7::log_cholesky(2)
   eta <- c(0.1, -0.2, 0.5)
   mu <- c(0.4, -0.3)
-  sigma <- covstructs7::struct_matrix(s, eta)
+  sigma <- parameters7::param_value(s, eta)
   y <- rbind(c(0, 0), c(1, -1), c(-0.5, 0.8), c(3.2, 2.4))
   list(
     s = s, eta = eta, mu = mu, sigma = sigma, y = y, p = 2L, nu = nu,
-    a = covstructs7::struct_dmatrix(s, eta),
-    a2 = covstructs7::struct_d2matrix(s, eta)
+    a = parameters7::param_d1(s, eta),
+    a2 = parameters7::param_d2(s, eta)
   )
 }
 
@@ -107,7 +107,7 @@
   f <- .mv_fixture()
   d <- mvgaussian_distrib(2)
   th <- as.list(stats::setNames(c(f$mu, f$eta), d@params))
-  dld <- covstructs7::struct_dlogdet(f$s, f$eta)
+  dld <- parameters7::param_dlogdet(f$s, f$eta)
 
   book <- .mv_score_gauss(f$y, f$mu, f$sigma, f$a, dld)
   pkg <- distrib_gradient(d, f$y, th)
@@ -124,7 +124,7 @@
   # and the same score against a numerical derivative of the HAND-WRITTEN
   # log-likelihood, which shares nothing with the package
   ll <- function(v) {
-    sum(.mv_dens_gauss(f$y, v[1:2], covstructs7::struct_matrix(f$s, v[3:5])))
+    sum(.mv_dens_gauss(f$y, v[1:2], parameters7::param_value(f$s, v[3:5])))
   }
   num <- .mv_grad(ll, c(f$mu, f$eta))
   err2 <- .mv_maxdiff(vapply(book, sum, numeric(1)), num)
@@ -146,9 +146,9 @@
   si <- solve(f$sigma)
   r <- sweep(f$y, 2L, f$mu)
   w <- r %*% si
-  d2ld <- covstructs7::struct_d2logdet(f$s, f$eta)
-  pairs <- covstructs7::struct_pair_indices(f$s)
-  pnames <- covstructs7::struct_pair_names(f$s)
+  d2ld <- parameters7::param_d2logdet(f$s, f$eta)
+  pairs <- parameters7::param_tuple_indices(f$s)
+  pnames <- parameters7::param_tuple_names(f$s)
 
   # The three blocks, transcribed from the printed equation.
   book <- list()
@@ -206,7 +206,7 @@
 
   # and against one mixed stencil on the hand-written log-likelihood
   ll <- function(v) {
-    sum(.mv_dens_gauss(f$y, v[1:2], covstructs7::struct_matrix(f$s, v[3:5])))
+    sum(.mv_dens_gauss(f$y, v[1:2], parameters7::param_value(f$s, v[3:5])))
   }
   v0 <- c(f$mu, f$eta)
   prs <- distributions7:::hess_pairs(d@params)
@@ -256,7 +256,7 @@
     }
   }
   # the trace form, transcribed
-  pairs <- covstructs7::struct_pair_indices(f$s)
+  pairs <- parameters7::param_tuple_indices(f$s)
   for (i in seq_along(pairs)) {
     k <- pairs[[i]][1L]
     l <- pairs[[i]][2L]
@@ -349,7 +349,7 @@
   w <- r %*% si
   q <- rowSums(r * w)
   cw <- (nu + p) / (nu + q)                      # equation (mvt-weight)
-  dld <- covstructs7::struct_dlogdet(f$s, f$eta)
+  dld <- parameters7::param_dlogdet(f$s, f$eta)
 
   book <- c(
     lapply(1:2, function(j) cw * w[, j]),        # equation (mvt-score)
@@ -373,7 +373,7 @@
   }
 
   ll <- function(v) {
-    sum(.mv_dens_t(f$y, v[1:2], covstructs7::struct_matrix(f$s, v[3:5]), v[6]))
+    sum(.mv_dens_t(f$y, v[1:2], parameters7::param_value(f$s, v[3:5]), v[6]))
   }
   num <- .mv_grad(ll, c(f$mu, f$eta, nu))
   err2 <- .mv_maxdiff(vapply(book, sum, numeric(1)), num)
@@ -420,7 +420,7 @@
 
   # the marginal: same family, block of the matrix, and for the t the same nu
   d3 <- mvstudent_t_distrib(3)
-  s3 <- covstructs7::log_cholesky(3)
+  s3 <- parameters7::log_cholesky(3)
   th3f <- as.list(stats::setNames(
     c(0, 1, -1, 0.1, -0.1, 0.2, 0.5, -0.2, 0.3, 7), d3@params
   ))
@@ -445,9 +445,9 @@
 
   # the two parametrisations of the gaussian describe the same law
   ds <- mvgaussian_distrib(2)
-  do <- mvgaussian_distrib(2, struct_omega = covstructs7::log_cholesky(2))
+  do <- mvgaussian_distrib(2, omega = parameters7::log_cholesky(2))
   ths <- as.list(stats::setNames(c(f$mu, f$eta), ds@params))
-  etao <- covstructs7::struct_free(do@struct, solve(mv_sigma(ds, ths)))
+  etao <- parameters7::param_free(do@param, solve(mv_sigma(ds, ths)))
   tho <- as.list(stats::setNames(c(f$mu, unname(etao)), do@params))
   if (.mv_maxdiff(distrib_pdf(do, f$y, tho, log = TRUE),
                   distrib_pdf(ds, f$y, ths, log = TRUE)) > 1e-10) {
@@ -474,7 +474,7 @@
   }
 
   # Equation (mv-sdcor-jacobian), transcribed, against the package's Jacobian.
-  a <- covstructs7::struct_dmatrix(f$s, f$eta)
+  a <- parameters7::param_d1(f$s, f$eta)
   jb <- matrix(0, 3, length(th))
   for (l in seq_along(a)) {
     al <- unname(a[[l]])
@@ -528,14 +528,14 @@
 
   # The precision form: same law, so the same standard deviations and
   # correlations, plus the readings that are its own.
-  do <- mvgaussian_distrib(3, struct_omega = covstructs7::log_cholesky(3))
+  do <- mvgaussian_distrib(3, omega = parameters7::log_cholesky(3))
   ds <- mvgaussian_distrib(3)
   set.seed(5108)
   ths <- generate_random_theta(ds)
   sig3 <- unname(mv_sigma(ds, ths))
   om3 <- solve(sig3)
   tho <- as.list(stats::setNames(
-    c(unlist(ths)[1:3], unname(covstructs7::struct_free(do@struct, om3))),
+    c(unlist(ths)[1:3], unname(parameters7::param_free(do@param, om3))),
     do@params
   ))
   vs <- mv_derived(ds, ths)$value

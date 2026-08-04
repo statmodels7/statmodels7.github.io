@@ -1,0 +1,286 @@
+================================================================================
+                        parameters7 -- PLAN
+        constrained parameters as S7 objects: parametrisations of the
+        sets a parameter can live in -- the SPD cone, the simplex, the
+        stochastic matrices -- with exact derivatives to FOURTH order
+                     on the unconstrained scale
+                        drafted 2026-08-04
+        This plan SUPERSEDES piano_covstructs7.txt, which remains as the
+        record of phase 1. The package covstructs7 is renamed, its scope
+        widened, and its API renamed with it (Giovanni, 2026-08-04): a
+        clean cut, no compatibility aliases, since the package is not on
+        CRAN and its only consumer is distributions7.
+================================================================================
+
+Written in English like every other artifact of the toolkit, so that anything
+here can be lifted into package documentation or into the book without
+translation.
+
+
+--------------------------------------------------------------------------------
+0. WHY THE RENAME, AND WHY NOW
+--------------------------------------------------------------------------------
+
+covstructs7 was named for its first inhabitants, and the name aged badly the
+moment the toolkit needed a parameter that is not a covariance: a probability
+vector on the simplex (the mixing weights of a mixture, the zero part of a
+multinomial), a row-stochastic transition matrix (a Markov switching model),
+a general SPD matrix under a different chart (the matrix logarithm). These
+are the same mathematical object as log-Cholesky: a smooth map from an
+unconstrained vector onto a constrained set, exact derivatives, an inverse
+that is exact or refused. Calling that object a "covariance structure" was
+wrong twice -- it is not always a covariance, and "structure" names nothing.
+
+The word that names it is PARAMETER. The package holds kinds of parameters;
+each is a parametrisation of the set where it lives. Hence parameters7, class
+`parameter`, prefix `param_`. The book's chapter drops the word "structure"
+for "constrained parameter" / "parametrisation".
+
+What does NOT move: the design pressure (exact derivatives, unconstrained
+scale, arbitrary user-defined instances), the exact-or-refuse inverse, the
+rank machinery for semidefinite matrices, and the free-name contract.
+
+
+--------------------------------------------------------------------------------
+1. THE CLASS TREE
+--------------------------------------------------------------------------------
+
+parameter                        (abstract; was covstruct)
+  properties: param_name, n_free, free_names, param_params
+  the VALUE can be any numeric array; the base class fixes nothing about
+  its shape beyond what param_value returns
+
+matrix_parameter : parameter     (abstract; NEW level)
+  the symmetric positive semidefinite branch. Adds what only a symmetric
+  matrix can answer: dimension, rank, null_basis, role, the log-(pseudo-)
+  determinant, the solve, the factor. Everything currently on covstruct
+  that mentions a matrix moves DOWN to here; the base class keeps only the
+  map and its derivatives.
+
+  concrete: LogCholeskyParam   (was LogCholeskyStruct; constructor log_cholesky)
+            MatrixLogParam     (NEW; constructor matrix_log)
+            DiagMatrixParam    (was DiagStruct; constructor diagonal_matrix)
+            ScalarMatrixParam  (was ScalarStruct;  constructor scalar_matrix)
+            ScaledMatrixParam  (was ScaledStruct;  constructor scaled_matrix)
+
+simplex_parameter : parameter    (NEW; constructor simplex)
+  value: a probability vector of length K, strictly interior
+transition_matrix_parameter : parameter  (NEW; constructor transition_matrix)
+  value: a K x K row-stochastic matrix, rows strictly interior
+
+Renaming rule for constructors: a constructor names the FAMILY, not the
+machinery. log_cholesky and matrix_log name parametrisations and stay as
+they are; diag_struct/scalar_struct/scaled_struct carried the dead word and
+become diagonal_matrix/scalar_matrix/scaled_matrix, which say what they
+produce. check_covstruct becomes check_parameter.
+
+
+--------------------------------------------------------------------------------
+2. THE GENERICS
+--------------------------------------------------------------------------------
+
+On `parameter` (the base):
+
+  param_value(p, eta)         the constrained value. The only compulsory one.
+  param_free(p, value)        the inverse: exact or refused, never optimised.
+  param_d1(p, eta)            list keyed by free_names
+  param_d2(p, eta)            list keyed by param_tuple_names(p, 2)
+  param_d3(p, eta)            list keyed by param_tuple_names(p, 3)   NEW
+  param_d4(p, eta)            list keyed by param_tuple_names(p, 4)   NEW
+                              every element shaped like the value
+
+  param_tuple_names(p, order), param_tuple_indices(p, order)
+      one enumeration produces both, never recovered by splitting a name
+      (the lesson distributions7 paid for three times). Order 2 keeps the
+      diagonal-first ordering the current pair helpers use, because
+      consumers index the Hessian that way; orders 3 and 4 are
+      lexicographic combinations with repetition, as in distributions7's
+      deriv_names. The separator stays ":".
+
+On `matrix_parameter` only:
+
+  param_logdet(p, eta)        log |M|, pseudo-determinant when rank < dim
+  param_dlogdet, param_d2logdet, param_d3logdet, param_d4logdet      (3-4 NEW)
+  param_solve(p, eta, b)      refused when rank deficient (unchanged logic)
+  param_factor(p, eta)        refused when rank deficient (unchanged logic)
+  param_null_basis(mats)      (was struct_null_basis; a free function)
+
+Numerical fallbacks, on the base class: every derivative order is ONE
+central stencil applied DIRECTLY to param_value -- order k uses the k-th
+order central stencil (the fd5_third/fd5_fourth shapes distributions7 now
+carries), never a stencil on a lower-order numerical derivative. This keeps
+the no-nesting rule structural: whatever a user implements, the fallback
+never differentiates a difference. The logdet fallbacks stencil param_logdet
+the same way. Accuracy documented honestly: ~1e-10 at order 1 down to ~1e-4
+at order 4, which is what a starting point deserves and a fitted model
+should replace with closed forms.
+
+Renamed one-to-one from today's API:
+  struct_matrix -> param_value        struct_free    -> param_free
+  struct_dmatrix -> param_d1          struct_d2matrix -> param_d2
+  struct_logdet -> param_logdet       struct_dlogdet  -> param_dlogdet
+  struct_d2logdet -> param_d2logdet   struct_solve    -> param_solve
+  struct_factor -> param_factor       struct_null_basis -> param_null_basis
+  struct_pair_names/indices -> param_tuple_names/indices (order argument)
+  struct_is_numerical -> param_is_numerical
+
+
+--------------------------------------------------------------------------------
+3. THIRD AND FOURTH DERIVATIVES, FAMILY BY FAMILY
+--------------------------------------------------------------------------------
+
+The motivation is stated by Giovanni: a mixed-effects model with a
+multivariate gaussian needs the covariance's derivatives at the order the
+estimator asks for, and distributions7's multivariate d3/d4 currently fall
+back numerically at a measured cost of 3.9 s for order 3 at p = 4. With the
+maps analytic to order 4, distributions7 can register closed multivariate
+d3/d4 later; this package's half of that bargain is delivered here.
+
+(a) log_cholesky. M = L L' with L linear or exponential in eta, so M is
+    QUADRATIC in L and every derivative distributes the differentiations
+    over the two factors:
+      d_klm M = sum over ways to split {k,l,m} between the two L's of
+                (d_S L)(d_Sc L)'
+    d_S L is nonzero only when S is empty, a singleton, or all of S is the
+    SAME diagonal index (there d^m L = L_ii E_ii for every m >= 1). So at
+    order 3: terms (L_kl, L_m) type require k = l diagonal; the only
+    all-in-one-factor term L_klm requires k = l = m diagonal. Closed form,
+    a page of loops. Order 4 identical in kind. Logdet: linear, so
+    d3/d4 logdet are zero vectors.
+
+(b) diagonal_matrix / scalar_matrix. Entries are theta_i(eta_i) through a
+    linkfunctions7 link, which supplies dlinkinv..d4linkinv already: the
+    derivative tensors are diagonal, one link derivative per order. Logdet =
+    sum log theta_i: chain rule of log with the link derivatives, all four
+    orders elementary.
+
+(c) scaled_matrix. M = c(eta) M0: d^k M = c^(k)(eta) M0 through the link;
+    logdet = rank * log c + logpdet(M0): scalar chain rule, all orders.
+
+(d) matrix_log (NEW family). Sigma = expm(S), S the symmetric matrix built
+    from eta the way log_cholesky builds L (diagonal first, then below-
+    diagonal by column, but NO exponential anywhere: S is genuinely free).
+      - param_free: S = logm(Sigma) by eigendecomposition; exact for SPD
+        input, refused otherwise.
+      - param_logdet = tr(S): LINEAR in the diagonal free values, like
+        log-Cholesky's. dlogdet constant, d2..d4 zero.
+      - param_solve: expm(-S) through the SAME eigendecomposition -- exact,
+        no factorisation.
+      - derivatives: the k-th Frechet derivative of expm by the
+        Daleckii-Krein representation. With S = Q diag(lambda) Q' and
+        E~ = Q' E Q,
+          (d expm[E])~_ij = f[lambda_i, lambda_j] E~_ij
+          (d2 expm[E,F])~_ij = sum_m f[l_i,l_m,l_j] (E~_im F~_mj + F~_im E~_mj)
+        and in general the sum over permutations of the directions of chains
+        weighted by (k+1)-point DIVIDED DIFFERENCES of exp. The divided
+        differences are computed by the Opitz theorem -- exp of the upper
+        bidiagonal matrix with the lambdas on the diagonal and ones above,
+        read off the corner entry -- which is exact under repeated and
+        near-repeated eigenvalues, where the quotient formula cancels
+        catastrophically. Tables of divided differences are precomputed per
+        eta (p^(k+1) small numbers), the component tensors are contractions.
+    Why the family earns its place next to log_cholesky: tr(S) linear and
+    expm(-S) exact make it the natural chart when the PRECISION and the
+    COVARIANCE are both wanted; its cost is that the derivatives need the
+    eigendecomposition, where log-Cholesky's are sparse products.
+
+(e) simplex (NEW family). K categories, K-1 free values, the additive
+    log-ratio / softmax map with the last category as reference:
+      pi_a = exp(eta_a) / (1 + sum_b exp(eta_b)),  pi_K = 1 / (1 + sum).
+    With Z = 1 + sum_b exp(eta_b), pi_a = d/d eta_a log Z for a < K, so the
+    derivatives of pi are the higher derivatives of log Z -- the CUMULANTS
+    of the categorical indicator -- and close over pi:
+      d_b pi_a = pi_a (delta_ab - pi_b)
+    and each further order differentiates that recursion with the same rule.
+    Implemented as the recursion, not as transcribed cumulant formulas: D2
+    from D1, D3 from D2 and D1, D4 from D3, D2, D1, by the product rule,
+    loops over K^5 at worst with K small. Inverse: eta_a = log(pi_a / pi_K),
+    exact; refused when the vector is outside the OPEN simplex or does not
+    sum to one within tolerance. Value carries names p1..pK; free names are
+    alr1..alr{K-1}, naming the chart the way log_L1 names its logarithm.
+    Stick-breaking is the alternative chart and was not chosen: its
+    derivatives chain through K-1 nested logistics and are not symmetric in
+    the categories, while ALR's close over pi in one rule.
+
+(f) transition_matrix (NEW family). A K x K row-stochastic matrix is K
+    independent simplex rows: n_free = K(K-1), free names alr{i}.{j} (row i,
+    chart coordinate j), consistent with L2.1's row.column convention. The
+    value is the matrix; every derivative tensor is BLOCK DIAGONAL BY ROW --
+    a component touching two different rows is exactly zero, and the
+    implementation loops the simplex kernels row by row rather than storing
+    the zeros. Inverse: row-wise ALR, refused if any row fails the simplex
+    test. Rows on the simplex, not columns: a transition matrix acts on row
+    vectors of probabilities, and the column convention is its transpose.
+
+What simplex and transition_matrix do NOT get: logdet, solve, factor, rank.
+Those are on matrix_parameter, and the refusal is by construction (the
+generic is not defined for them), not by a run-time error message.
+
+
+--------------------------------------------------------------------------------
+4. THE VALIDATOR
+--------------------------------------------------------------------------------
+
+check_parameter (was check_covstruct) keeps its checks and gains:
+  - orders 3 and 4 against ONE Richardson differentiation of the analytic
+    order below, per the toolkit's rule; skipped with [numerical] when the
+    order comes from the fallback (the linkfunctions7 lesson: a fallback
+    compared against the same arithmetic agrees however wrong the map is);
+  - for a simplex value: sums to one, interior, derivative components sum
+    to zero over the value index (differentiating sum(pi) = 1 kills every
+    order -- a free identity the injections cannot fake);
+  - for a transition matrix: the same row by row, plus exact zeros across
+    rows;
+  - for matrix_log: expm(logm) round trip, logdet against tr(S),
+    solve against expm(-S).
+Injection-checked in the tests as always: a 5% corruption of any closed
+form must be caught, and the unbroken family must still pass.
+
+
+--------------------------------------------------------------------------------
+5. WHAT CHANGES DOWNSTREAM
+--------------------------------------------------------------------------------
+
+distributions7 (same clean cut):
+  - Imports covstructs7 -> parameters7; Remotes updated.
+  - every covstructs7::struct_* call renamed; @free_names reads unchanged.
+  - the multivariate constructors' arguments struct_sigma/struct_omega
+    become sigma/omega: mvgaussian_distrib(4, sigma = log_cholesky(4)),
+    mvgaussian_distrib(4, omega = ...), mvstudent_t_distrib(4, sigma =,
+    link_nu =). The theta names (sigma_log_L1, ...) do NOT change: the
+    prefix convention is the distribution's, not the argument's.
+  - distributions7's multivariate d3/d4 stay on their (verified) fallback
+    for now; registering closed forms built on param_d3/param_d4 is the
+    follow-up that motivated this plan, tracked in CLAUDE.md's open items.
+
+book: chapter 6 becomes "The parameters7 package"; the prose replaces
+"structure" with "constrained parameter"/"parametrisation"; new sections for
+the simplex, the transition matrix and the matrix logarithm arrive with
+their gates. The gates rename with the API.
+
+site: portal links, pkgdown URL statmodels7.github.io/parameters7 (the
+renamed repository serves Pages under the new path; the OLD PAGES URL DOES
+NOT REDIRECT, so every link in the portal, the READMEs and the book must be
+swept -- the 97-literal lesson from the sigma_/omega_ rename applies).
+
+GitHub: gh repo rename keeps redirects for git remotes and web URLs;
+install_github("statmodels7/covstructs7") keeps resolving.
+
+
+--------------------------------------------------------------------------------
+6. DELIBERATELY LEFT OUT
+--------------------------------------------------------------------------------
+
+  - Correlation charts (D R D' with canonical partial correlations),
+    compound symmetry, AR(1), block diagonal, composition: still phase 2 of
+    the covariance side, unchanged by the rename, still next.
+  - Riemannian machinery (metrics, geodesics, retractions): parameters7
+    supplies charts and their derivatives, not geometry. The name manifolds7
+    was rejected for exactly this promise.
+  - Column-stochastic and doubly-stochastic matrices: the first is a
+    transpose the caller can write, the second (Birkhoff polytope) has no
+    elementary chart and no consumer yet.
+  - The unit sphere / directional parameters: no consumer yet; when a
+    consumer exists the chart question (stereographic vs angular) gets its
+    own section here.
+================================================================================

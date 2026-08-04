@@ -1,20 +1,20 @@
-## Rank and the null space {#sec-covstruct-rank}
+## Rank and the null space {#sec-parameter-rank}
 
 ```{r}
 #| label: setup-06c
 #| include: false
 source("R/_setup.R")
-source("R/covstruct-certificates.R")
+source("R/parameter-certificates.R")
 ```
 
-### Why a singular matrix is admitted {#sec-covstruct-singular}
+### Why a singular matrix is admitted {#sec-parameter-singular}
 
 A covariance matrix must be positive definite for the density it describes to
 exist, and a precision matrix must be positive definite for the same reason: a
 singular covariance puts the whole distribution on a subspace, and a singular
 precision leaves the density unnormalisable. Both readings of a multivariate
 gaussian therefore require full rank, and the distribution of @sec-mvgaussian
-refuses a rank-deficient structure.
+refuses a rank-deficient parameter.
 
 A penalty is not a density. Writing a quadratic penalty
 $\frac{\lambda}{2}\beta^\top P \beta$ as a negative log prior makes it a
@@ -28,7 +28,7 @@ improper, and its impropriety is the modelling assumption rather than a defect.
 The package therefore admits rank-deficient matrices, and everything a
 consumer asks of one has to be redefined so that it still means something.
 
-### The pseudo-determinant {#sec-covstruct-pseudodet}
+### The pseudo-determinant {#sec-parameter-pseudodet}
 
 The determinant of a singular matrix is zero, so $\log|M|$ is $-\infty$ and
 useless. The quantity that takes its place is the **pseudo-determinant**, the
@@ -44,9 +44,9 @@ consumer asks the same question of either matrix — what normalising constant
 does this contribute — and the object knows which answer is right, through the
 rank it declares.
 
-The gradient identity @eq-covstruct-dlogdet survives with the Moore-Penrose
+The gradient identity @eq-parameter-dlogdet survives with the Moore-Penrose
 inverse in place of $M^{-1}$, and for the scaled family of
-@sec-covstruct-scaled it collapses to the constant of @eq-scaled-logdet.
+@sec-parameter-scaled it collapses to the constant of @eq-scaled-logdet.
 
 That constant is what makes the scale estimable. The penalised objective seen
 as a negative log posterior contributes
@@ -70,7 +70,7 @@ to be right.
 ```{r}
 #| label: pseudodet-lambda
 dm <- diff(diag(8), differences = 2)
-pen <- covstructs7::scaled_struct(crossprod(dm))
+pen <- parameters7::scaled_matrix(crossprod(dm))
 p_mat <- crossprod(dm)
 
 set.seed(3)
@@ -84,7 +84,7 @@ c(closed_form = pen@rank / quad,
   numerical = stats::optimize(obj, c(1e-8, 1e8))$minimum)
 ```
 
-### Determining the rank {#sec-covstruct-rank-determination}
+### Determining the rank {#sec-parameter-rank-determination}
 
 The rank of a matrix is a statement about the matrix, and a numerical
 procedure that reads it off an assembled matrix does not always make that
@@ -122,7 +122,7 @@ count_ev <- function(m, tol = 1e-10) {
 }
 
 # the stored null basis, and the residual it leaves in the assembled matrix
-ns <- covstructs7::struct_null_basis(list(p1, p2))
+ns <- parameters7::param_null_basis(list(p1, p2))
 
 ratios <- c(1, 1e4, 1e8, 1e10, 1e12)
 data.frame(
@@ -149,7 +149,7 @@ machines for the same matrix. A verdict of that kind belongs to the
 eigenvalues, which describe the matrix, rather than to the arithmetic that was
 performed on it.
 
-### The solve, which a singular matrix does not have {#sec-covstruct-singular-solve}
+### The solve, which a singular matrix does not have {#sec-parameter-singular-solve}
 
 The remaining quantity is the solve, and it is the one that is refused rather
 than redefined. A Moore-Penrose solve $M^{+}B$ exists and is easy to compute,
@@ -164,7 +164,7 @@ without being told.
 ```{r}
 #| label: singular-solve
 #| error: true
-covstructs7::struct_solve(pen, 0)
+parameters7::param_solve(pen, 0)
 ```
 
 What the null space is for, instead, is membership. A basis of it is stored at
@@ -190,5 +190,5 @@ c(
 ```{r}
 #| label: consistency-06c
 #| include: false
-assert_covstruct_rank_ok()
+assert_parameter_rank_ok()
 ```

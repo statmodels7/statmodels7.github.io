@@ -30,12 +30,12 @@ only structural change the response requires.
 The parameters need more care. A $p$-variate gaussian has a mean vector
 $\mu \in \mathbb{R}^p$ and a covariance matrix $\Sigma$, and $\Sigma$ is not a
 free object: it must be symmetric and positive definite. A parameter of this
-kind is what @sec-covstructs7 is about. All this section needs from it is the
-contract: a **structure** is a map
+kind is what @sec-parameters7 is about. All this section needs from it is the
+contract: a **parameter** is a map
 
 $$
 \eta \;\longmapsto\; M(\eta), \qquad \eta \in \mathbb{R}^{d},
-$$ {#eq-mv-structure}
+$$ {#eq-mv-parameter}
 
 from an unconstrained vector of length $d$ to a symmetric matrix in the
 constrained set, supplying the derivatives
@@ -46,7 +46,7 @@ onto the set and one-to-one, so $\eta$ ranges over the whole of
 $\mathbb{R}^{d}$ with no constraint of its own.
 
 The parameters of a multivariate distribution are then the $p$ components of
-the mean together with the $d$ free values of the structure, and every one of
+the mean together with the $d$ free values of the parameter, and every one of
 them is a **scalar**. This is what lets the rest of the package apply
 unchanged. A parameter vector $\theta$ is a named list of numbers, the
 derivative components are keyed by parameter names exactly as in
@@ -58,7 +58,7 @@ in the link scale of @sec-link-scale, or in the fitting routine of
 
 Every one of these scalars is unconstrained, so every link is the identity.
 The constraint that would otherwise need a link has been moved into the
-structure, where it belongs: it is a constraint on the matrix as a whole and
+parameter, where it belongs: it is a constraint on the matrix as a whole and
 not on any one entry, and a scalar link cannot express it. A multivariate
 gaussian therefore has a link scale that coincides with its parameter scale.
 A multivariate $t$ does not, because its degrees of freedom are a genuine
@@ -66,18 +66,18 @@ positive scalar and carry a log link.
 
 There is one restriction, and it comes from what a parameter means here. In a
 univariate family a parameter may vary from observation to observation, which
-is what a regression does. Here it may not: the structure's free values
+is what a regression does. Here it may not: the parameter's free values
 describe one matrix for the whole sample. A model in which the matrix varies
 by observation belongs to the layer that owns the regression, not to the
 distribution, and the constructor refuses a parameter of length greater than
 one rather than silently using its first entry.
 
 The names of the free values carry a prefix saying which matrix they describe,
-`sigma_` for a covariance and `omega_` for a precision. The name a structure
+`sigma_` for a covariance and `omega_` for a precision. The name a parameter
 gives a free value records how the matrix is built and not which matrix it is,
-so the same structure on the two sides of a model would otherwise produce
+so the same parameter on the two sides of a model would otherwise produce
 identical parameter names for two different models. The distribution applies
-the prefix rather than the structure, since the structure does not know which
+the prefix rather than the parameter, since the parameter does not know which
 side it has been handed to.
 
 ### The gaussian {#sec-mvgaussian}
@@ -98,7 +98,7 @@ one component per coordinate. For the matrix directions, the derivative of the
 quadratic form follows from $\partial_k \Sigma^{-1} = -\Sigma^{-1} A_k
 \Sigma^{-1}$, which is the derivative of an inverse, so that
 $\partial_k (r^\top \Sigma^{-1} r) = -w^\top A_k w$. Together with the
-structure's own $\partial_k \log|\Sigma|$,
+parameter's own $\partial_k \log|\Sigma|$,
 
 $$
 \ell^{(\mu_a)} = w_a, \qquad
@@ -106,9 +106,9 @@ $$
    \;+\; \tfrac{1}{2}\, w^\top A_k w .
 $$ {#eq-mvgaussian-score}
 
-Both pieces on the right come from the structure, and neither depends on which
+Both pieces on the right come from the parameter, and neither depends on which
 family of matrices it belongs to. The distribution is written once and works
-with any structure that satisfies the contract.
+with any parameter that satisfies the contract.
 
 The second derivatives follow by differentiating again. The mean block is
 $-\Sigma^{-1}$, constant in $y$; the mixed block is
@@ -138,7 +138,7 @@ $$ {#eq-mvgaussian-information}
 
 The second derivatives $A_{kl}$ have disappeared, and so has the second
 derivative of the log-determinant. The information needs only the first
-derivatives of the structure, which is what makes Fisher scoring cheaper here
+derivatives of the parameter, which is what makes Fisher scoring cheaper here
 than a Newton step, and it is what @sec-fit-scoring already predicted in
 one dimension.
 
@@ -153,18 +153,18 @@ mv_sigma(d, theta)
 
 A gaussian may equally be written in the precision $\Omega = \Sigma^{-1}$, and
 which of the two a model parametrises is a modelling decision rather than a
-notational one: a structure imposed on $\Sigma$ is a different family from the
-same structure imposed on $\Omega$, since the inverse of a compound-symmetry
+notational one: a parameter imposed on $\Sigma$ is a different family from the
+same parameter imposed on $\Omega$, since the inverse of a compound-symmetry
 matrix is compound symmetry while the inverse of an AR(1) is not AR(1). The
-constructor takes the structure on either side, and everything above still
+constructor takes the parameter on either side, and everything above still
 applies, because $\partial \Sigma / \partial \eta_k = -\Sigma A_k \Sigma$ when
 $A_k$ is a derivative of the precision. The two parametrisations describe the
 same law when the matrices are matched.
 
 ```{r}
 #| label: mvgaussian-precision
-do <- mvgaussian_distrib(2, struct_omega = covstructs7::log_cholesky(2))
-eta_o <- covstructs7::struct_free(do@struct, solve(mv_sigma(d, theta)))
+do <- mvgaussian_distrib(2, omega = parameters7::log_cholesky(2))
+eta_o <- parameters7::param_free(do@param, solve(mv_sigma(d, theta)))
 theta_o <- as.list(stats::setNames(c(0.5, -0.3, eta_o), do@params))
 
 y <- rbind(c(0, 0), c(1, -1), c(-0.5, 0.8))
@@ -207,7 +207,7 @@ c \;=\; \frac{\nu + p}{\nu + q}
 $$ {#eq-mvt-weight}
 
 for the weight an observation receives, the derivatives with respect to the
-mean and the structure are those of the gaussian, @eq-mvgaussian-score, with
+mean and the parameter are those of the gaussian, @eq-mvgaussian-score, with
 every term involving the data multiplied by $c$:
 
 $$
@@ -318,7 +318,7 @@ s_hat <- crossprod(sweep(y_big, 2L, mu_hat)) / nrow(y_big)
 c(
   loglik_gap = as.numeric(logLik(fit)) -
     sum(distrib_pdf(d, y_big, as.list(stats::setNames(
-      c(mu_hat, covstructs7::struct_free(d@struct, s_hat)), d@params
+      c(mu_hat, parameters7::param_free(d@param, s_hat)), d@params
     )), log = TRUE)),
   mean_gap = max(abs(mv_location(d, coef(fit)) - mu_hat)),
   cov_gap = max(abs(mv_sigma(d, coef(fit)) - s_hat))
@@ -359,8 +359,8 @@ $$
            + \frac{A_l[k,k]}{\Sigma_{kk}}\right),
 $$ {#eq-mv-sdcor-jacobian}
 
-with $A_k = \partial\Sigma/\partial\eta_k$ the structure's own derivative,
-which @eq-mv-structure already requires it to supply. Nothing new has to be
+with $A_k = \partial\Sigma/\partial\eta_k$ the parameter's own derivative,
+which @eq-mv-parameter already requires it to supply. Nothing new has to be
 computed.
 
 The interval each quantity gets is built on the scale that keeps it in the set
