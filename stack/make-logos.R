@@ -241,51 +241,70 @@ DENS_XMAX  <- 11
   write_logo("logo/basis7.svg", glyph, "basis")
 }
 
-# --- parameters7: the ellipse a covariance IS -----------------------------
+# --- parameters7: a constrained set, and the chart that reaches it --------
 #
-# The contours of a real bivariate gaussian, and drawn the way the package
-# computes them rather than as ellipses that happen to be elliptical: the
-# contour at radius c is the image of the circle of radius c under the Cholesky
-# factor L, and L is exactly what log_cholesky() parametrises. So the picture
-# is the parametrisation.
+# The picture is what the package is: a straight, unbounded grid on the free
+# scale carried onto a bounded set. The set drawn is the 2-simplex -- the
+# probability vectors on three categories -- because it is the one constrained
+# set the package parametrises that can be drawn honestly in two dimensions,
+# and the grid is the image of straight lines under the additive log-ratio map
+# simplex() implements, sampled here rather than sketched.
 #
-# Three contours, the middle one accented, because a covariance is a nested
-# family rather than one curve; the axes are drawn faintly through the centre
-# so that the tilt -- which is the correlation, the thing a diagonal structure
-# cannot express -- is visible against something straight.
+# The crowding is the whole statement. Equally spaced values on the free scale
+# come out bunched against the boundary: a line at free value a meets the
+# opposite edge at plogis(a), so the spacing along that edge is the logistic's,
+# and no finite value reaches the edge at all. The grid therefore stops short
+# and the outline is drawn whole, which is the difference between a
+# constrained set and the unconstrained scale that maps onto it.
+#
+# Three pencils rather than the two the chart names. The simplex does not care
+# which category is the reference, so the third family -- the one holding
+# p1/p2 fixed -- belongs to the geometry as much as the two the coordinates
+# happen to single out, and drawing all three keeps the picture symmetric
+# under relabelling.
 {
-  # A correlation of about a half: enough tilt to be unmistakable, not so much
-  # that the contours degenerate into a line and stop reading as a covariance.
-  sigma <- matrix(c(1, 0.42, 0.42, 0.62), 2, 2)
-  l <- t(chol(sigma))
-  tt <- seq(0, 2 * pi, length.out = 240)
-  circle <- rbind(cos(tt), sin(tt))
-
-  cx <- box$x + box$w / 2
-  cy <- box$y + box$h / 2
-  # Scaled so the outermost contour clears the box: the major axis is
-  # sqrt(largest eigenvalue) standard deviations long, and the drawing is
-  # ISOTROPIC, because an ellipse whose axis ratio has been altered is no
-  # longer the ellipse of this covariance.
-  unit <- 42
-
-  contour_path <- function(radius) {
-    z <- l %*% (radius * circle)
-    paste0("M ", paste(sprintf("%.2f %.2f", cx + unit * z[1, ],
-                               cy - unit * z[2, ]), collapse = " L "), " Z")
+  # The map simplex() carries, written out rather than called, so this script
+  # keeps drawing the mathematics without depending on the package.
+  alr_inv <- function(e1, e2) {
+    z <- c(e1, e2, 0)
+    z <- z - max(z)
+    p <- exp(z)
+    p / sum(p)
   }
 
+  cx <- box$x + box$w / 2
+  cy <- box$y + box$h / 2 + 6
+  R  <- 128                              # circumradius, in canvas units
+  V  <- rbind(
+    c(cx,                   cy - R),
+    c(cx - R * sqrt(3) / 2, cy + R / 2),
+    c(cx + R * sqrt(3) / 2, cy + R / 2)
+  )
+  proj <- function(p) c(sum(p * V[, 1]), sum(p * V[, 2]))
+
+  path_of <- function(f, n = 90) {
+    xy <- vapply(seq(-2.7, 2.7, length.out = n), function(s) proj(f(s)),
+                 numeric(2))
+    paste0("M ", paste(sprintf("%.2f %.2f", xy[1, ], xy[2, ]), collapse = " L "))
+  }
+
+  levels_free <- c(-2.4, -1.2, 0, 1.2, 2.4)
+  grid_paths <- unlist(lapply(levels_free, function(a) {
+    c(path_of(function(s) alr_inv(a, s)),        # p1/p3 held fixed
+      path_of(function(s) alr_inv(s, a)),        # p2/p3 held fixed
+      path_of(function(s) alr_inv(s, s - a)))    # p1/p2 held fixed
+  }))
+
+  outline <- paste0(
+    "M ", paste(sprintf("%.2f %.2f", V[, 1], V[, 2]), collapse = " L "), " Z"
+  )
+
   glyph <- paste0(
-    sprintf('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="2" opacity="0.3"/>\n',
-            cx - 118, cy, cx + 118, cy, LINE),
-    sprintf('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="2" opacity="0.3"/>\n',
-            cx, cy - 96, cx, cy + 96, LINE),
-    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="4" stroke-linecap="round" opacity="0.45"/>\n',
-            contour_path(0.75), LINE),
-    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="4" stroke-linecap="round" opacity="0.45"/>\n',
-            contour_path(1.9), LINE),
-    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="6" stroke-linecap="round"/>\n',
-            contour_path(1.32), ACCENT)
+    paste0(vapply(grid_paths, function(p) sprintf(
+      '<path d="%s" fill="none" stroke="%s" stroke-width="2.4" stroke-linecap="round" opacity="0.42"/>\n',
+      p, LINE), character(1)), collapse = ""),
+    sprintf('<path d="%s" fill="none" stroke="%s" stroke-width="5.5" stroke-linejoin="round"/>\n',
+            outline, ACCENT)
   )
   write_logo("logo/parameters7.svg", glyph, "parameters")
 }
