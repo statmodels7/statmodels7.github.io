@@ -139,7 +139,7 @@ assert_fit_ok <- function() {
     problems <- c(problems, res)
   }
 
-  problems <- c(problems, .certify_starting_values())
+  problems <- c(problems, .certify_starting_values(), .certify_objective_scale())
 
   if (length(problems)) {
     stop("Chapter 5 consistency gate failed:\n  ",
@@ -187,17 +187,66 @@ assert_fit_ok <- function() {
     ))
   }
 
-  # And the counterfactual: the same everything, started at the origin, does
-  # not get there. Without this the claim would be untested -- a fit that
-  # converges quickly from a good start proves nothing about the start unless
-  # a bad one is shown to fail.
+  # And the counterfactual: the same everything, started at the origin. It
+  # reaches the same maximum, so what the start buys is work rather than an
+  # answer, and that is what has to be measured. Without this the single
+  # iteration above would prove nothing -- a fit that converges quickly from a
+  # good start says nothing about the start unless a poor one is shown to cost
+  # more.
   zero <- as.list(stats::setNames(rep(0, d@n_params), d@params))
   fz <- fit_distrib(d, y, start = zero, maxit = 500)
-  if (isTRUE(fz@converged) &&
-      abs(as.numeric(logLik(fz)) - ll_hat) < 1e-8) {
-    out <- c(out, paste0(
-      "the fit started at the origin now reaches the maximum too, so the ",
-      "section's claim about starting values no longer has a counterexample"
+  if (fz@iterations < 10 * max(1, f@iterations)) {
+    out <- c(out, sprintf(paste0(
+      "the fit started at the origin took %d iterations against %d from the ",
+      "proposed start, so the section's claim about starting values has no ",
+      "counterexample"), fz@iterations, f@iterations))
+  }
+  out
+}
+
+
+# The averaged objective. The section claims that dividing by n moves neither
+# the maximiser nor anything reported, and that the threshold is read on the
+# averaged score. Each is checked against arithmetic done here rather than
+# against another quantity the package computes: a standard error left on the
+# averaged scale would be sqrt(n) times the closed-form one, which is what the
+# second and third comparisons would catch.
+.certify_objective_scale <- function() {
+  out <- character()
+  set.seed(24)
+  n <- 5000
+  d <- gaussian_distrib()
+  y <- distrib_rng(d, n, list(mu = 3, sigma = 2))
+
+  mu_hat <- mean(y)
+  s_hat  <- sqrt(mean((y - mu_hat)^2))
+  ll_hat <- sum(distrib_pdf(d, y, list(mu = mu_hat, sigma = s_hat), log = TRUE))
+
+  f <- fit_distrib(d, y)
+  if (abs(as.numeric(logLik(f)) - ll_hat) > 1e-8) {
+    out <- c(out, sprintf(
+      "the averaged objective moved the maximum: %s against %s",
+      format(as.numeric(logLik(f)), digits = 12), format(ll_hat, digits = 12)
+    ))
+  }
+  # se(mu) = sigma / sqrt(n) and se(sigma) = sigma / sqrt(2n), exactly, for a
+  # gaussian fitted by maximum likelihood.
+  want <- c(mu = s_hat / sqrt(n), sigma = s_hat / sqrt(2 * n))
+  got  <- c(mu = f@se[["mu"]], sigma = f@se[["sigma"]])
+  if (max(abs(got - want) / want) > 1e-6) {
+    out <- c(out, sprintf(
+      "a standard error is off the closed form by a factor of %s",
+      paste(format(got / want, digits = 6), collapse = " and ")
+    ))
+  }
+  # And the rule is read on the averaged score: the summed one is n times
+  # larger, so a tolerance of 1e-10 on the sum would be out of reach here.
+  sc <- vapply(distrib_gradient(d, y, as.list(coef(f)), scale = "link"),
+               sum, numeric(1))
+  if (!isTRUE(f@converged) || max(abs(sc)) / n > 1e-10) {
+    out <- c(out, sprintf(
+      "the reported optimum has an averaged score of %.2e, converged = %s",
+      max(abs(sc)) / n, f@converged
     ))
   }
   out

@@ -112,19 +112,23 @@ ascent direction, a sufficiently small $s$ always succeeds, so the iteration
 increases the log-likelihood at every step, and a step that would enter a
 region where the density overflows is simply not taken.
 
-Convergence is declared when the score is numerically zero or when the
-log-likelihood has stopped moving, whichever occurs first:
+The quantity actually handed to the optimiser is not the log-likelihood but
+the log-likelihood per observation, $\ell(\eta)/n$, with the score and the
+information divided by $n$ as well. The maximiser is unchanged, and so is
+every Newton step, since the factor cancels between the inverse Hessian and
+the gradient. What changes is the meaning of a threshold. A score is a sum of
+$n$ terms, so a fixed bound on $\max_j \lvert U_j \rvert$ asks a sample of ten
+million to reach an accuracy per observation ten million times finer than it
+asks of a sample of ten; on the averaged scale the same number means the same
+thing at every sample size. Convergence is therefore declared when
 
-$$\max_j \lvert U_j \rvert < \texttt{tol}
-\qquad\text{or}\qquad
-\lvert \Delta \ell \rvert < \texttt{tol}\,(\lvert \ell \rvert + \texttt{tol}).$$
+$$\max_j \left\lvert \frac{U_j(\eta)}{n} \right\rvert < \texttt{tol},$$
 
-The second criterion is measured relative to the magnitude of the
-log-likelihood, because an absolute threshold has entirely different meanings
-for a sample of ten and for a sample of ten million. The two conditions are
-the stopping rules `crit_grad()` and `crit_rel_obj()` of @sec-optimizers7,
-combined with `crit_any()`, so the rule is an object the caller can replace
-rather than a comparison written inside the iteration.
+which is the stopping rule `crit_grad()` of @sec-optimizers7, an object the
+caller can replace rather than a comparison written inside the iteration. The
+log-likelihood, the information and the standard errors are all recomputed
+unscaled at the reported optimum, so nothing the fit returns is measured per
+observation.
 
 ::: {.callout-note}
 ## Fitting a non-regular model
@@ -144,7 +148,8 @@ right definition of information for a non-regular family.
 A likelihood need not be concave, and a fit started at a poor point can
 converge to a local maximum, to a boundary, or not at all. How far the start
 is from the answer is not a detail of the implementation but a property of the
-problem, and it decides whether the fit takes one step or never arrives.
+problem, and it governs the amount of work the iteration has to do before it
+arrives, when it arrives at all.
 
 The starting value comes from a distribution's own `distrib_start()`, which
 receives the data. A family that knows an estimator of its parameters returns

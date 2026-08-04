@@ -515,6 +515,23 @@ Three things made the translation nearly literal:
   gone red on macOS once;
 - `method` now also accepts **any optimiser object**, used as given.
 
+**The objective handed to the optimiser is `-l(eta)/n`** (2026-08-04, Giovanni's
+proposal), with the gradient and the Hessian divided by `n` too. The maximiser is
+unchanged and so is every Newton step, since the factor cancels in `H^-1 g`; what
+changes is what a *threshold* means. `crit_grad(tol)` on a summed score asks a
+sample of ten million for an accuracy per observation ten million times finer than
+it asks of a sample of ten, which is why an absolute `1e-10` was unreachable on
+macOS and green everywhere else. My first fix was `crit_grad(tol * n)` and it was
+worse than it looks: **a criterion the caller supplies gets no such scaling**, so
+`method = lbfgs(criterion = crit_grad())` — which Giovanni actually ran — kept the
+whole problem. Scaling the objective fixes both at once, and it is the only place
+that can. `ll_hat` and `I_eta` are recomputed **unscaled** at the optimum, so
+`logLik`, AIC/BIC and every standard error are untouched (verified: gap to the
+closed-form maximum 0, `se(mu)` against `sigma/sqrt(n)` to 1.2e-16). The book's
+§3.3 states the averaged rule and `.certify_objective_scale()` pins it, injection
+-checked against standard errors left on the averaged scale (a factor of 70.7 at
+n = 5000) and against a 5% error.
+
 Two things improved rather than merely moved: the line search requires sufficient
 decrease instead of mere non-decrease, and a non-PD Hessian is repaired by flooring
 its eigenvalues instead of abandoning the start, which `solve()` used to force.
@@ -588,6 +605,23 @@ whole and a scalar link cannot express it.
   `mv_which=` offered instead.
 - `n_obs()` is the row count, not the length. A parameter may **not** vary by
   observation here: the structure describes one matrix for the whole sample.
+  ⚠️ **And `length(y)` was used for it once, in the link-scale branch of
+  `distrib_expected_hessian` (`R/generics.R`)**, where a zero vector is built
+  to stand for a parameter that does not vary. For a matrix response
+  `length(y)` counts entries, so that vector came out `n*p` long and recycled
+  against the `p`-long components; the first-order term of the order-2 chain
+  rule appears only on the diagonal, so **every diagonal entry of the
+  information was inflated by `p` and every standard error of a multivariate
+  fit came back a factor of `sqrt(p)` too small** — measured ratios 0.70, 0.56
+  and 0.48 at p = 2, 3, 4 against the exact `sd_j/sqrt(2n)`, now 1.000. The
+  arithmetic was confirmed by simulation (0.02589 sampled against 0.02506
+  theoretical) before touching anything. A quiet factor of `sqrt(p)` is what a
+  wrong length looks like in a language that recycles: **anywhere a matrix
+  response meets code written for a vector, `length()` is a defect and
+  `n_obs()` is the question.** It also mattered for the fitting: the corrupted
+  expected information made Fisher scoring take poor steps from a distant
+  start, and the iris fit that used to run 500 iterations without arriving now
+  converges from the origin in 42.
 - **The structure's free names are PREFIXED by the matrix they describe**
   (2026-08-04, Giovanni): `sigma_log_L1` for a covariance or a scale matrix,
   `omega_log_L1` for a precision. A free name says how the matrix is BUILT and
@@ -654,8 +688,8 @@ whole and a scalar link cannot express it.
 | | |
 |---|---|
 | `linkfunctions7` | 890 tests, `R CMD check` OK, CI green |
-| `distributions7` | 2132 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-04, local), CI green |
-| `optimizers7` | 696 tests, `R CMD check` OK with vignettes, CI green on all five platforms (2026-07-31). Published the same day; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
+| `distributions7` | 2109 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-04, local), CI green |
+| `optimizers7` | 710 tests, `R CMD check --as-cran` OK with vignettes, two notes (2026-08-04). Published 2026-07-31; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 | `covstructs7` | 379 tests, `R CMD check --as-cran` clean apart from the submission notes, created 2026-08-03. Version `0.1.0`. Phase 1 of `piano_covstructs7.txt` is done; phase 2 is correlations and composition. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
@@ -1074,6 +1108,22 @@ raised, and the loop keeps the last result it obtained. General shape: an
 error message that names a cause is worse than useless when the cause is not
 the real one -- the same lesson as the `check_criterion()` item in section 4.
 
+**The same shape, one layer down, in `optimizers7`** (2026-08-04). A descent
+run asked its stopping rule only *after* an accepted step, so a line search
+that could find no acceptable step broke the loop with `converged = FALSE` and
+*"the line search found no acceptable step"* -- **including when the start was
+already the answer**, which is now the ordinary case, since `distrib_start()`
+hands a multivariate gaussian its closed-form estimate. Fisher and Newton
+reported one iteration and convergence while BFGS reported failure on the same
+fit, and that disagreement was the last red job on macOS. `src/descent.cpp`
+now asks the criterion before giving up, with `have_old = false`, so `f_old`
+and `x_old` arrive NULL: a rule reading a change in the objective returns
+FALSE by construction and only the state at the point -- its gradient, its
+stationarity -- can end the run. The counterexample is in the tests beside it:
+a mis-stated gradient makes every direction ascend far from the optimum, and
+that run must still fail. **A method that cannot move is converged only if the
+point says so, never because the move failed.**
+
 ### Multivariate distributions
 
 - **A rank read off an assembled matrix is not a property of the family.** The
@@ -1280,6 +1330,16 @@ the real one -- the same lesson as the `check_criterion()` item in section 4.
   reports the problem is `R CMD check --as-cran` flagging the package's own URL
   as a possibly invalid one -- and that check is disabled in CI, so nothing at
   all would have said so.
+- **`gh run list --commit <sha>` needs the FULL forty-character sha** and
+  matches nothing at all against an abbreviated one -- silently, with exit
+  status 0 and an empty list (2026-08-04). A script that looped over six
+  repositories and printed a per-repository verdict therefore reported
+  *"TUTTO VERDE"* from **zero runs found**, which is the worst possible
+  failure for a check whose entire job is to say whether something is green.
+  Any script that summarises a query must **assert that the query returned
+  something** before summarising it; an empty result is a third answer, not a
+  pass. `git rev-parse HEAD` gives the full sha, and `--json` output is easier
+  to count than to read.
 - The Codecov action fetches its own uploader and verifies its GPG signature; when the
   keyserver does not answer that fails the whole job for a reason unrelated to the
   package. `use_pypi: true` avoids that path, and `fail_ci_if_error: false` keeps a
