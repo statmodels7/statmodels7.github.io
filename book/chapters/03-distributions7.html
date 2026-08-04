@@ -1719,10 +1719,11 @@ H(\eta) = \sum_{i=1}^{n} \frac{\partial^{2} \ell_i}{\partial \eta \,\partial \et
 <p>The default is Fisher scoring, for a reason supplied by <a href="#cor-congruence" class="quarto-xref">Corollary&nbsp;<span>3.1</span></a>. On the link scale the expected information is</p>
 <p><span class="math display">\[\mathbb{E}[I_\eta] = \operatorname{diag}(h')\,\mathbb{E}[I_\theta]\,\operatorname{diag}(h'),\]</span></p>
 <p>a congruence transform, and a congruence transform of a positive definite matrix is positive definite. If the model is identified on the parameter scale, the matrix Fisher scoring inverts is therefore positive definite on the link scale as well, and the step it computes is an ascent direction without any repair. The observed Hessian carries no such guarantee: away from the optimum, <span class="math inline">\(-H\)</span> can fail to be positive definite, and the raw Newton step can then point downhill, which is why <a href="04-optimizers7.html#sec-newton" class="quarto-xref"><span>Section 4.2.1</span></a> floors the eigenvalues of the matrix it inverts. This comparison concerns the behaviour of the iterations, not the quality of the estimators; at the optimum the two informations agree in expectation.</p>
-<p>An ascent direction fixes only the direction, so the step length is chosen by the line search of <a href="04-optimizers7.html#sec-descent-armijo" class="quarto-xref"><span>Section 4.1.2</span></a>: the candidate <span class="math inline">\(\eta + s\,\Delta\)</span> is tried with <span class="math inline">\(s = 1\)</span> and <span class="math inline">\(s\)</span> is reduced until the decrease in the objective is a fixed fraction of the one the linear model predicts. Because the direction is an ascent direction, a sufficiently small <span class="math inline">\(s\)</span> always succeeds, so the iteration increases the log-likelihood at every step, and a step that would enter a region where the density overflows is simply not taken.</p>
+<p>An ascent direction fixes only the direction, so the step length is chosen by the line search of <a href="04-optimizers7.html#sec-descent-armijo" class="quarto-xref"><span>Section 4.1.2</span></a>: the candidate <span class="math inline">\(\eta + s\,\Delta\)</span> is tried with <span class="math inline">\(s = 1\)</span> and <span class="math inline">\(s\)</span> is reduced until the decrease in the objective is a fixed fraction of the one the linear model predicts. Because the direction is an ascent direction, a sufficiently small <span class="math inline">\(s\)</span> succeeds in exact arithmetic, so the iteration increases the log-likelihood at every step, and a step that would enter a region where the density overflows is simply not taken.</p>
 <p>The quantity actually handed to the optimiser is not the log-likelihood but the log-likelihood per observation, <span class="math inline">\(\ell(\eta)/n\)</span>, with the score and the information divided by <span class="math inline">\(n\)</span> as well. The maximiser is unchanged, and so is every Newton step, since the factor cancels between the inverse Hessian and the gradient. What changes is the meaning of a threshold. A score is a sum of <span class="math inline">\(n\)</span> terms, so a fixed bound on <span class="math inline">\(\max_j \lvert U_j \rvert\)</span> asks a sample of ten million to reach an accuracy per observation ten million times finer than it asks of a sample of ten; on the averaged scale the same number means the same thing at every sample size. Convergence is therefore declared when</p>
 <p><span class="math display">\[\max_j \left\lvert \frac{U_j(\eta)}{n} \right\rvert &lt; \texttt{tol},\]</span></p>
 <p>which is the stopping rule <code>crit_grad()</code> of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a>, an object the caller can replace rather than a comparison written inside the iteration. The log-likelihood, the information and the standard errors are all recomputed unscaled at the reported optimum, so nothing the fit returns is measured per observation.</p>
+<p>How small a threshold can usefully be asked for is settled by the objective rather than by the algorithm. Near the maximum the increase a step can produce is about <span class="math inline">\(\lVert U/n \rVert^{2}/(2\lambda)\)</span> for a curvature <span class="math inline">\(\lambda\)</span>, and once that quantity falls below the rounding of the objective itself, of order <span class="math inline">\(\varepsilon \lvert \ell/n \rvert\)</span>, the line search can no longer tell an improvement from noise and refuses every step. The smallest score a run can reach is therefore near <span class="math display">\[\sqrt{2 \lambda \varepsilon \lvert \ell(\eta)/n \rvert},\]</span> which for a log-likelihood per observation of order one is around <span class="math inline">\(10^{-8}\)</span>. The default tolerance is <span class="math inline">\(10^{-6}\)</span>, two orders above that limit, and asking for much less would demand accuracy the arithmetic cannot certify. Nothing statistical is given up: a score of <span class="math inline">\(10^{-6}\)</span> per observation places the estimate a small fraction of a standard error from the maximum, since a standard error is itself of order <span class="math inline">\(n^{-1/2}\)</span>.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -1788,8 +1789,8 @@ h_j\big(\,\cdot\,\big).
 <span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>fit</span>
 <span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: gamma</span></span>
 <span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 500   Log-likelihood: -1090   AIC: 2184   BIC: 2192</span></span>
-<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 5   evaluations: f 6, g 6</span></span>
-<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-10)</span></span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 4   evaluations: f 5, g 5</span></span>
+<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-06)</span></span>
 <span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameter scale:</span></span>
 <span id="cb44-13"><a href="#cb44-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
@@ -1805,22 +1806,22 @@ h_j\big(\,\cdot\,\big).
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit)</span>
 <span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
-<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.093717 5.923300</span></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.093717 5.923302</span></span>
 <span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="fu">vcov</span>(fit)</span>
 <span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                mu     sigma2</span></span>
-<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     0.01184660 0.03428227</span></span>
-<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 0.03428227 0.22506371</span></span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     0.01184660 0.03428229</span></span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 0.03428229 0.22506389</span></span>
 <span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)</span>
 <span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
 <span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.409453 1.778894</span></span>
 <span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)   <span class="co"># symmetric here</span></span>
 <span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%    97.5%</span></span>
 <span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     1.357343 1.461564</span></span>
-<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 1.621916 1.935871</span></span>
+<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 1.621917 1.935871</span></span>
 <span id="cb45-15"><a href="#cb45-15" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit)                   <span class="co"># its image under the inverse link</span></span>
-<span id="cb45-16"><a href="#cb45-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%    97.5%</span></span>
-<span id="cb45-17"><a href="#cb45-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     3.885854 4.312700</span></span>
-<span id="cb45-18"><a href="#cb45-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 5.062783 6.930078</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb45-16"><a href="#cb45-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%   97.5%</span></span>
+<span id="cb45-17"><a href="#cb45-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     3.885854 4.31270</span></span>
+<span id="cb45-18"><a href="#cb45-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 5.062784 6.93008</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Because the optimisation is delegated rather than written in, <code>method</code> accepts any optimiser of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a> in place of one of the three named strategies, and the object carries its own stopping rule with it:</p>
 <div class="cell" data-layout-align="center">
@@ -1828,7 +1829,7 @@ h_j\big(\,\cdot\,\big).
 <span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>fits <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">fisher =</span> <span class="fu">fit_distrib</span>(d, y),</span>
-<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lbfgs  =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">lbfgs</span>(<span class="at">criterion =</span> <span class="fu">crit_grad</span>(<span class="fl">1e-12</span>))),</span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lbfgs  =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">lbfgs</span>(<span class="at">criterion =</span> <span class="fu">crit_grad</span>(<span class="fl">1e-7</span>))),</span>
 <span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">nelder =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">nelder_mead</span>(<span class="at">maxit =</span> <span class="dv">5000</span>))</span>
 <span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(fits, <span class="cf">function</span>(f) <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f)), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
@@ -1846,8 +1847,8 @@ h_j\big(\,\cdot\,\big).
 <span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
 <span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a><span class="fu">diag</span>(J) <span class="sc">%*%</span> fit<span class="sc">@</span>vcov_eta <span class="sc">%*%</span> <span class="fu">diag</span>(J)</span>
 <span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            [,1]       [,2]</span></span>
-<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] 0.01184660 0.03428227</span></span>
-<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] 0.03428227 0.22506371</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] 0.01184660 0.03428229</span></span>
+<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] 0.03428229 0.22506389</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The maximised log-likelihood, the information criteria, the number of iterations and the method actually used are all carried on the fitted object. The method recorded may differ from the one requested when the fallback was taken. The <code>simulate()</code> and <code>plot()</code> methods compare the fitted distribution against the data it came from.</p>
 <div class="cell" data-layout-align="center">
@@ -2162,8 +2163,8 @@ J = \frac{\partial g}{\partial \theta},
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>fit</span>
 <span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: multivariate gaussian [2d, sigma=log_cholesky]</span></span>
 <span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 2000   Log-likelihood: -5424   AIC: 10859   BIC: 10887</span></span>
-<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 1   evaluations: f 2, g 2</span></span>
-<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-10)</span></span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 1   evaluations: f 2, g 2   time: 30 ms</span></span>
+<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-06)</span></span>
 <span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Location:</span></span>
 <span id="cb56-8"><a href="#cb56-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    Estimate Std. Error    2.5%   97.5%</span></span>
@@ -2198,9 +2199,9 @@ J = \frac{\partial g}{\partial \theta},
 <span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>y_t <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(dt, <span class="dv">800</span>, theta_t)</span>
 <span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_summary</span>(<span class="fu">fit_distrib</span>(dt, y_t, <span class="at">method =</span> optimizers7<span class="sc">::</span><span class="fu">newton</span>()))</span>
 <span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              Estimate Std. Error      2.5%     97.5%</span></span>
-<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v1 0.9858552 0.03637640 0.9170758 1.0597930</span></span>
-<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v2 0.8955000 0.03342304 0.8323307 0.9634635</span></span>
-<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2   0.4348344 0.03257377 0.3688689 0.4964415</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v1 0.9858549 0.03637639 0.9170755 1.0597927</span></span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v2 0.8954998 0.03342303 0.8323305 0.9634632</span></span>
+<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2   0.4348343 0.03257377 0.3688688 0.4964414</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

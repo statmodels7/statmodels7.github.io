@@ -108,9 +108,9 @@ An ascent direction fixes only the direction, so the step length is chosen by
 the line search of @sec-descent-armijo: the candidate $\eta + s\,\Delta$ is tried
 with $s = 1$ and $s$ is reduced until the decrease in the objective is a fixed
 fraction of the one the linear model predicts. Because the direction is an
-ascent direction, a sufficiently small $s$ always succeeds, so the iteration
-increases the log-likelihood at every step, and a step that would enter a
-region where the density overflows is simply not taken.
+ascent direction, a sufficiently small $s$ succeeds in exact arithmetic, so the
+iteration increases the log-likelihood at every step, and a step that would
+enter a region where the density overflows is simply not taken.
 
 The quantity actually handed to the optimiser is not the log-likelihood but
 the log-likelihood per observation, $\ell(\eta)/n$, with the score and the
@@ -129,6 +129,21 @@ caller can replace rather than a comparison written inside the iteration. The
 log-likelihood, the information and the standard errors are all recomputed
 unscaled at the reported optimum, so nothing the fit returns is measured per
 observation.
+
+How small a threshold can usefully be asked for is settled by the objective
+rather than by the algorithm. Near the maximum the increase a step can produce
+is about $\lVert U/n \rVert^{2}/(2\lambda)$ for a curvature $\lambda$, and once
+that quantity falls below the rounding of the objective itself, of order
+$\varepsilon \lvert \ell/n \rvert$, the line search can no longer tell an
+improvement from noise and refuses every step. The smallest score a run can
+reach is therefore near
+$$\sqrt{2 \lambda \varepsilon \lvert \ell(\eta)/n \rvert},$$
+which for a log-likelihood per observation of order one is around $10^{-8}$.
+The default tolerance is $10^{-6}$, two orders above that limit, and asking for
+much less would demand accuracy the arithmetic cannot certify. Nothing
+statistical is given up: a score of $10^{-6}$ per observation places the
+estimate a small fraction of a standard error from the maximum, since a
+standard error is itself of order $n^{-1/2}$.
 
 ::: {.callout-note}
 ## Fitting a non-regular model
@@ -271,7 +286,7 @@ library(optimizers7)
 
 fits <- list(
   fisher = fit_distrib(d, y),
-  lbfgs  = fit_distrib(d, y, method = lbfgs(criterion = crit_grad(1e-12))),
+  lbfgs  = fit_distrib(d, y, method = lbfgs(criterion = crit_grad(1e-7))),
   nelder = fit_distrib(d, y, method = nelder_mead(maxit = 5000))
 )
 vapply(fits, function(f) as.numeric(logLik(f)), numeric(1))
