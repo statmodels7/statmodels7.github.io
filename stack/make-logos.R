@@ -334,8 +334,10 @@ for (f in list.files("logo", pattern = "[.]svg$", full.names = TRUE)) cat("  ", 
 
 # --- rasterise into each package's man/figures ---------------------------
 if (requireNamespace("magick", quietly = TRUE)) {
+  # statmodels7 is the umbrella and now also a package -- the meta-package
+  # that installs and attaches the rest -- so its glyph is rasterised too.
   for (p in c("linkfunctions7", "distributions7", "optimizers7", "basis7",
-              "parameters7")) {
+              "parameters7", "statmodels7")) {
     src <- file.path("logo", paste0(p, ".svg"))
     dst_dir <- file.path(p, "man", "figures")
     dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)

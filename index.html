@@ -141,6 +141,22 @@
   </section>
 
   <section>
+    <h2>Installation</h2>
+    <p>The toolkit is not on CRAN. One command installs every package of it,
+       and one attaches them all.</p>
+<pre><span class="c"># install.packages("pak")</span>
+pak::pak("statmodels7/statmodels7")
+
+library(statmodels7)
+<span class="c">#&gt; -- Attaching the statmodels7 toolkit 0.1.0</span>
+<span class="c">#&gt; v basis7         0.3.1        v optimizers7    0.0.0.9000</span>
+<span class="c">#&gt; v distributions7 0.0.0.9000   v parameters7    0.3.0</span>
+<span class="c">#&gt; v linkfunctions7 0.0.0.9000</span></pre>
+    <p>Each package installs on its own too, with
+       <code>pak::pak("statmodels7/&lt;package&gt;")</code>.</p>
+  </section>
+
+  <section>
     <h2>The packages</h2>
     <div class="cards">
 
@@ -197,12 +213,13 @@
            can interrogate.</p>
       </div>
 
-      <div class="card planned">
-        <h3>statmodels<span>7</span><span class="tag">planned</span></h3>
-        <p>The package that assembles the others into models: every parameter
-           modelled rather than just the mean, pluggable optimisers, and
-           frequentist or Bayesian estimation.</p>
-      </div>
+      <a class="card" href="https://statmodels7.github.io/statmodels7">
+        <h3>statmodels<span>7</span></h3>
+        <p>The toolkit in one package: installing it installs the others and
+           attaching it attaches them. The modelling layer it will grow into
+           is still to come, with every parameter modelled rather than just
+           the mean.</p>
+      </a>
 
     </div>
   </section>
@@ -243,15 +260,15 @@ distrib_gradient(d, y, theta, scale = "link")   <span class="c"># w.r.t. eta</sp
        arrives, <code>penalties7</code>.</p>
 <pre><span class="c"># a covariance, with every free value ranging over R</span>
 s &lt;- log_cholesky(3)
-struct_matrix(s, eta)          <span class="c"># the matrix</span>
-struct_dmatrix(s, eta)         <span class="c"># dM/deta, one per free value</span>
-struct_logdet(s, eta)          <span class="c"># log|M|, linear in eta here</span>
+param_value(s, eta)            <span class="c"># the matrix</span>
+param_d1(s, eta)               <span class="c"># dM/deta, one per free value</span>
+param_logdet(s, eta)           <span class="c"># log|M|, linear in eta here</span>
 
 <span class="c"># a second-difference penalty: singular, and that is the point</span>
 d &lt;- diff(diag(10), differences = 2)
-p &lt;- scaled_struct(crossprod(d))
+p &lt;- scaled_matrix(crossprod(d))
 p@rank                         <span class="c"># 8 of 10</span>
-struct_dlogdet(p, eta)         <span class="c"># the rank, at any scale</span></pre>
+param_dlogdet(p, eta)          <span class="c"># the rank, at any scale</span></pre>
   </section>
 
   <section>

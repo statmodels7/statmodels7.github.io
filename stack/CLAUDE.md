@@ -66,9 +66,11 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
 | `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, jets through Levinson-Durbin, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
 
-**Planned** — `modelterms7`, `penalties7`, and eventually the `statmodels7`
-package itself, which assembles everything into models. That last one is the destination:
-a GAMLSS-like framework but far more organised, where
+| `statmodels7` | the meta-package (2026-08-05, Giovanni asked for a tidyverse-style grouping). Installing it installs the five members and `library(statmodels7)` attaches them, reporting versions. `statmodels7_packages()`, `statmodels7_versions()`, `statmodels7_conflicts()`, `statmodels7_update()`. It is ALSO the destination package below: the modelling code lands here later, so nothing gets renamed |
+
+**Planned** — `modelterms7`, `penalties7`, and the modelling layer of
+`statmodels7` itself, which assembles everything into models. That layer is the
+destination: a GAMLSS-like framework but far more organised, where
 
 - every distribution parameter can be modelled, not just the mean;
 - optimizers are pluggable, and the user chooses frequentist or Bayesian;
@@ -93,6 +95,8 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
     optimizers7\
     basis7\
     parameters7\
+    statmodels7\     the meta-package, its own repository; note the directory
+                     has the same name as the umbrella it sits inside
     book\            the Quarto book (see §9); `quarto render` from inside it
     logo\            hex logos: make-logos.R draws them, run from this directory
     site\            the portal, its own repository (statmodels7.github.io)
@@ -115,7 +119,7 @@ the book: `quarto render` in `book/` **from PowerShell** (see 3), then
 because it executes R against the working tree, and it takes about twenty minutes
 now that there are four package chapters.
 
-GitHub: `github.com/statmodels7/{linkfunctions7,distributions7,optimizers7,basis7,parameters7}`, all on `master`. The repositories were
+GitHub: `github.com/statmodels7/{linkfunctions7,distributions7,optimizers7,basis7,parameters7,statmodels7}`, all on `master`. The repositories were
 transferred from `giovannitinervia9/*` on 2026-07-22; GitHub keeps redirects, so
 `install_github("giovannitinervia9/distributions7")` still resolves.
 
@@ -129,6 +133,7 @@ Websites, all live and rebuilt by a `pkgdown.yaml` workflow on every push:
 | optimizers7 | `statmodels7.github.io/optimizers7` — pkgdown, from `gh-pages` |
 | basis7 | `statmodels7.github.io/basis7` — pkgdown, from `gh-pages` |
 | parameters7 | `statmodels7.github.io/parameters7` — pkgdown, from `gh-pages` |
+| statmodels7 | `statmodels7.github.io/statmodels7` — pkgdown, from `gh-pages`. Note this is the PACKAGE's site, distinct from the portal above |
 
 Predecessors, kept for reference only: `labstatr\distrib` (S3, ~8500 lines) and
 `labstatr\linkfunctions`. `distributions7` is a rewrite of `distrib`, not a port —
@@ -737,7 +742,9 @@ whole and a scalar link cannot express it.
 | `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.3.0`: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers (D R D', block diagonal, sums) still open. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
-All five repositories run `R-CMD-check` on macOS, Windows and three Linux/R
+| `statmodels7` | 32 tests, `R CMD check --as-cran` with one deliberate NOTE (see below) and the submission warning, created 2026-08-05. Version `0.1.0` with a `NEWS.md` from the first commit. |
+
+All six repositories run `R-CMD-check` on macOS, Windows and three Linux/R
 combinations (devel, release, oldrel-1) plus a coverage workflow, all green. That matrix
 matters for the two that ship Rcpp kernels, `distributions7` and `optimizers7`: until the
 CI existed those had only ever been compiled by one compiler on one machine.
@@ -1163,6 +1170,62 @@ nothing). Decisions and mechanics worth keeping:
   both parametrisations validated at 4e-10/5e-7. The multivariate t stays on
   the disciplined fallback: nu blocks closure exactly as in the univariate
   skew t.
+
+### The meta-package, and the note it keeps
+
+`statmodels7` was created on 2026-08-05 (Giovanni: a tidyverse-style
+grouping, so that one command installs and attaches everything). Three
+decisions worth keeping.
+
+**Members in `Imports`, not `Depends`.** `Depends` attaches them through R's
+own mechanism, in the order the field happens to list them, with no message;
+`Imports` pulls them at installation — which is what makes one install
+command install the toolkit — and leaves the attaching to `.onAttach`, where
+it can be reported. The price is a NOTE, *"All declared Imports should be
+used"*, correct as far as the heuristic can see, since nothing in a
+meta-package calls a member by name. **It is left standing deliberately.**
+The two ways to silence it are both worse: importing an arbitrary symbol
+from each member puts five unused bindings in the namespace and says
+something false about what the package uses, and moving to `Depends` gives
+up the control the package exists to exercise. CI fails only on warnings.
+
+**The member list is read, not written.** `statmodels7_packages()` parses the
+package's own `Imports` and keeps the names ending in `7`, so a member added
+there is a member everywhere. The test re-parses the field a second way, so
+a mistake in the parsing cannot confirm itself.
+
+**Measured:** the five members export **no name in common**, so
+`statmodels7_conflicts()` is empty and the attach order does not matter.
+(Outside the toolkit there is one: `testthat` masks
+`distributions7::expectation`. The report's scope is the members, correctly.)
+
+Two things the check caught, both worth generalising:
+
+- **A shared test file carries a hidden dependency.** `test-docs.R` calls
+  `rmarkdown::pandoc_available()`, and the five older packages satisfy that
+  only **incidentally**, having `rmarkdown` in `Suggests` for their
+  vignettes. A package without vignettes gets *"'::' import not declared"*,
+  a WARNING, which CI treats as a failure. This is the fourth time the
+  `::`-goes-in-`Suggests` rule has been walked into; the new thing is that a
+  file copied between packages brings its dependencies with it, and they may
+  be satisfied by accident at the destination.
+- **`Title` must be title case, and a lowercase package name in it is not.**
+  *"The statmodels7 Toolkit"* is flagged; the siblings' style — a
+  description with no package name — avoids it.
+
+### The portal is hand-written HTML, and nothing executes it
+
+The rename of 2026-08-04 swept the packages, the book and the READMEs. It did
+not reach `site/index.html`, which still showed `struct_matrix`,
+`struct_dmatrix`, `struct_logdet`, `struct_dlogdet` and `scaled_struct` — five
+names that had not existed for a day — plus a `statmodels7` card marked
+*planned* with `pointer-events: none`. Nothing failed, because nothing runs
+the portal.
+
+This is the same shape as the non-executed README block below and as the
+`\value`-less pages above: **a surface no process exercises rots silently**,
+and the only guard is to include it in the sweep by hand. After any rename,
+grep `site/index.html` as well as the packages.
 
 ### A name names the coordinate, not the quantity
 
@@ -1744,6 +1807,10 @@ point says so, never because the move failed.**
   is always the same red job stops being read. A habit that lives in one package
   out of three is not a habit, so when a guard is added anywhere, add it
   everywhere the same afternoon.
+  The comparison is now over **six** packages, and the meta-package is the one
+  most likely to drift: it has no `src/`, no vignettes and almost no `R/`, so
+  a habit that lives in the others' boilerplate has nothing to attach to here.
+  Its missing `rmarkdown` in `Suggests` was exactly that.
 - **`git mv` does not happen by itself on Windows.** Seven `man/*.Rd` were
   tracked as `Adam.Rd`, `Bfgs.Rd`, `MultiStart.Rd`… while existing on disk in
   lower case: the `X-class` repair renamed them here, the filesystem could not
