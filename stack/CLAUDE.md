@@ -290,10 +290,20 @@ derivatives by finite differences. See `vignettes/defining-a-distribution.Rmd`.
 **18 distributions**: gaussian, cauchy, logistic, student_t, laplace, pseudohuber, gamma,
 invgauss, lognormal, beta, bernoulli, binomial, poisson, negbin -- the original
 fourteen, all with closed-form observed derivatives to 4th order (Rcpp kernels
-in `src/*_hd.cpp`) -- plus **weibull, gumbel, skewnormal, skewt** (2026-08-04),
-which are closed form to order 2 and take orders 3 and 4 from the numerical
-fallbacks. `laplace` was already like that, so it is the established shape for
-a family rather than a shortfall; adding a kernel later changes nothing above.
+in `src/*_hd.cpp`) -- plus **weibull, gumbel, skewnormal, skewt** (2026-08-04).
+Since later that day the new families and the laplace carry closed-form
+observed 3rd/4th orders too (`weibull_hd.cpp`, `gumbel_hd.cpp`,
+`skewnormal_hd.cpp`, `laplace_hd.cpp`), so **every univariate family is
+analytic to 4th order** except the skew t's nu components, which cannot be.
+Weibull and gumbel have closed EXPECTED 3rd/4th orders as well: every
+expectation is a derivative of Gamma at 2, i.e. `E[u (log u)^k] =
+Gamma^(k)(2)`, assembled from polygammas at 2 by the moment-cumulant
+relations; the skew normal's expected values share the obstruction of its
+expected information and stay numerical. The four new families keep orders
+1-2 in vectorised R -- measured, a port would buy nothing: the gaussian
+kernel costs 2.2 ms per gradient at n = 1e5 against weibull's 7.2, but
+weibull's own deriv4, already Rcpp, costs 12.2 -- the gap is the
+transcendentals per element, which C++ pays identically.
 
 The four new ones, and what is worth knowing about each:
 
@@ -688,7 +698,7 @@ whole and a scalar link cannot express it.
 | | |
 |---|---|
 | `linkfunctions7` | 890 tests, `R CMD check` OK, CI green |
-| `distributions7` | 2109 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-04, local), CI green |
+| `distributions7` | 2262 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-04, local), CI green |
 | `optimizers7` | 710 tests, `R CMD check --as-cran` OK with vignettes, two notes (2026-08-04). Published 2026-07-31; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 | `covstructs7` | 379 tests, `R CMD check --as-cran` clean apart from the submission notes, created 2026-08-03. Version `0.1.0`. Phase 1 of `piano_covstructs7.txt` is done; phase 2 is correlations and composition. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
@@ -1154,6 +1164,54 @@ one: the line is printed whenever the time is finite. **A guard of the form
 `if (x > 0)` on a measured quantity is a claim that zero cannot be measured**,
 and for a duration that claim is false.
 
+### Completing the higher derivatives (2026-08-04, sera)
+
+What closing the d3/d4 gap on the five families taught, beyond the formulas:
+
+- **The generic d3/d4 fallback differentiates `distrib_hessian`, so on the
+  skew t it nested differences in nu** -- the components whose Hessian entry
+  is itself a stencil (`(i,nu,nu)`, `(nu,nu,nu)` and their order-4 analogues)
+  were a difference of a difference, the shape the toolkit forbids. The
+  skew t now registers its own d3/d4: the generic construction is kept for
+  every component whose Hessian entry is closed (there one stencil lands on
+  an analytic quantity and is legal), and the nested ones are replaced by
+  single higher-order stencils on the closed score or the log-density
+  (`fd5_third`, `fd5_fourth` beside `fd5_first/fd5_second`).
+- **The fourth difference gets its own step.** Rounding grows as `h^-4`: at
+  the family's base step (1e-3 relative) the per-observation noise on
+  `nu_nu_nu_nu` is ~1e-2 relative, at ten times that it is negligible and the
+  `h^2` truncation (~6e-4) is what remains. Swept over nu in {3, 6, 15};
+  same lesson as the score's step -- measured, not chosen.
+- **`approx = "integrate"` fails on the Gumbel's expected d3 with
+  "non-finite function value"**: in the left tail the observed derivative
+  carries `w = e^{-z}` which overflows while the density underflows, and the
+  quadrature meets Inf*0. The right independent reference there is the Monte
+  Carlo mean of the observed kernel (all 18 components validated at |z| < 1.4
+  on 1e6 draws). A quadrature failing is not evidence against a formula.
+- **Tiny components sitting beside huge ones cannot be checked relatively.**
+  At t = -40 the skew normal's `mu_mu_mu` is -0.016 next to components of
+  1200, and kernel, fallback and Richardson disagree at the percent level --
+  all three references fight over crumbs. The asymptotic form (here
+  `psi''' ~ -2/t^3`) is what settles it, and it sided with the kernel.
+- **Multivariate d3/d4 stay on the fallback, and analytic ones are blocked on
+  covstructs7's API**: the components with three or four structure indices
+  need `struct_d3matrix`/`struct_d4matrix`, which the covstructs7 contract
+  (exact to 2nd order) does not offer. Cost of the fallback, measured at
+  n = 50: order 3 takes 0.14 s at p = 2, 0.55 at p = 3, 3.9 at p = 4 (560
+  components, two Hessians each); order 4 takes 2.7 s already at p = 3.
+  Extending covstructs7 is a design decision for Giovanni, not a patch.
+- The multivariate base class now **refuses `grad_y`/`hess_y`/`cross_y`**
+  (the univariate fallbacks difference along a line and would return numbers
+  of the wrong shape); the gaussian and the t override with closed forms. The
+  t's `hess_y` is the reweighted gaussian expression
+  `-c Sigma^-1 + (2c/(nu+q)) w w'`, one `p x p` matrix per row (a
+  `p x p x n` array), where the gaussian returns a single `p x p` because its
+  is constant -- the two return shapes are documented on each page.
+- **A method file registering on a generic defined in another file needs that
+  file in its `@include`**: `multivariate.R` gained methods on
+  `distrib_cross_y`, whose generic lives in `cross_derivatives.R`, and
+  pkgload died with "object not found" until the Collate order said so.
+
 ### Finite differences inside a score
 
 Three things learned adding the skew t (2026-08-04), all of which apply to any
@@ -1604,6 +1662,13 @@ point says so, never because the move failed.**
   correlations via canonical partial correlations, D R D', compound
   symmetry/AR(1), block diagonal, composition -- phase 1 shipped 2026-08-03),
   then `penalties7`, then `modelterms7`.
+- **covstructs7 orders 3-4?** Analytic multivariate d3/d4 need
+  `struct_d3matrix`/`struct_d4matrix`, which the covstructs7 contract (exact
+  to 2nd order) does not offer; for log-Cholesky they are cheap (the diagonal
+  is the only nonlinearity). The numerical fallback costs 3.9 s at p = 4 for
+  order 3 alone (560 components, two Hessians each), so the extension becomes
+  worth it the day something consumes multivariate third derivatives --
+  a decision for Giovanni, recorded 2026-08-04.
 - **More distributions for `distributions7`** (assessment 2026-08-04, Giovanni
   asked whether it was worth it). What the fourteen do NOT cover, in the order
   the model layer will want them:
