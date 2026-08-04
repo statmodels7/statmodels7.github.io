@@ -1720,11 +1720,9 @@ H(\eta) = \sum_{i=1}^{n} \frac{\partial^{2} \ell_i}{\partial \eta \,\partial \et
 <p><span class="math display">\[\mathbb{E}[I_\eta] = \operatorname{diag}(h')\,\mathbb{E}[I_\theta]\,\operatorname{diag}(h'),\]</span></p>
 <p>a congruence transform, and a congruence transform of a positive definite matrix is positive definite. If the model is identified on the parameter scale, the matrix Fisher scoring inverts is therefore positive definite on the link scale as well, and the step it computes is an ascent direction without any repair. The observed Hessian carries no such guarantee: away from the optimum, <span class="math inline">\(-H\)</span> can fail to be positive definite, and the raw Newton step can then point downhill, which is why <a href="04-optimizers7.html#sec-newton" class="quarto-xref"><span>Section 4.2.1</span></a> floors the eigenvalues of the matrix it inverts. This comparison concerns the behaviour of the iterations, not the quality of the estimators; at the optimum the two informations agree in expectation.</p>
 <p>An ascent direction fixes only the direction, so the step length is chosen by the line search of <a href="04-optimizers7.html#sec-descent-armijo" class="quarto-xref"><span>Section 4.1.2</span></a>: the candidate <span class="math inline">\(\eta + s\,\Delta\)</span> is tried with <span class="math inline">\(s = 1\)</span> and <span class="math inline">\(s\)</span> is reduced until the decrease in the objective is a fixed fraction of the one the linear model predicts. Because the direction is an ascent direction, a sufficiently small <span class="math inline">\(s\)</span> always succeeds, so the iteration increases the log-likelihood at every step, and a step that would enter a region where the density overflows is simply not taken.</p>
-<p>Convergence is declared when the score is numerically zero or when the log-likelihood has stopped moving, whichever occurs first:</p>
-<p><span class="math display">\[\max_j \lvert U_j \rvert &lt; \texttt{tol}
-\qquad\text{or}\qquad
-\lvert \Delta \ell \rvert &lt; \texttt{tol}\,(\lvert \ell \rvert + \texttt{tol}).\]</span></p>
-<p>The second criterion is measured relative to the magnitude of the log-likelihood, because an absolute threshold has entirely different meanings for a sample of ten and for a sample of ten million. The two conditions are the stopping rules <code>crit_grad()</code> and <code>crit_rel_obj()</code> of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a>, combined with <code>crit_any()</code>, so the rule is an object the caller can replace rather than a comparison written inside the iteration.</p>
+<p>The quantity actually handed to the optimiser is not the log-likelihood but the log-likelihood per observation, <span class="math inline">\(\ell(\eta)/n\)</span>, with the score and the information divided by <span class="math inline">\(n\)</span> as well. The maximiser is unchanged, and so is every Newton step, since the factor cancels between the inverse Hessian and the gradient. What changes is the meaning of a threshold. A score is a sum of <span class="math inline">\(n\)</span> terms, so a fixed bound on <span class="math inline">\(\max_j \lvert U_j \rvert\)</span> asks a sample of ten million to reach an accuracy per observation ten million times finer than it asks of a sample of ten; on the averaged scale the same number means the same thing at every sample size. Convergence is therefore declared when</p>
+<p><span class="math display">\[\max_j \left\lvert \frac{U_j(\eta)}{n} \right\rvert &lt; \texttt{tol},\]</span></p>
+<p>which is the stopping rule <code>crit_grad()</code> of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a>, an object the caller can replace rather than a comparison written inside the iteration. The log-likelihood, the information and the standard errors are all recomputed unscaled at the reported optimum, so nothing the fit returns is measured per observation.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -1741,7 +1739,7 @@ H(\eta) = \sum_{i=1}^{n} \frac{\partial^{2} \ell_i}{\partial \eta \,\partial \et
 </section>
 <section id="sec-fit-starts" class="level3" data-number="3.3.3">
 <h3 data-number="3.3.3" class="anchored" data-anchor-id="sec-fit-starts"><span class="header-section-number">3.3.3</span> Starting values</h3>
-<p>A likelihood need not be concave, and a fit started at a poor point can converge to a local maximum, to a boundary, or not at all. How far the start is from the answer is not a detail of the implementation but a property of the problem, and it decides whether the fit takes one step or never arrives.</p>
+<p>A likelihood need not be concave, and a fit started at a poor point can converge to a local maximum, to a boundary, or not at all. How far the start is from the answer is not a detail of the implementation but a property of the problem, and it governs the amount of work the iteration has to do before it arrives, when it arrives at all.</p>
 <p>The starting value comes from a distribution’s own <code>distrib_start()</code>, which receives the data. A family that knows an estimator of its parameters returns it, and the fit then begins where a moment estimator or an exact maximum likelihood estimator already is; a family that says nothing gets several random draws from the admissible region, tried in turn. The multivariate gaussian is the case where the difference is total: its maximum likelihood estimator for an unstructured covariance is the sample mean and the sample second moment, so it starts at the answer and confirms it in a single iteration.</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>d4 <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">4</span>)</span>
@@ -1791,7 +1789,7 @@ h_j\big(\,\cdot\,\big).
 <span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: gamma</span></span>
 <span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 500   Log-likelihood: -1090   AIC: 2184   BIC: 2192</span></span>
 <span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 5   evaluations: f 6, g 6</span></span>
-<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 5e-08)</span></span>
+<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-10)</span></span>
 <span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameter scale:</span></span>
 <span id="cb44-13"><a href="#cb44-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
@@ -2135,7 +2133,7 @@ c \;=\; \frac{\nu + p}{\nu + q}
 <span id="cb55-14"><a href="#cb55-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">cov_gap =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">mv_sigma</span>(d, <span class="fu">coef</span>(fit)) <span class="sc">-</span> s_hat))</span>
 <span id="cb55-15"><a href="#cb55-15" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb55-16"><a href="#cb55-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loglik_gap     mean_gap      cov_gap </span></span>
-<span id="cb55-17"><a href="#cb55-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9.094947e-13 0.000000e+00 2.220446e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb55-17"><a href="#cb55-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9.094947e-13 0.000000e+00 3.885781e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-mv-reporting" class="level3" data-number="3.5.6">
@@ -2165,21 +2163,21 @@ J = \frac{\partial g}{\partial \theta},
 <span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: multivariate gaussian [2d, sigma=log_cholesky]</span></span>
 <span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 2000   Log-likelihood: -5424   AIC: 10859   BIC: 10887</span></span>
 <span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 1   evaluations: f 2, g 2</span></span>
-<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 2e-07)</span></span>
+<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-10)</span></span>
 <span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Location:</span></span>
 <span id="cb56-8"><a href="#cb56-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    Estimate Std. Error    2.5%   97.5%</span></span>
-<span id="cb56-9"><a href="#cb56-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1   0.5034     0.0158  0.4725  0.5344</span></span>
-<span id="cb56-10"><a href="#cb56-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2  -0.2811     0.0130 -0.3066 -0.2555</span></span>
+<span id="cb56-9"><a href="#cb56-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1   0.5034     0.0246  0.4552  0.5516</span></span>
+<span id="cb56-10"><a href="#cb56-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2  -0.2811     0.0203 -0.3209 -0.2413</span></span>
 <span id="cb56-11"><a href="#cb56-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb56-12"><a href="#cb56-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Standard deviations:</span></span>
 <span id="cb56-13"><a href="#cb56-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       Estimate Std. Error   2.5%  97.5%</span></span>
-<span id="cb56-14"><a href="#cb56-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v1   1.0996     0.0117 1.0770 1.1228</span></span>
-<span id="cb56-15"><a href="#cb56-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v2   0.9080     0.0100 0.8887 0.9278</span></span>
+<span id="cb56-14"><a href="#cb56-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v1   1.0996     0.0174 1.0661 1.1343</span></span>
+<span id="cb56-15"><a href="#cb56-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v2   0.9080     0.0144 0.8803 0.9366</span></span>
 <span id="cb56-16"><a href="#cb56-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb56-17"><a href="#cb56-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Correlations:</span></span>
 <span id="cb56-18"><a href="#cb56-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           Estimate Std. Error   2.5%  97.5%</span></span>
-<span id="cb56-19"><a href="#cb56-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2    0.469     0.0118 0.4455 0.4918</span></span>
+<span id="cb56-19"><a href="#cb56-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2    0.469     0.0174 0.4341 0.5025</span></span>
 <span id="cb56-20"><a href="#cb56-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb56-21"><a href="#cb56-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; The link scale is the parameter scale: every link is the identity.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -2200,9 +2198,9 @@ J = \frac{\partial g}{\partial \theta},
 <span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>y_t <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(dt, <span class="dv">800</span>, theta_t)</span>
 <span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_summary</span>(<span class="fu">fit_distrib</span>(dt, y_t, <span class="at">method =</span> optimizers7<span class="sc">::</span><span class="fu">newton</span>()))</span>
 <span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              Estimate Std. Error      2.5%     97.5%</span></span>
-<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v1 0.9858552 0.02162270 0.9443735 1.0291590</span></span>
-<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v2 0.8955000 0.01988342 0.8573650 0.9353312</span></span>
-<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2   0.4348344 0.02247637 0.3897611 0.4778293</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v1 0.9858552 0.03637640 0.9170758 1.0597930</span></span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v2 0.8955000 0.03342304 0.8323307 0.9634635</span></span>
+<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2   0.4348344 0.03257377 0.3688689 0.4964415</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 
