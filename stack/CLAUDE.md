@@ -1770,6 +1770,18 @@ point says so, never because the move failed.**
   partition per component — and the integrand runs at every quadrature node. Memoising
   per integrand call looks worth it at orders 3 and 4, but `"bartlett"` is only the
   default at order 2, where the score is all it needs, so measure before touching it.
+- **The parameters7 glyph was redrawn on 2026-08-04** (Giovanni: the ellipse
+  was too close to optimizers7's contours, and it had been wrong even before
+  the rename because it said "covariance"). It is now the 2-simplex with the
+  image of three pencils of straight lines under the additive log-ratio map:
+  the grid crowds against the boundary because equally spaced free values land
+  at `plogis(a)` along an edge, and it stops short of the outline, which is
+  drawn whole. Two things this settled that are worth keeping. **A glyph must
+  not repeat another package's shape**: five of the six were curves, so the one
+  geometric figure now reads instantly as the odd one out, which is what a
+  family of stickers wants. And **a package's logo must be tracked**: covstructs7
+  never committed `man/figures/logo.png` and its README did not show it, unlike
+  every sibling -- `git ls-files man/figures` in each is the check.
 - **Logos** exist but are competent rather than designed — drawn by a script, not by
   someone with visual judgement. Worth redoing with a designer if the identity matters.
   `logo/make-logos.R` regenerates them; the curves are the real `plogis()` and `dgamma()`.
