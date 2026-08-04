@@ -1,4 +1,4 @@
-# Consistency gate for chapter 6, the covstructs7 package.
+# Consistency gate for chapter 6, the parameters7 package.
 #
 # Same contract as the other gates. Every formula the chapter prints is
 # transcribed BY HAND here and compared against what the package computes;
@@ -77,12 +77,12 @@
 .certify_logchol_map_at <- function(case) {
   out <- character()
   p <- case$p
-  s <- covstructs7::log_cholesky(p)
+  s <- parameters7::log_cholesky(p)
   eta <- case$eta
   l <- .cs_factor(eta, p)
 
   # M = L L', with L transcribed above rather than taken from the package
-  err <- .cs_maxdiff(covstructs7::struct_matrix(s, eta), tcrossprod(l))
+  err <- .cs_maxdiff(parameters7::param_value(s, eta), tcrossprod(l))
   if (err > 1e-12) {
     out <- c(out, sprintf(
       "the printed log-Cholesky map differs from the package by %s",
@@ -107,14 +107,14 @@
   for (k in seq_len(s@n_free)) {
     lk <- .cs_dfactor(eta, p, k)
     want <- tcrossprod(lk, l) + t(tcrossprod(lk, l))
-    got <- covstructs7::struct_dmatrix(s, eta)[[k]]
+    got <- parameters7::param_d1(s, eta)[[k]]
     if (.cs_maxdiff(want, got) > 1e-12) {
       out <- c(out, sprintf(
         "the printed first derivative in direction %d disagrees with the package", k
       ))
     }
     # and against a numerical derivative of the map, which shares no code
-    num <- .cs_grad_matrix(function(e) covstructs7::struct_matrix(s, e), eta, k)
+    num <- .cs_grad_matrix(function(e) parameters7::param_value(s, e), eta, k)
     if (.cs_maxdiff(want, num) > 1e-6) {
       out <- c(out, sprintf(
         "the printed first derivative in direction %d disagrees with finite differences", k
@@ -123,8 +123,8 @@
   }
 
   # equation (logchol-derivs), second order
-  idx <- covstructs7::struct_pair_indices(s)
-  d2 <- covstructs7::struct_d2matrix(s, eta)
+  idx <- parameters7::param_tuple_indices(s)
+  d2 <- parameters7::param_d2(s, eta)
   for (i in seq_along(idx)) {
     k <- idx[[i]][1L]
     m <- idx[[i]][2L]
@@ -145,20 +145,20 @@
   # equation (logchol-logdet): linear in the free vector, gradient 2 and 0
   for (e in list(eta, rev(eta) * 1.7, rep(0, s@n_free))) {
     want_ld <- 2 * sum(e[seq_len(p)])
-    if (abs(covstructs7::struct_logdet(s, e) - want_ld) > 1e-10) {
+    if (abs(parameters7::param_logdet(s, e) - want_ld) > 1e-10) {
       out <- c(out, "the log-Cholesky log-determinant is not 2 sum log L_ii")
     }
     want_g <- c(rep(2, p), rep(0, s@n_free - p))
-    if (.cs_maxdiff(covstructs7::struct_dlogdet(s, e), want_g) > 1e-12) {
+    if (.cs_maxdiff(parameters7::param_dlogdet(s, e), want_g) > 1e-12) {
       out <- c(out, "the log-determinant gradient is not the constant the chapter prints")
     }
-    if (max(abs(covstructs7::struct_d2logdet(s, e))) > 1e-12) {
+    if (max(abs(parameters7::param_d2logdet(s, e))) > 1e-12) {
       out <- c(out, "the log-determinant Hessian does not vanish")
     }
   }
 
   # the inverse map closes exactly
-  if (.cs_maxdiff(covstructs7::struct_free(s, covstructs7::struct_matrix(s, eta)),
+  if (.cs_maxdiff(parameters7::param_free(s, parameters7::param_value(s, eta)),
                   eta) > 1e-12) {
     out <- c(out, "the log-Cholesky round trip does not close")
   }
@@ -166,27 +166,27 @@
 }
 
 
-# --- 2. Equation (covstruct-dlogdet), the trace identity --------------------
+# --- 2. Equation (parameter-dlogdet), the trace identity --------------------
 
 .certify_dlogdet_identity <- function() {
   out <- character()
   cases <- list(
-    list(s = covstructs7::log_cholesky(3), eta = .cs_eta3),
-    list(s = covstructs7::diag_struct(3), eta = c(0.2, -0.4, 0.1)),
-    list(s = covstructs7::diag_struct(2, link = linkfunctions7::sqrt_link()),
+    list(s = parameters7::log_cholesky(3), eta = .cs_eta3),
+    list(s = parameters7::diagonal_matrix(3), eta = c(0.2, -0.4, 0.1)),
+    list(s = parameters7::diagonal_matrix(2, link = linkfunctions7::sqrt_link()),
          eta = c(1.3, 2.1))
   )
   for (cs in cases) {
     s <- cs$s
     eta <- cs$eta
-    m <- covstructs7::struct_matrix(s, eta)
-    a <- covstructs7::struct_dmatrix(s, eta)
+    m <- parameters7::param_value(s, eta)
+    a <- parameters7::param_d1(s, eta)
     want <- vapply(a, function(ak) sum(diag(solve(m, ak))), numeric(1))
-    got <- covstructs7::struct_dlogdet(s, eta)
+    got <- parameters7::param_dlogdet(s, eta)
     if (.cs_maxdiff(want, got) > 1e-8) {
       out <- c(out, sprintf(
         "tr(M^{-1} dM) and the log-determinant gradient of '%s' differ by %s",
-        s@struct_name, format(.cs_maxdiff(want, got), digits = 3)
+        s@param_name, format(.cs_maxdiff(want, got), digits = 3)
       ))
     }
   }
@@ -199,15 +199,15 @@
 .certify_diag_family <- function() {
   out <- character()
   for (lnk in list(linkfunctions7::log_link(), linkfunctions7::sqrt_link())) {
-    s <- covstructs7::diag_struct(3, link = lnk)
+    s <- parameters7::diagonal_matrix(3, link = lnk)
     eta <- c(0.3, -0.7, 1.1)
     want <- diag(linkfunctions7::linkinv(lnk, eta))
-    if (.cs_maxdiff(covstructs7::struct_matrix(s, eta), want) > 1e-12) {
+    if (.cs_maxdiff(parameters7::param_value(s, eta), want) > 1e-12) {
       out <- c(out, sprintf(
         "the diagonal map with the %s link is not diag(h(eta))", lnk@link_name
       ))
     }
-    a <- covstructs7::struct_dmatrix(s, eta)
+    a <- parameters7::param_d1(s, eta)
     for (k in 1:3) {
       wk <- matrix(0, 3, 3)
       wk[k, k] <- linkfunctions7::dlinkinv(lnk, eta[k])
@@ -217,8 +217,8 @@
         ))
       }
     }
-    idx <- covstructs7::struct_pair_indices(s)
-    d2 <- covstructs7::struct_d2matrix(s, eta)
+    idx <- parameters7::param_tuple_indices(s)
+    d2 <- parameters7::param_d2(s, eta)
     for (i in seq_along(idx)) {
       k <- idx[[i]][1L]
       l <- idx[[i]][2L]
@@ -230,7 +230,7 @@
         ))
       }
     }
-    if (abs(covstructs7::struct_logdet(s, eta) -
+    if (abs(parameters7::param_logdet(s, eta) -
             sum(log(linkfunctions7::linkinv(lnk, eta)))) > 1e-10) {
       out <- c(out, "the diagonal log-determinant is not the sum of logs")
     }
@@ -245,7 +245,7 @@
   out <- character()
   dm <- diff(diag(6), differences = 2)
   p_mat <- crossprod(dm)
-  s <- covstructs7::scaled_struct(p_mat)
+  s <- parameters7::scaled_matrix(p_mat)
 
   # the pseudo-determinant, written out as the sum of the logs of the non-zero
   # eigenvalues of the assembled matrix
@@ -257,23 +257,23 @@
   for (eta in c(-3, 0, 2.5)) {
     lambda <- exp(eta)
     want_ld <- sum(log(lambda * ev[keep]))
-    if (abs(covstructs7::struct_logdet(s, eta) - want_ld) > 1e-8) {
+    if (abs(parameters7::param_logdet(s, eta) - want_ld) > 1e-8) {
       out <- c(out, sprintf(
         "the scaled pseudo-determinant at eta = %s is not sum log(lambda nu_j)",
         format(eta)
       ))
     }
     # equation (scaled-logdet): the derivative is the rank, at any scale
-    if (abs(covstructs7::struct_dlogdet(s, eta) - s@rank) > 1e-10) {
+    if (abs(parameters7::param_dlogdet(s, eta) - s@rank) > 1e-10) {
       out <- c(out, "the derivative of the scaled pseudo-determinant is not the rank")
     }
-    if (abs(covstructs7::struct_d2logdet(s, eta)) > 1e-12) {
+    if (abs(parameters7::param_d2logdet(s, eta)) > 1e-12) {
       out <- c(out, "the second derivative of the scaled pseudo-determinant is not zero")
     }
     # equation (scaled-struct): dM = M and d2M = M under the log link
-    m <- covstructs7::struct_matrix(s, eta)
-    if (.cs_maxdiff(covstructs7::struct_dmatrix(s, eta)[[1L]], m) > 1e-10 ||
-        .cs_maxdiff(covstructs7::struct_d2matrix(s, eta)[[1L]], m) > 1e-10) {
+    m <- parameters7::param_value(s, eta)
+    if (.cs_maxdiff(parameters7::param_d1(s, eta)[[1L]], m) > 1e-10 ||
+        .cs_maxdiff(parameters7::param_d2(s, eta)[[1L]], m) > 1e-10) {
       out <- c(out, "the scaled derivatives are not the matrix itself")
     }
     if (.cs_maxdiff(m, lambda * p_mat) > 1e-10) {
@@ -296,7 +296,7 @@
   }
 
   # a fully known matrix has no free value at all
-  if (covstructs7::scaled_struct(diag(3), link = NULL)@n_free != 0L) {
+  if (parameters7::scaled_matrix(diag(3), link = NULL)@n_free != 0L) {
     out <- c(out, "a scaled structure with no link still has a free value")
   }
   out
@@ -320,7 +320,7 @@
   # sum DEGRADES with the ratio, and the stacked rank does not. Both are
   # checked, because the second alone would not distinguish a stacked route
   # that is right from an eigenvalue route that is also right.
-  ns <- covstructs7::struct_null_basis(list(p1, p2))
+  ns <- parameters7::param_null_basis(list(p1, p2))
   if (ns$rank != 28L) {
     out <- c(out, sprintf(
       "the stacked rank of the tensor penalty is %d, the chapter says 28", ns$rank
@@ -345,7 +345,7 @@
   # the null space of a second-difference penalty is the constants and the
   # lines, checked by the penalty itself rather than by the stored basis
   p1 <- d2(8)
-  pen <- covstructs7::scaled_struct(p1)
+  pen <- parameters7::scaled_matrix(p1)
   nb <- pen@null_basis
   if (ncol(nb) != 2L) {
     out <- c(out, "the second-difference penalty does not have a two-dimensional null space")
@@ -363,7 +363,7 @@
 
   # the solve is refused rather than returning a pseudo-inverse
   refused <- tryCatch({
-    covstructs7::struct_solve(pen, 0)
+    parameters7::param_solve(pen, 0)
     FALSE
   }, error = function(e) TRUE)
   if (!refused) {
@@ -371,15 +371,15 @@
   }
 
   # and a full-rank one solves, agreeing with base R
-  s <- covstructs7::log_cholesky(3)
-  m <- covstructs7::struct_matrix(s, .cs_eta3)
-  if (.cs_maxdiff(covstructs7::struct_solve(s, .cs_eta3), solve(m)) > 1e-9) {
+  s <- parameters7::log_cholesky(3)
+  m <- parameters7::param_value(s, .cs_eta3)
+  if (.cs_maxdiff(parameters7::param_solve(s, .cs_eta3), solve(m)) > 1e-9) {
     out <- c(out, "the full-rank solve disagrees with base R")
   }
 
   # a rank-deficient structure is not a density, and the distribution says so
   refused2 <- tryCatch({
-    mvgaussian_distrib(8, struct_sigma = pen)
+    mvgaussian_distrib(8, sigma = pen)
     FALSE
   }, error = function(e) TRUE)
   if (!refused2) {
@@ -391,7 +391,7 @@
 
 # --- 6. The gates ----------------------------------------------------------
 
-assert_covstruct_ok <- function() {
+assert_parameter_ok <- function() {
   problems <- c(.certify_logchol_map(), .certify_dlogdet_identity())
   if (length(problems)) {
     stop("Section 6.1 disagrees with the packages:\n  ",
@@ -400,9 +400,9 @@ assert_covstruct_ok <- function() {
   invisible(TRUE)
 }
 
-assert_covstruct_families_ok <- function() {
+assert_parameter_families_ok <- function() {
   problems <- c(.certify_logchol_map(), .certify_diag_family(),
-                .certify_scaled_family())
+                .certify_scaled_family(), .certify_new_families())
   if (length(problems)) {
     stop("Section 6.2 disagrees with the packages:\n  ",
          paste(problems, collapse = "\n  "), call. = FALSE)
@@ -410,11 +410,71 @@ assert_covstruct_families_ok <- function() {
   invisible(TRUE)
 }
 
-assert_covstruct_rank_ok <- function() {
+assert_parameter_rank_ok <- function() {
   problems <- c(.certify_scaled_family(), .certify_rank_claims())
   if (length(problems)) {
     stop("Section 6.3 disagrees with the packages:\n  ",
          paste(problems, collapse = "\n  "), call. = FALSE)
   }
   invisible(TRUE)
+}
+
+
+# The claims of sections 6.2.4 to 6.2.6: the simplex identity the chapter
+# prints, the two exactnesses of the matrix logarithm, the row-locality of a
+# transition matrix, and the closed higher orders against one product stencil
+# on the map -- a route none of the closed forms share.
+.certify_new_families <- function() {
+  out <- character()
+
+  s <- parameters7::simplex(4)
+  eta <- c(0.5, -0.2, 0.8)
+  v <- parameters7::param_value(s, eta)
+  if (abs(sum(v) - 1) > 1e-12 || any(v <= 0)) {
+    out <- c(out, "the simplex value printed by 6.2.4 is not on the simplex")
+  }
+  for (o in 1:4) {
+    d <- switch(o, parameters7::param_d1, parameters7::param_d2,
+                parameters7::param_d3, parameters7::param_d4)(s, eta)
+    if (max(abs(vapply(d, sum, numeric(1)))) > 1e-10) {
+      out <- c(out, sprintf(
+        "a simplex derivative of order %d does not sum to zero", o
+      ))
+    }
+  }
+
+  m <- parameters7::matrix_log(3)
+  em <- c(0.2, -0.3, 0.4, 0.5, -0.1, 0.3)
+  if (abs(parameters7::param_logdet(m, em) - sum(em[1:3])) > 1e-12) {
+    out <- c(out, "the matrix logarithm's log-determinant is not the trace")
+  }
+  if (max(abs(parameters7::param_solve(m, em) -
+              solve(parameters7::param_value(m, em)))) > 1e-10) {
+    out <- c(out, "the matrix logarithm's inverse is not exp(-S)")
+  }
+  a3 <- parameters7::param_d3(m, em)
+  n3 <- parameters7::numerical_d3(m, em)
+  worst <- max(mapply(function(a, b) {
+    max(abs(a - b)) / max(1, max(abs(b)))
+  }, a3, n3))
+  if (worst > 1e-4) {
+    out <- c(out, sprintf(
+      "matrix_log third derivatives disagree with one stencil by %.1e", worst
+    ))
+  }
+
+  tm <- parameters7::transition_matrix(3)
+  set.seed(5)
+  et <- stats::rnorm(tm@n_free, sd = 0.6)
+  d2 <- parameters7::param_d2(tm, et)
+  idx <- parameters7::param_tuple_indices(tm, 2L)
+  row_of <- rep(seq_len(3), each = 2)
+  for (i in seq_along(idx)) {
+    rows <- row_of[idx[[i]]]
+    if (rows[1L] != rows[2L] && max(abs(d2[[i]])) != 0) {
+      out <- c(out, "a cross-row transition component is not exactly zero")
+      break
+    }
+  }
+  out
 }

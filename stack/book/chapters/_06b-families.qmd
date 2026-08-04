@@ -1,13 +1,13 @@
-## The families {#sec-covstruct-families}
+## The families {#sec-parameter-families}
 
 ```{r}
 #| label: setup-06b
 #| include: false
 source("R/_setup.R")
-source("R/covstruct-certificates.R")
+source("R/parameter-certificates.R")
 ```
 
-### The log-Cholesky map {#sec-covstruct-logchol}
+### The log-Cholesky map {#sec-parameter-logchol}
 
 The general positive definite case is parametrised through the Cholesky
 factor. Every positive definite $M$ has a unique factorisation
@@ -62,12 +62,12 @@ observation costs nothing at all.
 
 ```{r}
 #| label: logchol-logdet
-s <- covstructs7::log_cholesky(3)
-covstructs7::struct_dlogdet(s, c(0.1, -0.2, 0.3, 0.5, -0.4, 0.2))
-covstructs7::struct_dlogdet(s, c(-2, 3, 0.7, -1.1, 0.4, 2.5))
+s <- parameters7::log_cholesky(3)
+parameters7::param_dlogdet(s, c(0.1, -0.2, 0.3, 0.5, -0.4, 0.2))
+parameters7::param_dlogdet(s, c(-2, 3, 0.7, -1.1, 0.4, 2.5))
 ```
 
-### Diagonal matrices, and where the two packages meet {#sec-covstruct-diagonal}
+### Diagonal matrices, and where the two packages meet {#sec-parameter-diagonal}
 
 A diagonal matrix with positive entries is the case in which a matrix
 parametrisation and a scalar link agree. The Jacobian of
@@ -76,19 +76,19 @@ $$
 M(\eta) = \mathrm{diag}\bigl(h(\eta_1), \ldots, h(\eta_p)\bigr)
 $$ {#eq-diag-struct}
 
-is diagonal, which is exactly the contract a link satisfies, so `covstructs7`
+is diagonal, which is exactly the contract a link satisfies, so `parameters7`
 takes $h$ from `linkfunctions7` instead of writing a positive map of its own.
 Any link whose range is the positive half-line serves, and its exact
-derivatives to fourth order come with it. The derivatives of the structure are
+derivatives to fourth order come with it. The derivatives of the parameter are
 then $A_k = h'(\eta_k) e_k e_k^\top$ and $A_{kk} = h''(\eta_k) e_k e_k^\top$,
 with every mixed second derivative zero, and the log-determinant is
 $\sum_i \log h(\eta_i)$.
 
 ```{r}
 #| label: diag-struct
-covstructs7::struct_matrix(covstructs7::diag_struct(3), c(0, 0.5, -0.5))
-covstructs7::struct_matrix(
-  covstructs7::diag_struct(2, link = linkfunctions7::sqrt_link()), c(1, 2)
+parameters7::param_value(parameters7::diagonal_matrix(3), c(0, 0.5, -0.5))
+parameters7::param_value(
+  parameters7::diagonal_matrix(2, link = linkfunctions7::sqrt_link()), c(1, 2)
 )
 ```
 
@@ -96,7 +96,7 @@ A single free value shared by every entry gives $\sigma^2 I$, which is the
 independent case a variance component or a ridge starts from. It is the same
 construction with $d = 1$.
 
-### A fixed matrix carried by one scale {#sec-covstruct-scaled}
+### A fixed matrix carried by one scale {#sec-parameter-scaled}
 
 The third family is different in kind. Here the matrix is
 
@@ -108,7 +108,7 @@ with $P$ a **known** symmetric positive semidefinite matrix and $\lambda$ the
 only unknown. This is the commonest penalty in semiparametric regression: $P$
 may be the Gram matrix of a basis derivative from @sec-basis-gram, a
 difference penalty $\Delta^\top \Delta$, a neighbourhood matrix, or the
-identity, in which case the structure is a ridge.
+identity, in which case the parameter is a ridge.
 
 Nothing here needs deriving. With the default log link, $\lambda = e^{\eta}$
 and every quantity is a constant times a function of the scale:
@@ -124,42 +124,132 @@ $$
 $$ {#eq-scaled-logdet}
 
 with $r$ the rank of $P$ and $|\cdot|_{+}$ the pseudo-determinant of
-@sec-covstruct-pseudodet. The constant $\log|P|_{+}$ is computed once at
+@sec-parameter-pseudodet. The constant $\log|P|_{+}$ is computed once at
 construction, since $P$ does not change.
 
 ```{r}
 #| label: scaled-struct
 # a ridge: the identity, scaled
-r <- covstructs7::scaled_struct(diag(4))
-c(rank = r@rank, logdet_at_zero = covstructs7::struct_logdet(r, 0))
+r <- parameters7::scaled_matrix(diag(4))
+c(rank = r@rank, logdet_at_zero = parameters7::param_logdet(r, 0))
 
 # a second-difference penalty on six coefficients
 dm <- diff(diag(6), differences = 2)
-pen <- covstructs7::scaled_struct(crossprod(dm))
+pen <- parameters7::scaled_matrix(crossprod(dm))
 c(dimension = pen@dimension, rank = pen@rank)
 ```
 
-### Which side of a model a family parametrises {#sec-covstruct-role}
+### The simplex and the transition matrix {#sec-parameter-simplex}
+
+A probability vector $\pi$ on the open simplex satisfies $\pi_a > 0$ and
+$\sum_a \pi_a = 1$, so a vector of $K$ categories has $K - 1$ free values.
+The package carries it by the additive log-ratio map with the last category
+as reference,
+$$\pi_a = \frac{e^{\eta_a}}{1 + \sum_b e^{\eta_b}}, \qquad
+  \pi_K = \frac{1}{1 + \sum_b e^{\eta_b}},$$
+whose inverse is $\eta_a = \log(\pi_a / \pi_K)$, exact. The derivatives of
+this map close over the value itself: writing
+$Z = 1 + \sum_b e^{\eta_b}$, each $\pi_a$ with $a < K$ is a first derivative
+of $\log Z$, so the derivative arrays of $\pi$ are the higher derivatives of
+$\log Z$ -- the cumulants of a categorical indicator -- and every order
+follows from the single rule
+$$\partial_b\, \pi_a = \pi_a(\delta_{ab} - \pi_b)$$
+applied repeatedly with the product rule. All four orders are closed form,
+and one identity comes free: differentiating $\sum_a \pi_a = 1$ shows that
+every derivative component sums to zero over the value index, at every order.
+
+```{r}
+#| label: simplex-orders
+s <- simplex(4)
+eta <- c(0.5, -0.2, 0.8)
+round(param_value(s, eta), 4)
+
+# the free identity: each component of each order sums to zero
+range(vapply(param_d3(s, eta), sum, numeric(1)))
+```
+
+A transition matrix of a Markov chain on $K$ states is a $K \times K$ matrix
+whose rows lie on the simplex, and `transition_matrix()` treats it as exactly
+that: $K$ independent additive log-ratio charts, one per row, $K(K-1)$ free
+values in all. The independence carries to the derivatives, which are block
+diagonal by row -- a component pairing free values of two different rows is
+exactly zero, not small -- so the cost of an order grows with the row, not
+with the matrix.
+
+### The matrix logarithm {#sec-parameter-matrixlog}
+
+The log-Cholesky map is not the only chart on the positive definite cone.
+`matrix_log()` writes $M = \exp(S)$ with $S$ symmetric and genuinely free:
+the free values fill the triangle of $S$ directly, and no entry is
+transformed. Two quantities are then exact by construction. The
+log-determinant is the trace,
+$$\log\lvert M \rvert = \operatorname{tr}(S),$$
+linear in the diagonal free values with every higher derivative zero, and the
+inverse is $M^{-1} = \exp(-S)$, through the same eigendecomposition that
+evaluates the map. This is the chart to reach for when the covariance and
+the precision are wanted at once; log-Cholesky remains the cheaper one for
+derivatives, which there are sparse products.
+
+The derivatives of $\exp(S)$ in the free values are its Fréchet derivatives,
+and the package computes them by the representation of @daleckii1965: with
+$S = Q \Lambda Q^\top$ and the directions rotated by $Q$, the $k$-th
+derivative contracts chains of directions against divided differences of
+$e^x$ of order $k + 1$ at the eigenvalues, summed over the orderings of the
+directions. The divided differences themselves are computed by the theorem of
+@opitz1964 -- the exponential of a small upper bidiagonal matrix, read off
+its corner entry -- which remains exact when eigenvalues repeat or nearly
+repeat, where the recursive quotient formula cancels catastrophically.
+
+```{r}
+#| label: matrixlog
+m <- matrix_log(3)
+eta <- c(0.2, -0.3, 0.4, 0.5, -0.1, 0.3)
+
+# the log-determinant is the trace of S, read off the free vector
+c(param_logdet(m, eta), sum(eta[1:3]))
+
+# and the inverse costs no factorisation
+max(abs(param_solve(m, eta) - solve(param_value(m, eta))))
+```
+
+### Third and fourth derivatives {#sec-parameter-higher}
+
+Every family above carries its derivatives to fourth order in closed form:
+log-Cholesky by the Leibniz rule on $M = LL^\top$, the diagonal and scaled
+families through the link derivatives that `linkfunctions7` already supplies
+at fourth order, the simplex by its cumulant recursion, and the matrix
+logarithm by the divided-difference contraction. A parameter defined outside
+the package is served by numerical fallbacks that apply one product stencil
+directly to the map for each component -- never a stencil on a lower-order
+numerical derivative -- so the accuracy degrades honestly with the order and
+the no-nesting rule of the toolkit holds structurally.
+
+The higher orders exist for a consumer: the multivariate gaussian of
+@sec-mvgaussian builds its own third and fourth derivatives from these, one
+Leibniz expansion away, and a mixed-effects model that profiles or corrects
+its likelihood asks for exactly that.
+
+### Which side of a model a family parametrises {#sec-parameter-role}
 
 The name of a family does not say whether the matrix it produces is a
 covariance or a precision, and the two are different models. Imposing a
-structure on $\Sigma$ and imposing the same structure on $\Omega = \Sigma^{-1}$
-give the same family only when the structure is closed under inversion.
+parameter on $\Sigma$ and imposing the same parameter on $\Omega = \Sigma^{-1}$
+give the same family only when the parameter is closed under inversion.
 Diagonal matrices are, and so is compound symmetry, whose inverse is again
 compound symmetry with different constants. An AR(1) correlation matrix is not:
 its inverse is tridiagonal, which is a different pattern of zeros, so an AR(1)
 covariance and an AR(1) precision are genuinely different assumptions about
 the same data.
 
-A structure therefore carries a label recording which side it is meant for.
+A parameter therefore carries a label recording which side it is meant for.
 Nothing computed depends on it and no method reads it; it exists so that the
 object says what it is, and so that a consumer that cares can ask. The
-distribution of @sec-mvgaussian takes the structure on either side and adjusts
+distribution of @sec-mvgaussian takes the parameter on either side and adjusts
 its own derivatives accordingly, which is the only place the difference has
 arithmetic consequences.
 
 ```{r}
 #| label: consistency-06b
 #| include: false
-assert_covstruct_families_ok()
+assert_parameter_families_ok()
 ```
