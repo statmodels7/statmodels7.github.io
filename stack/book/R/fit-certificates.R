@@ -223,7 +223,11 @@ assert_fit_ok <- function() {
   ll_hat <- sum(distrib_pdf(d, y, list(mu = mu_hat, sigma = s_hat), log = TRUE))
 
   f <- fit_distrib(d, y)
-  if (abs(as.numeric(logLik(f)) - ll_hat) > 1e-8) {
+  # The bounds here are loose on purpose. The fit stops on a score per
+  # observation, so the estimate sits a little short of the exact maximum and
+  # every comparison below inherits that; what is being checked is a factor of
+  # sqrt(n), which is 70 at this sample size, not a last digit.
+  if (abs(as.numeric(logLik(f)) - ll_hat) > 1e-5) {
     out <- c(out, sprintf(
       "the averaged objective moved the maximum: %s against %s",
       format(as.numeric(logLik(f)), digits = 12), format(ll_hat, digits = 12)
@@ -233,17 +237,20 @@ assert_fit_ok <- function() {
   # gaussian fitted by maximum likelihood.
   want <- c(mu = s_hat / sqrt(n), sigma = s_hat / sqrt(2 * n))
   got  <- c(mu = f@se[["mu"]], sigma = f@se[["sigma"]])
-  if (max(abs(got - want) / want) > 1e-6) {
+  if (max(abs(got - want) / want) > 1e-4) {
     out <- c(out, sprintf(
       "a standard error is off the closed form by a factor of %s",
       paste(format(got / want, digits = 6), collapse = " and ")
     ))
   }
   # And the rule is read on the averaged score: the summed one is n times
-  # larger, so a tolerance of 1e-10 on the sum would be out of reach here.
+  # larger, so the same bound applied to the sum would be out of reach here.
+  # The bound is the function's own default rather than a constant repeated
+  # here, which would go stale the moment the default moved.
+  tol <- eval(formals(distributions7::fit_distrib)$tol)
   sc <- vapply(distrib_gradient(d, y, as.list(coef(f)), scale = "link"),
                sum, numeric(1))
-  if (!isTRUE(f@converged) || max(abs(sc)) / n > 1e-10) {
+  if (!isTRUE(f@converged) || max(abs(sc)) / n > tol) {
     out <- c(out, sprintf(
       "the reported optimum has an averaged score of %.2e, converged = %s",
       max(abs(sc)) / n, f@converged

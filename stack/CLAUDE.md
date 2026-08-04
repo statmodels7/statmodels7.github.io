@@ -1032,6 +1032,17 @@ the mathematics. `fit_distrib()` was starting at `eta = 0`, which for a
 multivariate gaussian is a zero mean and a unit covariance, and on data whose
 scale is nothing like that the run never arrives.
 
+⚠️ **Half of that measurement was a second defect, and the table above is the
+"before" of two fixes at once.** With the `sqrt(p)` information bug of §4
+repaired, the same fit started at the origin **does** arrive -- 42 iterations,
+0.28 s, the same maximum to 6e-14. The corrupted expected information was
+making Fisher scoring take poor steps from far away, so the origin looked
+fatal when it was merely expensive. What the starting value buys is therefore
+**work, not an answer**, and the book's §3.3 and its gate were both weakened to
+say that. General shape: when one change fixes a symptom, the number that
+motivated it has to be **re-measured** afterwards, because a second cause can
+be hiding inside the first one's evidence.
+
 - **`distrib_start(distrib, y, n_start)`** is the fix: a generic returning a
   starting value computed from the DATA. The default is the old random draw
   from the parameter domains, so a family that says nothing loses nothing; the
@@ -1061,6 +1072,78 @@ scale is nothing like that the run never arrives.
 
 Read together with the item above on finite differences inside a score: both
 are cases where the arithmetic was right and the run still reported failure.
+
+### A gradient tolerance is bounded by the value of the objective
+
+The last red macOS job (2026-08-04) was three fits reporting
+`converged = FALSE`, and the number that explained it came from CI itself:
+the assertions were changed to print what the run did, and macOS answered
+*"BFGS, 14 iterations, 'the line search found no acceptable step',
+score/n 2.086e-10"* against a tolerance of 1e-10. **An assertion that prints
+only TRUE/FALSE cannot be diagnosed on a platform you do not have**;
+`fit_report()` in `tests/testthat/helper-distributions.R` is the fix and is
+worth copying anywhere a convergence flag is asserted.
+
+The mechanism is arithmetic, not platform. A line search accepts a step only
+when the objective decreases by a definite amount, and near the optimum that
+decrease is about `|g|^2/(2*lambda)`. Once it drops below the rounding of the
+objective itself, `eps*|f|`, no step in any direction can be verified and the
+search refuses all of them, so the smallest gradient a run can reach is
+around
+
+```
+|g|_floor ~ sqrt(2 * lambda * eps * |f*|)
+```
+
+and it **grows with the value at the solution**. The decisive measurement is
+one line: adding a constant to the objective moves neither the minimiser nor
+the gradient, and on conjugate gradients applied to Rosenbrock it takes the
+attainable gradient from 1.9e-9 at `f* = 0` to 4.4e-8 at `f* = 1`, 2.8e-6 at
+1e3 and 6.5e-5 at 1e6 -- a square-root law, visible with no reference to any
+platform. BFGS is unaffected on those problems because it arrives before it
+hits the wall, which is exactly why the defect looked like a BFGS/Fisher
+disagreement.
+
+⚠️ **Every problem in `optimizers7::test_problems()` has `f* = 0`**, where the
+rounding floor is itself zero, so the package's own battery could never have
+shown this. A likelihood is the opposite case: `-l/n` is of order one at the
+maximum, and the floor is then ~1e-8. Measured across families, methods and
+seeds (72 runs) it is usually 1e-15 or 1e-16 but reaches **1.06e-8**, and
+macOS reported 1.345e-8 on the multivariate t -- the same number.
+
+Both defaults were therefore raised to **1e-6**, two orders above the worst
+observed floor: `crit_grad()` in optimizers7 and `tol` in `fit_distrib()`.
+Nothing statistical is lost, a score of 1e-6 per observation placing the
+estimate a small fraction of a standard error from the maximum. Two
+consequences worth knowing:
+
+- **the optimisers no longer restate the constants.** `gd`, `cg`, `bb`,
+  `newton`, `bfgs` and `lbfgs` all had `crit_any(crit_grad(1e-8),
+  crit_rel_obj(1e-12))` written out, so changing `crit_grad()`'s default would
+  not have reached any of them. They now say `crit_any(crit_grad(),
+  crit_rel_obj())`;
+- **a test's tolerance on an estimate cannot be tighter than the rule that
+  stopped the run.** Several asserted a parameter to 1e-6 or 1e-7 while the
+  fit promised only what its stopping rule promised, and passed by the same
+  luck that made the CI green four times out of five. They now follow the
+  tolerance, and say so. The same applies to the book's gates: one of them
+  restated `1e-10` and went red the moment the default moved, so it now reads
+  `formals(distributions7::fit_distrib)$tol` — **a threshold that mirrors a
+  default belongs to that default, not to a copy of it.**
+
+**What `fit_distrib()` kept from the optimiser, and what it threw away**
+(2026-08-04, Giovanni asked). It has delegated to `optimizers7::minimize()`
+since 2026-08-03 and already carried the iteration count, the evaluation
+counts, the rule that fired and the note. It discarded `elapsed` and
+`gradient`, both of which are worth having: the time is now **accumulated over
+every start and every fallback**, since what a caller wants is what the fit
+cost rather than what the surviving run cost, and the gradient of `-l/n` is
+*by construction* the score per observation the rule tested, so `@score` says
+how close to stationary a run ended. `print()` shows the time always and the
+score only when the run did not converge, which is when it answers something.
+Consequence to know: the book prints a fit in two chunks, so its HTML now
+carries a timing that changes at every render — the same harmless churn as
+`date: today`, and not evidence that anything changed.
 
 ### Finite differences inside a score
 
