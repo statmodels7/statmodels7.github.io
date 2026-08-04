@@ -1145,6 +1145,15 @@ Consequence to know: the book prints a fit in two chunks, so its HTML now
 carries a timing that changes at every render — the same harmless churn as
 `date: today`, and not evidence that anything changed.
 
+⚠️ **The first version printed the time only when it was positive, and
+Windows went red for it.** On a coarse clock a fast fit measures *exactly*
+zero seconds, so what the object reported depended on the platform's timer
+resolution — the same class of defect as the tolerance this whole episode was
+about, reintroduced in the fix for it. Zero is the reading, not the absence of
+one: the line is printed whenever the time is finite. **A guard of the form
+`if (x > 0)` on a measured quantity is a claim that zero cannot be measured**,
+and for a duration that claim is false.
+
 ### Finite differences inside a score
 
 Three things learned adding the skew t (2026-08-04), all of which apply to any
