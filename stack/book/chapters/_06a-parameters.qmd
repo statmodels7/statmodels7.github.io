@@ -41,6 +41,18 @@ derivative components of the likelihood are keyed by them, and the printed
 summary of a fit reports them, so they are part of the interface rather than a
 convenience.
 
+A label names the coordinate and not the quantity the coordinate produces,
+which is a distinction the families here keep in their spelling. Where a link
+carries a constrained quantity onto the free scale, the label records that
+link: a variance appears as `log_scale` and a correlation as `z_rho`, the
+tag naming the transformation rather than the bound it removes. Where the
+coordinate is already unrestricted the label is the plain name of the
+quantity, as the below-diagonal entries `L2.1` of a Cholesky factor are. The
+consequence of getting this wrong is visible outside the parameter: a
+consumer flattens the free vector into scalar parameters carrying identity
+links, so a label promising a correlation would report a number on a scale
+where the interval around it can reach past one.
+
 ### Why this is not a link {#sec-parameter-not-link}
 
 A link function of @sec-links is a scalar map $g$ applied to each parameter
@@ -67,7 +79,8 @@ its own positive maps; see @sec-parameter-diagonal.
 ### What a consumer asks {#sec-parameter-generics}
 
 A likelihood that carries a matrix parameter asks four things of it, and a
-parameter answers all four.
+parameter answers all four. A fifth is asked not by the likelihood but by
+whoever reads its result, and is described at the end of this section.
 
 The **matrix** itself, $M(\eta)$, is the only compulsory one; everything else
 has a numerical method available from it alone.
@@ -109,6 +122,18 @@ s
 eta <- c(0.1, -0.2, 0.3, 0.5, -0.4, 0.2)
 round(parameters7::param_value(s, eta), 4)
 ```
+
+The fifth question is what the family is about, and it is asked after the
+fitting rather than during it. The free values are coordinates, and for the
+economical families of @sec-parameter-economical the quantity behind a
+coordinate is a variance or a correlation that no part of the estimated
+matrix displays on its own; for an autoregression the coefficients are not in
+the matrix at all. A parameter therefore declares those quantities together
+with the Jacobian of the map from the free vector and the scale each of them
+should be intervalled on, and a consumer carries its variance matrix onto
+them by the delta method, as @sec-mv-reporting describes for a fitted model.
+The declaration is optional: a family whose matrix is the whole of what it
+has to say declares nothing, and a consumer already reports the matrix.
 
 The sign in front of the log-determinant is the consumer's arithmetic and not
 the parameter's. A gaussian written in the covariance carries

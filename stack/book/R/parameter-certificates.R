@@ -389,10 +389,78 @@
 }
 
 
+# --- 5b. What a free name denotes -------------------------------------------
+
+# Section 6.1 states a convention and names three coordinates as instances of
+# it. The three are transcribed here rather than derived from the package's
+# own tagging helper, which would compare the package with itself; and the
+# property behind the convention -- that a labelled coordinate is genuinely
+# unrestricted -- is exercised separately, since a spelling that happened to
+# be right for the wrong reason would pass the first check alone.
+.certify_free_names <- function() {
+  out <- character()
+
+  printed <- list(
+    list(what = "log_scale", got = parameters7::scalar_matrix(3)@free_names),
+    list(what = "z_rho", got = parameters7::ar1(5)@free_names[2L]),
+    list(what = "L2.1", got = parameters7::log_cholesky(2)@free_names[3L])
+  )
+  for (p in printed) {
+    if (!identical(p$got, p$what)) {
+      out <- c(out, sprintf(
+        "the section prints the coordinate %s and the package calls it %s",
+        p$what, paste(p$got, collapse = ", ")
+      ))
+    }
+  }
+
+  # the tag names the transformation, not the bound: compound symmetry is
+  # definite only above -1/(p-1), and no part of that number reaches the label
+  cs <- parameters7::compound_symmetry(4)@free_names
+  if (!identical(cs, c("log_scale", "logit_rho"))) {
+    out <- c(out, sprintf(
+      "compound symmetry names its coordinates %s", paste(cs, collapse = ", ")
+    ))
+  }
+
+  # a labelled coordinate ranges over the whole line
+  fams <- list(parameters7::scalar_matrix(3), parameters7::ar1(5),
+               parameters7::compound_symmetry(4),
+               parameters7::autoregressive(6, order = 2),
+               parameters7::log_cholesky(3))
+  for (s in fams) {
+    for (k in seq_len(s@n_free)) {
+      for (v in c(-12, 12)) {
+        eta <- numeric(s@n_free)
+        eta[k] <- v
+        m <- parameters7::param_value(s, eta)
+        ev <- eigen(m, symmetric = TRUE, only.values = TRUE)$values
+        if (!all(is.finite(m)) || min(ev) < -1e-13 * max(ev)) {
+          out <- c(out, sprintf(
+            "%s leaves its set at %s = %g", s@param_name, s@free_names[k], v
+          ))
+        }
+      }
+    }
+  }
+
+  # and the consumer really does flatten it into identity links, which is what
+  # makes a label promising a bounded quantity a misreport rather than a
+  # cosmetic complaint
+  d <- distributions7::mvgaussian_distrib(3, sigma = parameters7::ar1(3))
+  tags <- vapply(d@link_params, function(l) l@link_name, character(1))
+  if (!all(tags == "identity")) {
+    out <- c(out, "the multivariate parameters do not all carry identity links")
+  }
+  out
+}
+
+
 # --- 6. The gates ----------------------------------------------------------
 
 assert_parameter_ok <- function() {
-  problems <- c(.certify_logchol_map(), .certify_dlogdet_identity())
+  problems <- c(.certify_logchol_map(), .certify_dlogdet_identity(),
+                .certify_free_names())
   if (length(problems)) {
     stop("Section 6.1 disagrees with the packages:\n  ",
          paste(problems, collapse = "\n  "), call. = FALSE)
@@ -402,7 +470,9 @@ assert_parameter_ok <- function() {
 
 assert_parameter_families_ok <- function() {
   problems <- c(.certify_logchol_map(), .certify_diag_family(),
-                .certify_scaled_family(), .certify_new_families())
+                .certify_scaled_family(), .certify_new_families(),
+                .certify_phase2_families(),
+                .certify_arp())
   if (length(problems)) {
     stop("Section 6.2 disagrees with the packages:\n  ",
          paste(problems, collapse = "\n  "), call. = FALSE)
@@ -475,6 +545,126 @@ assert_parameter_rank_ok <- function() {
       out <- c(out, "a cross-row transition component is not exactly zero")
       break
     }
+  }
+  out
+}
+
+
+# The claims of sections 6.2.4 and 6.2.5. Each is checked against a route the
+# chapter does not use: the correlation's unit diagonal against the value
+# itself, its log-determinant against the spectrum, the two economical
+# families' eigenvalue formulas against an eigendecomposition, the definiteness
+# bound of compound symmetry against the matrix at a correlation just inside
+# and just outside it, and the AR(1) precision's bandwidth against a general
+# inverse.
+.certify_phase2_families <- function() {
+  out <- character()
+
+  s <- parameters7::correlation_matrix(4)
+  eta <- c(0.4, -0.2, 0.6, 0.1, -0.5, 0.3)
+  r <- parameters7::param_value(s, eta)
+  if (max(abs(diag(r) - 1)) > 1e-12) {
+    out <- c(out, "the correlation matrix printed by 6.2.4 has no unit diagonal")
+  }
+  ev <- eigen(r, symmetric = TRUE, only.values = TRUE)$values
+  if (abs(parameters7::param_logdet(s, eta) - sum(log(ev))) > 1e-9) {
+    out <- c(out, "the correlation's log-determinant disagrees with its spectrum")
+  }
+
+  # the two distinct eigenvalues compound symmetry claims
+  p <- 5
+  cs <- parameters7::compound_symmetry(p)
+  ecs <- c(log(1.7), 0.6)
+  m <- parameters7::param_value(cs, ecs)
+  v <- m[1L, 1L]
+  rho <- m[2L, 1L] / v
+  want <- sort(c(v * (1 + (p - 1) * rho), rep(v * (1 - rho), p - 1)))
+  if (max(abs(sort(eigen(m, symmetric = TRUE, only.values = TRUE)$values) -
+              want)) > 1e-9) {
+    out <- c(out, "compound symmetry's eigenvalues are not the two 6.2.5 states")
+  }
+
+  # the bound -1/(p-1): just inside it the matrix is definite, just outside
+  # it is not, so the interval the link maps onto is the right one
+  pat <- function(rho) (1 - rho) * diag(p) + rho * matrix(1, p, p)
+  inside <- min(eigen(pat(-1 / (p - 1) + 1e-6), symmetric = TRUE,
+                      only.values = TRUE)$values)
+  outside <- min(eigen(pat(-1 / (p - 1) - 1e-3), symmetric = TRUE,
+                       only.values = TRUE)$values)
+  if (!(inside > 0 && outside < 0)) {
+    out <- c(out, "the definiteness bound -1/(p-1) is not where 6.2.5 says")
+  }
+  bounds <- cs@param_params$link_rho@link_bounds
+  if (max(abs(unname(bounds) - c(-1 / (p - 1), 1))) > 1e-12) {
+    out <- c(out, "the correlation link of compound symmetry uses another bound")
+  }
+
+  # AR(1): the determinant formula and the tridiagonal precision
+  a <- parameters7::ar1(5)
+  ea <- c(log(2), atanh(0.6))
+  ma <- parameters7::param_value(a, ea)
+  if (abs(parameters7::param_logdet(a, ea) -
+          (5 * log(2) + 4 * log(1 - 0.6^2))) > 1e-9) {
+    out <- c(out, "the AR(1) log-determinant is not p log s + (p-1) log(1-r^2)")
+  }
+  pr <- parameters7::param_solve(a, ea)
+  far <- abs(row(pr) - col(pr)) > 1
+  if (max(abs(pr[far])) != 0 ||
+      max(abs(pr - solve(ma))) > 1e-10) {
+    out <- c(out, "the AR(1) precision is not the tridiagonal inverse")
+  }
+
+  # and the compound-symmetric inverse is compound symmetric, which is the
+  # closure under sides the section claims
+  pc <- parameters7::param_solve(cs, ecs)
+  if (diff(range(diag(pc))) > 1e-10 ||
+      diff(range(pc[lower.tri(pc)])) > 1e-10) {
+    out <- c(out, "the compound-symmetric inverse is not compound symmetric")
+  }
+  out
+}
+
+
+# The claims of section 6.2.6, each against a route the chapter does not use:
+# the stationary region against the roots of the polynomial the chapter
+# writes, the log-determinant against a spectrum, the band against a general
+# inverse, and the order-one case against the independently written ar1().
+.certify_arp <- function() {
+  out <- character()
+  s <- parameters7::autoregressive(7, order = 2L)
+  eta <- c(log(2), atanh(0.7), atanh(-0.3))
+
+  phi <- vapply(parameters7:::ar_jets(s, eta)$phi, function(x) x$v, numeric(1))
+  if (min(Mod(polyroot(c(1, -phi)))) <= 1) {
+    out <- c(out, "the chart of 6.2.6 left the stationary region")
+  }
+  # and the triangle the section names is the region at order two
+  if (!(abs(phi[2L]) < 1 && phi[2L] + phi[1L] < 1 && phi[2L] - phi[1L] < 1)) {
+    out <- c(out, "the order-two coefficients are outside the stated triangle")
+  }
+
+  m <- parameters7::param_value(s, eta)
+  ev <- eigen(m, symmetric = TRUE, only.values = TRUE)$values
+  if (abs(parameters7::param_logdet(s, eta) - sum(log(ev))) > 1e-9) {
+    out <- c(out, "the AR(q) log-determinant disagrees with its spectrum")
+  }
+
+  pr <- parameters7::param_solve(s, eta)
+  if (max(abs(pr[abs(row(pr) - col(pr)) > 2L])) != 0 ||
+      max(abs(pr - solve(m))) > 1e-9) {
+    out <- c(out, "the AR(q) precision is not the banded exact inverse")
+  }
+
+  # the two implementations of the order-one case
+  s1 <- parameters7::autoregressive(6, order = 1L)
+  a1 <- parameters7::ar1(6)
+  e1 <- c(log(2), atanh(0.6))
+  gap <- max(abs(parameters7::param_value(s1, e1) -
+                 parameters7::param_value(a1, e1)))
+  if (gap > 1e-12) {
+    out <- c(out, sprintf(
+      "autoregressive(order = 1) and ar1() disagree by %.1e", gap
+    ))
   }
   out
 }
