@@ -1171,6 +1171,35 @@ nothing). Decisions and mechanics worth keeping:
   the disciplined fallback: nu blocks closure exactly as in the univariate
   skew t.
 
+### An argument's POSITION is part of its interface
+
+Giovanni reported *"un problema con il caricamento dei metodi S7"* from
+
+```r
+fit <- fit_distrib(d, y, lbfgs())
+#> Error in as.vector(x, "list") :
+#>   cannot coerce type 'object' to vector of type 'list'
+```
+
+There was nothing wrong with S7 or with the meta-package. `fit_distrib()` is
+`(distrib, y, start, method, level, n_start)`, so an optimiser written
+positionally lands in **`start`**, and `align_theta()` refuses to coerce it
+several frames down. `method = lbfgs()` fits in 22 iterations.
+
+Two things to keep. The message named neither the argument nor the mistake,
+which is the failure mode section 7 already records twice in other words: an
+error that surfaces far from its cause is worse than no error. `start` is now
+checked in the function itself, and an `optimizers7::optimizer` or a
+`FisherScoring` is told apart from any other wrong type so that the message
+can say which argument was meant.
+
+And the general form: **the order of arguments is part of an interface, and
+the commonly-passed one being fourth is a trap the documentation cannot
+close.** Reordering was rejected -- it would silently change the meaning of
+every existing positional call -- so the guard is the answer. Anywhere two
+adjacent arguments take unrelated types and the later is the one people
+actually set, check the earlier one by type and say so.
+
 ### The meta-package, and the note it keeps
 
 `statmodels7` was created on 2026-08-05 (Giovanni: a tidyverse-style
