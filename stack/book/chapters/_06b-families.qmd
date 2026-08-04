@@ -139,6 +139,165 @@ pen <- parameters7::scaled_matrix(crossprod(dm))
 c(dimension = pen@dimension, rank = pen@rank)
 ```
 
+### Correlation matrices {#sec-parameter-correlation}
+
+A correlation matrix is a covariance whose diagonal is fixed at one, and that
+fixing is what makes it awkward: the constraint is not a bound on each entry
+but a relation among them, so a parametrisation that produced the entries
+directly would have to repair the diagonal afterwards. The spherical
+parametrisation avoids the repair by building the Cholesky factor rather than
+the matrix. Row $i$ of $L$ is a point on the unit sphere of $\mathbb{R}^{i}$
+written in angular coordinates,
+$$L_{ij} = \cos\theta_{ij} \prod_{k<j} \sin\theta_{ik} \quad (j < i),
+  \qquad L_{ii} = \prod_{k<i} \sin\theta_{ik},$$
+with $\theta_{ik} \in (0, \pi)$. The squares of the entries of a row telescope
+to one, so $R = LL^{\top}$ has a unit diagonal whatever the angles are, and it
+is positive definite because $L$ is triangular with a positive diagonal. The
+construction is that of @rapisarda2007, and the angles reach the real line
+through the bounded link of @sec-links, so the free values are unconstrained
+and no combination of them leaves the set.
+
+The derivatives are the Leibniz rule of @sec-parameter-logchol applied to a
+different factor. Each entry of $L$ is a product of sines and cosines of
+angles that each depend on one free value, so differentiating it replaces one
+factor by its derivative and leaves the rest alone. The rows of $L$ are
+independent, which makes a derivative of the factor across two rows vanish;
+the same is not true of $R$, whose entry $(i, j)$ is the inner product of rows
+$i$ and $j$, and a second derivative across those rows is supported on exactly
+those two entries.
+
+The log-determinant is where the parametrisation pays again. The factor is
+triangular, so $\lvert R \rvert = \prod_i L_{ii}^{2}$ and
+$$\log\lvert R \rvert = 2 \sum_{i,k} \log \sin \theta_{ik},$$
+a sum with one term per free value. It is therefore separable: every mixed
+derivative is exactly zero and the pure ones are a logarithm composed with a
+sine.
+
+```{r}
+#| label: correlation
+s <- correlation_matrix(4)
+eta <- c(0.4, -0.2, 0.6, 0.1, -0.5, 0.3)
+r <- param_value(s, eta)
+round(r, 4)
+diag(r)
+
+# the log-determinant needs no factorisation
+c(closed = param_logdet(s, eta),
+  spectral = sum(log(eigen(r, symmetric = TRUE, only.values = TRUE)$values)))
+```
+
+### Structure, and the two free values it leaves {#sec-parameter-economical}
+
+An unstructured covariance over $p$ occasions has $p(p+1)/2$ free values,
+which at $p = 20$ is 210 and beyond what a handful of subjects identifies. The
+two classical structured families collapse that count to two whatever $p$ is,
+which is the reason they are used at all.
+
+Compound symmetry is the exchangeable covariance
+$$M = \sigma^{2}\{(1-\rho)I + \rho J\},$$
+every variance equal and every correlation equal. Its eigenvalues are
+$\sigma^{2}\{1 + (p-1)\rho\}$ once and $\sigma^{2}(1-\rho)$ with multiplicity
+$p-1$, so it is positive definite exactly when
+$$-\frac{1}{p-1} < \rho < 1,$$
+a bound that depends on the dimension and is the reason the correlation is
+carried by a link onto that interval rather than onto $(-1, 1)$: a chart that
+allowed $\rho = -0.9$ at $p = 5$ would hand a consumer an indefinite matrix at
+an ordinary free value. The eigenvalues also give the log-determinant,
+$$\log\lvert M \rvert = p \log \sigma^{2} + \log\{1 + (p-1)\rho\}
+  + (p-1)\log(1-\rho),$$
+a sum of a function of one free value and a function of the other, so its
+mixed derivatives vanish identically. The inverse is compound symmetric again,
+by the Sherman-Morrison identity, so the family is closed under the choice of
+side: an exchangeable covariance has an exchangeable precision.
+
+The AR(1) family is the covariance of a first-order autoregression,
+$M_{ij} = \sigma^{2}\rho^{\lvert i-j \rvert}$, and it is definite for every
+$\lvert \rho \rvert < 1$, so its correlation needs no dimension-dependent
+bound. Its determinant is $\sigma^{2p}(1-\rho^{2})^{p-1}$ and its inverse is
+**tridiagonal**, which is the property the family is used for rather than an
+incidental fact: an autoregression of order one is a Markov process, and a
+Markov process has no partial correlation beyond the lag, so the precision has
+no entries beyond the first off-diagonal.
+
+That inverse is also what makes an AR(1) covariance and an AR(1) precision
+different models. The inverse of a compound-symmetric matrix is compound
+symmetric, so imposing the structure on either side gives the same family; the
+inverse of an AR(1) is tridiagonal but not AR(1), so the two impositions are
+genuinely different assumptions about the same data. This is what the `role`
+label of @sec-parameter-role records.
+
+The two families differ in one respect that matters for the derivatives. The
+compound-symmetric pattern $I + \rho(J - I)$ is *linear* in the correlation, so
+every derivative in it is the matching derivative of the correlation times a
+constant matrix. The AR(1) pattern is not: an entry is $\rho^{m}$ for the lag
+$m$, and its derivatives are a power composed with the link, which is the
+chain rule of Faà di Bruno taken to fourth order.
+
+```{r}
+#| label: economical
+c(unstructured = log_cholesky(20)@n_free,
+  compound_symmetry = compound_symmetry(20)@n_free,
+  ar1 = ar1(20)@n_free)
+
+a <- ar1(5)
+eta <- c(log(2), atanh(0.6))
+round(param_solve(a, eta), 4)
+```
+
+### Autoregressions of any order {#sec-parameter-arp}
+
+The AR(1) family generalises, and the generalisation is instructive because
+the obvious parametrisation fails. A stationary autoregression of order $q$
+has coefficients $\phi$ whose polynomial $1 - \phi_1 z - \cdots - \phi_q z^q$
+has all its roots outside the unit circle, and that region is not a box:
+already at $q = 2$ it is the triangle $\lvert\phi_2\rvert < 1$,
+$\phi_2 \pm \phi_1 < 1$. No collection of scalar links onto intervals covers
+a set whose constraints tie the coordinates together, so the chart cannot be
+built one coefficient at a time.
+
+The partial autocorrelations can. Each $r_k$ lies in $(-1,1)$ independently
+of the others, and the Levinson-Durbin recursion carries them onto the
+stationary coefficients bijectively, which is the transformation of
+@barndorffnielsen1973. Writing $\phi^{(k)}$ for the coefficients of the
+best linear predictor of order $k$,
+$$\phi^{(k)}_k = r_k, \qquad
+  \phi^{(k)}_j = \phi^{(k-1)}_j - r_k \phi^{(k-1)}_{k-j},$$
+and the Yule-Walker equations at order $k$ give the autocorrelations
+$$\rho_k = \sum_{j<k} \phi^{(k)}_j \rho_{k-j} + r_k,$$
+after which $\rho_h = \sum_j \phi_j \rho_{h-j}$ at every lag beyond the
+order. Every free vector is then stationary by construction, and each
+partial autocorrelation takes the same link the AR(1) correlation takes.
+
+The recursion is built from sums and products alone, so the map from the free
+values to the matrix is a polynomial one. Its derivatives are obtained by
+carrying **jets** through it -- each intermediate quantity held together with
+all its partial derivatives to fourth order, multiplied by the same Leibniz
+rule of @sec-parameter-logchol in its scalar form -- rather than by expanding
+the recursion, which would be pages of algebra checkable only against the
+finite differences this construction exists to avoid.
+
+Two quantities stay closed. The innovation variances of the recursion fall by
+$1 - r_k^2$ at each of the first $q$ steps and are constant after, so
+$$\log\lvert M \rvert = p\log\gamma_0 + \sum_{k=1}^{q}(p-k)\log(1-r_k^2),$$
+one term per free value and therefore separable. And the precision is
+**banded of width $q$**: an autoregression of order $q$ is Markov of order
+$q$, so no partial correlation survives beyond the lag, and the inverse is
+assembled from the prediction form rather than factorised.
+
+```{r}
+#| label: arp
+s <- autoregressive(7, order = 2)
+eta <- c(log(2), atanh(0.7), atanh(-0.3))
+
+# the implied coefficients are stationary whatever the free values are
+round(param_solve(s, eta), 4)
+```
+
+`ar1()` remains as the order-one case with its formulas written out, and the
+two agree to machine precision -- which is a check on both, two
+implementations of one object being the only comparison that needs no
+tolerance argument.
+
 ### The simplex and the transition matrix {#sec-parameter-simplex}
 
 A probability vector $\pi$ on the open simplex satisfies $\pi_a > 0$ and

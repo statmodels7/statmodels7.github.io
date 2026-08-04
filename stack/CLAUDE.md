@@ -64,7 +64,7 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | `distributions7` | 18 univariate distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE; **2 multivariate families** (gaussian, Student t) whose matrix parameter comes from `parameters7` |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
-| `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()` (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
+| `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, jets through Levinson-Durbin, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
 
 **Planned** — `modelterms7`, `penalties7`, and eventually the `statmodels7`
 package itself, which assembles everything into models. That last one is the destination:
@@ -188,6 +188,15 @@ Vignettes need pandoc: `$env:RSTUDIO_PANDOC="C:\Users\giova\AppData\Local\Progra
   when an RStudio session has the package loaded — it holds the DLL. Ask Giovanni to run
   `detach("package:distributions7", unload = TRUE)` or restart his R session.
   `testthat::test_local()` is unaffected: pkgload compiles and loads from source.
+  ⚠️ **A removal that fails PART WAY leaves a corrupt installation**, and that
+  is worse than a failed install: `optimizers7` was left as `libs/` alone,
+  with no DESCRIPTION and no `R/`, so `packageVersion()` reported it ABSENT
+  while the directory existed. The symptom surfaced three steps away — a
+  `quarto render` died on *"The package optimizers7 is required"* raised by
+  pkgload while loading **distributions7's** imports, naming the consumer
+  rather than the corruption. When a package that was working reports as
+  absent, look at its installed directory before believing anything else;
+  re-installing it is the whole fix.
 - **PowerShell's `Set-Location` does not change the process's current directory**, only
   the provider location. To release a directory before moving it you also need
   `[System.IO.Directory]::SetCurrentDirectory(...)` — and even then, the agent session's
@@ -578,6 +587,16 @@ A strategy chosen where it would be ignored is refused, through
 `has_exact_expected_hessian()` -- see section 7 for the shadowing bug that made
 that predicate answer backwards.
 
+**`maxit` and `tol` left `fit_distrib()`'s signature on 2026-08-04**
+(Giovanni: they *"dovrebbero essere tutti governati dagli optimizers"*), and
+he was right for a sharper reason than tidiness -- with `method = <an
+optimiser>` they were **silently ignored**, so a call setting both the
+optimiser's `maxit` and the fit's got no complaint and no effect from the
+second. The budget and the stopping rule now live on the method: on an
+optimiser object, or on `fisher_scoring(criterion =, maxit =)`, and
+otherwise at `crit_grad()`'s and the optimiser's own defaults. The internal
+BFGS fallback inherits whatever the chosen method set. See section 7.
+
 **Multivariate distributions** (2026-08-03/04). Base class `multivariate_distrib`
 sits beside `continuous_distrib`/`discrete_distrib` and **not under** it: the
 one-dimensional defaults registered there — a cdf by quadrature, a quantile by
@@ -639,7 +658,22 @@ whole and a scalar link cannot express it.
   gave identical parameter names for two genuinely different models. The
   distribution applies the prefix, not the structure -- the structure does not
   know which side it has been handed to. `mv_prefixed_names()` in
-  `multivariate.R`.
+  `multivariate.R`. **The names themselves changed on 2026-08-04**: a free
+  name now says which TRANSFORM produced the coordinate, so an AR(2)
+  covariance reports `sigma_log_scale`, `sigma_z_pacf1`, `sigma_z_pacf2`.
+  See section 7 -- the old names promised bounded quantities and reported
+  free values.
+- **A structured matrix reports its own quantities as a block**
+  (`mv_param_block()`, 2026-08-04). `parameters7::param_readable()` declares
+  what a family is about with the Jacobian from its free vector, and
+  `mv_derived()` appends it to the standard deviations and correlations, its
+  Jacobian widened by placing the structure's columns in the stretch of
+  `distrib@params` they occupy. Two things to know: the label says
+  `(precision)` when the distribution is inverted, since the structure does
+  not know which side it is on; and a multivariate family written OUTSIDE the
+  package has no `@param` property at all, so the property is asked for with
+  `S7::prop_names()` rather than assumed -- which the existing user-defined
+  test caught immediately.
 - **A fit reports the quantities a reader reads, not the coordinates**
   (`mv_summary()`, `mv_derived()`, `R/mv_summary.R`). Nobody reads the
   logarithm of a diagonal entry of a Cholesky factor; what a fitted
@@ -700,7 +734,7 @@ whole and a scalar link cannot express it.
 | `linkfunctions7` | 890 tests, `R CMD check` OK, CI green |
 | `distributions7` | 2262 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-04, local), CI green |
 | `optimizers7` | 710 tests, `R CMD check --as-cran` OK with vignettes, two notes (2026-08-04). Published 2026-07-31; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
-| `parameters7` | 496 tests, renamed from covstructs7 on 2026-08-04 (clean cut, no aliases; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.2.0`: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log. Phase 2 of the covariance side (correlations, composition) still open. |
+| `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.3.0`: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers (D R D', block diagonal, sums) still open. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
 All five repositories run `R-CMD-check` on macOS, Windows and three Linux/R
@@ -984,6 +1018,100 @@ exactly 1. What was wrong was everything around them.
   change whose outcome depends on floating-point luck, because five platforms
   agreeing is five draws from the same coin. Read a red coverage job.
 
+### Phase 2 of parameters7, and two claims the checks refused
+
+Done 2026-08-04. `correlation_matrix()` uses the SPHERICAL chart
+(Rapisarda-Brigo-Mercurio): rows of the Cholesky factor are unit-sphere
+points in angular coordinates, so the unit diagonal and the definiteness are
+structural and the angles are free through `bounded_link(0, pi)`. It was
+chosen over the canonical partial-correlation recursion for one reason that
+decides everything here: the recursion carries square roots and conditional
+terms whose fourth derivatives are unwritable, while the spherical factor is
+a product of sines and cosines each depending on ONE free value, so the
+Leibniz machinery already in the package applies verbatim. Its
+log-determinant is `2*sum(log(sin(theta)))` -- one term per free value, hence
+separable, hence every mixed derivative exactly zero.
+
+`compound_symmetry()` and `ar1()` are two free values at any p. Both have a
+separable closed log-determinant and a closed inverse (Sherman-Morrison;
+tridiagonal). The bound that matters: compound symmetry is definite only for
+`rho > -1/(p-1)`, so its correlation link is `bounded_link(-1/(p-1), 1)` and
+NOT `rhobit_link()` -- rhobit would hand a consumer an indefinite matrix at
+an ordinary free value. AR(1) has no such dimension-dependent bound and does
+use rhobit.
+
+Two things the checks refused, both worth keeping:
+
+- **`off[, c(2, 1)]` on a ONE-ROW index matrix collapses to a vector**, which
+  R then reads as LINEAR positions rather than as a row-column pair. The
+  AR(1) tridiagonal inverse therefore wrote `-rho` into `[1, 1]` at p = 2 and
+  nowhere else -- invisible at p >= 3, where the index matrix has more than
+  one row. `drop = FALSE` is the fix, and **sweeping the dimension down to
+  its minimum is what found it**: the test now runs `check_parameter()` over
+  p = 2:6 for all three families. The smallest legal case is where a matrix
+  degenerates, and it is the case least likely to be tried by hand.
+- **"a cross-row component of a correlation derivative is zero" was my
+  claim, and it is false.** It holds for the FACTOR, whose rows are
+  independent; it does not hold for `R = LL'`, whose entry (i, j) is the
+  inner product of rows i and j. What is true is that such a component is
+  SUPPORTED on entries (i, j) and (j, i) -- and is zero even there when the
+  two angles sit beyond the columns the rows share, which is why the first
+  correction ("non-zero at exactly those two entries") was refused too. The
+  test asserts the support and then asserts, separately, that some cross
+  component really is non-zero, so the claim cannot be satisfied vacuously.
+  General shape: a structural claim about a product is not a claim about its
+  factors, and writing the test before believing the sentence is what
+  separates them.
+
+### Jets: when a recursion is polynomial, do not expand it
+
+`autoregressive(p, order = q)` (2026-08-04) is the case that forced the
+technique. Its chart HAS to be the partial autocorrelations, because the
+stationary region in the coefficients is not a box -- at q = 2 it is already
+a triangle -- so no collection of scalar links onto intervals covers it;
+Levinson-Durbin carries the PACF onto the coefficients bijectively
+(Barndorff-Nielsen & Schou). But Levinson-Durbin is a RECURSION, and its
+fourth derivative expanded by hand is pages of algebra whose only check would
+be the very finite differences the toolkit refuses to trust at that order.
+
+The way out is that the recursion is built from **sums and products only**, so
+it is a polynomial map: carry a JET through it -- a number held together with
+all its partial derivatives to fourth order -- and every order comes out
+exact with nothing transcribed. `R/jet.R` is 130 lines, and `jet_mul()` is
+`leibniz_gram()` in its scalar form, the same subset-of-positions enumeration.
+**Reach for jets whenever a family's map is a recursion rather than a
+formula**; reach for a written derivative when the map is one line.
+
+Numbers and traps:
+
+- **q = 1 agrees with the independently written `ar1()` to 1e-17** on the
+  value, all four derivative orders, the log-determinant and the solve. Two
+  implementations of one object is the only comparison that needs no
+  tolerance argument, and it is worth engineering one deliberately when a
+  general family subsumes a special case that already exists.
+- The log-determinant is `p*log(g0) + sum_k (p-k)*log(1 - r_k^2)` from the
+  innovation variances -- one term per free value, hence separable, hence
+  every mixed derivative exactly zero. The precision is banded of width q
+  from the prediction form `U' D^-1 U` (measured: entries beyond the band are
+  EXACTLY 0, and the whole matrix matches `solve()` to 3e-15).
+- **R has no zero-length variable name**, so an environment keyed by "sorted
+  tuple" cannot hold the empty tuple; the lookups short-circuit on it before
+  reaching the environment, so the key is simply not stored.
+- **The constructor is `autoregressive()` and not `ar()`** because
+  `stats::ar` exists and a package meant to be attached alongside others must
+  not mask a base function. Worth checking against `ls("package:stats")`
+  before naming any new export.
+- **A mechanical sweep is only as wide as its file list**, and mine left
+  `book/index.qmd` out: the preface still said "covstructs7" and pointed at
+  three section labels that no longer existed. Nothing failed -- Quarto
+  reports an unresolved crossref as a WARN and renders the book anyway, so a
+  render that "succeeded" had three broken references in its preface. **Read
+  the WARN lines of a render**, and after any rename grep the WHOLE directory
+  rather than the files you edited. The follow-up trap was the CRLF one this
+  file already records: the first correction silently matched nothing,
+  because `index.qmd` is CRLF and the marker contained `
+`.
+
 ### Renaming a PACKAGE reaches further still (covstructs7 -> parameters7)
 
 Done 2026-08-04 (Giovanni: the old name was too narrow once simplex-valued
@@ -1020,6 +1148,124 @@ nothing). Decisions and mechanics worth keeping:
   both parametrisations validated at 4e-10/5e-7. The multivariate t stays on
   the disciplined fallback: nu blocks closure exactly as in the univariate
   skew t.
+
+### A name names the coordinate, not the quantity
+
+Giovanni, 2026-08-04, reading a fit: *"dal fatto che sigma_scale sigma_pacf1 e
+sigma_pacf2 abbiano link identità non si capisce qualcosa: i nomi
+sembrerebbero quelli di parametri vincolati ma in realtà il legame è
+identità!"* He was right, and the printed evidence is the whole argument:
+
+```
+sigma_pacf1   0.9679   [0.9125, 1.0233]
+```
+
+A partial autocorrelation with an interval **past one**. The number is
+`atanh(0.7478)`, and 0.7478 is the `cor_v1_v2` printed four lines above.
+
+The cause is structural rather than cosmetic. A `parameters7` family's free
+vector is flattened by `distributions7` into scalars carrying **identity**
+links, because the free vector is already unconstrained — that design is
+right and stays. What was wrong is that four families named the coordinate
+after the **constrained** quantity it produces, so the name promised a
+bounded thing and the value reported was on the free scale. The other six
+families were already honest, in two different ways: `log_L1` names the
+transform, `z2.1`/`S2.1`/`alr1` name the chart. So the package held one
+defect and two good conventions at once.
+
+**The rule now**: where a link carries a quantity onto the free scale the
+name records that link (`log_scale`, `z_rho`, `logit_rho`, `z_pacf1`,
+`log_d1`, `sqrt_d1` under a square-root link); where the coordinate is
+already unrestricted the name is the plain quantity (`L2.1`, `S2.1`).
+`link_tag()` in `R/naming.R` maps a link CLASS — not its `link_name`, since
+a parametric link names itself `"bounded(lwr=-0.25, upr=1)"`, which cannot
+appear in an identifier. The property the spelling reflects is worth
+asserting separately from the spelling: a labelled coordinate ranges over
+the whole line, tested by sweeping each free value to ±20 and checking the
+matrix stays finite and non-negative-definite. At ±20 a correlation reaches
+its boundary in double precision (min eigenvalue 1e-33 of the max), so
+strict definiteness is asserted only at ±6 — an open set approached far
+enough is a closed one.
+
+**And what a coordinate is not is what a reader reads.** `param_readable()`
+lets a family declare its quantities with the Jacobian from the free vector
+and the scale each interval belongs on; `mv_summary()` prints them as a
+block. For an AR(2) that is the marginal variance, the partial
+autocorrelations and the **coefficients**, which appear nowhere in Σ at all
+and were previously reachable only through the internal `ar_jets()`. Their
+Jacobian is free: the Levinson-Durbin recursion already runs in jets, so the
+first-order component is exactly what the delta method needs. The
+coefficients are intervalled on the identity scale deliberately — the
+stationary region is not a box, so no scalar transform expresses it.
+
+Two checks in the output are checks of the code: `pacf1` must equal
+`cor_v1_v2` to the digit (the lag-one correlation of an AR **is** its first
+partial autocorrelation) and `phi_q` must equal `pacf_q`. Both hold, and
+both are asserted.
+
+### An argument that is accepted and ignored is worse than one that errors
+
+`fit_distrib()` carried `maxit` and `tol` while every optimiser carries its
+own, and with `method = <an optimiser>` the two were **silently discarded**.
+Giovanni's call was `fit_distrib(..., method = bfgs(maxit = 1000), maxit = 100)`:
+1000 governed, the 100 was read by nobody, and nothing said so. Both are
+gone from the signature — Fisher scoring is Newton with one matrix replaced,
+so its budget and its stopping rule live on `fisher_scoring()` like any
+other optimiser's, and the internal BFGS fallback inherits them rather than
+inventing its own.
+
+The consequence worth knowing for next time: **three places restated the
+default**, and my first grep found only two of them, because it searched for
+`formals(distributions7::fit_distrib)` while the third said
+`formals(fit_distrib)`. Grep for the SHAPE of the reference, not for one
+spelling of it. The rule from the tolerance episode still stands and is now
+uniform: a threshold that mirrors a default reads that default
+(`eval(formals(optimizers7::crit_grad)$tol)`), never a copy of the number.
+
+### The same guard in three strengths is not one guard
+
+`test-docs.R` was in all five packages, and in **three different versions**
+(2026-08-04). distributions7 and optimizers7 asked about every object in the
+namespace, reading `man/` from disk. linkfunctions7 asked only about
+`getNamespaceExports()`, so an undocumented internal was invisible to it.
+basis7 and parameters7 asked about every object but through
+`tools::Rd_db()`, which under pkgload skips with *"package not installed"* —
+that is, always, since `test_local()` is how the suite runs.
+
+CLAUDE.md §6 has claimed since 2026-07-30 that everything is documented,
+exported or not. The census found **seven objects with no page**:
+`eta_bounds` and `is_base_link_class` in linkfunctions7,
+`diag_dlog`/`diag_higher`/`diag_logdet_higher`/`mlog_higher`/`scaled_dlog` in
+parameters7. All seven sat in the packages whose guard could not see them.
+The file is now byte-identical across the five apart from the package name,
+generated from one source, and its header says so.
+
+One correction went the other way. The strong version demanded `\value` on
+**every** page, including a package landing page, which is not a function
+and by convention has none; basis7 and parameters7 generate one through
+`"_PACKAGE"` and the other three do not, so the guard was over-strict rather
+than those two being wrong. The exclusion is by what the page is, not by
+whether it happens to exist.
+
+### A fenced block that is not executed is documentation that cannot fail
+
+parameters7's README had a ` ``` r ` block — plain, not `{r}` — showing
+`mvgaussian_distrib(2, struct_sigma = ...)` and a hardcoded output of
+`log_L1`, `log_L2`, `L2.1`. The argument was renamed to `sigma` and the
+names gained a `sigma_` prefix, and neither reached it: the block is never
+run, so nothing could go red. It had been wrong through two renames. Where
+a package genuinely cannot execute an example — parameters7 must not depend
+on its own consumer — the block still has to be swept by hand at every
+rename, and the same applies to a summary table: the README's "what is in
+the box" still listed four families out of eleven and derivatives to second
+order.
+
+The README also had `ar1 <- Ar1(...)` as a user-defined example, written
+before `ar1()` existed as a real constructor. `devtools::build_readme()`
+caught it — the next chunk passed the FUNCTION to `check_parameter()` — but
+only because a later chunk happened to use the variable. **Grep a package's
+own exports against the variable names in its documentation** after adding
+any constructor.
 
 ### Renaming a parameter reaches further than the package
 

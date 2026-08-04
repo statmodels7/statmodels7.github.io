@@ -606,6 +606,84 @@
 
 # --- 8. The gate -----------------------------------------------------------
 
+# The quantities a structured matrix declares. The section claims that the
+# coefficients are not recoverable from the covariance the fit otherwise
+# reports, that the Jacobian comes out of the recursion, and that each
+# interval is built on the scale named for it. The first is checked by
+# solving the Yule-Walker equations here, by hand, from the assembled matrix;
+# the second against Richardson extrapolation, which shares nothing with the
+# jets; the third by asking whether each interval stays in its own set.
+.certify_mv_structure_block <- function() {
+  out <- character()
+  q <- 2L
+  d <- distributions7::mvgaussian_distrib(
+    6L, sigma = parameters7::autoregressive(6L, order = q)
+  )
+  eta <- c(log(3), atanh(0.7), atanh(-0.3))
+  th <- as.list(stats::setNames(c(rep(0, 6), eta), d@params))
+  der <- distributions7::mv_derived(d, th)
+
+  keep <- names(der$block)[der$block == "Autoregressive structure"]
+  if (!identical(keep, c("scale", "pacf1", "pacf2", "phi1", "phi2"))) {
+    out <- c(out, "the structure block is not the quantities the section names")
+    return(out)
+  }
+
+  # Yule-Walker on the assembled matrix, written out here
+  m <- parameters7::param_value(d@param, eta)
+  rho <- m[1L, ] / m[1L, 1L]
+  yw <- solve(stats::toeplitz(rho[seq_len(q)]), rho[1L + seq_len(q)])
+  gap <- max(abs(unname(der$value[c("phi1", "phi2")]) - yw))
+  if (gap > 1e-9) {
+    out <- c(out, sprintf(
+      "the reported coefficients differ from Yule-Walker by %.1e", gap
+    ))
+  }
+  if (abs(der$value[["scale"]] - m[1L, 1L]) > 1e-10 ||
+      max(abs(der$value[c("pacf1", "pacf2")] - tanh(eta[-1L]))) > 1e-10) {
+    out <- c(out, "the reported scale or partial autocorrelations are not the map")
+  }
+
+  # the Jacobian, against a route sharing no code with the recursion
+  if (requireNamespace("numDeriv", quietly = TRUE)) {
+    num <- numDeriv::jacobian(function(x) {
+      distributions7::mv_derived(
+        d, as.list(stats::setNames(x, d@params))
+      )$value[keep]
+    }, unlist(th, use.names = FALSE))
+    jgap <- max(abs(unname(der$jacobian[keep, ]) - num))
+    if (jgap > 1e-6) {
+      out <- c(out, sprintf(
+        "the declared Jacobian differs from a numerical one by %.1e", jgap
+      ))
+    }
+  }
+
+  # the scales the intervals are built on, and the sets they must stay in
+  want <- c(scale = "log", pacf1 = "atanh", pacf2 = "atanh",
+            phi1 = "identity", phi2 = "identity")
+  if (!identical(der$transform[keep], want)) {
+    out <- c(out, "the interval scales are not the ones the section names")
+  }
+
+  set.seed(15)
+  y <- distributions7::distrib_rng(d, 500L, th)
+  tab <- distributions7::mv_summary(distributions7::fit_distrib(d, y))
+  if (abs(tab["pacf1", "Estimate"] - tab["cor_v1_v2", "Estimate"]) > 1e-8 ||
+      abs(tab["pacf1", "Std. Error"] - tab["cor_v1_v2", "Std. Error"]) > 1e-8) {
+    out <- c(out, "the first partial autocorrelation is not the lag-one correlation")
+  }
+  if (abs(tab["phi2", "Estimate"] - tab["pacf2", "Estimate"]) > 1e-8) {
+    out <- c(out, "the last coefficient is not the last partial autocorrelation")
+  }
+  if (tab["scale", 3L] <= 0 || abs(tab["pacf1", 3L]) >= 1 ||
+      abs(tab["pacf1", 4L]) >= 1 || abs(tab["pacf2", 4L]) >= 1) {
+    out <- c(out, "an interval of the structure block leaves its own set")
+  }
+  out
+}
+
+
 assert_multivariate_ok <- function() {
   problems <- c(
     .certify_mvgauss_density(),
@@ -615,7 +693,8 @@ assert_multivariate_ok <- function() {
     .certify_mvt_density(),
     .certify_mvt_score(),
     .certify_mv_moments(),
-    .certify_mv_reporting()
+    .certify_mv_reporting(),
+    .certify_mv_structure_block()
   )
   if (length(problems)) {
     stop("Section 3.5 disagrees with the packages:\n  ",

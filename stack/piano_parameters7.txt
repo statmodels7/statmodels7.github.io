@@ -249,6 +249,30 @@ distributions7 (same clean cut):
     mvgaussian_distrib(4, omega = ...), mvstudent_t_distrib(4, sigma =,
     link_nu =). The theta names (sigma_log_L1, ...) do NOT change: the
     prefix convention is the distribution's, not the argument's.
+    AMENDED 2026-08-04: the names DID change, for the families that were
+    naming the constrained quantity instead of the coordinate. A free name
+    now records the transform that produced the coordinate, so an AR(2)
+    covariance is sigma_log_scale / sigma_z_pacf1 / sigma_z_pacf2 and a
+    diagonal one sigma_log_d1. Nothing built on an already-free coordinate
+    moved: sigma_log_L1, sigma_L2.1, sigma_S2.1, sigma_alr1, sigma_z2.1 are
+    what they were. The reason is not tidiness. A consumer flattens the free
+    vector into scalars carrying IDENTITY links -- which is right, the free
+    vector being unconstrained -- so a name promising a bounded quantity puts
+    a number in front of a reader on a scale that number is not on: a fitted
+    partial autocorrelation printed as 0.9679 with an interval reaching past
+    one, when the quantity is tanh of it.
+  - param_readable() is the other half of the same observation, and it is
+    NEW relative to this plan. A coordinate is not what a reader reads, and
+    for several families the quantity behind it appears nowhere in the
+    matrix either -- the coefficients of an autoregression above all. A
+    family therefore declares its quantities with the Jacobian from the free
+    vector and the scale each interval belongs on; distributions7's
+    mv_summary() prints them as a block, the delta method carrying the
+    variance matrix across. The Jacobians are closed form and cost nothing
+    new: diagonal for the families that are scalar links, and for
+    autoregressive() the first-order component of jets the Levinson-Durbin
+    recursion already carries. The base class declares nothing, so a family
+    whose matrix is the whole of what it has to say loses nothing.
   - distributions7's multivariate d3/d4 stay on their (verified) fallback
     for now; registering closed forms built on param_d3/param_d4 is the
     follow-up that motivated this plan, tracked in CLAUDE.md's open items.
@@ -271,9 +295,20 @@ install_github("statmodels7/covstructs7") keeps resolving.
 6. DELIBERATELY LEFT OUT
 --------------------------------------------------------------------------------
 
-  - Correlation charts (D R D' with canonical partial correlations),
-    compound symmetry, AR(1), block diagonal, composition: still phase 2 of
-    the covariance side, unchanged by the rename, still next.
+  - DONE 2026-08-04, later the same day: correlation_matrix() (the SPHERICAL
+    chart, not the canonical partial correlations of the covstructs7 plan --
+    the recursion's square roots have no writable fourth derivative, while
+    the spherical factor is a product of one-free-value trigonometric terms
+    and the Leibniz machinery applies verbatim), compound_symmetry(),
+    ar1() and autoregressive(p, order) -- the last one NOT in the covstructs7
+    plan, which stopped at AR(1): the general order needs the partial
+    autocorrelation chart, since the stationary region in the coefficients is
+    not a box, and its derivatives come from carrying jets through the
+    Levinson-Durbin recursion. What remains of phase 2 is COMPOSITION: dr_prod(D, R) for a
+    covariance as scales times a correlation, block_diag() for several
+    random-effects terms, sum_struct() for the multiple-smoothing-parameter
+    penalty. Those are wrappers over components rather than families, and
+    their derivatives are the components' in their own blocks.
   - Riemannian machinery (metrics, geodesics, retractions): parameters7
     supplies charts and their derivatives, not geometry. The name manifolds7
     was rejected for exactly this promise.

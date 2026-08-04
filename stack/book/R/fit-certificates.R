@@ -194,7 +194,8 @@ assert_fit_ok <- function() {
   # good start says nothing about the start unless a poor one is shown to cost
   # more.
   zero <- as.list(stats::setNames(rep(0, d@n_params), d@params))
-  fz <- fit_distrib(d, y, start = zero, maxit = 500)
+  fz <- fit_distrib(d, y, start = zero,
+                    method = distributions7::fisher_scoring(maxit = 500))
   if (fz@iterations < 10 * max(1, f@iterations)) {
     out <- c(out, sprintf(paste0(
       "the fit started at the origin took %d iterations against %d from the ",
@@ -247,7 +248,7 @@ assert_fit_ok <- function() {
   # larger, so the same bound applied to the sum would be out of reach here.
   # The bound is the function's own default rather than a constant repeated
   # here, which would go stale the moment the default moved.
-  tol <- eval(formals(distributions7::fit_distrib)$tol)
+  tol <- eval(formals(optimizers7::crit_grad)$tol)
   sc <- vapply(distrib_gradient(d, y, as.list(coef(f)), scale = "link"),
                sum, numeric(1))
   if (!isTRUE(f@converged) || max(abs(sc)) / n > tol) {

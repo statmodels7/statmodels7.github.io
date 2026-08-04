@@ -407,6 +407,44 @@ other reach the same maximised likelihood and the same information criteria.
 That is an invariance worth checking rather than assuming: two runs that
 disagree on it have not both converged.
 
+A structured matrix has quantities of its own, and they are not recoverable
+from the standard deviations and correlations. The covariance of a stationary
+autoregression of order $q$ is described by a marginal variance and $q$
+partial autocorrelations, and the coefficients $\phi$ that a reader of an
+autoregression expects appear nowhere in $\Sigma$ at all. A parameter
+therefore declares the quantities it is about, together with the Jacobian of
+the map from its free vector, and the fit carries the variance matrix onto
+them by @eq-mv-delta exactly as it does for the decomposition. For the
+autoregression that Jacobian costs nothing: the Levinson-Durbin recursion of
+@sec-parameter-arp is already carried in jets, so the derivatives of the
+coefficients with respect to every free value are read off the first-order
+component of quantities the family has computed anyway.
+
+Each quantity names the scale its interval is built on, by the same rule as
+before: a variance on the logarithm, a partial autocorrelation on Fisher's
+$z$, and a coefficient on the identity. The coefficients take the identity
+scale because the stationary region is not a box, so that no scalar
+transformation expresses the constraint they are jointly under, and an
+interval that respected that constraint would not be an interval.
+
+```{r}
+#| label: mv-structure-block
+d_ar <- mvgaussian_distrib(6, sigma = parameters7::autoregressive(6, order = 2))
+theta_ar <- as.list(stats::setNames(
+  c(rep(0, 6), log(3), atanh(0.7), atanh(-0.3)), d_ar@params
+))
+set.seed(15)
+tab_ar <- mv_summary(fit_distrib(d_ar, distrib_rng(d_ar, 500, theta_ar)))
+round(tab_ar[attr(tab_ar, "block") == "Autoregressive structure", ], 4)
+```
+
+The lag-one correlation of an autoregression is its first partial
+autocorrelation, so `pacf1` and `cor_v1_v2` are the same number reached two
+ways, while the coefficients are new. Note also that `phi2` and `pacf2` share
+an estimate and a standard error, since the last coefficient of an order-$q$
+autoregression is the last partial autocorrelation, and yet their intervals
+differ: they are built on different scales.
+
 For the Student $t$ the matrix is the scale matrix, so the diagonal quantities
 are not standard deviations of the response and are named `scale_sd` to say so.
 The correlations need no such qualification: the covariance is
