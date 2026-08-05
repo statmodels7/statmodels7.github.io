@@ -1,0 +1,185 @@
+================================================================================
+                        numericals7 -- PLAN
+        the numerical layer of the toolkit: jets, stencils, vectorized
+        quadrature and series, special functions -- plain functions,
+        written once, consumed by every package above
+                        drafted 2026-08-05
+        Proposed by Giovanni: the purely numerical functions accumulated
+        across the packages deserve a package of their own, and the
+        toolkit needs an integrator that is vectorized over the
+        parameters, matrix operations instead of sapply, with a view to
+        regression models where theta varies by observation.
+================================================================================
+
+Written in AMERICAN English, from the first line: the toolkit switches to
+American spelling (Giovanni, 2026-08-05), and a package created after that
+decision has no British history to sweep.
+
+The name keeps the 7 of the convention. Nothing here needs an S7 class --
+these are plain functions, and a quadrature rule is a plain list; the 7 is
+toolkit branding, not a promise of S7 objects. Both `numericals7` and the
+more idiomatic `numerics7` are free on CRAN (checked 2026-08-05, both 404);
+the choice of stem is Giovanni's, this plan writes numericals7.
+
+
+--------------------------------------------------------------------------------
+0. WHY: THE TOOLKIT'S OWN ARGUMENT, TURNED ON ITSELF
+--------------------------------------------------------------------------------
+
+The positioning of statmodels7 is that modelling packages rewrite the same
+components privately, and that writing them once as reusable objects is the
+whole point. The census of 2026-08-05 shows the toolkit doing internally the
+exact thing it condemns:
+
+  - set_partitions() exists TWICE, in distributions7/R/expected_derivatives.R
+    and in parameters7/R/jet.R -- the second written without knowing about
+    the first, which is precisely how private helpers breed.
+  - finite-difference machinery exists THREE times, independently:
+    linkfunctions7 (fd_step, stencil_deriv, fallback_deriv, analytic_order),
+    basis7 (fd_weights, fd_offsets -- general Fornberg-style stencil weights,
+    the most general of the three), and distributions7 (fd_steps,
+    numerical_gradient, numerical_hessian, plus fd5_first..fd5_fourth sitting
+    inside skewt_distrib.R).
+  - basis7 carries a Gauss-Legendre rule (gauss_legendre, quad_rule) while
+    distributions7 does every integral through stats::integrate, one theta at
+    a time, unaware the fixed-node rule exists one package over.
+  - jets -- 591 lines, 21 functions, automatic differentiation to fourth
+    order with Ops/Math dispatch -- live in parameters7, though nothing about
+    them concerns constrained parameters; they landed there because their
+    first consumer (the Levinson-Durbin recursion) did.
+  - scattered one-per-family: owen_t and mills_ratio (skewnormal1), the
+    Bessel ratio A and its four derivatives (vonmises1/2), numerical_series,
+    the GRoU sampler and its anchors, compositions, leibniz_gram,
+    tuple_indices.
+
+A guard that lives in one package out of three is not a habit; a stencil that
+lives in three packages in three versions is not a stencil library.
+
+
+--------------------------------------------------------------------------------
+1. THE FLAGSHIP: QUADRATURE AND SERIES VECTORIZED OVER THETA
+--------------------------------------------------------------------------------
+
+The package is not justified by tidying alone. The new capability is an
+integrator whose cost does not multiply by the number of parameter values.
+
+Measured motivation (2026-08-05, this machine): variance() of the von Mises
+-- a moment still on the quadrature fallback -- costs 25 ms per theta and
+scales linearly: 12.7 s for 500 thetas. The truncated gaussian's expected
+Hessian costs 0.5 s at 100 thetas. In a regression model theta varies by
+observation, so these are per-iteration costs proportional to n. The
+integrand evaluations themselves are microseconds; the overhead is one
+stats::integrate call per theta.
+
+quad_vec(f, lower, upper, theta, rule = gauss_kronrod(15), tol, max_depth):
+
+  - Fixed nodes u_k with weights on [-1, 1], mapped per theta:
+    X[i, k] = m_i + h_i * u_k. ONE call f(X, theta) evaluates everything --
+    this works because the toolkit's densities are already vectorized in
+    both the response and the parameters, which is the property the whole
+    design leans on.
+  - Integral by rowSums(F * w) * h; error estimate from the embedded
+    lower-order rule of the Gauss-Kronrod pair.
+  - Adaptivity BATCHED BY ROW: the rows whose error exceeds tol have their
+    panels split, and all new panels across all failing rows are gathered
+    into the next single matrix call. A pathological theta refines its own
+    panels without serializing the others.
+  - Infinite domains through the quantile-anchored splits expectation()
+    already uses (the quantile functions are vectorized), and the rational
+    edge maps of book section 3.4 where a density diverges at an endpoint.
+  - Refusal over plausibility: a row that has not converged at max_depth is
+    NA with a message naming WHICH theta, in keeping with "an error is worth
+    more than a plausible number" (the nine-knot Gamma lesson).
+
+series_vec(term, theta, tol, max_terms):
+
+  - term(k, theta) evaluated in blocks, an outer matrix per block; per-row
+    accumulation with a convergence mask so finished rows stop costing;
+    a tail guard (ratio or alternating) so a slowly-thinning series is not
+    declared converged by a small last term; rows not converged at max_terms
+    are NA with a message. Consumers: the NB1 series, discrete expectations,
+    disc_cum_table.
+
+Consumers to rewire in distributions7, in order of pain relieved:
+expectation()/moment(), truncated()'s Z and E-terms, the "integrate" approx
+of expected derivatives, the cdf quadrature fallback, numerical_series.
+
+
+--------------------------------------------------------------------------------
+2. WHAT MOVES, BY PHASE
+--------------------------------------------------------------------------------
+
+Phase 1 -- the repo and the algebra layer.
+  Repository statmodels7/numericals7, workflows, Pages ENABLED immediately
+  after creation (gh api -X POST .../pages), test-docs.R from the shared
+  source, NEWS.md from the first commit, logo tracked. Contents: the whole
+  jet vocabulary with Ops/Math/print (from parameters7), set_partitions (ONE
+  copy), the tuple/position enumeration jet_layout needs, compositions.
+  parameters7 keeps param_tuple_indices as API but implements it on the
+  numericals7 enumeration, so the two cannot disagree.
+
+Phase 2 -- one stencil library.
+  basis7's fd_weights/fd_offsets are the general construction (weights for
+  any order at any offsets) and become the core; fd5_* become instances;
+  fd_step/fd_steps unify the step-size rules. The policy stays where it is
+  enforced: "one stencil of order k-m on the highest analytic order, never a
+  chain of first differences" is linkfunctions7's and distributions7's
+  business; numericals7 supplies the stencil, not the policy.
+
+Phase 3 -- quad_vec and series_vec, as in section 1. Verified against
+  stats::integrate at scalar theta (an independent implementation), against
+  closed forms (gaussian moments, gamma moments), and with paired
+  injections: a rule with one weight wrong by 5% must fail.
+
+Phase 4 -- special functions: owen_t, mills_ratio (log scale), the Bessel
+  ratio A(kappa) with its four derivatives and its inverse. Each keeps the
+  overflow discipline recorded on it (expon.scaled, log-scale Mills).
+
+Phase 5 -- candidates to decide later, not blockers: the GRoU sampler and
+  its anchors (movable -- it takes only a log-density and bounds -- but
+  entangled with distrib conventions on atoms and bounds), disc_cum_table.
+
+Does NOT move: deriv_names/hess_names and every distribution's bookkeeping,
+the validators (check_*), anything dispatching on distrib/basis/parameter
+classes, family-specific moment formulas.
+
+
+--------------------------------------------------------------------------------
+3. THE DEPENDENCY GRAPH, AND WHAT IT COSTS AT CRAN
+--------------------------------------------------------------------------------
+
+numericals7 becomes the root of the toolkit:
+
+  numericals7  ->  linkfunctions7 (stencils), parameters7 (jets),
+                   basis7 (stencils, quadrature), distributions7 (all of it)
+  optimizers7: its finite differences are compiled and self-contained;
+  verify during phase 2 and do NOT force a dependency it does not need.
+
+Consequences, stated rather than discovered later:
+  - The CRAN order gains a step: numericals7 first, then linkfunctions7 and
+    optimizers7 (still parallel with each other), then distributions7.
+    Task #66 changes accordingly.
+  - parameters7 loses jet.R: version 0.5.0, autoregressive() rewires to
+    numericals7. Clean cut, no aliases -- nothing is on CRAN and the house
+    rule is that a clean cut beats aliases.
+  - Version discipline is not optional: TODAY'S lesson is that adding
+    exports without bumping the version left a dependent's CI installing a
+    stale cache keyed on the unchanged version, red on coverage only. Every
+    phase that adds exports bumps the minor version, and every consumer
+    states the version it needs. Push the DEPENDENCY before the consumer.
+
+
+--------------------------------------------------------------------------------
+4. ORDER OF WORK, AND WHERE THE BOOK FITS
+--------------------------------------------------------------------------------
+
+Phases 1-3, then the consumer migration package by package -- during which
+the old implementations serve as the independent reference for the new ones
+(two implementations of one object, the comparison that needs no tolerance),
+and are deleted only after the comparison passes. Then ONE propagation:
+the pending #73 (fifteen new families, numbered names, closed-form moments,
+reparametrize) plus numericals7's arrival, so the book is re-rendered once;
+the book eventually takes a numericals7 chapter and sections 2.x/3.4 change
+attribution when the fallbacks' machinery moves. The American-English sweep
+(#74) runs after, over one consistent state.
+================================================================================

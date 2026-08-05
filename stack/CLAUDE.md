@@ -772,6 +772,16 @@ whole and a scalar link cannot express it.
   premise". This supersedes the earlier rule that messages should explain why
   rather than what: the reasoning belongs in this file and in the code
   comments, where it is read, not in the history.
+- **Do not wait for CI, or for `R CMD build`/`check --as-cran`, between
+  queued changes** (Giovanni, 2026-08-05, twice). When several changes are
+  lined up, run `testthat::test_local()` during the work and leave the build,
+  the `--as-cran` check and the CI to ONE pass at the end of the batch:
+  waiting on a five-platform matrix, or on a build that recompiles every
+  kernel, between steps is dead time. The local suite catches almost
+  everything; what `--as-cran` adds is the documentation checks, and those do
+  not change between one family and the next. The rule that a red coverage job
+  must be read still stands -- it is about reading the result, not about
+  blocking on it.
 - **Verify, do not assume.** Several times a suspected bug turned out to be a bad test,
   and several times a "cosmetic" finding turned out to be a real defect. Measure first.
 - Report failures faithfully, with the numbers.

@@ -10,8 +10,8 @@ DISTRIBS <- list()
 
 DISTRIBS$gaussian <- list(
   title = "Gaussian",
-  ctor = "gaussian_distrib()",
-  obj = function() gaussian_distrib(),
+  ctor = "gaussian1_distrib()",
+  obj = function() gaussian1_distrib(),
   theta = list(mu = 1.5, sigma = 2),
   support = "y \\in \\mathbb{R}",
   pdf_latex = "f(y) = \\frac{1}{\\sigma\\sqrt{2\\pi}}\\exp\\!\\left\\{-\\frac{(y-\\mu)^{2}}{2\\sigma^{2}}\\right\\}",
@@ -79,8 +79,8 @@ DISTRIBS$logistic <- list(
 
 DISTRIBS$student_t <- list(
   title = "Student t",
-  ctor = "student_t_distrib()",
-  obj = function() student_t_distrib(),
+  ctor = "student_t1_distrib()",
+  obj = function() student_t1_distrib(),
   theta = list(mu = 0.5, sigma = 1.3, nu = 6),
   support = "y \\in \\mathbb{R}",
   pdf_latex = "f(y) = \\frac{\\Gamma\\!\\left(\\frac{\\nu+1}{2}\\right)}{\\sigma\\sqrt{\\nu\\pi}\\,\\Gamma\\!\\left(\\frac{\\nu}{2}\\right)}\\left(1+\\frac{z^{2}}{\\nu}\\right)^{-\\frac{\\nu+1}{2}}, \\qquad z = \\frac{y-\\mu}{\\sigma}",
@@ -145,8 +145,8 @@ DISTRIBS$pseudohuber <- list(
 
 DISTRIBS$gamma <- list(
   title = "Gamma",
-  ctor = "gamma_distrib()",
-  obj = function() gamma_distrib(),
+  ctor = "gamma2_distrib()",
+  obj = function() gamma2_distrib(),
   theta = list(mu = 3, sigma2 = 2),
   support = "y \\in (0, \\infty)",
   pdf_latex = "f(y) = \\frac{\\beta^{\\alpha}}{\\Gamma(\\alpha)}y^{\\alpha-1}e^{-\\beta y}, \\qquad \\alpha = \\frac{\\mu^{2}}{\\sigma^{2}}, \\quad \\beta = \\frac{\\mu}{\\sigma^{2}}",
@@ -166,8 +166,8 @@ DISTRIBS$gamma <- list(
 
 DISTRIBS$invgauss <- list(
   title = "Inverse Gaussian",
-  ctor = "invgauss_distrib()",
-  obj = function() invgauss_distrib(),
+  ctor = "invgauss1_distrib()",
+  obj = function() invgauss1_distrib(),
   theta = list(mu = 2, phi = 0.7),
   support = "y \\in (0, \\infty)",
   pdf_latex = "f(y) = \\frac{1}{\\sqrt{2\\pi\\phi y^{3}}}\\exp\\!\\left\\{-\\frac{(y-\\mu)^{2}}{2\\phi\\mu^{2}y}\\right\\}",
@@ -184,8 +184,8 @@ DISTRIBS$invgauss <- list(
 
 DISTRIBS$lognormal <- list(
   title = "Lognormal",
-  ctor = "lognormal_distrib()",
-  obj = function() lognormal_distrib(),
+  ctor = "lognormal1_distrib()",
+  obj = function() lognormal1_distrib(),
   theta = list(mu = 0.5, sigma2 = 1.3),
   support = "y \\in (0, \\infty)",
   pdf_latex = "f(y) = \\frac{1}{y\\sqrt{2\\pi\\sigma^{2}}}\\exp\\!\\left\\{-\\frac{(\\log y - \\mu)^{2}}{2\\sigma^{2}}\\right\\}",
@@ -197,14 +197,14 @@ DISTRIBS$lognormal <- list(
   note = "$\\mu$ and $\\sigma^{2}$ are the mean and **variance on the log scale**,
   not of $Y$ itself: `dlnorm()` takes `sdlog`, and this object takes its square.
   The same law can also be built as
-  `transformation(gaussian_distrib(), exp_transform())`, by the change of
+  `transformation(gaussian1_distrib(), exp_transform())`, by the change of
   variables of @sec-transformation, and the two constructions coincide."
 )
 
 DISTRIBS$beta <- list(
   title = "Beta",
-  ctor = "beta_distrib()",
-  obj = function() beta_distrib(),
+  ctor = "beta1_distrib()",
+  obj = function() beta1_distrib(),
   theta = list(mu = 0.4, phi = 6),
   support = "y \\in (0, 1)",
   pdf_latex = "f(y) = \\frac{y^{a-1}(1-y)^{b-1}}{B(a,b)}, \\qquad a = \\mu\\phi, \\quad b = (1-\\mu)\\phi",
@@ -270,8 +270,8 @@ DISTRIBS$poisson <- list(
 
 DISTRIBS$negbin <- list(
   title = "Negative binomial (NB2)",
-  ctor = "negbin_distrib()",
-  obj = function() negbin_distrib(),
+  ctor = "negbin2_distrib()",
+  obj = function() negbin2_distrib(),
   theta = list(mu = 4, theta = 1.7),
   support = "y \\in \\{0, 1, 2, \\dots\\}",
   pdf_latex = "P(Y=y) = \\frac{\\Gamma(y+\\theta)}{\\Gamma(\\theta)\\,y!}\\left(\\frac{\\theta}{\\theta+\\mu}\\right)^{\\theta}\\left(\\frac{\\mu}{\\theta+\\mu}\\right)^{y}",
@@ -409,7 +409,7 @@ assert_distributions_ok <- function() {
     }
   }
   # dF/dmu = -f for a location-scale family
-  gg <- gaussian_distrib()
+  gg <- gaussian1_distrib()
   qq <- c(0, 1.2, 3)
   if (rel_err(distrib_grad_cdf(gg, qq, list(mu = 1.2, sigma = 1.7), log = FALSE)$mu,
               -dnorm(qq, 1.2, 1.7)) > 1e-12) {
