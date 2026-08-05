@@ -297,6 +297,7 @@ window.Quarto = {
   <li><a href="#sec-transform-density" id="toc-sec-transform-density" class="nav-link" data-scroll-target="#sec-transform-density">The density</a></li>
   <li><a href="#sec-transform-invariance" id="toc-sec-transform-invariance" class="nav-link" data-scroll-target="#sec-transform-invariance">Invariance of the parameter derivatives</a></li>
   <li><a href="#sec-transformer-catalogue" id="toc-sec-transformer-catalogue" class="nav-link" data-scroll-target="#sec-transformer-catalogue">The twelve transformers</a></li>
+  <li><a href="#sec-transform-reach" id="toc-sec-transform-reach" class="nav-link" data-scroll-target="#sec-transform-reach">Families that need no code of their own</a></li>
   </ul></li>
   <li><a href="#sec-zero-inflation" id="toc-sec-zero-inflation" class="nav-link" data-scroll-target="#sec-zero-inflation"><span class="header-section-number">3.2.2</span> Zero-inflation</a>
   <ul class="collapse">
@@ -1159,6 +1160,32 @@ f_0 = f(0;\theta)
 <span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 8.881784e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
+<section id="sec-transform-reach" class="level4">
+<h4 class="anchored" data-anchor-id="sec-transform-reach">Families that need no code of their own</h4>
+<p>The lognormal identity above is one instance of something more general. A number of families that a table of distributions lists separately are the image of one already implemented, and the wrappers reach them without any derivation being repeated: the score, the information and the higher orders are the parent’s, evaluated at <span class="math inline">\(g^{-1}(y)\)</span>, because <span class="math inline">\(g\)</span> carries no parameter.</p>
+<p>The inverse of a Gamma is an inverse Gamma. Writing the Gamma in <span class="math inline">\((\mu, \sigma^2)\)</span> as this package does, the shape and rate are <span class="math inline">\(\alpha = \mu^2/\sigma^2\)</span> and <span class="math inline">\(\beta = \mu/\sigma^2\)</span>, and the density of <span class="math inline">\(1/Y\)</span> is the standard <span class="math inline">\(\beta^{\alpha}y^{-\alpha-1}e^{-\beta/y}/\Gamma(\alpha)\)</span>.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="dv">4</span>; b <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>ig <span class="ot">&lt;-</span> <span class="fu">transformation</span>(<span class="fu">gamma_distrib</span>(), <span class="fu">inverse_transform</span>(),</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>                     <span class="at">new_name =</span> <span class="st">"inverse gamma"</span>)</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.3</span>, <span class="fl">0.8</span>, <span class="fl">1.5</span>)</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">distrib_pdf</span>(ig, y, <span class="fu">list</span>(<span class="at">mu =</span> a <span class="sc">/</span> b, <span class="at">sigma2 =</span> a <span class="sc">/</span> b<span class="sc">^</span><span class="dv">2</span>)) <span class="sc">-</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>        b<span class="sc">^</span>a <span class="sc">/</span> <span class="fu">gamma</span>(a) <span class="sc">*</span> y<span class="sc">^</span>(<span class="sc">-</span>a <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span>b <span class="sc">/</span> y)))</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.110223e-15</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The <code>new_name</code> argument is what lets the result print as what it is rather than as the recipe that produced it; nothing else about the object depends on it.</p>
+<p>Holding a parameter reaches a second group. The Rayleigh distribution is the Weibull with shape two, and since that shape is a <em>value</em> the parameter can be held at, <code>fixed()</code> produces it exactly. Writing <span class="math inline">\(s\)</span> for the Rayleigh scale, the Weibull scale is <span class="math inline">\(s\sqrt{2}\)</span>.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>s <span class="ot">&lt;-</span> <span class="fl">1.7</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>ray <span class="ot">&lt;-</span> <span class="fu">fixed</span>(<span class="fu">weibull_distrib</span>(), <span class="at">sigma =</span> <span class="dv">2</span>)</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.3</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">4</span>)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">distrib_pdf</span>(ray, y, <span class="fu">list</span>(<span class="at">mu =</span> s <span class="sc">*</span> <span class="fu">sqrt</span>(<span class="dv">2</span>))) <span class="sc">-</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>        (y <span class="sc">/</span> s<span class="sc">^</span><span class="dv">2</span>) <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span>y<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> s<span class="sc">^</span><span class="dv">2</span>))))</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.110223e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The distinction between the two groups is worth stating, because it decides whether a family needs writing at all. <code>fixed()</code> can hold a parameter at a number; it cannot impose a <em>relation between</em> parameters. The exponential is the Gamma with unit shape, and unit shape means <span class="math inline">\(\sigma^2 = \mu^2\)</span>, which ties two parameters together rather than pinning one — so the exponential is a family of its own here, as is the chi-squared, where the relation is <span class="math inline">\(\sigma^2 = 2\mu\)</span>. The exponential <em>is</em> reachable as the Weibull with shape one, and <code>exponential_distrib()</code> agrees with that wrapper to machine precision, which makes the pair a test of both.</p>
+<p>The same reasoning places the other standard names. The log-logistic is <span class="math inline">\(\exp\)</span> of a logistic, the Pareto is <span class="math inline">\(\exp\)</span> of an exponential, and the folded normal is <code>folded(gaussian_distrib())</code> with the half-normal its location held at zero — the last through a wrapper rather than a transformer, the absolute value having two preimages and therefore no inverse to carry a density through.</p>
+</section>
 </section>
 <section id="sec-zero-inflation" class="level3" data-number="3.2.2">
 <h3 data-number="3.2.2" class="anchored" data-anchor-id="sec-zero-inflation"><span class="header-section-number">3.2.2</span> Zero-inflation</h3>
@@ -1341,19 +1368,19 @@ C_{ij} = \frac{(1-f_0)\,\partial_{ij}f_0 + \partial_i f_0\,\partial_j f_0}{(1-f_
 <p>so the object is a proper distribution — but note that its density integrates, in the ordinary Lebesgue sense, to <span class="math inline">\(1 - \pi\)</span> rather than one. This is the family of the zero-adjusted Gamma, inverse Gaussian and lognormal used for semicontinuous data, and of the zero-adjusted Beta used for proportions with observed zeros; <span class="citation" data-cites="stasinopoulos2017">Stasinopoulos et al. (<a href="A2-references.html#ref-stasinopoulos2017" role="doc-biblioref">2017</a>)</span> collects the regression forms of all of them.</p>
 <p>Because part of the mass is invisible to ordinary integration, the package gives mixed distributions a way to declare their atoms. The generic <code>distrib_atoms()</code> returns the locations and probabilities of the point masses. The default returns none, which is correct for every ordinary distribution, since a continuous one has no atoms and a discrete one consists of nothing else; only genuinely mixed objects register more. Every routine that integrates a density, <code>check_distrib()</code> included, consults it.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>zag <span class="ot">&lt;-</span> <span class="fu">zero_adjusted</span>(<span class="fu">gamma_distrib</span>())</span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(zag, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>, <span class="at">za =</span> <span class="fl">0.3</span>))</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3</span></span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(<span class="fu">gamma_distrib</span>(), <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>))</span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
-<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; numeric(0)</span></span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
-<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; numeric(0)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>zag <span class="ot">&lt;-</span> <span class="fu">zero_adjusted</span>(<span class="fu">gamma_distrib</span>())</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(zag, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>, <span class="at">za =</span> <span class="fl">0.3</span>))</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(<span class="fu">gamma_distrib</span>(), <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>))</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; numeric(0)</span></span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; numeric(0)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The cdf jumps by <span class="math inline">\(\pi\)</span> at zero,</p>
 <p><span class="math display">\[F_Y(q) = (1-\pi)F_W(q;\theta) + \pi\,\mathbb{I}(q \geq 0),\]</span></p>
@@ -1374,11 +1401,11 @@ C_{ij} = \frac{(1-f_0)\,\partial_{ij}f_0 + \partial_i f_0\,\partial_j f_0}{(1-f_
 <p>and this identity is registered as the <code>expectation()</code> method of the class, so that means, variances and all higher moments account for the atom automatically. In particular, with <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma^2\)</span> the parent’s mean and variance, <span class="math inline">\(\mathbb{E}[Y] = (1-\pi)\mu\)</span> and <span class="math inline">\(\operatorname{Var}(Y) = (1-\pi)\sigma^{2} + \pi(1-\pi)\mu^{2}\)</span> — the same formulas as for zero-inflation, because, as the next section explains.</p>
 <p>One last point concerns derivatives in the response. Away from zero the factor <span class="math inline">\(1-\pi\)</span> is constant in <span class="math inline">\(y\)</span>, so <span class="math inline">\(\partial_y \ell_Y = \partial_y \ell_W\)</span> exactly. At <span class="math inline">\(y = 0\)</span> the log-density jumps between <span class="math inline">\(\log((1-\pi)f_W)\)</span> and <span class="math inline">\(\log\pi\)</span>, so no derivative exists, and the methods return <code>NaN</code> rather than the meaningless number a finite difference across the jump would produce.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>, <span class="at">za =</span> <span class="fl">0.3</span>)</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_grad_y</span>(zag, <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">4</span>), th)</span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]    NaN  2.000 -0.625</span></span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_grad_y</span>(<span class="fu">gamma_distrib</span>(), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">4</span>), <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>))</span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  2.000 -0.625</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>, <span class="at">za =</span> <span class="fl">0.3</span>)</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_grad_y</span>(zag, <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">4</span>), th)</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]    NaN  2.000 -0.625</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_grad_y</span>(<span class="fu">gamma_distrib</span>(), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">4</span>), <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>))</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  2.000 -0.625</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-truncation" class="level3" data-number="3.2.5">
@@ -1424,27 +1451,27 @@ M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + \ell^{(i)}\ell^{(j)}\right].\]</span>
 <h4 class="anchored" data-anchor-id="sec-trunc-validity">Admissible truncations</h4>
 <p>The constructor <code>truncated(distrib, lower, upper)</code> accepts either endpoint or both, and it examines what it is given, because many syntactically valid calls are statistically meaningless. The guiding example: what should <code>truncated(gamma_distrib(), lower = -2)</code> do? The Gamma lives on <span class="math inline">\((0,\infty)\)</span>, so truncating at <span class="math inline">\(-2\)</span> removes no mass whatsoever and the “truncated” distribution would be the Gamma itself. A user who writes such a call has misunderstood something, and returning the parent silently would bury the misunderstanding; the constructor refuses instead, and explains.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">gamma_distrib</span>(), <span class="at">lower =</span> <span class="sc">-</span><span class="dv">2</span>)</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! truncated() was given lower = -2, which is at or below the lower bound of the</span></span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   support of 'gamma' (0). Truncating there removes no probability mass and the</span></span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   result would be the parent distribution. Choose a point strictly inside the</span></span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   support, or omit 'lower'.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">gamma_distrib</span>(), <span class="at">lower =</span> <span class="sc">-</span><span class="dv">2</span>)</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! truncated() was given lower = -2, which is at or below the lower bound of the</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   support of 'gamma' (0). Truncating there removes no probability mass and the</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   result would be the parent distribution. Choose a point strictly inside the</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   support, or omit 'lower'.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The same reasoning rejects a non-integer endpoint for a discrete parent, which is ambiguous between the two neighbouring support points:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">poisson_distrib</span>(), <span class="at">lower =</span> <span class="fl">1.5</span>)</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! 'lower' = 1.5 is not a point of the support. A discrete distribution is supported on</span></span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   the integers, so a non-integer truncation point is ambiguous: use 1 or 2.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">poisson_distrib</span>(), <span class="at">lower =</span> <span class="fl">1.5</span>)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! 'lower' = 1.5 is not a point of the support. A discrete distribution is supported on</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   the integers, so a non-integer truncation point is ambiguous: use 1 or 2.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A discrete truncation must also leave enough support to identify the parameters. A distribution on <span class="math inline">\(k\)</span> points has <span class="math inline">\(k-1\)</span> free probabilities, so a parent with <span class="math inline">\(p\)</span> parameters needs at least <span class="math inline">\(p+1\)</span> retained points — and since truncation adds no parameter of its own, this is the only identifiability condition it ever raises:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">negbin_distrib</span>(), <span class="dv">3</span>, <span class="dv">4</span>)</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! Truncating 'negative binomial' to [3, 4] leaves 2 support point(s), carrying 1 free</span></span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probabilities, while the distribution has 2 parameter(s). They would not be</span></span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified. At least 3 support points are required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">negbin_distrib</span>(), <span class="dv">3</span>, <span class="dv">4</span>)</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! Truncating 'negative binomial' to [3, 4] leaves 2 support point(s), carrying 1 free</span></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probabilities, while the distribution has 2 parameter(s). They would not be</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified. At least 3 support points are required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>One further refusal connects this section to the previous ones.</p>
 <div id="prp-trunc-zero" class="theorem proposition">
@@ -1453,47 +1480,47 @@ M_{ij} = \mathbb{E}_T\!\left[\ell^{(ij)} + \ell^{(i)}\ell^{(j)}\right].\]</span>
 <p>The reason is a cancellation. For <span class="math inline">\(y \in [L, U]\)</span>, which excludes zero, the mass function of <span class="math inline">\(D_\zeta\)</span> is <span class="math inline">\((1-\zeta)f(y)\)</span>, and the retained mass is <span class="math inline">\(Z = (1-\zeta)\big(F(U) - F(L^-)\big)\)</span>, with the same factor in front. In the ratio <span class="math inline">\(f_T = (1-\zeta)f(y)/Z\)</span> the two factors cancel, leaving <span class="math inline">\(f(y)/(F(U) - F(L^-))\)</span>, which does not depend on <span class="math inline">\(\zeta\)</span>. The argument for the two zero-adjusted forms is the same with <span class="math inline">\((1-\pi)\)</span> in place of <span class="math inline">\((1-\zeta)\)</span>.</p>
 <p>A parameter with an identically zero score is invisible to the likelihood, and an optimiser asked to estimate it will wander along a flat ridge. The constructor therefore refuses the construction. Truncations that keep zero in the interval remain allowed, and in that case the atom passes through, rescaled by <span class="math inline">\(1/Z\)</span>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>()), <span class="at">lower =</span> <span class="dv">1</span>)</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! truncated() cannot remove 0 from the support of 'zero-inflated poisson', which models the</span></span>
-<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability of a zero. The truncation constant cancels that parameter out of</span></span>
-<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   the likelihood, leaving an identically zero score. Truncate elsewhere, or</span></span>
-<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   truncate the underlying distribution before wrapping it.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">truncated</span>(<span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>()), <span class="at">lower =</span> <span class="dv">1</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! truncated() cannot remove 0 from the support of 'zero-inflated poisson', which models the</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability of a zero. The truncation constant cancels that parameter out of</span></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   the likelihood, leaving an identically zero score. Truncate elsewhere, or</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   truncate the underlying distribution before wrapping it.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>tz <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">zero_adjusted</span>(<span class="fu">gamma_distrib</span>()), <span class="at">upper =</span> <span class="dv">5</span>)</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>, <span class="at">za =</span> <span class="fl">0.3</span>)</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(tz, th)</span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
-<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3203948</span></span>
-<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a><span class="fl">0.3</span> <span class="sc">/</span> <span class="fu">distrib_cdf</span>(<span class="fu">zero_adjusted</span>(<span class="fu">gamma_distrib</span>()), <span class="dv">5</span>, th)</span>
-<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3203948</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>tz <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">zero_adjusted</span>(<span class="fu">gamma_distrib</span>()), <span class="at">upper =</span> <span class="dv">5</span>)</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>, <span class="at">za =</span> <span class="fl">0.3</span>)</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(tz, th)</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3203948</span></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="fl">0.3</span> <span class="sc">/</span> <span class="fu">distrib_cdf</span>(<span class="fu">zero_adjusted</span>(<span class="fu">gamma_distrib</span>()), <span class="dv">5</span>, th)</span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3203948</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Finally, truncating an already truncated distribution is permitted and is collapsed into a single object over the intersection of the two intervals — nesting would be mathematically harmless but would pay the quadrature cost of <span class="math inline">\(m\)</span> and <span class="math inline">\(M\)</span> twice.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">truncated</span>(<span class="fu">gaussian_distrib</span>(), <span class="sc">-</span><span class="dv">1</span>, <span class="dv">3</span>), <span class="at">upper =</span> <span class="dv">2</span>)</span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(d<span class="sc">@</span>lower, d<span class="sc">@</span>upper)</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -1  2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">truncated</span>(<span class="fu">gaussian_distrib</span>(), <span class="sc">-</span><span class="dv">1</span>, <span class="dv">3</span>), <span class="at">upper =</span> <span class="dv">2</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(d<span class="sc">@</span>lower, d<span class="sc">@</span>upper)</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -1  2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>To close the section, the two truncated families with textbook closed forms, recovered by the general machinery:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co"># zero-truncated Poisson: P(Y = y) = f(y)/(1 - f(0)), E[Y] = mu/(1 - exp(-mu))</span></span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>ztp <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">poisson_distrib</span>(), <span class="at">lower =</span> <span class="dv">1</span>)</span>
-<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(ztp, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">2</span>))</span>
-<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3130353 0.3130353 0.2086902 0.1043451</span></span>
-<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="fu">dpois</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">2</span>) <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">dpois</span>(<span class="dv">0</span>, <span class="dv">2</span>))</span>
-<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3130353 0.3130353 0.2086902 0.1043451</span></span>
-<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">mean</span>(ztp, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">2</span>)), <span class="dv">2</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="dv">2</span>)))</span>
-<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.313035 2.313035</span></span>
-<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a><span class="co"># truncated Gaussian on [-1, 2]: E[Y] = mu + sigma (phi(a) - phi(b))/Z</span></span>
-<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>tn <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">gaussian_distrib</span>(), <span class="at">lower =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">upper =</span> <span class="dv">2</span>)</span>
-<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> (<span class="sc">-</span><span class="dv">1</span> <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">/</span> <span class="fl">1.5</span>; b <span class="ot">&lt;-</span> (<span class="dv">2</span> <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">/</span> <span class="fl">1.5</span>; Z <span class="ot">&lt;-</span> <span class="fu">pnorm</span>(b) <span class="sc">-</span> <span class="fu">pnorm</span>(a)</span>
-<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">mean</span>(tn, <span class="fu">list</span>(<span class="at">mu =</span> <span class="fl">0.5</span>, <span class="at">sigma =</span> <span class="fl">1.5</span>)), <span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> (<span class="fu">dnorm</span>(a) <span class="sc">-</span> <span class="fu">dnorm</span>(b)) <span class="sc">/</span> Z)</span>
-<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.5 0.5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="co"># zero-truncated Poisson: P(Y = y) = f(y)/(1 - f(0)), E[Y] = mu/(1 - exp(-mu))</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>ztp <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">poisson_distrib</span>(), <span class="at">lower =</span> <span class="dv">1</span>)</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(ztp, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">2</span>))</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3130353 0.3130353 0.2086902 0.1043451</span></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="fu">dpois</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">2</span>) <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">dpois</span>(<span class="dv">0</span>, <span class="dv">2</span>))</span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3130353 0.3130353 0.2086902 0.1043451</span></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">mean</span>(ztp, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">2</span>)), <span class="dv">2</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="dv">2</span>)))</span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.313035 2.313035</span></span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a><span class="co"># truncated Gaussian on [-1, 2]: E[Y] = mu + sigma (phi(a) - phi(b))/Z</span></span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>tn <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">gaussian_distrib</span>(), <span class="at">lower =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">upper =</span> <span class="dv">2</span>)</span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> (<span class="sc">-</span><span class="dv">1</span> <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">/</span> <span class="fl">1.5</span>; b <span class="ot">&lt;-</span> (<span class="dv">2</span> <span class="sc">-</span> <span class="fl">0.5</span>) <span class="sc">/</span> <span class="fl">1.5</span>; Z <span class="ot">&lt;-</span> <span class="fu">pnorm</span>(b) <span class="sc">-</span> <span class="fu">pnorm</span>(a)</span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">mean</span>(tn, <span class="fu">list</span>(<span class="at">mu =</span> <span class="fl">0.5</span>, <span class="at">sigma =</span> <span class="fl">1.5</span>)), <span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> (<span class="fu">dnorm</span>(a) <span class="sc">-</span> <span class="fu">dnorm</span>(b)) <span class="sc">/</span> Z)</span>
+<span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.5 0.5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 </section>
@@ -1545,12 +1572,12 @@ w_0 \cdot \dfrac{\partial^{A} f_0}{f_0} &amp; \text{no } \zeta,\\[8pt]
 <p><span class="math display">\[\frac{\partial^{k}\ell_Y}{\partial\zeta^{k}}\bigg|_{y=0}
 = (-1)^{k-1}(k-1)!\left(\frac{1-f_0}{L_0}\right)^{k}.\]</span></p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>())</span>
-<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>f0 <span class="ot">&lt;-</span> <span class="fu">dpois</span>(<span class="dv">0</span>, <span class="dv">3</span>); L0 <span class="ot">&lt;-</span> <span class="fl">0.25</span> <span class="sc">+</span> <span class="fl">0.75</span> <span class="sc">*</span> f0; r <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> f0) <span class="sc">/</span> L0</span>
-<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">package =</span> <span class="fu">distrib_deriv3</span>(d, <span class="dv">0</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.25</span>))[[<span class="st">"zi_zi_zi"</span>]],</span>
-<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">closed  =</span> <span class="dv">2</span> <span class="sc">*</span> r<span class="sc">^</span><span class="dv">3</span>)</span>
-<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  package   closed </span></span>
-<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 72.32745 72.32745</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>())</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>f0 <span class="ot">&lt;-</span> <span class="fu">dpois</span>(<span class="dv">0</span>, <span class="dv">3</span>); L0 <span class="ot">&lt;-</span> <span class="fl">0.25</span> <span class="sc">+</span> <span class="fl">0.75</span> <span class="sc">*</span> f0; r <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> f0) <span class="sc">/</span> L0</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">package =</span> <span class="fu">distrib_deriv3</span>(d, <span class="dv">0</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.25</span>))[[<span class="st">"zi_zi_zi"</span>]],</span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">closed  =</span> <span class="dv">2</span> <span class="sc">*</span> r<span class="sc">^</span><span class="dv">3</span>)</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  package   closed </span></span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 72.32745 72.32745</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-higher-cost" class="level4">
@@ -1620,11 +1647,11 @@ w_0 \cdot \dfrac{\partial^{A} f_0}{f_0} &amp; \text{no } \zeta,\\[8pt]
 <p>Truncation answers a different question altogether. It is not a model for surplus or deficient zeros but for <strong>unobservable regions</strong>: a detection limit, a register that only records positive counts, a measuring instrument with a ceiling. Part of the sample space was never available, and the model says so.</p>
 <p>One boundary between the families has to be marked explicitly, because the package enforces it. For a continuous parent, “zero-inflation” and “zero-adjustment” would denote the same object — with <span class="math inline">\(P(W=0)=0\)</span> the mixture <span class="math inline">\(\zeta\delta_0 + (1-\zeta)f_W\)</span> <em>is</em> <a href="#def-za-continuous" class="quarto-xref">Definition&nbsp;<span>3.4</span></a> with <span class="math inline">\(\zeta\)</span> in the role of <span class="math inline">\(\pi\)</span> — and offering both names would only invite the belief that they differ. The constructor therefore accepts a continuous parent only under the name <code>zero_adjusted()</code>, and points there when asked otherwise:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">gamma_distrib</span>())</span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() requires a discrete distribution: a continuous one has</span></span>
-<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   P(Y = 0) = 0, so there is no mass at zero to inflate. To place a point mass</span></span>
-<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   at zero alongside a density, use zero_adjusted().</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">gamma_distrib</span>())</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() requires a discrete distribution: a continuous one has</span></span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   P(Y = 0) = 0, so there is no mass at zero to inflate. To place a point mass</span></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   at zero alongside a density, use zero_adjusted().</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-identifiability" class="level3" data-number="3.2.8">
@@ -1638,25 +1665,25 @@ w_0 \cdot \dfrac{\partial^{A} f_0}{f_0} &amp; \text{no } \zeta,\\[8pt]
 <p>Again the parameter cancels. For <span class="math inline">\(y &gt; 0\)</span> the mass function of <span class="math inline">\(D_\zeta\)</span> is <span class="math inline">\((1-\zeta)f(y)\)</span> and its total mass on the positive integers is <span class="math inline">\(1 - L_0 = (1-\zeta)(1-f_0)\)</span>, so the ratio that defines the zero-truncated law is <span class="math inline">\(f(y)/(1-f_0)\)</span>, in which <span class="math inline">\(\zeta\)</span> no longer appears.</p>
 <p>The consequence is immediate: in <code>zero_adjusted(zero_inflated(D))</code> the parameter <span class="math inline">\(\zeta\)</span> appears nowhere in the resulting mass function, its score is identically zero, and it cannot be estimated. The reverse composition fails in a similar way. In <code>zero_inflated(zero_adjusted(D))</code> the pair <span class="math inline">\((\zeta, \pi)\)</span> enters the law only through the combination <span class="math inline">\(c = \zeta + (1-\zeta)\pi\)</span>: the mass at zero is <span class="math inline">\(c\)</span> and the positive part carries the factor <span class="math inline">\((1-\zeta)(1-\pi) = 1 - c\)</span>. Every pair on the curve <span class="math inline">\(\zeta + (1-\zeta)\pi = c\)</span> therefore produces exactly the same distribution. Both constructions are therefore refused:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_adjusted</span>(<span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>())))</span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_adjusted() cannot wrap 'zero-inflated poisson', which already models the probability of a zero.</span></span>
-<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
-<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
-<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span>
-<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_inflated</span>(<span class="fu">zero_adjusted</span>(<span class="fu">poisson_distrib</span>())))</span>
-<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_inflated() cannot wrap 'zero-adjusted poisson', which already models the probability of a zero.</span></span>
-<span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
-<span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
-<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_adjusted</span>(<span class="fu">zero_inflated</span>(<span class="fu">poisson_distrib</span>())))</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_adjusted() cannot wrap 'zero-inflated poisson', which already models the probability of a zero.</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a><span class="fu">try</span>(<span class="fu">zero_inflated</span>(<span class="fu">zero_adjusted</span>(<span class="fu">poisson_distrib</span>())))</span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error : zero_inflated() cannot wrap 'zero-adjusted poisson', which already models the probability of a zero.</span></span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Stacking the two leaves only their combination identified: the second</span></span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter has an identically zero score, and any optimizer will wander</span></span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   along that ridge. Apply exactly one zero wrapper to a plain distribution.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>That these refusals guard against something real, and not a theoretical scruple, can be seen by building the forbidden object by hand, bypassing the constructor, and watching the parameter vanish:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
-<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
-<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.70</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
-<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
-<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_gradient</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))<span class="sc">$</span>zi</span>
-<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0 0 0 0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_pdf</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.70</span>, <span class="at">za =</span> <span class="fl">0.4</span>))</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.40000000 0.09431225 0.14146838 0.14146838 0.10610129 0.06366077</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_gradient</span>(stacked, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">zi =</span> <span class="fl">0.20</span>, <span class="at">za =</span> <span class="fl">0.4</span>))<span class="sc">$</span>zi</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0 0 0 0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-counting-rule" class="level4">
@@ -1668,25 +1695,25 @@ w_0 \cdot \dfrac{\partial^{A} f_0}{f_0} &amp; \text{no } \zeta,\\[8pt]
 </div>
 <p>The condition is necessary but not sufficient, since a badly parametrised family can fail to be identified with any amount of support. It is, however, exactly what rules out the case that arises in practice: the Bernoulli, with <span class="math inline">\(k = 2\)</span> and <span class="math inline">\(p = 1\)</span>. Zero-inflating a Bernoulli spends two parameters describing the single free cell of <span class="math inline">\(\{0, 1\}\)</span>. Zero-adjusting one fails even more completely: the truncation concentrates everything on <span class="math inline">\(\{1\}\)</span>, so <span class="math inline">\(f(1)/(1-f_0) = \mu/(1-(1-\mu)) = 1\)</span> whatever <span class="math inline">\(\mu\)</span> is, and the parent’s parameter drops out of the model completely, leaving <span class="math inline">\(P(Y=0) = \pi,\ P(Y=1) = 1-\pi\)</span>.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">bernoulli_distrib</span>())</span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() cannot wrap 'bernoulli': its support has 2 points, so the family has 1 free</span></span>
-<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability, while the wrapped distribution would have 2 parameters. They are not</span></span>
-<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified -- different parameter values give exactly the same distribution.</span></span>
-<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   A support of at least 3 points is required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">bernoulli_distrib</span>())</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_inflated() cannot wrap 'bernoulli': its support has 2 points, so the family has 1 free</span></span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability, while the wrapped distribution would have 2 parameters. They are not</span></span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified -- different parameter values give exactly the same distribution.</span></span>
+<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   A support of at least 3 points is required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_adjusted</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">1</span>))</span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_adjusted() cannot wrap 'binomial': its support has 2 points, so the family has 1 free</span></span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability, while the wrapped distribution would have 2 parameters. They are not</span></span>
-<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified -- different parameter values give exactly the same distribution.</span></span>
-<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   A support of at least 3 points is required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_adjusted</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">1</span>))</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! zero_adjusted() cannot wrap 'binomial': its support has 2 points, so the family has 1 free</span></span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   probability, while the wrapped distribution would have 2 parameters. They are not</span></span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   identified -- different parameter values give exactly the same distribution.</span></span>
+<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   A support of at least 3 points is required.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The same rule admits a binomial with two trials, whose three support points are enough for the two parameters:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">2</span>))<span class="sc">@</span>params</span>
-<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu" "zi"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">zero_inflated</span>(<span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">2</span>))<span class="sc">@</span>params</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu" "zi"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A caveat to end on: the counting rule protects against structural non-identification, the kind that no amount of data can cure. Weak identification of the statistical kind remains possible in any mixture model — a Poisson mean so large that <span class="math inline">\(f_0\)</span> underflows, a <span class="math inline">\(\zeta\)</span> so close to zero that the data barely see it. In those cases the standard errors from <code>fit_distrib()</code> are the diagnostic.</p>
 </section>
@@ -1743,21 +1770,21 @@ H(\eta) = \sum_{i=1}^{n} \frac{\partial^{2} \ell_i}{\partial \eta \,\partial \et
 <p>A likelihood need not be concave, and a fit started at a poor point can converge to a local maximum, to a boundary, or not at all. How far the start is from the answer is not a detail of the implementation but a property of the problem, and it governs the amount of work the iteration has to do before it arrives, when it arrives at all.</p>
 <p>The starting value comes from a distribution’s own <code>distrib_start()</code>, which receives the data. A family that knows an estimator of its parameters returns it, and the fit then begins where a moment estimator or an exact maximum likelihood estimator already is; a family that says nothing gets several random draws from the admissible region, tried in turn. The multivariate gaussian is the case where the difference is total: its maximum likelihood estimator for an unstructured covariance is the sample mean and the sample second moment, so it starts at the answer and confirms it in a single iteration.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>d4 <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">4</span>)</span>
-<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>y4 <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(iris[, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>])</span>
-<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a><span class="co"># what the family proposes, against what the data say</span></span>
-<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>start <span class="ot">&lt;-</span> <span class="fu">distrib_start</span>(d4, y4)[[<span class="dv">1</span>]]</span>
-<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">proposed =</span> <span class="fu">mv_location</span>(d4, start), <span class="at">sample =</span> <span class="fu">colMeans</span>(y4))</span>
-<span id="cb43-7"><a href="#cb43-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                v1       v2    v3       v4</span></span>
-<span id="cb43-8"><a href="#cb43-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; proposed 5.843333 3.057333 3.758 1.199333</span></span>
-<span id="cb43-9"><a href="#cb43-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sample   5.843333 3.057333 3.758 1.199333</span></span>
-<span id="cb43-10"><a href="#cb43-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb43-11"><a href="#cb43-11" aria-hidden="true" tabindex="-1"></a><span class="co"># and the fit it leads to</span></span>
-<span id="cb43-12"><a href="#cb43-12" aria-hidden="true" tabindex="-1"></a>f4 <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d4, y4)</span>
-<span id="cb43-13"><a href="#cb43-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">iterations =</span> f4<span class="sc">@</span>iterations, <span class="at">converged =</span> f4<span class="sc">@</span>converged)</span>
-<span id="cb43-14"><a href="#cb43-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; iterations  converged </span></span>
-<span id="cb43-15"><a href="#cb43-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          1          1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>d4 <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">4</span>)</span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>y4 <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(iris[, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>])</span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="co"># what the family proposes, against what the data say</span></span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a>start <span class="ot">&lt;-</span> <span class="fu">distrib_start</span>(d4, y4)[[<span class="dv">1</span>]]</span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">proposed =</span> <span class="fu">mv_location</span>(d4, start), <span class="at">sample =</span> <span class="fu">colMeans</span>(y4))</span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                v1       v2    v3       v4</span></span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; proposed 5.843333 3.057333 3.758 1.199333</span></span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sample   5.843333 3.057333 3.758 1.199333</span></span>
+<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a><span class="co"># and the fit it leads to</span></span>
+<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a>f4 <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d4, y4)</span>
+<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">iterations =</span> f4<span class="sc">@</span>iterations, <span class="at">converged =</span> f4<span class="sc">@</span>converged)</span>
+<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; iterations  converged </span></span>
+<span id="cb45-15"><a href="#cb45-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          1          1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The chosen method can still fail from a given start: by exceeding its iteration budget, by producing a non-finite step, or by raising an error, which a numerically approximated expected information can do when its quadrature diverges at an unfavourable parameter value. In that case the fit falls back to BFGS from the same start before moving to the next. BFGS is slower and uses no second-order information, but it makes fewer demands on the objective, and a slow answer is preferable to none.</p>
 <p>Across the starts the fit keeps the best run rather than the last: a converged run in preference to one that stopped without meeting its rule, and among runs of the same status the one with the higher likelihood. Only when every start has failed by every route does <code>fit_distrib()</code> stop, and it then reports the failure and asks for a starting value instead of returning an unusable result.</p>
@@ -1781,78 +1808,78 @@ h_j\big(\,\cdot\,\big).
 <section id="sec-fit-example" class="level3" data-number="3.3.5">
 <h3 data-number="3.3.5" class="anchored" data-anchor-id="sec-fit-example"><span class="header-section-number">3.3.5</span> A complete example</h3>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">20260730</span>)</span>
-<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
-<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">500</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">sigma2 =</span> <span class="dv">6</span>))</span>
-<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, y)</span>
-<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>fit</span>
-<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: gamma</span></span>
-<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 500   Log-likelihood: -1090   AIC: 2184   BIC: 2192</span></span>
-<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 4   evaluations: f 5, g 5   time: 0 ms</span></span>
-<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-06 or |df| &lt; 1e-12 (relative))</span></span>
-<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameter scale:</span></span>
-<span id="cb44-13"><a href="#cb44-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
-<span id="cb44-14"><a href="#cb44-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       4.0937     0.1088 3.8859 4.3127</span></span>
-<span id="cb44-15"><a href="#cb44-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   5.9233     0.4744 5.0628 6.9301</span></span>
-<span id="cb44-16"><a href="#cb44-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb44-17"><a href="#cb44-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Link scale:</span></span>
-<span id="cb44-18"><a href="#cb44-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
-<span id="cb44-19"><a href="#cb44-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       1.4095     0.0266 1.3573 1.4616</span></span>
-<span id="cb44-20"><a href="#cb44-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   1.7789     0.0801 1.6219 1.9359</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">20260730</span>)</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">500</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">sigma2 =</span> <span class="dv">6</span>))</span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, y)</span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>fit</span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: gamma</span></span>
+<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 500   Log-likelihood: -1090   AIC: 2184   BIC: 2192</span></span>
+<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 4   evaluations: f 5, g 5   time: 0 ms</span></span>
+<span id="cb46-10"><a href="#cb46-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-06 or |df| &lt; 1e-12 (relative))</span></span>
+<span id="cb46-11"><a href="#cb46-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb46-12"><a href="#cb46-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameter scale:</span></span>
+<span id="cb46-13"><a href="#cb46-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
+<span id="cb46-14"><a href="#cb46-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       4.0937     0.1088 3.8859 4.3127</span></span>
+<span id="cb46-15"><a href="#cb46-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   5.9233     0.4744 5.0628 6.9301</span></span>
+<span id="cb46-16"><a href="#cb46-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb46-17"><a href="#cb46-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Link scale:</span></span>
+<span id="cb46-18"><a href="#cb46-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Estimate Std. Error   2.5%  97.5%</span></span>
+<span id="cb46-19"><a href="#cb46-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu       1.4095     0.0266 1.3573 1.4616</span></span>
+<span id="cb46-20"><a href="#cb46-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2   1.7789     0.0801 1.6219 1.9359</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The estimates are close to the values the sample was generated from, and the interval for <code>sigma2</code> is visibly asymmetric — longer to the right, as expected for a variance estimated on a log scale. All components of the fit are available individually, on either scale:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit)</span>
-<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
-<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.093717 5.923302</span></span>
-<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="fu">vcov</span>(fit)</span>
-<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                mu     sigma2</span></span>
-<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     0.01184660 0.03428229</span></span>
-<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 0.03428229 0.22506389</span></span>
-<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)</span>
-<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
-<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.409453 1.778894</span></span>
-<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)   <span class="co"># symmetric here</span></span>
-<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%    97.5%</span></span>
-<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     1.357343 1.461564</span></span>
-<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 1.621917 1.935871</span></span>
-<span id="cb45-15"><a href="#cb45-15" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit)                   <span class="co"># its image under the inverse link</span></span>
-<span id="cb45-16"><a href="#cb45-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%   97.5%</span></span>
-<span id="cb45-17"><a href="#cb45-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     3.885854 4.31270</span></span>
-<span id="cb45-18"><a href="#cb45-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 5.062784 6.93008</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit)</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.093717 5.923302</span></span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a><span class="fu">vcov</span>(fit)</span>
+<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                mu     sigma2</span></span>
+<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     0.01184660 0.03428229</span></span>
+<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 0.03428229 0.22506389</span></span>
+<span id="cb47-8"><a href="#cb47-8" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)</span>
+<span id="cb47-9"><a href="#cb47-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
+<span id="cb47-10"><a href="#cb47-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.409453 1.778894</span></span>
+<span id="cb47-11"><a href="#cb47-11" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit, <span class="at">scale =</span> <span class="st">"link"</span>)   <span class="co"># symmetric here</span></span>
+<span id="cb47-12"><a href="#cb47-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%    97.5%</span></span>
+<span id="cb47-13"><a href="#cb47-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     1.357343 1.461564</span></span>
+<span id="cb47-14"><a href="#cb47-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 1.621917 1.935871</span></span>
+<span id="cb47-15"><a href="#cb47-15" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit)                   <span class="co"># its image under the inverse link</span></span>
+<span id="cb47-16"><a href="#cb47-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%   97.5%</span></span>
+<span id="cb47-17"><a href="#cb47-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     3.885854 4.31270</span></span>
+<span id="cb47-18"><a href="#cb47-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 5.062784 6.93008</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Because the optimisation is delegated rather than written in, <code>method</code> accepts any optimiser of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a> in place of one of the three named strategies, and the object carries its own stopping rule with it:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(optimizers7)</span>
-<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>fits <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
-<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">fisher =</span> <span class="fu">fit_distrib</span>(d, y),</span>
-<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lbfgs  =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">lbfgs</span>(<span class="at">criterion =</span> <span class="fu">crit_grad</span>(<span class="fl">1e-7</span>))),</span>
-<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">nelder =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">nelder_mead</span>(<span class="at">maxit =</span> <span class="dv">5000</span>))</span>
-<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(fits, <span class="cf">function</span>(f) <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f)), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
-<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    fisher     lbfgs    nelder </span></span>
-<span id="cb46-10"><a href="#cb46-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -1089.907 -1089.907 -1089.907</span></span>
-<span id="cb46-11"><a href="#cb46-11" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(fits, <span class="cf">function</span>(f) f<span class="sc">@</span>method, <span class="fu">character</span>(<span class="dv">1</span>))</span>
-<span id="cb46-12"><a href="#cb46-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           fisher            lbfgs           nelder </span></span>
-<span id="cb46-13"><a href="#cb46-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; "Fisher scoring"         "L-BFGS"    "nelder-mead"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(optimizers7)</span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>fits <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">fisher =</span> <span class="fu">fit_distrib</span>(d, y),</span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lbfgs  =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">lbfgs</span>(<span class="at">criterion =</span> <span class="fu">crit_grad</span>(<span class="fl">1e-7</span>))),</span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">nelder =</span> <span class="fu">fit_distrib</span>(d, y, <span class="at">method =</span> <span class="fu">nelder_mead</span>(<span class="at">maxit =</span> <span class="dv">5000</span>))</span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb48-8"><a href="#cb48-8" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(fits, <span class="cf">function</span>(f) <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f)), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb48-9"><a href="#cb48-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    fisher     lbfgs    nelder </span></span>
+<span id="cb48-10"><a href="#cb48-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -1089.907 -1089.907 -1089.907</span></span>
+<span id="cb48-11"><a href="#cb48-11" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(fits, <span class="cf">function</span>(f) f<span class="sc">@</span>method, <span class="fu">character</span>(<span class="dv">1</span>))</span>
+<span id="cb48-12"><a href="#cb48-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           fisher            lbfgs           nelder </span></span>
+<span id="cb48-13"><a href="#cb48-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; "Fisher scoring"         "L-BFGS"    "nelder-mead"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The three agree on the maximised log-likelihood, which is the statement that matters: the algorithm decides how the optimum is reached, not where it is.</p>
 <p>The relation between the two variance matrices is the diagonal Jacobian congruence of <a href="#sec-fit-delta" class="quarto-xref"><span>Section 3.3.4</span></a>, and it can be verified directly:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>J <span class="ot">&lt;-</span> <span class="fu">vapply</span>(<span class="fu">seq_along</span>(d<span class="sc">@</span>params), <span class="cf">function</span>(i) {</span>
-<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>  linkfunctions7<span class="sc">::</span><span class="fu">dlinkinv</span>(d<span class="sc">@</span>link_params[[d<span class="sc">@</span>params[i]]], fit<span class="sc">@</span>eta[i])</span>
-<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
-<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a><span class="fu">diag</span>(J) <span class="sc">%*%</span> fit<span class="sc">@</span>vcov_eta <span class="sc">%*%</span> <span class="fu">diag</span>(J)</span>
-<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            [,1]       [,2]</span></span>
-<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] 0.01184660 0.03428229</span></span>
-<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] 0.03428229 0.22506389</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>J <span class="ot">&lt;-</span> <span class="fu">vapply</span>(<span class="fu">seq_along</span>(d<span class="sc">@</span>params), <span class="cf">function</span>(i) {</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>  linkfunctions7<span class="sc">::</span><span class="fu">dlinkinv</span>(d<span class="sc">@</span>link_params[[d<span class="sc">@</span>params[i]]], fit<span class="sc">@</span>eta[i])</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a><span class="fu">diag</span>(J) <span class="sc">%*%</span> fit<span class="sc">@</span>vcov_eta <span class="sc">%*%</span> <span class="fu">diag</span>(J)</span>
+<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            [,1]       [,2]</span></span>
+<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,] 0.01184660 0.03428229</span></span>
+<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,] 0.03428229 0.22506389</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The maximised log-likelihood, the information criteria, the number of iterations and the method actually used are all carried on the fitted object. The method recorded may differ from the one requested when the fallback was taken. The <code>simulate()</code> and <code>plot()</code> methods compare the fitted distribution against the data it came from.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -1864,11 +1891,11 @@ h_j\big(\,\cdot\,\big).
 </div>
 <p><code>simulate()</code> draws new samples of the original size from the fitted distribution, which is the ingredient a parametric bootstrap needs: under the fitted model, a statistic computed on the simulated samples has the same distribution that it has under repeated sampling.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>sims <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">200</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
-<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>boot_means <span class="ot">&lt;-</span> <span class="fu">vapply</span>(sims, mean, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
-<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">observed =</span> <span class="fu">mean</span>(y), <span class="at">boot_se =</span> <span class="fu">sd</span>(boot_means))</span>
-<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  observed   boot_se </span></span>
-<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.0937172 0.1127172</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>sims <span class="ot">&lt;-</span> <span class="fu">simulate</span>(fit, <span class="at">nsim =</span> <span class="dv">200</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>boot_means <span class="ot">&lt;-</span> <span class="fu">vapply</span>(sims, mean, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">observed =</span> <span class="fu">mean</span>(y), <span class="at">boot_se =</span> <span class="fu">sd</span>(boot_means))</span>
+<span id="cb51-4"><a href="#cb51-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  observed   boot_se </span></span>
+<span id="cb51-5"><a href="#cb51-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.0937172 0.1127172</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-fit-scope" class="level3" data-number="3.3.6">
@@ -1933,18 +1960,18 @@ h_j\big(\,\cdot\,\big).
 <p><span class="math display">\[T(u) = \frac{u^{p}}{u^{p} + (1-u)^{q}}, \qquad Y = a + (b-a)\,T(U),\]</span></p>
 <p>which increases from <span class="math inline">\(0\)</span> to <span class="math inline">\(1\)</span>, behaves like <span class="math inline">\(u^{p}\)</span> on the left and like <span class="math inline">\(1 - (1-u)^{q}\)</span> on the right, and has a closed-form derivative. The density of <span class="math inline">\(U\)</span> then carries the exponents <span class="math inline">\(p\alpha - 1\)</span> and <span class="math inline">\(q\beta - 1\)</span> at the two ends and is bounded as soon as <span class="math inline">\(p\alpha &gt; 1\)</span> and <span class="math inline">\(q\beta &gt; 1\)</span>. Both exponents come from the same probe as before, run once at each edge.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="co"># a shape below one: the density is unbounded at zero</span></span>
-<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
-<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fl">0.4</span>, <span class="at">sigma2 =</span> <span class="dv">1</span>)</span>
-<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
-<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">5000</span>, th)</span>
-<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">mean =</span> <span class="fu">mean</span>(x), <span class="at">theoretical =</span> <span class="fl">0.4</span>)</span>
-<span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        mean theoretical </span></span>
-<span id="cb50-9"><a href="#cb50-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   0.4041797   0.4000000</span></span>
-<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">var =</span> <span class="fu">var</span>(x), <span class="at">theoretical =</span> <span class="dv">1</span>)</span>
-<span id="cb50-11"><a href="#cb50-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         var theoretical </span></span>
-<span id="cb50-12"><a href="#cb50-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    1.156008    1.000000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="co"># a shape below one: the density is unbounded at zero</span></span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma_distrib</span>()</span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fl">0.4</span>, <span class="at">sigma2 =</span> <span class="dv">1</span>)</span>
+<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
+<span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">5000</span>, th)</span>
+<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">mean =</span> <span class="fu">mean</span>(x), <span class="at">theoretical =</span> <span class="fl">0.4</span>)</span>
+<span id="cb52-8"><a href="#cb52-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        mean theoretical </span></span>
+<span id="cb52-9"><a href="#cb52-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   0.4041797   0.4000000</span></span>
+<span id="cb52-10"><a href="#cb52-10" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">var =</span> <span class="fu">var</span>(x), <span class="at">theoretical =</span> <span class="dv">1</span>)</span>
+<span id="cb52-11"><a href="#cb52-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         var theoretical </span></span>
+<span id="cb52-12"><a href="#cb52-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    1.156008    1.000000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-fallbacks-discrete" class="level3" data-number="3.4.4">
@@ -2022,26 +2049,26 @@ f(y) \;=\; (2\pi)^{-p/2} \, |\Sigma|^{-1/2}
 \tag{3.5}\]</span></span></p>
 <p>The second derivatives <span class="math inline">\(A_{kl}\)</span> have disappeared, and so has the second derivative of the log-determinant. The information needs only the first derivatives of the parameter, which is what makes Fisher scoring cheaper here than a Newton step, and it is what <a href="#sec-fit-scoring" class="quarto-xref"><span>Section 3.3.2</span></a> already predicted in one dimension.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">2</span>)</span>
-<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>d<span class="sc">@</span>params</span>
-<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu1"          "mu2"          "sigma_log_L1" "sigma_log_L2" "sigma_L2.1"</span></span>
-<span id="cb51-4"><a href="#cb51-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb51-5"><a href="#cb51-5" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu1 =</span> <span class="fl">0.5</span>, <span class="at">mu2 =</span> <span class="sc">-</span><span class="fl">0.3</span>, <span class="at">sigma_log_L1 =</span> <span class="fl">0.1</span>, <span class="at">sigma_log_L2 =</span> <span class="sc">-</span><span class="fl">0.2</span>, <span class="at">sigma_L2.1 =</span> <span class="fl">0.4</span>)</span>
-<span id="cb51-6"><a href="#cb51-6" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_sigma</span>(d, theta)</span>
-<span id="cb51-7"><a href="#cb51-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           v1        v2</span></span>
-<span id="cb51-8"><a href="#cb51-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 1.2214028 0.4420684</span></span>
-<span id="cb51-9"><a href="#cb51-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 0.4420684 0.8303200</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">2</span>)</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>d<span class="sc">@</span>params</span>
+<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu1"          "mu2"          "sigma_log_L1" "sigma_log_L2" "sigma_L2.1"</span></span>
+<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb53-5"><a href="#cb53-5" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu1 =</span> <span class="fl">0.5</span>, <span class="at">mu2 =</span> <span class="sc">-</span><span class="fl">0.3</span>, <span class="at">sigma_log_L1 =</span> <span class="fl">0.1</span>, <span class="at">sigma_log_L2 =</span> <span class="sc">-</span><span class="fl">0.2</span>, <span class="at">sigma_L2.1 =</span> <span class="fl">0.4</span>)</span>
+<span id="cb53-6"><a href="#cb53-6" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_sigma</span>(d, theta)</span>
+<span id="cb53-7"><a href="#cb53-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           v1        v2</span></span>
+<span id="cb53-8"><a href="#cb53-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 1.2214028 0.4420684</span></span>
+<span id="cb53-9"><a href="#cb53-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 0.4420684 0.8303200</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A gaussian may equally be written in the precision <span class="math inline">\(\Omega = \Sigma^{-1}\)</span>, and which of the two a model parametrises is a modelling decision rather than a notational one: a parameter imposed on <span class="math inline">\(\Sigma\)</span> is a different family from the same parameter imposed on <span class="math inline">\(\Omega\)</span>, since the inverse of a compound-symmetry matrix is compound symmetry while the inverse of an AR(1) is not AR(1). The constructor takes the parameter on either side, and everything above still applies, because <span class="math inline">\(\partial \Sigma / \partial \eta_k = -\Sigma A_k \Sigma\)</span> when <span class="math inline">\(A_k\)</span> is a derivative of the precision. The two parametrisations describe the same law when the matrices are matched.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>do <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">2</span>, <span class="at">omega =</span> parameters7<span class="sc">::</span><span class="fu">log_cholesky</span>(<span class="dv">2</span>))</span>
-<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>eta_o <span class="ot">&lt;-</span> parameters7<span class="sc">::</span><span class="fu">param_free</span>(do<span class="sc">@</span>param, <span class="fu">solve</span>(<span class="fu">mv_sigma</span>(d, theta)))</span>
-<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>theta_o <span class="ot">&lt;-</span> <span class="fu">as.list</span>(stats<span class="sc">::</span><span class="fu">setNames</span>(<span class="fu">c</span>(<span class="fl">0.5</span>, <span class="sc">-</span><span class="fl">0.3</span>, eta_o), do<span class="sc">@</span>params))</span>
-<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="sc">-</span><span class="dv">1</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.8</span>))</span>
-<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">distrib_pdf</span>(do, y, theta_o, <span class="at">log =</span> <span class="cn">TRUE</span>) <span class="sc">-</span></span>
-<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a>        <span class="fu">distrib_pdf</span>(d, y, theta, <span class="at">log =</span> <span class="cn">TRUE</span>)))</span>
-<span id="cb52-8"><a href="#cb52-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4.440892e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>do <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">2</span>, <span class="at">omega =</span> parameters7<span class="sc">::</span><span class="fu">log_cholesky</span>(<span class="dv">2</span>))</span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>eta_o <span class="ot">&lt;-</span> parameters7<span class="sc">::</span><span class="fu">param_free</span>(do<span class="sc">@</span>param, <span class="fu">solve</span>(<span class="fu">mv_sigma</span>(d, theta)))</span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>theta_o <span class="ot">&lt;-</span> <span class="fu">as.list</span>(stats<span class="sc">::</span><span class="fu">setNames</span>(<span class="fu">c</span>(<span class="fl">0.5</span>, <span class="sc">-</span><span class="fl">0.3</span>, eta_o), do<span class="sc">@</span>params))</span>
+<span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb54-5"><a href="#cb54-5" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="sc">-</span><span class="dv">1</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.8</span>))</span>
+<span id="cb54-6"><a href="#cb54-6" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">distrib_pdf</span>(do, y, theta_o, <span class="at">log =</span> <span class="cn">TRUE</span>) <span class="sc">-</span></span>
+<span id="cb54-7"><a href="#cb54-7" aria-hidden="true" tabindex="-1"></a>        <span class="fu">distrib_pdf</span>(d, y, theta, <span class="at">log =</span> <span class="cn">TRUE</span>)))</span>
+<span id="cb54-8"><a href="#cb54-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4.440892e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-mvstudent-t" class="level3" data-number="3.5.3">
@@ -2080,20 +2107,20 @@ c \;=\; \frac{\nu + p}{\nu + q}
 <p>with <span class="math inline">\(\psi\)</span> the digamma function. The first three terms come from the normalising constant and do not involve the data; the last two are the derivative of the kernel. Since <span class="math inline">\(\nu &gt; 0\)</span> it carries a log link, and the derivative on the link scale is <span class="math inline">\(\nu\,\ell^{(\nu)}\)</span> by the chain rule of <a href="#sec-link-scale" class="quarto-xref"><span>Section 3.1.4</span></a>, with no change to the rest.</p>
 <p>The expected information of the <span class="math inline">\(t\)</span> has no closed form in the package, so it is approximated by one of the strategies of <a href="#sec-approx" class="quarto-xref"><span>Section 3.1.3.1</span></a>, and <code>fit_distrib()</code> accepts the choice through its <code>approx</code> argument. It accepts it only for a family that has no closed form, since for one that has, the argument would be silently ignored and the fit would report a method it did not use.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>dt <span class="ot">&lt;-</span> <span class="fu">mvstudent_t_distrib</span>(<span class="dv">2</span>)</span>
-<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>theta_t <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu1 =</span> <span class="fl">0.5</span>, <span class="at">mu2 =</span> <span class="sc">-</span><span class="fl">0.3</span>, <span class="at">sigma_log_L1 =</span> <span class="fl">0.1</span>, <span class="at">sigma_log_L2 =</span> <span class="sc">-</span><span class="fl">0.2</span>,</span>
-<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>                <span class="at">sigma_L2.1 =</span> <span class="fl">0.4</span>, <span class="at">nu =</span> <span class="dv">4</span>)</span>
-<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb53-5"><a href="#cb53-5" aria-hidden="true" tabindex="-1"></a><span class="co"># the scale matrix is what the parametrisation carries; the covariance is a</span></span>
-<span id="cb53-6"><a href="#cb53-6" aria-hidden="true" tabindex="-1"></a><span class="co"># moment, and at nu = 4 it is twice as large</span></span>
-<span id="cb53-7"><a href="#cb53-7" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_sigma</span>(dt, theta_t)</span>
-<span id="cb53-8"><a href="#cb53-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           v1        v2</span></span>
-<span id="cb53-9"><a href="#cb53-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 1.2214028 0.4420684</span></span>
-<span id="cb53-10"><a href="#cb53-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 0.4420684 0.8303200</span></span>
-<span id="cb53-11"><a href="#cb53-11" aria-hidden="true" tabindex="-1"></a><span class="fu">variance</span>(dt, theta_t)</span>
-<span id="cb53-12"><a href="#cb53-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           v1        v2</span></span>
-<span id="cb53-13"><a href="#cb53-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 2.4428055 0.8841367</span></span>
-<span id="cb53-14"><a href="#cb53-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 0.8841367 1.6606401</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>dt <span class="ot">&lt;-</span> <span class="fu">mvstudent_t_distrib</span>(<span class="dv">2</span>)</span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>theta_t <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu1 =</span> <span class="fl">0.5</span>, <span class="at">mu2 =</span> <span class="sc">-</span><span class="fl">0.3</span>, <span class="at">sigma_log_L1 =</span> <span class="fl">0.1</span>, <span class="at">sigma_log_L2 =</span> <span class="sc">-</span><span class="fl">0.2</span>,</span>
+<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>                <span class="at">sigma_L2.1 =</span> <span class="fl">0.4</span>, <span class="at">nu =</span> <span class="dv">4</span>)</span>
+<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a><span class="co"># the scale matrix is what the parametrisation carries; the covariance is a</span></span>
+<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a><span class="co"># moment, and at nu = 4 it is twice as large</span></span>
+<span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_sigma</span>(dt, theta_t)</span>
+<span id="cb55-8"><a href="#cb55-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           v1        v2</span></span>
+<span id="cb55-9"><a href="#cb55-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 1.2214028 0.4420684</span></span>
+<span id="cb55-10"><a href="#cb55-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 0.4420684 0.8303200</span></span>
+<span id="cb55-11"><a href="#cb55-11" aria-hidden="true" tabindex="-1"></a><span class="fu">variance</span>(dt, theta_t)</span>
+<span id="cb55-12"><a href="#cb55-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           v1        v2</span></span>
+<span id="cb55-13"><a href="#cb55-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 2.4428055 0.8841367</span></span>
+<span id="cb55-14"><a href="#cb55-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 0.8841367 1.6606401</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-mv-marginal" class="level3" data-number="3.5.4">
@@ -2102,7 +2129,7 @@ c \;=\; \frac{\nu + p}{\nu + q}
 <p>This is what makes a picture of a multivariate density possible, because every panel of a pairs plot displays a marginal. The diagonal shows the univariate marginal density of each coordinate, the lower triangle the contours of each bivariate marginal, and, when the plot is drawn from a fit, the observations and their kernel density estimate are drawn in the same frame. The kernel estimate is the comparison that does not assume the model.</p>
 <p>Beyond three coordinates the panel matrix stops being readable, so a larger distribution is refused with the suggestion of choosing coordinates rather than being drawn illegibly. A family with no closed-form marginal is refused outright: a numerical marginal would be a different object wearing the same name.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(dt, theta_t)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(dt, theta_t)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -2118,23 +2145,23 @@ c \;=\; \frac{\nu + p}{\nu + q}
 <h3 data-number="3.5.5" class="anchored" data-anchor-id="sec-mv-fitting"><span class="header-section-number">3.5.5</span> Fitting</h3>
 <p>A fit proceeds exactly as in <a href="#sec-fitting" class="quarto-xref"><span>Section 3.3</span></a>. The objective is the sum of the log densities over the rows of <span class="math inline">\(Y\)</span>, the optimisation happens on the link scale, and the standard errors come from the inverse of the information by the delta method. For the gaussian the maximum likelihood estimator is known in closed form, the sample mean and the sample second moment about it, which makes it the natural check on the whole apparatus.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
-<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>y_big <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">2000</span>, theta)</span>
-<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, y_big)</span>
-<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a>mu_hat <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(y_big)</span>
-<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a>s_hat <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(<span class="fu">sweep</span>(y_big, <span class="dv">2</span>L, mu_hat)) <span class="sc">/</span> <span class="fu">nrow</span>(y_big)</span>
-<span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb55-8"><a href="#cb55-8" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
-<span id="cb55-9"><a href="#cb55-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">loglik_gap =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit)) <span class="sc">-</span></span>
-<span id="cb55-10"><a href="#cb55-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="fu">distrib_pdf</span>(d, y_big, <span class="fu">as.list</span>(stats<span class="sc">::</span><span class="fu">setNames</span>(</span>
-<span id="cb55-11"><a href="#cb55-11" aria-hidden="true" tabindex="-1"></a>      <span class="fu">c</span>(mu_hat, parameters7<span class="sc">::</span><span class="fu">param_free</span>(d<span class="sc">@</span>param, s_hat)), d<span class="sc">@</span>params</span>
-<span id="cb55-12"><a href="#cb55-12" aria-hidden="true" tabindex="-1"></a>    )), <span class="at">log =</span> <span class="cn">TRUE</span>)),</span>
-<span id="cb55-13"><a href="#cb55-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">mean_gap =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">mv_location</span>(d, <span class="fu">coef</span>(fit)) <span class="sc">-</span> mu_hat)),</span>
-<span id="cb55-14"><a href="#cb55-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">cov_gap =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">mv_sigma</span>(d, <span class="fu">coef</span>(fit)) <span class="sc">-</span> s_hat))</span>
-<span id="cb55-15"><a href="#cb55-15" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb55-16"><a href="#cb55-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loglik_gap     mean_gap      cov_gap </span></span>
-<span id="cb55-17"><a href="#cb55-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9.094947e-13 0.000000e+00 3.885781e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>y_big <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">2000</span>, theta)</span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, y_big)</span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>mu_hat <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(y_big)</span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a>s_hat <span class="ot">&lt;-</span> <span class="fu">crossprod</span>(<span class="fu">sweep</span>(y_big, <span class="dv">2</span>L, mu_hat)) <span class="sc">/</span> <span class="fu">nrow</span>(y_big)</span>
+<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-8"><a href="#cb57-8" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb57-9"><a href="#cb57-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">loglik_gap =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit)) <span class="sc">-</span></span>
+<span id="cb57-10"><a href="#cb57-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="fu">distrib_pdf</span>(d, y_big, <span class="fu">as.list</span>(stats<span class="sc">::</span><span class="fu">setNames</span>(</span>
+<span id="cb57-11"><a href="#cb57-11" aria-hidden="true" tabindex="-1"></a>      <span class="fu">c</span>(mu_hat, parameters7<span class="sc">::</span><span class="fu">param_free</span>(d<span class="sc">@</span>param, s_hat)), d<span class="sc">@</span>params</span>
+<span id="cb57-12"><a href="#cb57-12" aria-hidden="true" tabindex="-1"></a>    )), <span class="at">log =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb57-13"><a href="#cb57-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">mean_gap =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">mv_location</span>(d, <span class="fu">coef</span>(fit)) <span class="sc">-</span> mu_hat)),</span>
+<span id="cb57-14"><a href="#cb57-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">cov_gap =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">mv_sigma</span>(d, <span class="fu">coef</span>(fit)) <span class="sc">-</span> s_hat))</span>
+<span id="cb57-15"><a href="#cb57-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb57-16"><a href="#cb57-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loglik_gap     mean_gap      cov_gap </span></span>
+<span id="cb57-17"><a href="#cb57-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9.094947e-13 0.000000e+00 3.885781e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="sec-mv-reporting" class="level3" data-number="3.5.6">
@@ -2160,27 +2187,27 @@ J = \frac{\partial g}{\partial \theta},
 <p>with <span class="math inline">\(A_k = \partial\Sigma/\partial\eta_k\)</span> the parameter’s own derivative, which <a href="#eq-mv-parameter" class="quarto-xref">Equation&nbsp;<span>3.1</span></a> already requires it to supply. Nothing new has to be computed.</p>
 <p>The interval each quantity gets is built on the scale that keeps it in the set it belongs to and then mapped back, which is the discipline of <a href="#sec-fit-scale" class="quarto-xref"><span>Section 3.3.1</span></a> applied to a derived quantity rather than to a parameter: a standard deviation is intervalled on the log scale and a correlation on Fisher’s <span class="math inline">\(z = \operatorname{artanh}\rho\)</span>. An interval built on the raw scale would put a correlation above one whenever the estimate is large and the sample small.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>fit</span>
-<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: multivariate gaussian [2d, sigma=log_cholesky]</span></span>
-<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 2000   Log-likelihood: -5424   AIC: 10859   BIC: 10887</span></span>
-<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 1   evaluations: f 2, g 2   time: 30 ms</span></span>
-<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-06 or |df| &lt; 1e-12 (relative))</span></span>
-<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Location:</span></span>
-<span id="cb56-8"><a href="#cb56-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    Estimate Std. Error    2.5%   97.5%</span></span>
-<span id="cb56-9"><a href="#cb56-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1   0.5034     0.0246  0.4552  0.5516</span></span>
-<span id="cb56-10"><a href="#cb56-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2  -0.2811     0.0203 -0.3209 -0.2413</span></span>
-<span id="cb56-11"><a href="#cb56-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb56-12"><a href="#cb56-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Standard deviations:</span></span>
-<span id="cb56-13"><a href="#cb56-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       Estimate Std. Error   2.5%  97.5%</span></span>
-<span id="cb56-14"><a href="#cb56-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v1   1.0996     0.0174 1.0661 1.1343</span></span>
-<span id="cb56-15"><a href="#cb56-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v2   0.9080     0.0144 0.8803 0.9366</span></span>
-<span id="cb56-16"><a href="#cb56-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb56-17"><a href="#cb56-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Correlations:</span></span>
-<span id="cb56-18"><a href="#cb56-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           Estimate Std. Error   2.5%  97.5%</span></span>
-<span id="cb56-19"><a href="#cb56-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2    0.469     0.0174 0.4341 0.5025</span></span>
-<span id="cb56-20"><a href="#cb56-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb56-21"><a href="#cb56-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; The link scale is the parameter scale: every link is the identity.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>fit</span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: multivariate gaussian [2d, sigma=log_cholesky]</span></span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 2000   Log-likelihood: -5424   AIC: 10859   BIC: 10887</span></span>
+<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 1   evaluations: f 2, g 2   time: 30 ms</span></span>
+<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-06 or |df| &lt; 1e-12 (relative))</span></span>
+<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb58-7"><a href="#cb58-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Location:</span></span>
+<span id="cb58-8"><a href="#cb58-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    Estimate Std. Error    2.5%   97.5%</span></span>
+<span id="cb58-9"><a href="#cb58-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1   0.5034     0.0246  0.4552  0.5516</span></span>
+<span id="cb58-10"><a href="#cb58-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2  -0.2811     0.0203 -0.3209 -0.2413</span></span>
+<span id="cb58-11"><a href="#cb58-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb58-12"><a href="#cb58-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Standard deviations:</span></span>
+<span id="cb58-13"><a href="#cb58-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       Estimate Std. Error   2.5%  97.5%</span></span>
+<span id="cb58-14"><a href="#cb58-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v1   1.0996     0.0174 1.0661 1.1343</span></span>
+<span id="cb58-15"><a href="#cb58-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sd_v2   0.9080     0.0144 0.8803 0.9366</span></span>
+<span id="cb58-16"><a href="#cb58-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb58-17"><a href="#cb58-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Correlations:</span></span>
+<span id="cb58-18"><a href="#cb58-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           Estimate Std. Error   2.5%  97.5%</span></span>
+<span id="cb58-19"><a href="#cb58-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2    0.469     0.0174 0.4341 0.5025</span></span>
+<span id="cb58-20"><a href="#cb58-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb58-21"><a href="#cb58-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; The link scale is the parameter scale: every link is the identity.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A gaussian written in the precision reports the same standard deviations and correlations, since those are properties of the law and not of the parametrisation, and adds the two readings that belong to <span class="math inline">\(\Omega\)</span> itself. The first is the <strong>conditional variance</strong></p>
 <p><span id="eq-mv-conditional-variance"><span class="math display">\[
@@ -2196,30 +2223,30 @@ J = \frac{\partial g}{\partial \theta},
 <p>A structured matrix has quantities of its own, and they are not recoverable from the standard deviations and correlations. The covariance of a stationary autoregression of order <span class="math inline">\(q\)</span> is described by a marginal variance and <span class="math inline">\(q\)</span> partial autocorrelations, and the coefficients <span class="math inline">\(\phi\)</span> that a reader of an autoregression expects appear nowhere in <span class="math inline">\(\Sigma\)</span> at all. A parameter therefore declares the quantities it is about, together with the Jacobian of the map from its free vector, and the fit carries the variance matrix onto them by <a href="#eq-mv-delta" class="quarto-xref">Equation&nbsp;<span>3.11</span></a> exactly as it does for the decomposition. For the autoregression that Jacobian costs nothing: the Levinson-Durbin recursion of <a href="06-parameters7.html#sec-parameter-arp" class="quarto-xref"><span>Section 6.2.6</span></a> is already carried in jets, so the derivatives of the coefficients with respect to every free value are read off the first-order component of quantities the family has computed anyway.</p>
 <p>Each quantity names the scale its interval is built on, by the same rule as before: a variance on the logarithm, a partial autocorrelation on Fisher’s <span class="math inline">\(z\)</span>, and a coefficient on the identity. The coefficients take the identity scale because the stationary region is not a box, so that no scalar transformation expresses the constraint they are jointly under, and an interval that respected that constraint would not be an interval.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>d_ar <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">6</span>, <span class="at">sigma =</span> parameters7<span class="sc">::</span><span class="fu">autoregressive</span>(<span class="dv">6</span>, <span class="at">order =</span> <span class="dv">2</span>))</span>
-<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>theta_ar <span class="ot">&lt;-</span> <span class="fu">as.list</span>(stats<span class="sc">::</span><span class="fu">setNames</span>(</span>
-<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">6</span>), <span class="fu">log</span>(<span class="dv">3</span>), <span class="fu">atanh</span>(<span class="fl">0.7</span>), <span class="fu">atanh</span>(<span class="sc">-</span><span class="fl">0.3</span>)), d_ar<span class="sc">@</span>params</span>
-<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a>))</span>
-<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">15</span>)</span>
-<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a>tab_ar <span class="ot">&lt;-</span> <span class="fu">mv_summary</span>(<span class="fu">fit_distrib</span>(d_ar, <span class="fu">distrib_rng</span>(d_ar, <span class="dv">500</span>, theta_ar)))</span>
-<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(tab_ar[<span class="fu">attr</span>(tab_ar, <span class="st">"block"</span>) <span class="sc">==</span> <span class="st">"Autoregressive structure"</span>, ], <span class="dv">4</span>)</span>
-<span id="cb57-8"><a href="#cb57-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       Estimate Std. Error    2.5%   97.5%</span></span>
-<span id="cb57-9"><a href="#cb57-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale   3.1265     0.1121  2.9144  3.3540</span></span>
-<span id="cb57-10"><a href="#cb57-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; pacf1   0.7093     0.0100  0.6892  0.7284</span></span>
-<span id="cb57-11"><a href="#cb57-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; pacf2  -0.2905     0.0208 -0.3308 -0.2492</span></span>
-<span id="cb57-12"><a href="#cb57-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; phi1    0.9154     0.0190  0.8782  0.9526</span></span>
-<span id="cb57-13"><a href="#cb57-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; phi2   -0.2905     0.0208 -0.3313 -0.2497</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>d_ar <span class="ot">&lt;-</span> <span class="fu">mvgaussian_distrib</span>(<span class="dv">6</span>, <span class="at">sigma =</span> parameters7<span class="sc">::</span><span class="fu">autoregressive</span>(<span class="dv">6</span>, <span class="at">order =</span> <span class="dv">2</span>))</span>
+<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>theta_ar <span class="ot">&lt;-</span> <span class="fu">as.list</span>(stats<span class="sc">::</span><span class="fu">setNames</span>(</span>
+<span id="cb59-3"><a href="#cb59-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">6</span>), <span class="fu">log</span>(<span class="dv">3</span>), <span class="fu">atanh</span>(<span class="fl">0.7</span>), <span class="fu">atanh</span>(<span class="sc">-</span><span class="fl">0.3</span>)), d_ar<span class="sc">@</span>params</span>
+<span id="cb59-4"><a href="#cb59-4" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb59-5"><a href="#cb59-5" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">15</span>)</span>
+<span id="cb59-6"><a href="#cb59-6" aria-hidden="true" tabindex="-1"></a>tab_ar <span class="ot">&lt;-</span> <span class="fu">mv_summary</span>(<span class="fu">fit_distrib</span>(d_ar, <span class="fu">distrib_rng</span>(d_ar, <span class="dv">500</span>, theta_ar)))</span>
+<span id="cb59-7"><a href="#cb59-7" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(tab_ar[<span class="fu">attr</span>(tab_ar, <span class="st">"block"</span>) <span class="sc">==</span> <span class="st">"Autoregressive structure"</span>, ], <span class="dv">4</span>)</span>
+<span id="cb59-8"><a href="#cb59-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       Estimate Std. Error    2.5%   97.5%</span></span>
+<span id="cb59-9"><a href="#cb59-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale   3.1265     0.1121  2.9144  3.3540</span></span>
+<span id="cb59-10"><a href="#cb59-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; pacf1   0.7093     0.0100  0.6892  0.7284</span></span>
+<span id="cb59-11"><a href="#cb59-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; pacf2  -0.2905     0.0208 -0.3308 -0.2492</span></span>
+<span id="cb59-12"><a href="#cb59-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; phi1    0.9154     0.0190  0.8782  0.9526</span></span>
+<span id="cb59-13"><a href="#cb59-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; phi2   -0.2905     0.0208 -0.3313 -0.2497</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The lag-one correlation of an autoregression is its first partial autocorrelation, so <code>pacf1</code> and <code>cor_v1_v2</code> are the same number reached two ways, while the coefficients are new. Note also that <code>phi2</code> and <code>pacf2</code> share an estimate and a standard error, since the last coefficient of an order-<span class="math inline">\(q\)</span> autoregression is the last partial autocorrelation, and yet their intervals differ: they are built on different scales.</p>
 <p>For the Student <span class="math inline">\(t\)</span> the matrix is the scale matrix, so the diagonal quantities are not standard deviations of the response and are named <code>scale_sd</code> to say so. The correlations need no such qualification: the covariance is <span class="math inline">\(\nu\Sigma/(\nu-2)\)</span>, and a positive multiple of a matrix has the same correlations.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">12</span>)</span>
-<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>y_t <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(dt, <span class="dv">800</span>, theta_t)</span>
-<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_summary</span>(<span class="fu">fit_distrib</span>(dt, y_t, <span class="at">method =</span> optimizers7<span class="sc">::</span><span class="fu">newton</span>()))</span>
-<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              Estimate Std. Error      2.5%     97.5%</span></span>
-<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v1 0.9858549 0.03637639 0.9170755 1.0597927</span></span>
-<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v2 0.8954998 0.03342303 0.8323305 0.9634632</span></span>
-<span id="cb58-7"><a href="#cb58-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2   0.4348343 0.03257377 0.3688688 0.4964414</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">12</span>)</span>
+<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>y_t <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(dt, <span class="dv">800</span>, theta_t)</span>
+<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mv_summary</span>(<span class="fu">fit_distrib</span>(dt, y_t, <span class="at">method =</span> optimizers7<span class="sc">::</span><span class="fu">newton</span>()))</span>
+<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              Estimate Std. Error      2.5%     97.5%</span></span>
+<span id="cb60-5"><a href="#cb60-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v1 0.9858549 0.03637639 0.9170755 1.0597927</span></span>
+<span id="cb60-6"><a href="#cb60-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v2 0.8954998 0.03342303 0.8323305 0.9634632</span></span>
+<span id="cb60-7"><a href="#cb60-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2   0.4348343 0.03257377 0.3688688 0.4964414</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

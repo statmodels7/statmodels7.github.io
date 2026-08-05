@@ -182,6 +182,64 @@ b <- distrib_pdf(lognormal_distrib(), y, list(mu = 0.5, sigma2 = 1.3), log = TRU
 max(abs(a - b))
 ```
 
+#### Families that need no code of their own {#sec-transform-reach}
+
+The lognormal identity above is one instance of something more general. A
+number of families that a table of distributions lists separately are the
+image of one already implemented, and the wrappers reach them without any
+derivation being repeated: the score, the information and the higher orders
+are the parent's, evaluated at $g^{-1}(y)$, because $g$ carries no parameter.
+
+The inverse of a Gamma is an inverse Gamma. Writing the Gamma in
+$(\mu, \sigma^2)$ as this package does, the shape and rate are
+$\alpha = \mu^2/\sigma^2$ and $\beta = \mu/\sigma^2$, and the density of
+$1/Y$ is the standard $\beta^{\alpha}y^{-\alpha-1}e^{-\beta/y}/\Gamma(\alpha)$.
+
+```{r}
+#| label: inverse-gamma
+a <- 4; b <- 2
+ig <- transformation(gamma_distrib(), inverse_transform(),
+                     new_name = "inverse gamma")
+y <- c(0.3, 0.8, 1.5)
+max(abs(distrib_pdf(ig, y, list(mu = a / b, sigma2 = a / b^2)) -
+        b^a / gamma(a) * y^(-a - 1) * exp(-b / y)))
+```
+
+The `new_name` argument is what lets the result print as what it is rather
+than as the recipe that produced it; nothing else about the object depends on
+it.
+
+Holding a parameter reaches a second group. The Rayleigh distribution is the
+Weibull with shape two, and since that shape is a *value* the parameter can be
+held at, `fixed()` produces it exactly. Writing $s$ for the Rayleigh scale, the
+Weibull scale is $s\sqrt{2}$.
+
+```{r}
+#| label: rayleigh
+s <- 1.7
+ray <- fixed(weibull_distrib(), sigma = 2)
+y <- c(0.3, 1, 2, 4)
+max(abs(distrib_pdf(ray, y, list(mu = s * sqrt(2))) -
+        (y / s^2) * exp(-y^2 / (2 * s^2))))
+```
+
+The distinction between the two groups is worth stating, because it decides
+whether a family needs writing at all. `fixed()` can hold a parameter at a
+number; it cannot impose a *relation between* parameters. The exponential is
+the Gamma with unit shape, and unit shape means $\sigma^2 = \mu^2$, which ties
+two parameters together rather than pinning one — so the exponential is a
+family of its own here, as is the chi-squared, where the relation is
+$\sigma^2 = 2\mu$. The exponential *is* reachable as the Weibull with shape
+one, and `exponential_distrib()` agrees with that wrapper to machine
+precision, which makes the pair a test of both.
+
+The same reasoning places the other standard names. The log-logistic is
+$\exp$ of a logistic, the Pareto is $\exp$ of an exponential, and the folded
+normal is `folded(gaussian_distrib())` with the half-normal its location held
+at zero — the last through a wrapper rather than a transformer, the absolute
+value having two preimages and therefore no inverse to carry a density
+through.
+
 ### Zero-inflation {#sec-zero-inflation}
 
 Count data very often contain more zeros than any standard count distribution
