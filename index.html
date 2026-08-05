@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>statmodels7 — an S7 toolkit for statistical modelling</title>
-<meta name="description" content="Distributions, link functions and optimisers as reusable S7 objects, carrying every derivative up to fourth order in closed form. The components every R modelling package rewrites internally, written once.">
+<title>statmodels7 — an S7 toolkit for statistical modeling</title>
+<meta name="description" content="Distributions, link functions and optimizers as reusable S7 objects, carrying every derivative up to fourth order in closed form. The components every R modeling package rewrites internally, written once.">
 <link rel="icon" href="logo/statmodels7.svg" type="image/svg+xml">
 <style>
   :root {
@@ -93,7 +93,7 @@
     <img src="logo/statmodels7.svg" alt="statmodels7">
     <div>
       <h1>statmodels7</h1>
-      <p>The components every statistical modelling package rewrites
+      <p>The components every statistical modeling package rewrites
          internally, written once as reusable objects that carry every
          derivative up to fourth order, exactly.</p>
     </div>
@@ -116,10 +116,10 @@
        almost always the density and the score, sometimes the Hessian, and
        nothing beyond.</p>
     <p>A Gamma is a fixed mathematical object. It can be written once,
-       correctly, with everything a modelling routine could want already
+       correctly, with everything a modeling routine could want already
        computed, and every package can then build on the same implementation.
        That is what this toolkit provides.</p>
-    <p>The same argument applies to the optimiser. Almost every package that
+    <p>The same argument applies to the optimizer. Almost every package that
        fits a model carries its own, written inside the function that needs it:
        a loop, a <code>while (!converged)</code>, a tolerance compared against
        whatever quantity the author had to hand. The stopping rule, which
@@ -136,7 +136,7 @@
        functions and their derivatives to fourth order, the likelihood theory
        and the Bartlett identities, the change of scale, and the operations
        that build new distributions from existing ones. The chapter on
-       optimisation covers the methods themselves, from the Wolfe conditions
+       optimization covers the methods themselves, from the Wolfe conditions
        and Zoutendijk's theorem to the BFGS update and the bundle method.</p>
   </section>
 
@@ -179,7 +179,7 @@ library(statmodels7)
       <a class="card" href="https://statmodels7.github.io/distributions7">
         <h3>distributions<span>7</span></h3>
         <p>Thirty-eight univariate distributions and four multivariate ones
-           — one name per parametrisation where a family has several —
+           — one name per parametrization where a family has several —
            carrying closed-form score, information and third and fourth
            derivatives — with respect to the parameters, the response, and the
            unconstrained scale.</p>
@@ -214,7 +214,7 @@ library(statmodels7)
       <div class="card planned">
         <h3>modelterms<span>7</span><span class="tag">planned</span></h3>
         <p>Terms that go into a model formula — smooths, segments, jumps,
-           penalised bases — each defining its own design and derivatives.</p>
+           penalized bases — each defining its own design and derivatives.</p>
       </div>
 
       <div class="card planned">
@@ -226,8 +226,8 @@ library(statmodels7)
       <a class="card" href="https://statmodels7.github.io/statmodels7">
         <h3>statmodels<span>7</span></h3>
         <p>The toolkit in one package: installing it installs the others and
-           attaching it attaches them. The modelling layer it will grow into
-           is still to come, with every parameter modelled rather than just
+           attaching it attaches them. The modeling layer it will grow into
+           is still to come, with every parameter modeled rather than just
            the mean.</p>
       </a>
 
@@ -236,7 +236,7 @@ library(statmodels7)
 
   <section>
     <h2>The derivatives</h2>
-    <p>A modelling routine needs the score to take a step, the information for
+    <p>A modeling routine needs the score to take a step, the information for
        standard errors, and the third and fourth derivatives for higher-order
        corrections, bias adjustment or saddlepoint approximations. The higher
        orders are almost never available in existing packages, so they are
@@ -245,7 +245,7 @@ library(statmodels7)
     <p>Here they are computed in closed form, in C++, for every distribution,
        with respect to the parameters, to the response, and to the
        <em>unconstrained</em> parameters behind each link, which is the scale
-       an optimiser works on. Where a closed form does not exist, a documented
+       an optimizer works on. Where a closed form does not exist, a documented
        numerical approximation takes its place.</p>
 <pre><span class="c"># everything below is exact, none of it is a finite difference</span>
 d &lt;- gamma2_distrib()
@@ -262,7 +262,7 @@ distrib_gradient(d, y, theta, scale = "link")   <span class="c"># w.r.t. eta</sp
        penalty is positive semidefinite and singular by construction. A link
        function cannot express any of these, because it acts on one number at a
        time and produces a diagonal Jacobian, while changing one free value of
-       a matrix parametrisation changes an entire row and column.</p>
+       a matrix parametrization changes an entire row and column.</p>
     <p><code>parameters7</code> supplies the missing object: a map from an
        unconstrained vector to a constrained matrix, exact to second order,
        together with the log-determinant and the solves a likelihood asks for.
@@ -285,7 +285,7 @@ param_dlogdet(p, eta)          <span class="c"># the rank, at any scale</span></
     <h2>Vectors, not just numbers</h2>
     <p>A multivariate distribution is the same object with a matrix parameter.
        Its mean contributes one scalar per coordinate and the covariance
-       contributes the free values of whatever structure parametrises it, so
+       contributes the free values of whatever structure parametrizes it, so
        the parameter vector stays a list of numbers and every generic in the
        package indexes it as it always did — including the derivatives, the
        validator and the fitting routine.</p>
@@ -302,7 +302,7 @@ mvstudent_t_distrib(3)</pre>
        returns it: a multivariate gaussian starts at the sample mean and
        covariance, which for an unstructured matrix is the answer, and the fit
        confirms it in a single iteration.</p>
-    <p>A gaussian may be parametrised by its precision instead of its
+    <p>A gaussian may be parametrized by its precision instead of its
        covariance, which is a different model whenever the structure is not
        closed under inversion, and the constructor takes either side; the
        parameter names say which of the two, so a printed table is never
@@ -314,7 +314,7 @@ mvstudent_t_distrib(3)</pre>
        Dirichlet lives on the simplex, so its covariance is singular and its
        marginals are beta rather than Dirichlet; the multinomial is discrete,
        and being discrete it can hand back its own support, so its
-       normalisation and its expected information are exact sums rather than
+       normalization and its expected information are exact sums rather than
        samples. Both take their mean from a simplex parameter, and nothing in
        the derivative machinery had to be told.</p>
 <pre>d &lt;- multinomial_distrib(3, size = 5)
@@ -325,7 +325,7 @@ sum(distrib_pdf(d, mv_support(d, theta), theta))
        deviations and correlations, each with a standard error carried across
        by the delta method and an interval built on a scale it cannot escape
        from — the log scale for a standard deviation, Fisher's <em>z</em> for a
-       correlation. A precision parametrisation adds the conditional variances
+       correlation. A precision parametrization adds the conditional variances
        and partial correlations, which are what it describes directly.</p>
 <pre>mv_summary(fit)
 <span class="c">#            Estimate  Std. Error     2.5%    97.5%</span>

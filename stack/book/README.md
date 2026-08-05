@@ -53,7 +53,7 @@ book/
   R/
     _setup.R                       shared setup and the certification helpers
     link-formulas.R                the 16 link records + their certificates
-    distribution-catalogue.R       the 14 distribution records + certificates
+    distribution-catalog.R       the 14 distribution records + certificates
     transformation-certificates.R  transformer and zero-wrapper certificates
     fit-certificates.R             the fitting chapter's certificates
   assets/theme.scss      the toolkit's palette
@@ -77,7 +77,7 @@ render failing. None of this is mentioned in the book itself: the reader is
 entitled to assume the formulas shown are the ones that run, and the checking is
 ours to do.
 
-If you edit a formula in `R/link-formulas.R` or `R/distribution-catalogue.R`, you
+If you edit a formula in `R/link-formulas.R` or `R/distribution-catalog.R`, you
 are editing both the equation the reader sees and the thing that gets tested.
 That is deliberate.
 

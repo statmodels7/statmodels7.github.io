@@ -5,7 +5,7 @@
 #| include: false
 source("R/_setup.R")
 source("R/link-formulas.R")
-source("R/distribution-catalogue.R")
+source("R/distribution-catalog.R")
 ```
 
 This chapter develops the likelihood theory that the toolkit implements and
@@ -13,8 +13,8 @@ then presents the univariate families that `distributions7` ships. The
 theory comes first because it is shared: the score, the two informations, the
 Bartlett identities and the change of scale are defined once, at the level of
 the base class, and every distribution, including a user-defined one, inherits
-them. The catalogue follows, with particular attention to the places where the
-parametrisation chosen here differs from the one used by base R, because those
+them. The catalog follows, with particular attention to the places where the
+parametrization chosen here differs from the one used by base R, because those
 are the places where misreadings arise.
 
 ### The distrib class {#sec-distrib-object}
@@ -36,7 +36,7 @@ d@link_params$sigma2
 ```
 
 Parameters travel through the API as a named list called `theta`, and every
-generic normalises this list before doing anything else. The normalisation does three things. It reorders the entries by name, so that
+generic normalizes this list before doing anything else. The normalization does three things. It reorders the entries by name, so that
 `list(sigma2 = 2, mu = 3)` and `list(mu = 3, sigma2 = 2)` mean the same
 thing. It strips names from the *values*, because a parameter that has passed
 through a link function comes back carrying its own name, which would
@@ -127,7 +127,7 @@ str(distrib_hessian(d, y, th))
 Everything in this section and the next two assumes the model is *regular* at
 $\theta$: the support of $f$ does not depend on $\theta$, the log-likelihood is
 four times differentiable, and derivatives may be exchanged with the integral
-sign at the orders involved. Every family in the catalogue satisfies these
+sign at the orders involved. Every family in the catalog satisfies these
 conditions everywhere except the Laplace,
 whose location parameter sits at a kink of the log-likelihood, and
 @sec-nonregular is devoted to what happens then.
@@ -284,7 +284,7 @@ and the derivation below proceeds in stages, starting with a single parameter.
 #### One parameter {#sec-faa-univariate}
 
 Repeated differentiation of the composition $\ell(h(\eta))$ is governed by
-Faà di Bruno's formula, which organises the higher-order chain rule through
+Faà di Bruno's formula, which organizes the higher-order chain rule through
 the *partial Bell polynomials* $B_{m,j}$.
 
 ::: {#thm-faa}
@@ -355,7 +355,7 @@ where $\ell^{(p_1^{j_1}\cdots p_r^{j_r})}$ denotes the parameter-scale
 derivative taken $j_t$ times with respect to $\theta_{p_t}$.
 :::
 
-The diagonality of the Jacobian is what makes this factorisation possible.
+The diagonality of the Jacobian is what makes this factorization possible.
 Each $\theta_{p_t}$ depends on its own linear predictor and on nothing else,
 so the operator $\partial^{m_t}/\partial\eta_{p_t}^{m_t}$ sees $\ell$ as a
 function of the single variable $\theta_{p_t}$, and @thm-faa applies in that
@@ -453,7 +453,7 @@ distrib_grad_y(d, c(1, 3, 6), th)
 ### Derivatives of the distribution function {#sec-cdf-derivatives}
 
 Everything so far has differentiated the *density*. There is a second family of
-derivatives that a modelling framework needs and that is almost never provided:
+derivatives that a modeling framework needs and that is almost never provided:
 those of the **distribution function** with respect to the parameters. The
 reason they matter is censoring. An observation known only to be at most $q$
 contributes $\log F(q;\theta)$ to the log-likelihood rather than
@@ -477,7 +477,7 @@ $$
 $$
 
 using $\partial_i f = f\,\ell^{(i)}$ in the middle step and dividing by $F(q)$
-in the last to recognise the conditional density. So the gradient of the *log*
+in the last to recognize the conditional density. So the gradient of the *log*
 distribution function is a **partial mean of the score**:
 $\partial_i \log F(q) = \mathbb{E}[\ell^{(i)} \mid Y \le q]$.
 
@@ -496,7 +496,7 @@ up to $q$, so the identity is not an approximation at all and can be evaluated
 as it stands. For a **continuous** one it is an integral over a semi-infinite
 region, and evaluating it by quadrature is both slower and less accurate than
 simply differencing the distribution function, which for every family in the
-catalogue is an analytic expression. The package does each where it belongs.
+catalog is an analytic expression. The package does each where it belongs.
 
 Some families need neither. For a location-scale family, $F(y) = G(z)$ with
 $z = (y-\mu)/\sigma$, and differentiating the composition gives the whole set in
@@ -543,13 +543,13 @@ An interval-censored observation is assembled from the unlogged derivatives at
 the two endpoints, $\partial\log(F(b)-F(a)) = (\partial F(b) - \partial F(a))/(F(b)-F(a))$,
 which is why the generic offers `log = FALSE` as well.
 
-### One name per parametrisation {#sec-numbering}
+### One name per parametrization {#sec-numbering}
 
-Several families are useful in more than one parametrisation. A Gaussian may
+Several families are useful in more than one parametrization. A Gaussian may
 carry its scale, its variance or its precision as the second parameter; a
 negative binomial may have its variance quadratic in the mean or linear in
 it; a von Mises may carry its concentration or its mean resultant length. In
-a modelling framework the parametrisation decides what a linear predictor
+a modeling framework the parametrization decides what a linear predictor
 acts on, so each of these is a genuinely different model, and the package
 gives each one a name of its own: a numeral appended to the family, as in
 `gaussian1` for the scale form, `gaussian2` for the variance and `gaussian3`
@@ -563,7 +563,7 @@ family in its own right, with exact derivatives on its own scale.
 #| label: numbered-table
 #| echo: false
 knitr::kable(numbered_families_table(), align = "ll", row.names = FALSE,
-             caption = "Families with several parametrisations")
+             caption = "Families with several parametrizations")
 ```
 
 Most of these are produced mechanically by the `reparametrize()` wrapper of
@@ -584,14 +584,14 @@ the honest answer rather than a quadrature artifact. The numerical route
 itself is the batched quadrature of @sec-numerical-quadrature: a vector of
 parameter values costs one adaptive pass, not one per value.
 
-### The catalogue {#sec-distrib-catalogue}
+### The catalog {#sec-distrib-catalog}
 
 The tables below are generated from the distribution objects themselves.
 
 ```{r}
-#| label: full-catalogue-table
+#| label: full-catalog-table
 #| echo: false
-knitr::kable(full_catalogue_table(), align = "lll", row.names = FALSE,
+knitr::kable(full_catalog_table(), align = "lll", row.names = FALSE,
              caption = "The univariate families")
 ```
 
@@ -600,16 +600,16 @@ the chapter draws on; the remaining families state their densities and maps
 on their own reference pages.
 
 ```{r}
-#| label: catalogue-table
+#| label: catalog-table
 #| echo: false
-knitr::kable(catalogue_table(), align = "lllll", row.names = FALSE,
+knitr::kable(catalog_table(), align = "lllll", row.names = FALSE,
              caption = "The core families")
 ```
 
 A reader who wants any of these families in
-more depth than a catalogue entry can give will find them in @johnson1994,
-@johnson1995 and @johnson2005. Several of the parametrisations differ from the ones used by the
-corresponding `d*` function in base R: the Gamma is parametrised by mean and
+more depth than a catalog entry can give will find them in @johnson1994,
+@johnson1995 and @johnson2005. Several of the parametrizations differ from the ones used by the
+corresponding `d*` function in base R: the Gamma is parametrized by mean and
 variance rather than shape and rate, the Beta by mean and precision, the
 negative binomial in its NB2 form. In each such case the entry states the map
 between the two explicitly. Every univariate family implements its
@@ -627,7 +627,7 @@ assert_numbering_ok()
 ```
 
 ```{r}
-#| label: catalogue-entries
+#| label: catalog-entries
 #| results: asis
 #| echo: false
 for (id in names(DISTRIBS)) render_distrib_entry(id, DISTRIBS[[id]])
@@ -637,7 +637,7 @@ for (id in names(DISTRIBS)) render_distrib_entry(id, DISTRIBS[[id]])
 
 The Laplace distribution, with density
 $f(y) = (2b)^{-1} e^{-|y-\mu|/b}$, is the one non-regular family in the
-catalogue: its log-likelihood has a kink at $y = \mu$. Families of this kind
+catalog: its log-likelihood has a kink at $y = \mu$. Families of this kind
 are treated in @lehmann1998, where the information of a non-regular model is
 defined as the variance of the score rather than as an expected second
 derivative, which is the definition that survives here. Away from the kink
@@ -744,6 +744,6 @@ ever discarded, and the check keeps its full strength.
 # Internal consistency gate: fails the render if any density printed in this
 # chapter disagrees with the package, if a Bartlett identity fails, if the
 # link-scale machinery disagrees with finite differences in eta, or if
-# check_distrib() fails anywhere in the catalogue.
+# check_distrib() fails anywhere in the catalog.
 assert_distributions_ok()
 ```

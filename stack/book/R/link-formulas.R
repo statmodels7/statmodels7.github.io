@@ -1,4 +1,4 @@
-# The link catalogue: one record per link class.
+# The link catalog: one record per link class.
 #
 # Each record carries, side by side:
 #
@@ -94,7 +94,7 @@ LINKS$sqrt <- list(
   grid_theta = seq(0.2, 9, length.out = 25),
   grid_eta = seq(0.2, 3, length.out = 25),
   note = "The inverse is a quadratic, so its third and fourth derivatives vanish
-  identically -- the only link in the catalogue where the fourth-order link-scale
+  identically -- the only link in the catalog where the fourth-order link-scale
   correction disappears without $\\theta$ being an affine function of $\\eta$.
   $\\eta$ is restricted to the positive half-line to keep the map injective."
 )
@@ -510,7 +510,7 @@ LINKS$bounded_upper <- list(
 
 
 # ---------------------------------------------------------------------------
-# Certification machinery for the catalogue.
+# Certification machinery for the catalog.
 #
 # Three certificates, answering three different questions, assembled into one
 # table per link:
@@ -605,7 +605,7 @@ format_link_certificate <- function(cert, caption,
 
 fmt_err <- function(x) ifelse(is.na(x), "", formatC(x, format = "e", digits = 1))
 
-# Render one catalogue entry as markdown. Called from a results='asis' chunk, so
+# Render one catalog entry as markdown. Called from a results='asis' chunk, so
 # everything it cats becomes part of the document.
 render_link_entry <- function(id, rec) {
   cat(sprintf("\n### %s {#sec-link-%s}\n\n", rec$title, gsub("_", "-", id)))

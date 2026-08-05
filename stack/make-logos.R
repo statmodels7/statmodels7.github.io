@@ -25,7 +25,7 @@ FILL   <- "#9BBBA2"   # a lighter green, for shaded area under a curve
 W <- 520              # canvas, in the 1:1.1547 ratio a hex sticker wants
 H <- 600
 
-# Flat-top hexagon centred on the canvas, the standard R sticker outline.
+# Flat-top hexagon centered on the canvas, the standard R sticker outline.
 hex_path <- function(cx, cy, r) {
   ang <- seq(90, 450, by = 60) * pi / 180
   x <- cx + r * cos(ang)
@@ -145,7 +145,7 @@ DENS_XMAX  <- 11
 # the iterate by (g-1)/(g+1) and flips the sign of y. That is the classic
 # picture of why steepest descent is poor -- consecutive directions come out
 # orthogonal, so the iterate crosses the floor of the valley instead of
-# travelling along it -- and it is the reason cg() exists, so the glyph is the
+# traveling along it -- and it is the reason cg() exists, so the glyph is the
 # real thing rather than something zigzag-shaped.
 #
 # g = 4 rather than something more dramatic, for two reasons that pull the same
@@ -171,7 +171,7 @@ DENS_XMAX  <- 11
   for (k in 2:nrow(pts)) pts[k, ] <- stp(pts[k - 1, ])
 
   lev0 <- (pts[1, 1]^2 + gam * pts[1, 2]^2) / 2   # the level the start sits on
-  cx <- W / 2; cy <- 238                          # glyph centre on the canvas
+  cx <- W / 2; cy <- 238                          # glyph center on the canvas
   sc <- 152 / sqrt(2 * 1.85 * lev0)                      # px per unit, both directions
   ang <- -25                                      # degrees, anticlockwise
 
@@ -211,9 +211,9 @@ DENS_XMAX  <- 11
 # unit interval, from the same recurrence the package calls, so the local
 # support and the unequal end shapes are the ones a reader would get.
 #
-# The colouring says the one thing the picture is about. Every function is
+# The coloring says the one thing the picture is about. Every function is
 # drawn faintly, and one of them -- an interior function, whose support is a
-# full four knot intervals -- is drawn in the accent colour, because a basis is
+# full four knot intervals -- is drawn in the accent color, because a basis is
 # a collection whose members are individually addressable: that is what makes
 # it an object rather than a matrix somebody once built.
 {
@@ -222,7 +222,7 @@ DENS_XMAX  <- 11
   bb <- splines::splineDesign(
     knots = c(rep(0, 4), knots, rep(1, 4)), x = xx, ord = 4, outer.ok = TRUE
   )
-  hi <- 3L # the interior function drawn in the accent colour
+  hi <- 3L # the interior function drawn in the accent color
 
   y0 <- box$y + box$h
   paths <- vapply(seq_len(ncol(bb)), function(j) {
@@ -246,7 +246,7 @@ DENS_XMAX  <- 11
 # The picture is what the package is: a straight, unbounded grid on the free
 # scale carried onto a bounded set. The set drawn is the 2-simplex -- the
 # probability vectors on three categories -- because it is the one constrained
-# set the package parametrises that can be drawn honestly in two dimensions,
+# set the package parametrizes that can be drawn honestly in two dimensions,
 # and the grid is the image of straight lines under the additive log-ratio map
 # simplex() implements, sampled here rather than sketched.
 #
@@ -261,7 +261,7 @@ DENS_XMAX  <- 11
 # which category is the reference, so the third family -- the one holding
 # p1/p2 fixed -- belongs to the geometry as much as the two the coordinates
 # happen to single out, and drawing all three keeps the picture symmetric
-# under relabelling.
+# under relabeling.
 {
   # The map simplex() carries, written out rather than called, so this script
   # keeps drawing the mathematics without depending on the package.

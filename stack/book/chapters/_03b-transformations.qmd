@@ -5,7 +5,7 @@
 #| include: false
 source("R/_setup.R")
 source("R/link-formulas.R")
-source("R/distribution-catalogue.R")
+source("R/distribution-catalog.R")
 source("R/transformation-certificates.R")
 ```
 
@@ -139,7 +139,7 @@ with respect to $y$. This is why a transformer also carries
 $\partial_y \log\lvert J\rvert$ and $\partial^2_y \log\lvert J\rvert$, which feed the response
 derivatives of @sec-response-derivatives.
 
-#### The twelve transformers {#sec-transformer-catalogue}
+#### The twelve transformers {#sec-transformer-catalog}
 
 ```{r}
 #| label: transformer-table
@@ -169,7 +169,7 @@ transformation(gaussian1_distrib(), log_transform())
 ```
 
 As a closing illustration, the lognormal distribution can be reached along two
-entirely different roads — as a catalogue entry with its own density, or as the
+entirely different roads — as a catalog entry with its own density, or as the
 exponential of a Gaussian through @thm-cov — and the two agree to machine
 precision:
 
@@ -451,7 +451,7 @@ distribution. Two structural consequences are visible before any derivative is
 taken. First, $P(Y=0) = \pi$ is completely free in $(0,1)$: where
 zero-inflation can only push the mass at zero *above* $f_0$, the hurdle can
 place it anywhere, so it also fits data with *fewer* zeros than the parent
-would produce. Second, $\theta$ has changed its meaning — it now parametrises
+would produce. Second, $\theta$ has changed its meaning — it now parametrizes
 the zero-truncated law rather than the original count process — and this
 matters whenever the estimates are interpreted rather than merely used.
 
@@ -492,7 +492,7 @@ $$-\frac{\partial}{\partial\theta_i}\log(1-f_0)
 again using $\partial_i f_0 = f_0\,\ell^{(i)}(0)$.
 
 The extra term is the **truncation correction**, and it has a transparent
-reading. Because the law has been renormalised over the positive values,
+reading. Because the law has been renormalized over the positive values,
 raising the parent's probability of a zero now *lowers* the probability of
 every positive observation, and the score must account for that.
 
@@ -657,10 +657,10 @@ distrib_grad_y(gamma2_distrib(), c(1, 4), list(mu = 3, sigma2 = 2))
 ### Truncation {#sec-truncation}
 
 The last of the operations restricts a distribution to an interval and
-renormalises what remains. It differs from the zero wrappers in a way that
+renormalizes what remains. It differs from the zero wrappers in a way that
 shapes its entire theory: **truncation adds no parameter**. The endpoints are
 known constants, on the same footing as a binomial's number of trials. What
-truncation adds instead is a normalising constant that depends on $\theta$, and
+truncation adds instead is a normalizing constant that depends on $\theta$, and
 differentiating that constant is all the work there is.
 
 ::: {#def-truncated}
@@ -691,7 +691,7 @@ case where the parent places an **atom** at $L$, and @sec-za-continuous has
 just manufactured continuous distributions that do exactly that. The cdf of a zero-adjusted Gamma already contains the point mass at zero, so
 for that parent $F(0) \neq F(0^-)$ even though the object is formally
 continuous. A truncation that retained the atom but used $F(0)$ in $Z$ would
-lose exactly that mass from the normalising constant. The
+lose exactly that mass from the normalizing constant. The
 implementation therefore obtains the mass at $L$ from `distrib_atoms()`,
 uniformly for every kind of parent.
 
@@ -751,7 +751,7 @@ covariance. Truncated likelihoods are treated at book
 length in @klein2003 and @johnson1994.
 
 The three formulas invite three readings. The score of the truncated model is
-the parent's score *recentred* at its mean over the retained region, so the
+the parent's score *recentered* at its mean over the retained region, so the
 first Bartlett identity holds by construction. The expected information is the
 *covariance matrix of the parent's score* under truncation — which is the
 second Bartlett identity making an appearance from the other direction, and
@@ -783,7 +783,7 @@ truncated(gamma2_distrib(), lower = -2)
 ```
 
 The same reasoning rejects a non-integer endpoint for a discrete parent, which
-is ambiguous between the two neighbouring support points:
+is ambiguous between the two neighboring support points:
 
 ```{r}
 #| label: trunc-refusals-2
@@ -821,7 +821,7 @@ $f(y)/(F(U) - F(L^-))$, which does not depend on $\zeta$. The argument for the t
 same with $(1-\pi)$ in place of $(1-\zeta)$.
 
 A parameter with an identically zero score is invisible to the likelihood,
-and an optimiser asked to estimate it will wander along a flat ridge. The
+and an optimizer asked to estimate it will wander along a flat ridge. The
 constructor therefore refuses the construction. Truncations that keep zero in
 the interval remain allowed, and in that case the atom passes through,
 rescaled by $1/Z$:
@@ -991,14 +991,14 @@ For the zero wrappers, nothing to speak of: the ratios are algebraic in $f_0$
 and the parent's derivatives, and the partition sums have at most fifteen terms
 at fourth order. For truncation each *distinct block* costs one quadrature or
 summation, so a fourth-order component with two parameters needs a handful —
-memoised across the partition sum, since a partition of four indices asks for
+memoized across the partition sum, since a partition of four indices asks for
 the same small blocks repeatedly. It is the same trade the second order already
 made, and the reason the closed forms of a future `distrib_grad_cdf` would pay
 for themselves.
 
-### Reparametrisation {#sec-reparametrize}
+### Reparametrization {#sec-reparametrize}
 
-The wrappers above change the law. A reparametrisation changes only the
+The wrappers above change the law. A reparametrization changes only the
 coordinates the law is written in: a map $\theta = \theta(\psi)$ carries new
 parameters onto the parent's, the density is unchanged, and every
 log-likelihood derivative in $\psi$ follows from the parent's by the
@@ -1015,7 +1015,7 @@ assignments of parent components to blocks: the order of the parent
 derivative equals the number of blocks. This is the same formula behind the
 link scale of @sec-link-scale; the difference is that a link acts on one
 parameter at a time, so its Jacobian is diagonal and most terms vanish,
-while a reparametrisation may mix parameters -- a mean-precision Gaussian
+while a reparametrization may mix parameters -- a mean-precision Gaussian
 reaches both $\mu$ and $\sigma$ of the parent -- and the full partition sum
 is needed. Under the expectation at a fixed $\psi$ the one-block term
 carries the parent's score alone and drops by the first Bartlett identity,
@@ -1047,7 +1047,7 @@ hb <- distrib_hessian(gaussian2_distrib(), y, th)
 max(vapply(names(hb), function(nm) max(abs(ha[[nm]] - hb[[nm]])), numeric(1)))
 ```
 
-Most of the numbered parametrisations of @sec-numbering are exactly this
+Most of the numbered parametrizations of @sec-numbering are exactly this
 wrapper with the family's own map; the hand-written ones among them serve as
 the wrapper's independent reference, and agree with it to machine precision.
 
@@ -1106,7 +1106,7 @@ zero_inflated(gamma2_distrib())
 The zero wrappers add a parameter, and adding a parameter to a family does not
 always produce an identified family. What makes this dangerous is that nothing
 at run time betrays the failure: the mass function still sums to one, every
-numerical check still passes, and an optimiser still converges — to an
+numerical check still passes, and an optimizer still converges — to an
 arbitrary point of a flat ridge, with standard errors to match. The only place
 the failure can be caught is the constructor, so the constructors carry the
 mathematics needed to catch it, and this section sets out what that mathematics
@@ -1183,7 +1183,7 @@ $$k \geq p + 2$$
 support points are necessary for either wrapper to be identified.
 :::
 
-The condition is necessary but not sufficient, since a badly parametrised
+The condition is necessary but not sufficient, since a badly parametrized
 family can fail to be identified with any amount of support. It is, however,
 exactly what rules out the case that arises in practice: the Bernoulli, with
 $k = 2$ and $p = 1$.

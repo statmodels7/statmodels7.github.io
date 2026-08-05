@@ -9,7 +9,7 @@
 # the linearity of its log-determinant, the diagonal family's derivatives, the
 # scaled family's whole set, the pseudo-determinant as a sum of logs of
 # non-zero eigenvalues, the stationary point lambda = r / (b'Pb), and the
-# identity d log|M| = tr(M^{-1} dM). Where a claim is about behaviour rather
+# identity d log|M| = tr(M^{-1} dM). Where a claim is about behavior rather
 # than a formula -- that a rank-deficient solve is refused, that the eigenvalue
 # count is not scale invariant while the stacked rank is -- it is exercised
 # directly.
@@ -282,7 +282,7 @@
   }
 
   # equation (scaled-lambda): the stationary point, against a numerical
-  # minimisation of the printed objective
+  # minimization of the printed objective
   set.seed(3)
   beta <- as.numeric(stats::rnorm(6))
   quad <- drop(t(beta) %*% p_mat %*% beta)
@@ -290,7 +290,7 @@
   num <- stats::optimize(obj, c(1e-8, 1e8))$minimum
   if (abs(s@rank / quad - num) / (s@rank / quad) > 1e-4) {
     out <- c(out, sprintf(
-      "lambda = r / (b'Pb) is %s while the numerical minimiser is %s",
+      "lambda = r / (b'Pb) is %s while the numerical minimizer is %s",
       format(s@rank / quad, digits = 6), format(num, digits = 6)
     ))
   }
@@ -352,13 +352,13 @@
   }
   line <- 1 + 2 * seq_len(8)
   if (drop(t(line) %*% p1 %*% line) > 1e-18) {
-    out <- c(out, "a straight line is penalised by the second-difference penalty")
+    out <- c(out, "a straight line is penalized by the second-difference penalty")
   }
   if (max(abs(line - nb %*% crossprod(nb, line))) > 1e-9) {
     out <- c(out, "a straight line is not in the stored null basis")
   }
   if (drop(t(seq_len(8)^2) %*% p1 %*% seq_len(8)^2) < 1)  {
-    out <- c(out, "a quadratic is not penalised by the second-difference penalty")
+    out <- c(out, "a quadratic is not penalized by the second-difference penalty")
   }
 
   # the solve is refused rather than returning a pseudo-inverse
@@ -394,7 +394,7 @@
 # Section 6.1 states a convention and names three coordinates as instances of
 # it. The three are transcribed here rather than derived from the package's
 # own tagging helper, which would compare the package with itself; and the
-# property behind the convention -- that a labelled coordinate is genuinely
+# property behind the convention -- that a labeled coordinate is genuinely
 # unrestricted -- is exercised separately, since a spelling that happened to
 # be right for the wrong reason would pass the first check alone.
 .certify_free_names <- function() {
@@ -423,7 +423,7 @@
     ))
   }
 
-  # a labelled coordinate ranges over the whole line
+  # a labeled coordinate ranges over the whole line
   fams <- list(parameters7::scalar_matrix(3), parameters7::ar1(5),
                parameters7::compound_symmetry(4),
                parameters7::autoregressive(6, order = 2),

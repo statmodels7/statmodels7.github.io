@@ -12,7 +12,7 @@
 #      recomputed from linkfunctions7 rather than taken from the fit;
 #   3. every reported interval lies inside its parameter's domain, and its ends
 #      are in increasing order even for a decreasing link;
-#   4. the three optimisers agree about where the maximum is.
+#   4. the three optimizers agree about where the maximum is.
 
 # The link-scale score of the whole sample at a given theta, summed over
 # observations. Deliberately assembled here from distrib_gradient(scale =
@@ -98,10 +98,10 @@
     }
   }
 
-  # (4) the three optimisers find the same maximum. Compared on the
+  # (4) the three optimizers find the same maximum. Compared on the
   # log-likelihood rather than on the estimates: a flat direction can move the
   # estimate without moving the objective, and it is the objective that the
-  # methods are all maximising.
+  # methods are all maximizing.
   ll <- c(fisher = fit@loglik)
   for (m in c("newton", "bfgs")) {
     alt <- tryCatch(fit_distrib(d, y, method = m), error = function(e) NULL)
@@ -207,7 +207,7 @@ assert_fit_ok <- function() {
 
 
 # The averaged objective. The section claims that dividing by n moves neither
-# the maximiser nor anything reported, and that the threshold is read on the
+# the maximizer nor anything reported, and that the threshold is read on the
 # averaged score. Each is checked against arithmetic done here rather than
 # against another quantity the package computes: a standard error left on the
 # averaged scale would be sqrt(n) times the closed-form one, which is what the

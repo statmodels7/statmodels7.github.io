@@ -443,7 +443,7 @@
     out <- c(out, "the gaussian marginal is not the block of the covariance")
   }
 
-  # the two parametrisations of the gaussian describe the same law
+  # the two parametrizations of the gaussian describe the same law
   ds <- mvgaussian_distrib(2)
   do <- mvgaussian_distrib(2, omega = parameters7::log_cholesky(2))
   ths <- as.list(stats::setNames(c(f$mu, f$eta), ds@params))
@@ -541,7 +541,7 @@
   vs <- mv_derived(ds, ths)$value
   vo <- mv_derived(do, tho)$value
   if (.mv_maxdiff(vo[names(vs)], vs) > 1e-8) {
-    out <- c(out, "the two parametrisations report different standard deviations")
+    out <- c(out, "the two parametrizations report different standard deviations")
   }
   # Equation (mv-conditional-variance), and its regression reading: the ratio
   # of the conditional to the marginal variance is 1 - R^2 for the regression
@@ -563,11 +563,11 @@
   # Equation (mv-partial-correlation)
   if (abs(vo[["pcor_v1_v2"]] +
           om3[1, 2] / sqrt(om3[1, 1] * om3[2, 2])) > 1e-8) {
-    out <- c(out, "the partial correlation is not the negated normalised precision")
+    out <- c(out, "the partial correlation is not the negated normalized precision")
   }
 
-  # The two parametrisations describe the same law, so a fit of each must
-  # reach the same maximised likelihood and the same information criteria.
+  # The two parametrizations describe the same law, so a fit of each must
+  # reach the same maximized likelihood and the same information criteria.
   # A disagreement means one of them has not converged, which is exactly the
   # failure this invariance is worth asserting against.
   set.seed(5109)

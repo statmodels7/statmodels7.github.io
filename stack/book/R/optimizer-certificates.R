@@ -1,4 +1,4 @@
-# Consistency gate for the optimisation chapter.
+# Consistency gate for the optimization chapter.
 #
 # Same contract as the other three: everything Chapter 4 asserts is re-derived
 # here from quantities the chapter does not itself use, and the render stops if
@@ -193,7 +193,7 @@
 .certify_bundle <- function() {
   out <- character()
   set.seed(11)
-  y <- stats::rnorm(101)                    # odd, so the minimiser is unique
+  y <- stats::rnorm(101)                    # odd, so the minimizer is unique
   f  <- function(p) sum(abs(y - p))
   g  <- function(p) -sum(sign(y - p))
 
