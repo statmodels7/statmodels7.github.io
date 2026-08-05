@@ -436,7 +436,69 @@ truncated_check_certificate <- function(n = 40, nsim = 3e4, orders = 1:2, seed =
 # Silent consistency gate for Chapter 4. Stops the render if any derived
 # formula -- density, score, Hessian, expected Hessian, moment, closed form --
 # disagrees with the implementation, or if check_distrib() fails on any wrapper.
+# The families the section says the wrappers reach. Each target density is
+# transcribed here by hand from its standard form, so agreement is a statement
+# about the wrapper and not a comparison of the package with itself. The last
+# check is the negative one the section rests on: fixed() holds a parameter at
+# a VALUE and cannot impose a relation between parameters, so the Gamma pinned
+# at one variance is the exponential at one mean and at no other.
+.certify_reachable_families <- function() {
+  out <- character()
+  y <- c(0.3, 0.8, 1.5, 3)
+
+  a <- 4; b <- 2
+  ig <- distributions7::transformation(distributions7::gamma_distrib(),
+                                       distributions7::inverse_transform(),
+                                       new_name = "inverse gamma")
+  gap <- max(abs(distributions7::distrib_pdf(
+    ig, y, list(mu = a / b, sigma2 = a / b^2)) -
+    b^a / gamma(a) * y^(-a - 1) * exp(-b / y)))
+  if (gap > 1e-12) {
+    out <- c(out, sprintf("the inverse gamma differs by %.1e", gap))
+  }
+  if (!identical(ig@distrib_name, "inverse gamma")) {
+    out <- c(out, "new_name did not reach the object")
+  }
+
+  s <- 1.7
+  ray <- distributions7::fixed(distributions7::weibull_distrib(), sigma = 2)
+  gap <- max(abs(distributions7::distrib_pdf(ray, y, list(mu = s * sqrt(2))) -
+                 (y / s^2) * exp(-y^2 / (2 * s^2))))
+  if (gap > 1e-12) {
+    out <- c(out, sprintf("the Rayleigh differs by %.1e", gap))
+  }
+
+  # the exponential IS the unit-shape Weibull, exactly
+  ex <- max(abs(distributions7::distrib_pdf(
+    distributions7::exponential_distrib(), y, list(mu = 2.5)) -
+    distributions7::distrib_pdf(
+      distributions7::fixed(distributions7::weibull_distrib(), sigma = 1),
+      y, list(mu = 2.5))))
+  if (ex > 1e-14) {
+    out <- c(out, sprintf(
+      "exponential_distrib() and the unit-shape Weibull differ by %.1e", ex))
+  }
+
+  # and it is NOT a Gamma with a variance held fixed: that agrees at one mean
+  # and nowhere else, which is what makes the exponential a family of its own
+  gf <- distributions7::fixed(distributions7::gamma_distrib(), sigma2 = 2.5^2)
+  at_match <- max(abs(distributions7::distrib_pdf(gf, y, list(mu = 2.5)) -
+                      stats::dexp(y, rate = 1 / 2.5)))
+  at_other <- max(abs(distributions7::distrib_pdf(gf, y, list(mu = 4)) -
+                      stats::dexp(y, rate = 1 / 4)))
+  if (at_match > 1e-12 || at_other < 0.05) {
+    out <- c(out, "the section's claim about fixed() and relations is wrong")
+  }
+  out
+}
+
+
 assert_transformations_ok <- function() {
+  rf <- .certify_reachable_families()
+  if (length(rf)) {
+    stop("The reachable-families section disagrees with the packages:\n  ",
+         paste(rf, collapse = "\n  "), call. = FALSE)
+  }
   tc <- transformer_certificate()
   worst <- pmax(tc$round_trip, tc$jacobian, tc$density, tc$score, na.rm = TRUE)
   if (any(is.na(worst) | worst > 1e-6)) {

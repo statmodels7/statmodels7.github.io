@@ -61,7 +61,7 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | package | what it provides |
 |---|---|
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
-| `distributions7` | 18 univariate distributions with exact score, information and 3rd/4th derivatives, plus wrappers, transformations, MLE; **2 multivariate families** (gaussian, Student t) whose matrix parameter comes from `parameters7` |
+| `distributions7` | 26 univariate distributions with exact score and information (3rd/4th derivatives closed form for most), plus wrappers, transformations, MLE; **2 multivariate families** (gaussian, Student t) whose matrix parameter comes from `parameters7` |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
 | `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, jets through Levinson-Durbin, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
@@ -301,10 +301,17 @@ expectation, mean, variance, std_dev, skewness, kurtosis, moment
 cdf by quadrature, quantile by root-finding, RNG by Generalized Ratio-of-Uniforms,
 derivatives by finite differences. See `vignettes/defining-a-distribution.Rmd`.
 
-**18 distributions**: gaussian, cauchy, logistic, student_t, laplace, pseudohuber, gamma,
+**26 distributions**: gaussian, cauchy, logistic, student_t, laplace, pseudohuber, gamma,
 invgauss, lognormal, beta, bernoulli, binomial, poisson, negbin -- the original
 fourteen, all with closed-form observed derivatives to 4th order (Rcpp kernels
-in `src/*_hd.cpp`) -- plus **weibull, gumbel, skewnormal, skewt** (2026-08-04).
+in `src/*_hd.cpp`) -- plus **weibull, gumbel, skewnormal, skewt** (2026-08-04),
+and **exponential, geometric, chisq, betabinom, negbin1, gpd, gengamma,
+vonmises** (2026-08-05). Of the eight added last, the first three are analytic
+to 4th order observed AND expected; the other five carry closed-form score and
+information (expected in closed form for the gpd, the gengamma and the von
+Mises, an exact finite sum for the beta-binomial, a series against the exact
+mass for NB1) and take orders 3-4 from the verified fallback. See section 7
+for what each one taught.
 Since later that day the new families and the laplace carry closed-form
 observed 3rd/4th orders too (`weibull_hd.cpp`, `gumbel_hd.cpp`,
 `skewnormal_hd.cpp`, `laplace_hd.cpp`), so **every univariate family is
@@ -1170,6 +1177,51 @@ nothing). Decisions and mechanics worth keeping:
   both parametrisations validated at 4e-10/5e-7. The multivariate t stays on
   the disciplined fallback: nu blocks closure exactly as in the univariate
   skew t.
+
+### Seven families in one sitting, and what each one taught
+
+2026-08-05, Giovanni's list. Beyond the formulas, these are the items worth
+keeping.
+
+- **A simple family is a test of the machinery, not a duplicate of it.** That
+  was Giovanni's argument for the exponential and the geometric and it was
+  right: agreeing to 2e-15 with `fixed()` over a bigger family validates
+  `fixed()` against something derived rather than delegated. Reach for that
+  pairing whenever a new family happens to be a special case of an old one.
+- **`ifelse()` returns a result the length of its TEST.** A scalar shape in
+  the generalised Pareto's quantile collapsed a vector to one number, and the
+  symptom was a fit converging to (0.5, -0.5) instead of (1.5, 0.3) --- three
+  steps away, the random draws having been wrong. Anywhere a distribution
+  branches on a PARAMETER rather than on the data, `ifelse` is a defect;
+  recycle the test to the answer's length or branch explicitly.
+- **A Monte Carlo check can be the weaker reference.** The generalised
+  Pareto's closed-form information disagreed with a 4e5-draw Monte Carlo by 9%
+  at `xi = -0.3`, and the formula was right: the second derivative blows up at
+  the upper endpoint, so the mean converges slowly. Integrating on the
+  PROBABILITY scale instead --- `E[h] = int_0^1 h(Q(u)) du` --- turns the
+  endpoint into an ordinary point and gave 1e-11. When a closed form and a
+  Monte Carlo disagree, ask which one has the heavier tail before believing
+  the Monte Carlo.
+- **The condition for an expectation to exist is the condition for an integral
+  to converge, and it is worth deriving rather than quoting.** The generalised
+  Pareto's information exists exactly for `xi > -1/2` because on the
+  probability scale the integrand grows like `(1-u)^(-2|xi|)`. `NA` is
+  returned below that, which is the honest answer; the quadrature really does
+  diverge there.
+- **A bounded chart for a circular parameter is a choice with a cost.** The
+  von Mises carries its mean direction on `bounded_link(-pi, pi)`, which keeps
+  it identified but stops a fit walking across the boundary. Leaving it
+  unbounded makes the likelihood periodic and every maximum one of infinitely
+  many --- the same shape as the folded normal's sign.
+- **`expon.scaled` is what makes a Bessel constant usable.** `besselI(900, 0)`
+  is `Inf`; the scaled form with the exponent added back is finite at 5000,
+  and the ratio `I_1/I_0` needs no exponent at all. Same lesson as `log1p` and
+  `expm1` above: the difference between a number and an infinity.
+- **A distribution function saturates well inside its support.** The
+  generalised gamma at a small shape has `F(y) = 1` exactly in double
+  precision at `y = 4`, so no quantile comes back from there. A round-trip
+  test must be asked at points obtained FROM the quantile function, not at
+  arbitrary ones.
 
 ### An argument's POSITION is part of its interface
 
@@ -2068,17 +2120,35 @@ point says so, never because the move failed.**
   the model layer will want them:
   - ~~**Weibull** and **Gumbel/extreme value**~~ **done 2026-08-04.**
   - ~~**Skew normal / skew t**~~ **done 2026-08-04.**
-  - **STILL TO DO**, in this order: **generalised Pareto** for tails;
-    **Dirichlet**, the first multivariate family that is not elliptical and so
-    the right second test of that layer -- its marginals ARE beta, so
-    `mv_marginal()` exists for it, which is what makes it a useful case rather
-    than merely a refusal; **multinomial** for categorical responses, which is
-    also the first multivariate DISCRETE family and will need `check_distrib`'s
-    multivariate battery to learn about support points.
+  - ~~**exponential, geometric, chi-squared**~~ **done 2026-08-05**, all in
+    their mean. Giovanni asked for them as a TEST BENCH for the wrappers, and
+    that is what they turned out to be worth: `exponential_distrib()` agrees
+    with `fixed(weibull_distrib(), sigma = 1)` and `geometric_distrib()` with
+    `fixed(negbin_distrib(), theta = 1)` to at most 2e-15 on every quantity,
+    both scales, observed and expected -- two independent implementations of
+    one object, so no tolerance has to be chosen. None of the three is a Gamma
+    with a parameter fixed: unit shape is the RELATION `sigma2 = mu^2` and the
+    chi-squared `sigma2 = 2*mu`, and `fixed()` holds a parameter at a value,
+    not a relation between two.
+  - ~~**generalised Pareto**~~, ~~**beta-binomial**~~, ~~**NB1**~~,
+    ~~**generalised gamma**~~, ~~**von Mises**~~ **done 2026-08-05.**
+  - **STILL TO DO**: **Dirichlet**, the first multivariate family that is not
+    elliptical and so the right second test of that layer -- its marginals ARE
+    beta, so `mv_marginal()` exists for it, which is what makes it a useful
+    case rather than merely a refusal; **multinomial** for categorical
+    responses, which is also the first multivariate DISCRETE family and will
+    need `check_distrib`'s multivariate battery to learn about support points
+    instead of sampling by importance. Both live on a simplex, so the natural
+    parameter comes from `parameters7::simplex()`.
   - **Skipped deliberately**: anything obtained by a wrapper already
     (`truncated`, `zero_*`, `transformation` cover lognormal-like families,
     hurdle models and Box-Cox families), and anything whose only interest is a
-    reparametrisation of a family already present.
+    reparametrisation of a family already present. The book's
+    `sec-transform-reach` now shows which standard names those are -- the
+    inverse Gamma, the Rayleigh, the log-logistic, the Pareto -- with the
+    distinction that decides it: `fixed()` holds a parameter at a VALUE and
+    cannot impose a RELATION between parameters, which is why the exponential
+    and the chi-squared are families of their own and the Rayleigh is not.
 - **`penalties7` design decisions agreed 2026-08-03** (conversation, no plan
   file yet -- write `piano_penalties7.txt` before code): a penalty is
   rho(D beta; theta) -- a linear map, a scalar function, parameters. THREE
