@@ -1,0 +1,103 @@
+## Special functions {#sec-numerical-special}
+
+```{r}
+#| label: setup-07d
+#| include: false
+source("R/_setup.R")
+source("R/numerical-certificates.R")
+```
+
+The functions of this section were each born inside a distribution of
+@sec-distributions7 and carry the numerical lesson learned there. What
+makes them worth a section is not the formulas, which are classical, but
+the overflow discipline attached to each: written naively, every one of
+them returns `0/0`, `Inf` or an exact zero over a range of arguments that
+ordinary statistical work reaches.
+
+### The Mills ratio {#sec-numerical-mills}
+
+Every derivative of a skew normal log-density is built from the inverse
+Mills ratio $R(t) = \phi(t)/\Phi(t)$ and its derivative
+$R'(t) = -R(t)\{t + R(t)\}$, the latter following from
+$\phi'(t) = -t\,\phi(t)$. Below about $t = -38$ both the density and the
+distribution function underflow, so the direct quotient is $0/0$ while the
+ratio itself is finite and close to $-t$; `mills_ratio()` therefore forms
+it on the log scale, as
+$\exp\{\log\phi(t) - \log\Phi(t)\}$.
+
+```{r}
+#| label: mills
+m <- mills_ratio(c(-60, -40, 0))
+m$r                        # finite in the deep tail, sqrt(2/pi) at zero
+```
+
+### Owen's T function {#sec-numerical-owen}
+
+The skew normal distribution function is
+$F(z) = \Phi(z) - 2\,T(z, \alpha)$ with
+$$
+T(h, a) \;=\; \frac{1}{2\pi} \int_0^{a}
+  \frac{e^{-h^2 (1 + x^2)/2}}{1 + x^2}\, dx,
+$$
+Owen's T function [@owen1956]. The integrand is bounded and smooth over a
+finite range, which is a better object to integrate than the density over a
+half line, and `owen_t()` sends every element of its input into one batched
+`quad_vec()` call. Two identities keep the extremes exact rather than
+quadrature-bound: $T(h, -a) = -T(h, a)$, and
+$T(h, \infty) = \tfrac{1}{2}\Phi(-\lvert h \rvert)$.
+
+```{r}
+#| label: owen
+c(owen_t(0, 1) * 2 * pi, atan(1))            # T(0, a) = arctan(a) / (2 pi)
+c(owen_t(1.3, Inf), 0.5 * pnorm(-1.3))
+```
+
+### The Bessel ratio and its inverse {#sec-numerical-bessel}
+
+The von Mises distribution of @sec-distributions7 is written in
+$A(\kappa) = I_1(\kappa)/I_0(\kappa)$, a strictly increasing bijection from
+$(0, \infty)$ onto $(0, 1)$ -- for that family, the mean resultant length.
+The unscaled Bessel functions overflow past about $\kappa = 700$, so
+`bessel_i_ratio()` takes both exponentially scaled, the shared factor
+$e^{\kappa}$ cancelling in the ratio. The scaled functions themselves
+underflow to an exact zero between $10^5$ and $10^6$, and past
+$\kappa = 10^4$ the ratio is taken from its asymptotic expansion
+$$
+A(\kappa) \;=\; 1 - \frac{1}{2\kappa} - \frac{1}{8\kappa^2}
+  - \frac{1}{8\kappa^3} + O(\kappa^{-4}),
+$$
+whose next term is already below the resolution of a double at the switch
+point [@abramowitz1964], so the ratio is finite and accurate at any
+argument.
+
+The derivatives follow from the Bessel recurrences $I_0' = I_1$ and
+$I_1' = I_0 - I_1/\kappa$, which combine into
+$A' = 1 - A/\kappa - A^2$; differentiating that identity repeatedly writes
+each order in the orders below it, so the whole table to $A''''$ costs the
+two Bessel evaluations of $A$ and nothing more
+(`bessel_i_ratio_derivs()`). $A'$ is the variance of a cosine and therefore
+positive, which is what keeps the inverse well defined: `bessel_i_ratio_inverse()`
+finds $\kappa = A^{-1}(\rho)$ by root finding and differentiates it by the
+inverse function rule,
+$$
+\kappa' = \frac{1}{A'}, \qquad
+\kappa'' = -\frac{A''}{(A')^3}, \qquad
+\kappa''' = \frac{3(A'')^2 - A'A'''}{(A')^5},
+$$
+with the fourth order in the same pattern. These derivatives are what let
+the von Mises in its mean resultant length carry exact link-scale
+derivatives in @sec-distributions7.
+
+```{r}
+#| label: bessel
+c(bessel_i_ratio(1000),                       # past the unscaled overflow
+  bessel_i_ratio(1e8))                        # past the scaled underflow
+inv <- bessel_i_ratio_inverse(0.7)
+c(kappa = inv$kappa, round_trip = bessel_i_ratio(inv$kappa))
+```
+
+```{r}
+#| label: consistency-07d
+#| include: false
+assert_special_ok()
+```

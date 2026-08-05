@@ -60,8 +60,9 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 
 | package | what it provides |
 |---|---|
-| `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
-| `distributions7` | 26 univariate distributions with exact score and information (3rd/4th derivatives closed form for most), plus wrappers, transformations, MLE; **4 multivariate families** — gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does |
+| `numericals7` | the numerical layer at the ROOT of the toolkit (created 2026-08-05): jets (forward AD to 4th order, moved from parameters7, with Ops/Math dispatch), the enumerations (`set_partitions`, `tuple_indices`, `compositions` -- ONE copy each), the stencil library (`fd_weights`/`fd_offsets`/`fd_step`/`fd_derivative`), `quad_vec`/`series_vec` (quadrature and series vectorized over the parameters, convergence on the SUM of a row's panel errors), and the special functions (`mills_ratio`, `owen_t`, `bessel_i_ratio` with derivatives and inverse). No S7 classes on purpose: these are functions |
+| `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links; stencils delegate to numericals7 |
+| `distributions7` | 38 univariate families -- ONE NAME PER PARAMETRISATION (2026-08-05, Giovanni): 12 numbered groups (gaussian1/2/3, gamma1/2, negbin1/2 after Cameron-Trivedi, weibull1/3 after gamlss WEI/WEI3 with weibull2 deliberately empty, student_t1/2, skewnormal1/2, vonmises1/2, invgauss1/2, lognormal1/2, beta1/2, betabinom1/2, gengamma1/2) -- with exact score and information, closed-form moments where they exist, `reparametrize()` (Faa di Bruno over partitions, user maps differentiated by numericals7 jets), `folded()`, wrappers, transformations, MLE; **4 multivariate families** -- gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does. expectation() and the cdf fallback run on numericals7's batched engines |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
 | `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, jets through Levinson-Durbin, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
@@ -90,6 +91,7 @@ user-defined components.*
 
 ```
 C:\Users\giova\Desktop\labstatr\statmodels7\
+    numericals7\
     linkfunctions7\
     distributions7\
     optimizers7\
@@ -792,7 +794,8 @@ whole and a scalar link cannot express it.
 
 | | |
 |---|---|
-| `linkfunctions7` | 890 tests, `R CMD check` OK, CI green |
+| `numericals7` | 0.4.0 (2026-08-05): jets+enumerations (0.1.0), stencils (0.2.0), quad_vec/series_vec (0.3.0), special functions (0.4.0). `R CMD check --as-cran` clean apart from the environment notes, CI green. Logo tracked, favicons in place |
+| `linkfunctions7` | 890 tests, `R CMD check` OK, CI green; stencils delegate to numericals7 (Remotes gained its first entry) |
 | `distributions7` | 2993 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-05, local), CI green |
 | `optimizers7` | 710 tests, `R CMD check --as-cran` OK with vignettes, two notes (2026-08-04). Published 2026-07-31; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 | `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.3.0`: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers (D R D', block diagonal, sums) still open. |
@@ -1877,6 +1880,52 @@ Two smaller things worth keeping:
   step function, so inverting it is exact and solves nothing. The cost was one R-level
   call per draw; vectorising the table lookup took it from 12.6 µs to 0.1.
 
+### The batched engines (numericals7, 2026-08-05)
+
+- **A quadrature budget allocated by panel length cannot meet an integrable
+  endpoint singularity at any depth.** Near x^(s-1) the error is concentrated
+  in the innermost panel however deep the bisection goes, so a per-length
+  share demands of it an accuracy no depth can reach: the first quad_vec
+  refused a beta(0.8, 1.2) normalization that stats::integrate handles
+  routinely. Convergence is judged on the SUM of a row's panel errors, as
+  QUADPACK judges it, and the worst panels are bisected.
+- **A row whose max-depth panels alone exceed the budget must fail AT ONCE.**
+  Without that clause the loop keeps splitting the smooth panels' rounding
+  noise -- errors all of one tiny magnitude, so half the list clears the
+  0.5*max threshold at every pass and the panel count doubles until memory
+  runs out. The observed symptom was a hang, not an error.
+- **A series tail guard needs three conditions, not two.** Block sum small
+  and last term small are both true BEFORE the mode of a hump-shaped term:
+  dpois(0:63, 300) sums to nearly nothing and ends on ~1e-52. The third
+  condition -- the terms are not growing across the block -- is what tells a
+  premature block from a finished tail.
+- **The old scalar engine was the weaker twin.** On 300 gamma means the
+  looped stats::integrate reference sat 2.5e-6 from the closed form (its
+  default rel.tol) while quad_vec sits at 2.8e-12; when a twin comparison
+  fails, ask WHICH side is wrong before touching the new one. Same lesson as
+  the GPD Monte Carlo.
+- **R's scaled besselI underflows to an EXACT ZERO between kappa = 1e5 and
+  1e6**, so the ratio I1/I0 came back NaN there -- the old vonmises2 note
+  saying "past about 1e15" was wrong by ten orders. bessel_i_ratio switches
+  to the asymptotic expansion 1 - 1/(2k) - 1/(8k^2) - 1/(8k^3) at kappa =
+  1e4, where the next term is below the resolution of a double, so the whole
+  range is evaluable. Same shape as expon.scaled and log1p: the difference
+  between a number and a NaN.
+- **expectation()'s integrand contract is now elementwise in y AND theta
+  jointly**: every parameter combination shares one batched quad_vec /
+  series_vec call, so f receives vector theta components recycled against y.
+  Every internal f (distrib_* calls, moment powers) already satisfied this;
+  a user f that branches on a scalar theta does not. A combination whose
+  quadrature fails raises an error naming it, preserving the old
+  integrate-error semantics that expected_by_integrate's tryCatch relies on.
+- **A text cut keyed on "the first brace after the definition" eats the next
+  function when the body has no braces.** Removing the one-line vm_dA took
+  the section comment and the roxygen header of the pdf method behind it,
+  fused as in the roxygen-placement trap; the deleted Rd in git status was
+  the only visible symptom, and the suite stayed green. After any scripted
+  deletion, read the git diff around every cut, and treat a deleted man page
+  as a mangled roxygen block until proved otherwise.
+
 ### S7
 
 - `S7::method(gen, cls) <- fn` **mutates the generic in place**, so assigning to a local
@@ -2170,7 +2219,7 @@ Two smaller things worth keeping:
 
 - The two logistic integrals above (cosmetic — `approx = "integrate"` already delivers
   them within Monte Carlo noise).
-- Publishing `linkfunctions7` **and `optimizers7`** to CRAN, which together unblock
+- Publishing to CRAN now starts one step earlier: **`numericals7` first** (dependency-free), then `linkfunctions7` **and `optimizers7`**, which together unblock
   `distributions7`. They do not depend on each other, so they go in parallel.
   Before either: version `0.1.0` in place of `0.0.0.9000`, a `NEWS.md` (neither has
   one), `cran-comments.md`, and a run on win-builder.
@@ -2406,6 +2455,8 @@ Preface / 1 Introduction / 2 The linkfunctions7 package /
                                variables) /
 6 The parameters7 package     (6.1 Matrix parameters, 6.2 The families,
                                6.3 Rank and the null space) /
+7 The numericals7 package     (7.1 Jets, 7.2 Stencils, 7.3 Quadrature and
+                               series, 7.4 Special functions) /
 A Notation / B References
 ```
 

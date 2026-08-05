@@ -1,0 +1,58 @@
+## Finite-difference stencils {#sec-numerical-stencils}
+
+```{r}
+#| label: setup-07b
+#| include: false
+source("R/_setup.R")
+source("R/numerical-certificates.R")
+```
+
+A finite-difference rule approximates the $m$-th derivative of $f$ at $x$ by
+a weighted combination of values on a grid of offsets,
+$$
+f^{(m)}(x) \;\approx\; \frac{1}{h^m} \sum_{j=1}^{n} w_j\, f(x + o_j h),
+$$
+and the weights are determined by exactness on polynomials: substituting
+$f(t) = (t - x)^p$ for $p = 0, \dots, n-1$ gives the linear system
+$$
+\sum_{j=1}^{n} w_j\, o_j^{\,p} \;=\; p!\,[p = m],
+\qquad p = 0, \dots, n - 1,
+$$
+whose matrix is a Vandermonde in the offsets. `fd_weights(offsets, order)`
+solves exactly this system, for any derivative order at any distinct
+offsets, so central, one-sided and staggered rules are all one construction;
+@fornberg1988 gives the recursive solution and the classical background.
+
+```{r}
+#| label: stencil-weights
+# the five-point first-derivative weights, times 12: (1, -8, 0, 8, -1)
+fd_weights(-2:2, 1L) * 12
+
+# a third derivative of exp at 1, against the function itself
+fd_derivative(exp, 1, order = 3L, accuracy = 4L) - exp(1)
+```
+
+`fd_offsets(order, accuracy)` chooses the grid: a central stencil of
+$2r + 1$ points with reach $r = \max\{1, \lceil (m + a)/2 \rceil - 1\}$
+evaluates a derivative of order $m$ to accuracy $O(h^a)$, and the one-sided
+variants shift the same number of points to one side of $x$ for use near a
+boundary. `fd_step(x, order, accuracy)` supplies the step,
+$\varepsilon^{1/(m+a)} \max(1, |x|)$ with $\varepsilon$ the machine
+precision, which balances the $O(h^a)$ truncation error against the
+$O(\varepsilon h^{-m})$ amplification of rounding [@press2007]; when bounds
+are supplied the step is clamped so the whole stencil stays inside the
+domain.
+
+What stays out of this package is the policy on how stencils may be used.
+The rule of @sec-links and @sec-distributions7 -- one stencil of order
+$k - m$ applied to the highest analytically available order $m$, never a
+chain of first differences -- belongs to the packages that enforce it,
+because it is a statement about their derivative contracts and not about
+the weights. `numericals7` supplies the stencil; the consumer decides what
+it may legitimately be applied to.
+
+```{r}
+#| label: consistency-07b
+#| include: false
+assert_stencils_ok()
+```

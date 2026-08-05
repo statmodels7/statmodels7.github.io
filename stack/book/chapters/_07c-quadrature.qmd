@@ -1,0 +1,99 @@
+## Quadrature and series over many parameters {#sec-numerical-quadrature}
+
+```{r}
+#| label: setup-07c
+#| include: false
+source("R/_setup.R")
+source("R/numerical-certificates.R")
+```
+
+The integrals a statistical model needs come in families. An expectation
+under a fitted distribution is one integral per parameter value, and in a
+regression model the parameters vary by observation, so a single quantity
+-- a mean, a normalizing constant, an expected information entry -- becomes
+hundreds of integrals of one integrand at as many parameter rows. A scalar
+integrator called in a loop pays its adaptive machinery once per row.
+`quad_vec()` treats the parameter dimension as a matrix dimension instead:
+the integrand receives a matrix of evaluation points together with a row
+index saying which parameter set each row belongs to, and one call
+evaluates every node of every panel of every row.
+
+### The Gauss-Kronrod pair {#sec-numerical-gk}
+
+Each panel is estimated by the 15-point Kronrod extension of the 7-point
+Gauss rule: fifteen nodes carrying two sets of weights, so a single matrix
+of function values yields both an estimate and, from the difference of the
+two rules, an error for it. The embedded Gauss rule is exact on polynomials
+to degree 13 and the Kronrod extension to degree 22; the pair is the
+workhorse of QUADPACK [@piessens1983], and the Gauss nodes themselves are
+the classical construction of @golub1969.
+
+```{r}
+#| label: gk-pair
+r <- gauss_kronrod15()
+c(sum(r$wk), sum(r$wg))          # weights on [-1, 1] sum to its length
+sum(r$wg > 0)                    # the Gauss rule uses seven of the fifteen nodes
+```
+
+### Batched adaptivity {#sec-numerical-adaptive}
+
+A row converges when the sum of its panel errors fits the budget
+$\max(\mathrm{atol}, \mathrm{rtol}\,\lvert I_i \rvert)$; until then its
+worst panels are bisected, and the splits from every row join the next
+single evaluation, so one hard row refines its own panels without
+serializing the others. Judging the sum matters for integrable endpoint
+singularities. Near a point where the integrand behaves like
+$x^{s-1}$ with $0 < s < 1$ the error is concentrated in the innermost panel
+however deep the bisection goes; a rule that gave each panel a share of the
+budget proportional to its length would demand of that panel an accuracy no
+depth can reach, while the sum converges as soon as the concentrated error
+is small enough in absolute terms.
+
+```{r}
+#| label: quad-singular
+# a beta(0.8, 1.2) density diverges at zero and still normalizes in one call
+f <- function(x, i) dbeta(x, c(2, 0.8, 3)[i], c(5, 1.2, 0.7)[i])
+quad_vec(f, 0, rep(1, 3))
+```
+
+Two failure rules keep the refusal semantics honest. A row whose panels at
+the maximum depth already carry more error than the whole budget can never
+converge, whatever happens elsewhere, and fails at once; a row that cannot
+reach the budget otherwise fails when nothing is left to split. Either way
+the row returns `NA` with a warning naming it -- an `NA` names a failure,
+where a plausible number would hide one.
+
+Infinite endpoints are brought onto a finite interval by the rational maps
+$x = a + t/(1-t)$, $x = b - t/(1-t)$ and $x = t/(1-t^2)$, whose Jacobians
+multiply the integrand; rows of different kinds share one call.
+
+```{r}
+#| label: quad-infinite
+shp <- c(0.5, 1, 2, 5, 50)
+g <- function(x, i) x * dgamma(x, shape = shp[i], rate = 1)
+range(quad_vec(g, 0, rep(Inf, 5)) - shp)   # the means, against the closed form
+```
+
+### Series {#sec-numerical-series}
+
+`series_vec()` sums $\sum_{k \ge k_0} t(k; \theta_i)$ for every parameter
+row at once, in blocks of terms evaluated as one matrix, with rows retiring
+as they converge. A row retires when three conditions hold together: the
+last block contributed less than the budget, its final term is itself below
+the budget, and the terms are not growing across the block. The third
+condition is what keeps a hump-shaped term alive before its mode -- a
+Poisson mass at rate 300 opens with a block over $k = 0, \dots, 63$ that
+sums to nearly nothing and ends on a term of about $10^{-52}$, so the first
+two conditions alone would retire a series that has not begun.
+
+```{r}
+#| label: series-hump
+lam <- c(0.5, 4, 300)
+series_vec(function(k, i) dpois(k, lam[i]), n = 3)
+```
+
+```{r}
+#| label: consistency-07c
+#| include: false
+assert_quadrature_ok()
+```
