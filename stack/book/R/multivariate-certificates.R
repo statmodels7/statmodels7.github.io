@@ -684,6 +684,196 @@
 }
 
 
+
+# --- 10. The simplex and the counts, section sec-mv-simplex -----------------
+
+# Every formula the subsection prints, transcribed here from the printed
+# equations and compared against the package. The density and the mass
+# function are written from scratch; the score and the information are checked
+# both against the transcription and against one numerical differentiation of
+# it, which shares no code with the package.
+
+.dir_fixture <- function() {
+  d <- dirichlet_distrib(4)
+  th <- list(mean_alr1 = 0.4, mean_alr2 = -0.3, mean_alr3 = 0.8, phi = 12)
+  s <- parameters7::simplex(4)
+  eta <- c(0.4, -0.3, 0.8)
+  list(d = d, th = th, s = s, eta = eta, phi = 12,
+       mu = as.numeric(parameters7::param_value(s, eta)),
+       a = do.call(cbind, parameters7::param_d1(s, eta)),
+       y = rbind(c(0.1, 0.2, 0.3, 0.4), c(0.25, 0.25, 0.25, 0.25),
+                 c(0.7, 0.1, 0.1, 0.1), c(0.05, 0.05, 0.05, 0.85)))
+}
+
+# Equation (eq-dirichlet), written out.
+.dir_logdens <- function(y, mu, phi) {
+  al <- phi * mu
+  apply(y, 1, function(r) {
+    lgamma(phi) - sum(lgamma(al)) + sum((al - 1) * log(r))
+  })
+}
+
+.certify_dirichlet <- function() {
+  f <- .dir_fixture()
+  out <- character()
+
+  if (.mv_maxdiff(distrib_pdf(f$d, f$y, f$th, log = TRUE),
+                  .dir_logdens(f$y, f$mu, f$phi)) > 1e-12) {
+    out <- c(out, "the Dirichlet density is not the printed equation")
+  }
+
+  # equation (eq-dirichlet-score), transcribed
+  g <- sweep(t(log(f$y)), 1L, digamma(f$phi * f$mu), "-")
+  want <- c(
+    vapply(seq_len(3L), function(k) sum(f$phi * crossprod(f$a[, k], g)),
+           numeric(1)),
+    sum(digamma(f$phi) + crossprod(f$mu, g))
+  )
+  got <- vapply(distrib_gradient(f$d, f$y, f$th), sum, numeric(1))
+  if (.mv_maxdiff(got, want) > 1e-10) {
+    out <- c(out, "the Dirichlet score is not the printed equation")
+  }
+  # and against one numerical differentiation of the hand-written density
+  q0 <- unlist(f$th)
+  num <- .mv_grad(function(v) {
+    s <- parameters7::simplex(4)
+    sum(.dir_logdens(f$y, as.numeric(parameters7::param_value(s, v[1:3])), v[4]))
+  }, q0)
+  if (.mv_maxdiff(got, num) > 1e-5) {
+    out <- c(out, "the Dirichlet score disagrees with a numerical derivative")
+  }
+
+  # the two zero sums the closed-form information rests on
+  if (max(abs(colSums(f$a))) > 1e-12) {
+    out <- c(out, "the columns of the simplex Jacobian do not sum to zero")
+  }
+  b <- parameters7::param_d2(f$s, f$eta)
+  if (max(vapply(b, function(v) abs(sum(v)), numeric(1))) > 1e-12) {
+    out <- c(out, "a second-derivative vector of the simplex does not sum to zero")
+  }
+
+  # equation (eq-dirichlet-information), transcribed
+  tt <- trigamma(f$phi * f$mu)
+  eh <- distrib_expected_hessian(f$d, f$y[1, , drop = FALSE], f$th)
+  bad <- FALSE
+  for (k in 1:3) for (l in 1:3) {
+    nm <- if (k == l) sprintf("mean_alr%d_mean_alr%d", k, k) else {
+      sprintf("mean_alr%d_mean_alr%d", min(k, l), max(k, l))
+    }
+    w <- -f$phi^2 * sum(tt * f$a[, k] * f$a[, l])
+    if (abs(eh[[nm]][1] - w) > 1e-10) bad <- TRUE
+  }
+  if (bad) {
+    out <- c(out, "the Dirichlet information in eta is not the printed equation")
+  }
+  w_pp <- trigamma(f$phi) - sum(tt * f$mu^2)
+  if (abs(eh[["phi_phi"]][1] - w_pp) > 1e-10) {
+    out <- c(out, "the Dirichlet information in phi is not the printed equation")
+  }
+
+  # the covariance and its singularity
+  cv <- (diag(f$mu) - tcrossprod(f$mu)) / (f$phi + 1)
+  if (.mv_maxdiff(mv_sigma(f$d, f$th), cv) > 1e-12) {
+    out <- c(out, "the Dirichlet covariance is not the printed expression")
+  }
+  ev <- eigen(mv_sigma(f$d, f$th), only.values = TRUE)$values
+  if (min(abs(ev)) > 1e-14) {
+    out <- c(out, "the Dirichlet covariance is not singular")
+  }
+
+  # the marginal is beta with the SAME concentration
+  m <- mv_marginal(f$d, f$th, which = 2L)
+  x <- c(0.05, 0.3, 0.7, 0.95)
+  if (.mv_maxdiff(distrib_pdf(m$distrib, x, m$theta),
+                  stats::dbeta(x, f$phi * f$mu[2], f$phi - f$phi * f$mu[2])) > 1e-10) {
+    out <- c(out, "the Dirichlet marginal is not the printed beta")
+  }
+  if (abs(m$theta$phi - f$phi) > 1e-12) {
+    out <- c(out, "the Dirichlet marginal changed the concentration")
+  }
+
+  # the section's claim about the two proposals: a gaussian one estimates
+  # nothing, the uniform one on the simplex estimates the integral
+  set.seed(11)
+  pr <- mv_reference_draw(f$d, f$th, 5000)
+  if (.mv_maxdiff(rowSums(pr$y), rep(1, 5000)) > 1e-12 ||
+      .mv_maxdiff(pr$logd, rep(lgamma(4), 5000)) > 1e-12) {
+    out <- c(out, "the simplex proposal is not uniform on the simplex")
+  }
+  est <- mean(exp(distrib_pdf(f$d, pr$y, f$th, log = TRUE) - pr$logd))
+  if (abs(est - 1) > 0.05) {
+    out <- c(out, sprintf("the simplex proposal integrates to %.3f", est))
+  }
+  set.seed(11)
+  base <- S7::method(mv_reference_draw, multivariate_distrib)(f$d, f$th, 5000)
+  est0 <- mean(exp(distrib_pdf(f$d, base$y, f$th, log = TRUE) - base$logd))
+  if (est0 > 1e-4) {
+    out <- c(out, sprintf("a gaussian proposal on the simplex gives %.3g", est0))
+  }
+  out
+}
+
+.certify_multinomial <- function() {
+  d <- multinomial_distrib(3, size = 5)
+  th <- list(probs_alr1 = 0.3, probs_alr2 = -0.2)
+  s <- parameters7::simplex(3)
+  eta <- c(0.3, -0.2)
+  pr <- as.numeric(parameters7::param_value(s, eta))
+  a <- do.call(cbind, parameters7::param_d1(s, eta))
+  out <- character()
+
+  # the support: the weak compositions, and how many there are
+  supp <- mv_support(d, th)
+  if (nrow(supp) != choose(5 + 3 - 1, 3 - 1)) {
+    out <- c(out, "the support does not have choose(n+p-1, p-1) points")
+  }
+  if (!all(rowSums(supp) == 5) || any(supp < 0) ||
+      anyDuplicated(supp) != 0L) {
+    out <- c(out, "the support is not the weak compositions of the size")
+  }
+
+  # the mass function, written out, and its sum over that support
+  mass <- apply(supp, 1, function(r) {
+    exp(lgamma(6) - sum(lgamma(r + 1)) + sum(r * log(pr)))
+  })
+  if (.mv_maxdiff(distrib_pdf(d, supp, th), mass) > 1e-14) {
+    out <- c(out, "the multinomial mass function is not the printed expression")
+  }
+  total <- sum(distrib_pdf(d, supp, th))
+  if (abs(total - 1) > 1e-12) {
+    out <- c(out, sprintf("the mass over the support sums to %.15f", total))
+  }
+
+  # equation (eq-multinomial-information), transcribed, against the EXACT sum
+  # of the observed Hessian over the same support
+  eh <- distrib_expected_hessian(d, supp[1L, , drop = FALSE], th)
+  hs <- distrib_hessian(d, supp, th)
+  # The component names are built here rather than read from the package, so
+  # that the comparison does not go through the same enumeration twice.
+  for (k in 1:2) for (l in k:2) {
+    nm <- sprintf("probs_alr%d_probs_alr%d", k, l)
+    if (is.null(eh[[nm]])) {
+      out <- c(out, sprintf("no expected component named %s", nm))
+      next
+    }
+    want <- -5 * sum(a[, k] * a[, l] / pr)
+    if (abs(eh[[nm]][1] - want) > 1e-10) {
+      out <- c(out, sprintf("the multinomial information %s is not the printed equation", nm))
+    }
+    if (abs(eh[[nm]][1] - sum(mass * hs[[nm]])) > 1e-10) {
+      out <- c(out, sprintf("the multinomial information %s is not the sum over the support", nm))
+    }
+  }
+
+  # the marginal is binomial
+  mg <- mv_marginal(d, th, which = 3L)
+  if (.mv_maxdiff(distrib_pdf(mg$distrib, 0:5, mg$theta),
+                  stats::dbinom(0:5, 5, pr[3])) > 1e-12) {
+    out <- c(out, "the multinomial marginal is not the printed binomial")
+  }
+  out
+}
+
 assert_multivariate_ok <- function() {
   problems <- c(
     .certify_mvgauss_density(),
@@ -694,7 +884,9 @@ assert_multivariate_ok <- function() {
     .certify_mvt_score(),
     .certify_mv_moments(),
     .certify_mv_reporting(),
-    .certify_mv_structure_block()
+    .certify_mv_structure_block(),
+    .certify_dirichlet(),
+    .certify_multinomial()
   )
   if (length(problems)) {
     stop("Section 3.5 disagrees with the packages:\n  ",

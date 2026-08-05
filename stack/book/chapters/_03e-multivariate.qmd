@@ -16,9 +16,12 @@ parametric family and say nothing about the dimension of its support. What
 changes is the parametrisation, because a multivariate family carries a matrix
 where a univariate one carries a variance, and a matrix is constrained.
 
-The two families presented here are the elliptical ones the toolkit needs
-first. @kotz2004 is the reference for the multivariate $t$ and @lange1989 for
-its use as a robust replacement for the gaussian.
+Four families are presented here. Two are elliptical, the gaussian and the
+Student $t$, and are the ones the toolkit needs first; @kotz2004 is the
+reference for the multivariate $t$ and @lange1989 for its use as a robust
+replacement for the gaussian. Two are not, the Dirichlet and the multinomial,
+and they are what shows which parts of the construction depend on ellipticity
+and which do not.
 
 ### The response and the parameters {#sec-mv-parameters}
 
@@ -239,11 +242,12 @@ derivative on the link scale is $\nu\,\ell^{(\nu)}$ by the chain rule of
 @sec-link-scale, with no change to the rest.
 
 The expected information of the $t$ has no closed form in the package, so it
-is approximated by one of the strategies of @sec-approx, and
-`fit_distrib()` accepts the choice through its `approx` argument. It accepts
-it only for a family that has no closed form, since for one that has, the
-argument would be silently ignored and the fit would report a method it did
-not use.
+is approximated by one of the strategies of @sec-approx. How the expectation
+is approximated is a property of Fisher scoring rather than of the fit, so the
+choice travels with the method: `fisher_scoring(approx = , nsim = )` carries
+it, and it is accepted only for a family that has no closed form, since for
+one that has, the argument would be silently ignored and the fit would report
+a method it did not use.
 
 ```{r}
 #| label: mvt-demo
@@ -257,6 +261,128 @@ mv_sigma(dt, theta_t)
 variance(dt, theta_t)
 ```
 
+### The simplex and the counts {#sec-mv-simplex}
+
+Two families of the package are not elliptical. The Dirichlet places its mass
+on the simplex, a set of dimension $p-1$ inside $\mathbb{R}^p$, and the
+multinomial places its mass on a finite set of points. Neither has a location
+and a scale to separate, and in both the matrix parameter of
+@sec-mv-parameters is replaced by a simplex parameter, which is the same idea
+under a different constraint: a map from an unconstrained vector onto the set
+the family requires. Everything in @sec-mv-parameters that made the parameters
+scalars applies unchanged, so the derivatives, the link scale and the fitting
+routine need no case of their own; what does change is every construction that
+assumed the density is taken with respect to Lebesgue measure on the whole of
+$\mathbb{R}^p$.
+
+The Dirichlet is written in a mean vector $\mu$ on the simplex and a
+concentration $\varphi > 0$, from which the usual shapes are
+$\alpha = \varphi\mu$. Its density is
+
+$$
+f(y) = \frac{\Gamma(\varphi)}{\prod_j \Gamma(\alpha_j)}
+       \prod_j y_j^{\alpha_j - 1},
+$$ {#eq-dirichlet}
+
+taken with respect to Lebesgue measure on the simplex. The mean
+parametrisation is what makes the family usable in a regression, since $\mu$
+is the quantity a model would put a linear predictor on, and $\varphi$ then
+governs the dispersion around it at a fixed mean. Writing $\eta$ for the free
+vector of the simplex parameter, $A = \partial\mu/\partial\eta$ for its
+Jacobian and $g_j = \log y_j - \psi(\alpha_j)$, the score is
+
+$$
+\ell^{(\eta_k)} = \varphi \sum_j g_j A_{jk},
+\qquad
+\ell^{(\varphi)} = \psi(\varphi) + \sum_j g_j \mu_j .
+$$ {#eq-dirichlet-score}
+
+The expected information is closed form, and the reason is one identity used
+twice. Differentiating $\sum_j \mu_j = 1$ once shows that every column of $A$
+sums to zero, and differentiating it again shows that every second-derivative
+vector of the simplex parameter does too. Under expectation
+$\mathbb{E}[g_j] = 0$, so every term carrying the data disappears and what is
+left is
+
+$$
+\mathbb{E}\!\left[\ell^{(\eta_k\eta_l)}\right]
+  = -\varphi^2 \sum_j \psi'(\alpha_j) A_{jk} A_{jl},
+\qquad
+\mathbb{E}\!\left[\ell^{(\varphi\varphi)}\right]
+  = \psi'(\varphi) - \sum_j \psi'(\alpha_j)\mu_j^2 .
+$$ {#eq-dirichlet-information}
+
+The covariance of the Dirichlet is
+$\operatorname{Cov}(Y_i, Y_j) = (\delta_{ij}\mu_i - \mu_i\mu_j)/(\varphi+1)$,
+singular because the coordinates sum to a constant. That singularity is what
+makes the support lower-dimensional, and it decides how the density can be
+integrated numerically. `check_distrib()` confirms that a multivariate density
+integrates to one by importance sampling, and for an elliptical family the
+proposal it draws from is a gaussian with the family's own mean and an
+inflated covariance. Such a proposal spreads its mass over a set of dimension
+$p$ and places none of it on the simplex, so the estimate it produces is zero
+to within rounding. The proposal has to live where the family does, and the
+uniform distribution on the simplex — the Dirichlet with every shape equal to
+one, of constant density $\Gamma(p)$ — is the simplest one that does. A family
+declares its own through `mv_reference_draw()`.
+
+The multinomial is the discrete case, with size $n$ and probabilities $\pi$
+carried by a simplex parameter, and its mass function is
+$P(Y = y) = n!\prod_j \pi_j^{y_j}/\prod_j y_j!$ on the vectors of non-negative
+integers summing to $n$. Its score and Hessian are the same two zero sums at
+work again, with $y_j/\pi_j$ in place of $g_j$, and its expected information
+follows from $\mathbb{E}[y_j] = n \pi_j$, the second-derivative term vanishing
+as before:
+
+$$
+\mathbb{E}\!\left[\ell^{(\eta_k\eta_l)}\right]
+  = -n \sum_j \frac{A_{jk} A_{jl}}{\pi_j} .
+$$ {#eq-multinomial-information}
+
+Being discrete with a finite support, the multinomial can enumerate it. The
+support is the set of weak compositions of $n$ into $p$ parts, of which there
+are $\binom{n+p-1}{p-1}$, and `mv_support()` returns them as a matrix. Every
+expectation the family needs is then a sum over that matrix rather than a
+quadrature or a sample, and is therefore exact up to rounding. Both quantities
+a validator would otherwise approximate are computed this way: the mass
+function sums to one, and @eq-multinomial-information is also the sum of the
+observed Hessian weighted by that mass. The enumeration is practical only for
+a moderate size, growing as it does in both $n$ and $p$, and a family too
+large for it keeps the approximations of @sec-approx.
+
+Both families have closed-form marginals, which is worth recording because it
+is not a consequence of ellipticity. A single coordinate of a Dirichlet is
+$\mathrm{Beta}(\alpha_j, \varphi - \alpha_j)$, which in the
+mean-and-precision parametrisation of @sec-distributions is mean $\mu_j$ and
+precision $\varphi$, so the concentration is shared by every marginal. A
+single coordinate of a multinomial is $\mathrm{Binomial}(n, \pi_j)$, the other
+outcomes collapsing into a single failure. A group of coordinates is again
+Dirichlet or multinomial, but only after the remaining mass is collapsed into
+a coordinate of its own, which is a different object, so that case is refused.
+
+```{r}
+#| label: dirichlet-demo
+dd <- dirichlet_distrib(4)
+theta_d <- list(mean_alr1 = 0.4, mean_alr2 = -0.3, mean_alr3 = 0.8, phi = 12)
+
+# the mean is a parameter of the family, and the covariance is singular
+mv_location(dd, theta_d)
+signif(eigen(mv_sigma(dd, theta_d), only.values = TRUE)$values, 3)
+
+# a marginal is a beta with the same concentration
+unlist(mv_marginal(dd, theta_d, which = 2)$theta)
+```
+
+```{r}
+#| label: multinomial-demo
+dn <- multinomial_distrib(3, size = 5)
+theta_n <- list(probs_alr1 = 0.3, probs_alr2 = -0.2)
+
+# the support is finite, so the normalisation is a sum and not a sample
+supp <- mv_support(dn, theta_n)
+nrow(supp)
+sum(distrib_pdf(dn, supp, theta_n))
+```
 ### Marginals and what a picture shows {#sec-mv-marginal}
 
 Integrating a density over the coordinates one is not interested in has no
@@ -266,7 +392,8 @@ reduced to the corresponding block. For the gaussian this is the classical
 result; for the $t$ the marginal is a $t$ on the subset with the **same**
 degrees of freedom, which follows from @eq-mvt-mixture, since conditioning on
 $V$ leaves a gaussian whose marginal is a gaussian with the same mixing
-variable.
+variable. It also has one for the two families of @sec-mv-simplex, where the
+marginal changes family rather than staying in it.
 
 This is what makes a picture of a multivariate density possible, because every
 panel of a pairs plot displays a marginal. The diagonal shows the univariate

@@ -61,7 +61,7 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | package | what it provides |
 |---|---|
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links |
-| `distributions7` | 26 univariate distributions with exact score and information (3rd/4th derivatives closed form for most), plus wrappers, transformations, MLE; **2 multivariate families** (gaussian, Student t) whose matrix parameter comes from `parameters7` |
+| `distributions7` | 26 univariate distributions with exact score and information (3rd/4th derivatives closed form for most), plus wrappers, transformations, MLE; **4 multivariate families** — gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
 | `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, jets through Levinson-Durbin, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
@@ -635,8 +635,47 @@ whole and a scalar link cannot express it.
   `mv_sigma()` is the **scale** matrix and `variance()` the covariance
   (`νΣ/(ν−2)`, infinite for `ν ≤ 2`) — keeping the two apart is what lets it be
   fitted where the second moment does not exist. Marginals keep the **same** ν.
-- `check_distrib()` runs a **nine-check multivariate battery** (importance
-  sampling for the normalisation, both Bartlett identities, the moments).
+- `dirichlet_distrib(n_dim, mean = simplex(n_dim), link_phi = log_link())` —
+  the first family here that is **not elliptical**: no location and scale to
+  separate, the support a set of dimension `p-1`, the covariance singular by
+  construction. Parameters `mean_alr1..alr(p-1)` and `phi`; shapes are
+  `alpha = phi*mu`. Score `phi*A'g` and `psi(phi) + mu'g` with
+  `g_j = log y_j - psi(alpha_j)`. Its expected information is **closed form**
+  for one reason used twice: differentiating `sum(mu) = 1` once makes every
+  column of `A` sum to zero and again makes every `param_d2` vector do so, and
+  `E[g] = 0` kills the rest. Marginals are **beta with the same `phi`**, the
+  concentration being shared — which is why `mv_marginal()` is a real method
+  here rather than a refusal.
+- `multinomial_distrib(n_dim, size, probs = simplex(n_dim))` — the first
+  multivariate **discrete** family. Expected information
+  `-n*sum(A_jk A_jl / p_j)`, the second-derivative term vanishing by the same
+  zero sum. Marginals are binomial.
+- **`mv_support()`** (new generic; base class refuses) returns the finite
+  support as a matrix, built by `compositions(n, k)`, the weak compositions.
+  What it buys is that **every expectation is an exact sum**: the mass over
+  the support comes back 1 to 7.8e-16 and the closed-form information agrees
+  with the summed observed Hessian to 3e-16, where an importance-sampling
+  check would only ever compare against Monte Carlo error. A normalisation
+  wrong by a thousandth is caught by the sum and would not be by the sample.
+- **`mv_reference_draw()`** (new generic) supplies the proposal
+  `check_distrib()` integrates the density against. The base method is the
+  inflated gaussian it always used; the Dirichlet overrides with the uniform
+  on the simplex (constant density `Gamma(p)`).
+  ⚠️ The base proposal does **not** fail loudly on the Dirichlet:
+  `chol()` accepts the singular covariance — the §7 note that *`chol()` is
+  not a rank test*, met a third time — and the estimate of an integral that
+  is 1 comes back **2.0e-08**. A silently wrong number, not an error.
+- `check_distrib()` runs a **nine-check multivariate battery** (both Bartlett
+  identities, the moments, the normalisation by the route above). Two checks
+  are **emitted only when they apply**, following the univariate convention of
+  twelve checks on a discrete family against thirteen on a continuous one:
+  the response derivatives are skipped for a family with an enumerable support
+  (discrete, so there is none) and for one that has not registered
+  `distrib_grad_y` (the base class refuses it *by design*, so not registering
+  it is a choice, not a gap). `has_mv_support()` and `has_mv_grad_y()` are the
+  predicates, and they ask the **method's owning class**, since the
+  multivariate branch sits beside `continuous_distrib`/`discrete_distrib`
+  rather than under either and there is no class to test.
 - `mv_marginal()` is a generic; the base class **refuses**, because a numerical
   marginal would be a different object with the same name. It exists because a
   panel of a pairs plot *is* a marginal.
@@ -744,7 +783,7 @@ whole and a scalar link cannot express it.
 | | |
 |---|---|
 | `linkfunctions7` | 890 tests, `R CMD check` OK, CI green |
-| `distributions7` | 2262 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-04, local), CI green |
+| `distributions7` | 2993 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-05, local), CI green |
 | `optimizers7` | 710 tests, `R CMD check --as-cran` OK with vignettes, two notes (2026-08-04). Published 2026-07-31; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
 | `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.3.0`: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers (D R D', block diagonal, sums) still open. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
@@ -1716,6 +1755,56 @@ a mis-stated gradient makes every direction ascend far from the optimum, and
 that run must still fail. **A method that cannot move is converged only if the
 point says so, never because the move failed.**
 
+### The two non-elliptical families, and what they cost the validator
+
+Adding the Dirichlet and the multinomial (2026-08-05) broke nothing in the
+derivative machinery -- the flattening of §4 carried them unchanged -- and
+broke three of the nine checks in `check_distrib()`'s multivariate battery,
+on code that was correct. Each failure was the battery assuming something
+only an elliptical family satisfies. What that cost, in order:
+
+- **The normalisation check assumed a proposal exists in `R^p`.** For the
+  Dirichlet the support has measure zero there, so a gaussian proposal
+  estimates 2.0e-08 for an integral that is 1 -- and does not raise, because
+  `chol()` accepts a covariance whose smallest eigenvalue is 8.7e-19. That is
+  the *`chol()` is not a rank test* note met for the **third** time, in a
+  third package-independent context. The fix is a generic,
+  `mv_reference_draw()`, whose base method is the old gaussian and whose
+  Dirichlet method is the uniform on the simplex; a discrete family never
+  reaches it, its normalisation being an exact sum over `mv_support()`.
+- **The response-derivative check assumed a refusal is a defect.** The
+  multivariate base class refuses `distrib_grad_y` *by design*, so a family
+  that has not registered one has made a choice; and a discrete family has no
+  such derivative at all. Both are now not emitted rather than failed --
+  the convention the univariate battery already follows with twelve checks on
+  a discrete family against thirteen on a continuous one. A third status
+  (`"n/a"`) was considered and rejected: several consumers, including three
+  book gates, read `status != "OK"` as failure, and a new value would have
+  made every one of them wrong at once.
+- **`mean()` and `variance()` were simply missing**, which surfaced three
+  frames away as *"Can't find method for `expectation(<DirichletDistrib>)`"*
+  -- the base class falling through to the univariate quadrature.
+
+Two smaller things worth keeping:
+
+- **`@include` naming a file pulls that file EARLIER in Collate**, which can
+  drag it ahead of a file it needs. Naming `mvgaussian_distrib.R` (to reach
+  `mv_location`) pulled it ahead of `moments.R` and the package failed to
+  load with *"object 'variance' not found"*. The right fix was not to
+  hand-edit Collate but to move the three generics -- `mv_location`,
+  `mv_sigma`, `mv_marginal` -- out of `mvgaussian_distrib.R` and `mv_plot.R`
+  into `multivariate.R`, **where they belonged all along**: they are generics
+  of the multivariate layer, not of the gaussian. A Collate cycle is usually
+  telling you a definition is in the wrong file.
+- **The roxygen-placement trap fired again**, and this time it had been live
+  and committed. `mv_param_block` was inserted between the
+  `mv_derived.multivariate_distrib` block and the method it documents, with
+  no blank line, so the two comment runs fused: the man page kept the
+  method's `@name` and got the *helper's* `\usage`, and `R CMD check`
+  reported it only as *"Documented arguments not in \usage"*. It is invisible
+  to the tests, since the topic exists and is indexed. **`--as-cran` is what
+  found it; the docs guard cannot.**
+
 ### Multivariate distributions
 
 - **A rank read off an assembled matrix is not a property of the family.** The
@@ -2132,14 +2221,8 @@ point says so, never because the move failed.**
     not a relation between two.
   - ~~**generalised Pareto**~~, ~~**beta-binomial**~~, ~~**NB1**~~,
     ~~**generalised gamma**~~, ~~**von Mises**~~ **done 2026-08-05.**
-  - **STILL TO DO**: **Dirichlet**, the first multivariate family that is not
-    elliptical and so the right second test of that layer -- its marginals ARE
-    beta, so `mv_marginal()` exists for it, which is what makes it a useful
-    case rather than merely a refusal; **multinomial** for categorical
-    responses, which is also the first multivariate DISCRETE family and will
-    need `check_distrib`'s multivariate battery to learn about support points
-    instead of sampling by importance. Both live on a simplex, so the natural
-    parameter comes from `parameters7::simplex()`.
+  - ~~**Dirichlet**~~ and ~~**multinomial**~~ **done 2026-08-05**, both on a
+    `parameters7::simplex()`. See §4 for what they cost the validator.
   - **Skipped deliberately**: anything obtained by a wrapper already
     (`truncated`, `zero_*`, `transformation` cover lognormal-like families,
     hurdle models and Box-Cox families), and anything whose only interest is a
