@@ -7,7 +7,7 @@
         - multivariate bases moved INTO basis7 (classic tensor products +
           the factorized evaluation of Ruegamer, AISTATS 2024) -- sections
           3b, 6g and phase 3;
-        - linear transforms unified into one wrapper (orthonormalisation,
+        - linear transforms unified into one wrapper (orthonormalization,
           constraints, and the Demmler-Reinsch construction of Bach &
           Klein) -- sections 3c, 6b and phase 2
 ================================================================================
@@ -42,7 +42,7 @@ force. Every R package that fits smooth terms carries its own basis code:
 mgcv's smooth constructors, gamlss's pb(), fda's create.*.basis, each private,
 each exposing exactly what its author needed. A cubic B-spline is a fixed
 mathematical object. It should be written once, correctly, with everything a
-modelling routine could want already computed -- the design matrix, every
+modeling routine could want already computed -- the design matrix, every
 derivative, the antiderivative, and the Gram matrices of its derivatives, which
 is what a smoothness penalty integrates. Nobody else's basis objects carry the
 inner products; this one does, exactly.
@@ -72,7 +72,7 @@ What basis7 is NOT:
     materializes the Kronecker product. What stays upstream is only what
     involves model PARAMETERS: the factorized-coefficient predictor of
     Ruegamer (2024) keeps its latent factors in modelterms7, its
-    df-calibrated smoothing in penalties7, and its optimiser in optimizers7
+    df-calibrated smoothing in penalties7, and its optimizer in optimizers7
     (which already ships adam()). See section 3b.
 
 
@@ -87,7 +87,7 @@ Three ideas carry over unchanged in substance:
       one formula for all orders, exact, and valid for d = -1 as the
       antiderivative. This is the closed form the package ships.
 
-  (b) The orthonormalisation WRAPPER. An object that wraps a parent basis and
+  (b) The orthonormalization WRAPPER. An object that wraps a parent basis and
       transforms evaluation, derivatives and integrals consistently is the
       transformation() pattern from distributions7, and it is the right shape.
       Only its implementation changes (see (d)).
@@ -153,11 +153,11 @@ case -- but the classes get documented at X-class with @aliases from day one
 anyway, and test-docs.R asks "which object in the namespace has no help
 topic", both habits copied from optimizers7 (CLAUDE.md, Documentation build).
 
-TransformedBasis is the one wrapper for every linear reparametrisation
+TransformedBasis is the one wrapper for every linear reparametrization
 B -> B T (section 3c): it holds the parent basis and the fixed matrix T, and
 every method delegates to the parent and multiplies. Same composition rules
 as the distributions7 wrappers: transforming a TransformedBasis multiplies
-the two T's rather than nesting, and orthonormalising twice is a no-op.
+the two T's rather than nesting, and orthonormalizing twice is a no-op.
 
 
 --------------------------------------------------------------------------------
@@ -280,7 +280,7 @@ What deliberately stays OUT of basis7, with its destination:
     comparable across terms                             -> penalties7 (record
     this in its plan when drafted; the ingredients are the marginal B'B and
     P_j, both available here and there);
-  - the optimiser                                       -> optimizers7, which
+  - the optimizer                                       -> optimizers7, which
     already ships adam(); the paper fits with Adam and minibatch objectives
     are one-line closures there by design.
 
@@ -289,7 +289,7 @@ layers, which is worth noticing: it is the first external method whose whole
 architecture decomposes into the four packages without remainder.
 
 --------------------------------------------------------------------------------
-3c. LINEAR TRANSFORMS OF A BASIS: ORTHONORMALISATION, CONSTRAINTS,
+3c. LINEAR TRANSFORMS OF A BASIS: ORTHONORMALIZATION, CONSTRAINTS,
     AND THE DEMMLER-REINSCH CONSTRUCTION
 --------------------------------------------------------------------------------
 
@@ -299,11 +299,11 @@ local copy only). The paper's estimation layer -- NBPSS spike-and-slab priors,
 MCMC, the Cox model -- is modelterms7/statmodels7 territory, but its Section 2
 is basis mathematics, and it exposes a unification this plan had not made:
 
-    Every useful reparametrisation of a basis is one operation,  B -> B T,
+    Every useful reparametrization of a basis is one operation,  B -> B T,
     with derivatives, integrals and Grams transforming by the same T.
 
 The prototype's orthonorm wrapper, identifiability constraints, and the
-Demmler-Reinsch basis are all instances. So the wrapper class generalises:
+Demmler-Reinsch basis are all instances. So the wrapper class generalizes:
 
     TransformedBasis        parent basis + a fixed K x r matrix T
                             (r <= K: transforms may REDUCE dimension);
@@ -329,13 +329,13 @@ with three constructors in v1:
                                     the constraint tool is available for the
                                     layer that owns the policy.
 
-  (iii) dr_basis(b, x, K)           Bach & Klein's Algorithm 1, generalised:
+  (iii) dr_basis(b, x, K)           Bach & Klein's Algorithm 1, generalized:
                                     given evaluation points x, a penalty
                                     matrix K, and constraint functions
                                     (default: constant and identity, i.e.
                                     C = t(cbind(1, x)) %*% basis_eval(b, x)),
                                     project onto ker(C), then solve the
-                                    generalised eigenproblem for the pair
+                                    generalized eigenproblem for the pair
                                     (V0' (B'B/n) V0, V0' K V0) and set
                                     T = V0 A. The result: empirical Gram
                                     DIAGONAL, penalty a scalar multiple of
@@ -345,19 +345,19 @@ with three constructors in v1:
                                     comparable across terms.
 
 Why (iii) earns its place here rather than upstream: the paper shows the
-construction only factorises a 2 x (K) and a (K-2) x (K-2) matrix -- never
+construction only factorizes a 2 x (K) and a (K-2) x (K-2) matrix -- never
 n x n -- works when B itself is RANK-DEFICIENT (which equidistant-knot
 P-splines produce whenever the Schoenberg-Whitney interlacing fails), and
 keeps T explicit, so prediction at new points is basis_eval(parent, xnew) T,
 which is exactly what a TransformedBasis does by construction. Their Figure 3
-result is the design argument in one line: the mixed-model reparametrisations
+result is the design argument in one line: the mixed-model reparametrizations
 (Fahrmeir-Kneib-Lang, Eilers) estimate the OVERALL effect as well as DR does,
 but bias the linear/nonlinear SPLIT, because they do not satisfy
 (1, x)' Z = 0; the decomposition semantics need the orthogonality the DR
 transform provides.
 
-One prerequisite generalisation falls out of the same paper: the DR
-construction diagonalises the Gram with respect to the EMPIRICAL measure of
+One prerequisite generalization falls out of the same paper: the DR
+construction diagonalizes the Gram with respect to the EMPIRICAL measure of
 the data, not Lebesgue on [lower, upper], and the paper's estimands are
 projections in L2(P^X). So basis_gram grows an optional measure argument:
 
@@ -559,15 +559,15 @@ Two things had to be decided in the writing.
     adaptive quadrature or an independent numerical derivative, never against
     the package's own route to the same number. Seventeen injections, all
     caught; the Demmler-Reinsch checks were also confirmed non-vacuous by
-    asking them of an orthonormalised basis, which fails them by 0.08 and 132.
+    asking them of an orthonormalized basis, which fails them by 0.08 and 132.
 
 The chapter found two defects in the package, and how each was found is the
 point.
 
 The first came from reading the rendered output: the numerical derivative
-printed with its rows labelled "c" and "f" next to a closed form that printed
+printed with its rows labeled "c" and "f" next to a closed form that printed
 "[1,]" and "[2,]". vapply had named the stencil offsets after the character
-vector recording which stencil each point uses, and those names travelled
+vector recording which stencil each point uses, and those names traveled
 through the evaluation points into the row names of whatever the basis
 returned. Only a user-defined basis could reach it.
 
@@ -579,7 +579,7 @@ negative according to rounding, so the same matrix was accepted here and
 refused there. chol_pd() now decides from the eigenvalues. The test that
 exposed it was itself asserting the wrong thing -- a constant-only constraint
 with the default second-derivative penalty leaves the linear direction neither
-penalised nor identified, which dr_basis() is supposed to refuse -- so it now
+penalized nor identified, which dr_basis() is supposed to refuse -- so it now
 asserts the refusal and is paired with the well-posed first-derivative case.
 
 Both fixed in 0.3.1 with regression tests.
@@ -629,7 +629,7 @@ Both fixed in 0.3.1 with regression tests.
     Kronecker product need never be materialized -- full-array and CP
     (rank-F) coefficient shapes, after Ruegamer (AISTATS 2024). The latent
     factors, the across-features FM recursion, the df-calibrated smoothing
-    and the optimiser stay in modelterms7 / penalties7 / optimizers7
+    and the optimizer stay in modelterms7 / penalties7 / optimizers7
     respectively; section 3b records the split.
 
 
@@ -679,7 +679,7 @@ Phase 2 -- inner products and transforms.  ** DONE 2026-08-03, basis7 0.2.0 **
     form for Fourier, diagonal for Legendre), quadrature fallback, the
     measure argument (Lebesgue / empirical / weighted); the TransformedBasis
     wrapper with its three constructors -- orthonorm_basis via Cholesky,
-    constrain_basis via SVD null space, dr_basis via the generalised
+    constrain_basis via SVD null space, dr_basis via the generalized
     eigenproblem of section 3c; poly_basis; vignette "defining-a-basis".
     Exit tests: (i) orthonorm_basis(bspline_basis())'s Gram is the identity
     to machine precision, via the exact route and the quadrature route
@@ -703,7 +703,7 @@ Phase 3 -- multivariate.  ** DONE 2026-08-03, basis7 0.3.0 **
 Phase 4 -- the book chapter.  ** DONE 2026-08-03 **
     "The basis7 package", one .qmd pulling _-prefixed sections: what a basis
     expansion is; B-splines and their local support; the phase-shift Fourier
-    derivatives; inner products and the Gram matrix; orthonormalisation as a
+    derivatives; inner products and the Gram matrix; orthonormalization as a
     congruence; tensor products, separability, and the contracted evaluation
     with its costs stated. Hidden gate assert_bases_ok() in
     book/R/basis-certificates.R: printed formulas transcribed independently

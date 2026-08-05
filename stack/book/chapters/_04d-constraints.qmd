@@ -17,7 +17,7 @@ stochastic objectives precisely because it does.
 
 Suppose each parameter is confined to an interval, $\theta_j \in (L_j, U_j)$,
 with either endpoint possibly infinite. Passing such constraints to a general
-optimiser creates the difficulties described in @sec-fit-scale: every proposal
+optimizer creates the difficulties described in @sec-fit-scale: every proposal
 must be tested for admissibility, a step that overshoots must be shortened
 rather than taken, and near an endpoint the objective may be unbounded or
 undefined.
@@ -38,9 +38,9 @@ L_j + (U_j - L_j)\,\dfrac{1}{1 + e^{-\eta_j}}
   & \text{both finite,}
 \end{cases}$$
 
-and the optimiser runs unconstrained in $\eta$. These are the bounded links of
+and the optimizer runs unconstrained in $\eta$. These are the bounded links of
 @sec-links, reused here for the purpose they were written for. Every point the
-optimiser proposes is admissible by construction, so there is no rejection
+optimizer proposes is admissible by construction, so there is no rejection
 step and no boundary for a line search to encounter.
 
 The cost of the change of variable is a set of derivative corrections, and
@@ -69,7 +69,7 @@ information that a box was involved.
 ## Optima on a bound
 
 An optimum lying exactly on a bound cannot be reached, because reaching it
-requires $\eta$ to go to infinity. The optimiser keeps moving, improves by
+requires $\eta$ to go to infinity. The optimizer keeps moving, improves by
 less and less, and stops on its iteration budget at a point close to the
 constraint but not on it.
 
@@ -109,7 +109,7 @@ knitr::kable(
                vapply(rs, function(r) r@par > 0, logical(1)),
              check.names = FALSE),
   row.names = FALSE, align = "lrl",
-  caption = paste("The maximum likelihood scale of a centred Gaussian, whose",
+  caption = paste("The maximum likelihood scale of a centered Gaussian, whose",
                   "answer is the root mean square:",
                   formatC(sqrt(mean(yv^2)), format = "f", digits = 10))
 )
@@ -176,18 +176,18 @@ the gradient of a randomly drawn subset of $m$ terms is, up to a factor of
 $n/m$, an unbiased estimate of the full gradient, and it costs a fraction of
 the full evaluation. Many inexpensive noisy steps can therefore be taken for
 the price of a few exact ones, and Adam is the method built for that regime.
-@bottou2018 gives a full account of stochastic optimisation.
+@bottou2018 gives a full account of stochastic optimization.
 
 ::: {.callout-note}
 ## Stochastic objectives
 
 `adam()` contains no notion of observations. The subsample is drawn by the objective itself, an ordinary function of the
 parameter vector that selects a different set of terms at each call. Adam
-optimises it without any indication that this is happening, and `set.seed()`
+optimizes it without any indication that this is happening, and `set.seed()`
 governs the run because the draws occur in the caller's code.
 
 The package once contained machinery for drawing minibatches inside the
-optimiser, and it was removed. Supporting it required a second kind of objective that declared its own
+optimizer, and it was removed. Supporting it required a second kind of objective that declared its own
 terms, a rule for which stopping criteria such an objective admitted, and a
 branch through the iteration. All of this served a task the caller can do in
 one line and do better, since the caller knows what an observation, a stratum
@@ -202,7 +202,7 @@ tolerance applied to either measures the sampling noise rather than the
 progress; neither can serve as a stopping rule. A stochastic run is therefore
 governed by its iteration budget and reports that it did not converge, which
 is the accurate description of a run in which nothing was checked. Whether an
-objective is stochastic is a property of the objective, not of the optimiser,
+objective is stochastic is a property of the objective, not of the optimizer,
 so this remains a caution to the caller rather than something the package can
 detect.
 
@@ -220,7 +220,7 @@ their repair.
 Three topics lie outside this chapter.
 
 Every method here finds a **local** minimum, and none can determine whether it
-is the global one. This is a property of local optimisation, not of the
+is the global one. This is a property of local optimization, not of the
 implementations; @sec-multistart describes the standard remedy, which is to
 run from several starting points and to read the result for the number of
 distinct optima found rather than only for the best point.
@@ -231,5 +231,5 @@ used here does not extend to them.
 
 There is nothing Bayesian. The toolkit intends to let the user choose a
 Bayesian treatment in place of a frequentist one, but that requires a sampler
-rather than an optimiser, and its output is a distribution rather than a
+rather than an optimizer, and its output is a distribution rather than a
 point. It belongs to the model layer, which is the subject of future chapters.

@@ -9,20 +9,20 @@ source("R/optimizer-certificates.R")
 
 Everything so far assumed that $f$ is differentiable and that the gradient
 becomes small near a solution. The second part of this assumption is the one
-that fails first. For an objective with a kink at its minimiser the gradient
-does not become small: it does not exist at the minimiser, and the one-sided
+that fails first. For an objective with a kink at its minimizer the gradient
+does not become small: it does not exist at the minimizer, and the one-sided
 derivatives on either side do not approach zero. On such an objective the
 methods of @sec-curvature reach the correct point and then report failure,
 because the quantity their stopping rule tests never becomes small.
 
-The example is a standard one. Minimising
+The example is a standard one. Minimizing
 
 $$f(\mu) = \sum_{i=1}^{n} \lvert y_i - \mu \rvert$$
 
 is the estimation of a median, and it is the location part of a Laplace
 likelihood; the toolkit met exactly this objective in @sec-fitting. The
 function is piecewise linear with a kink at every observation, and its
-minimiser is one of the observations.
+minimizer is one of the observations.
 
 ### The subdifferential {#sec-subdifferential}
 
@@ -44,7 +44,7 @@ supporting hyperplane at that point. Where $f$ is differentiable the
 subdifferential contains exactly one element, $\partial f(x) = \{\nabla
 f(x)\}$; at a kink it contains many.
 
-The optimality condition generalises directly, and follows in one line from
+The optimality condition generalizes directly, and follows in one line from
 the definition: setting $v = 0$ in @def-subdifferential turns the subgradient
 inequality into $f(z) \ge f(x)$ for every $z$, which is minimality, and the
 argument reads the same in both directions.
@@ -73,7 +73,7 @@ at the median itself it is still at least one.
 
 This is the central difficulty: the quantity a gradient-based stopping rule
 tests does not vanish at the solution, so no tolerance both fires there and
-stays quiet elsewhere. The method reaches the minimiser, the line search finds
+stays quiet elsewhere. The method reaches the minimizer, the line search finds
 no acceptable step because every direction leads uphill from the kink, and the
 run stops with a failure report while standing on the answer.
 
@@ -123,15 +123,15 @@ $$\check{f}(x) \ =\ \max_{1 \le j \le k}\ \bigl\{ f_j + v_j^\top (x - z_j) \bigr
 \ \le\ f(x).$$
 
 This is the **cutting-plane model**, and its useful property is that it is
-piecewise linear: a kink, which is two linearisations meeting, is exactly the
+piecewise linear: a kink, which is two linearizations meeting, is exactly the
 shape it represents naturally, while a quadratic model must either smooth the
 kink away or place spurious curvature across it.
 
-Minimising $\check{f}$ alone would not be safe. A model built from finitely
-many planes can be unbounded below, and even when it is bounded its minimiser
+Minimizing $\check{f}$ alone would not be safe. A model built from finitely
+many planes can be unbounded below, and even when it is bounded its minimizer
 may lie far outside the region the collected planes describe. A proximal term
 is therefore added, anchoring the step to the current point $\hat{x}$, called
-the **stability centre**:
+the **stability center**:
 
 $$d^{\star} \ =\ \operatorname*{arg\,min}_{d}\ \left\{
   \max_{j}\ \bigl( -\alpha_j + v_j^\top d \bigr)
@@ -142,14 +142,14 @@ where $t > 0$ controls how far the model is trusted and
 
 $$\alpha_j \ =\ f(\hat{x}) - \ell_j(\hat{x}) \ \ge\ 0$$
 
-is the **linearisation error** of plane $j$, the amount by which the plane
+is the **linearization error** of plane $j$, the amount by which the plane
 underestimates $f$ at the current point. It is non-negative by
 @def-subdifferential, and it gives an old plane, collected far away, less
 influence than a recent one.
 
 ### The dual of the bundle subproblem {#sec-bundle-dual}
 
-Problem (P) is a quadratic programme in $d$ with a piecewise-linear term. It
+Problem (P) is a quadratic program in $d$ with a piecewise-linear term. It
 is solved through its dual, which is a small problem with a simple feasible
 set.
 
@@ -157,7 +157,7 @@ set.
 ## The bundle subproblem and its dual
 
 Let $V$ be the matrix with columns $v_1, \dots, v_k$ and $\alpha$ the vector of
-linearisation errors. Then the solution of (P) is $d^{\star} = -t\, V\lambda^{\star}$,
+linearization errors. Then the solution of (P) is $d^{\star} = -t\, V\lambda^{\star}$,
 where $\lambda^{\star}$ solves
 
 $$\min_{\lambda \in \Delta_k}\ \ \frac{t}{2} \lVert V \lambda \rVert^{2}
@@ -175,7 +175,7 @@ $u + \lVert d \rVert^{2}/(2t)$ subject to $-\alpha_j + v_j^\top d \le u$.
 Stationarity of the Lagrangian in $u$ forces $\sum_j \lambda_j = 1$, which is
 the origin of the simplex constraint, and stationarity in $d$ gives
 $d = -t V\lambda$. Substituting both back yields the
-stated minimisation over $\Delta_k$, and strong duality holds because the
+stated minimization over $\Delta_k$, and strong duality holds because the
 problem is convex with a strictly feasible point. The construction is due to
 @lemarechal1975 and @kiwiel1990; @bonnans2006 presents it in the form used
 here.
@@ -190,7 +190,7 @@ $$\lVert \bar{v} \rVert^{2} + \bar\alpha \ =\ 0
 \iff \bar{v} = 0 \ \text{ and } \ \bar\alpha = 0,$$
 
 which states that zero lies in the convex hull of the collected subgradients
-with no linearisation error. This is the computable counterpart of
+with no linearization error. This is the computable counterpart of
 $0 \in \partial f(\hat{x})$ in @prp-fermat, it is the correct quantity to
 test, and it is the quantity that `crit_stationary()` reads.
 
@@ -217,8 +217,8 @@ promised,
 
 $$f(z) \ \le\ f(\hat{x}) + m\, v, \qquad m \in (0, 1).$$
 
-If the condition holds, the centre moves; this is a **serious step**. If it
-does not, the centre stays, but the iteration is still useful, because the
+If the condition holds, the center moves; this is a **serious step**. If it
+does not, the center stays, but the iteration is still useful, because the
 trial point contributes its own subgradient to the collection and the model is
 strictly better at the next iteration. This is a **null step**, and a run with
 many null steps is refining its representation of a kink, not failing.
@@ -231,7 +231,7 @@ defines,
 $$\ell_{\text{agg}}(x) = f(\hat{x}) - \bar\alpha + \bar{v}^\top (x - \hat{x}),$$
 
 which lies below $f$ because it is a convex combination of functions that do,
-and which summarises the contribution of the discarded planes. Deleting old
+and which summarizes the contribution of the discarded planes. Deleting old
 planes outright would lose that information and can stall the method; keeping
 the aggregate is what makes a bounded bundle safe.
 
@@ -310,18 +310,18 @@ The table contains three separate findings.
 The first two rows illustrate the argument just given. A fixed set of directions stops on the ridge, at a point that is not
 stationary, having exhausted its poll without finding the descent direction
 that exists. Random directions do an order of magnitude better and still do
-not arrive, because a finite number of directions from a fixed centre remains
+not arrive, because a finite number of directions from a fixed center remains
 a poor instrument for a kink.
 
 The third row shows Nelder–Mead solving the problem to machine precision,
 better than either poll and better than the bundle method. The reason is that
-a simplex is not a poll: it has no fixed centre and no fixed set of offsets,
+a simplex is not a poll: it has no fixed center and no fixed set of offsets,
 it deforms, and on a problem whose descent direction lies along a ridge it
 deforms into a long thin simplex aligned with that ridge. This adaptivity is
 exactly what a fixed pattern lacks. What Nelder–Mead lacks in exchange is a
 guarantee: the positive-spanning argument does not apply to it, the
 counterexample of @mckinnon1998 shows that it can converge to a point that is
-not a minimiser, and the positive results of @lagarias1998 cover only one and
+not a minimizer, and the positive results of @lagarias1998 cover only one and
 two dimensions. It also needs 343 evaluations here.
 
 The last row shows the bundle method arriving, with a guarantee, in a seventh

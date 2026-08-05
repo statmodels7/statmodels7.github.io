@@ -1,6 +1,6 @@
 ================================================================================
                         covstructs7 -- PLAN
-        constrained matrix parameters as S7 objects: parametrisations
+        constrained matrix parameters as S7 objects: parametrizations
         of covariance-adjacent spaces, with exact derivatives on the
                           unconstrained scale
                         drafted 2026-08-03
@@ -10,11 +10,11 @@
         and the first draft would have refused it. Rank is now a declared
         property and the log-determinant is a pseudo-determinant where it
         must be: sections 1, 2, 3(g,h), 4, 5, 6, 7h, 9 and 10;
-        and the PRECISION side made explicit (Giovanni) -- parametrising a
+        and the PRECISION side made explicit (Giovanni) -- parametrizing a
         multivariate gaussian by Omega rather than Sigma needs no new
         generic and a strict subset of the existing ones, but the object
         gains a `role` label because a family name does not say which
-        side it parametrises: sections 1, 2, 5, 7j and 10
+        side it parametrizes: sections 1, 2, 5, 7j and 10
 ================================================================================
 
 Written in English like every other artifact of the toolkit, so that anything
@@ -24,7 +24,7 @@ translation.
 Nothing in this file is code. It is the set of decisions to agree on before
 any is written, plus the ones deliberately left open. It grew out of the
 penalties7 design discussion of 2026-08-03: a multivariate gaussian prior
-needs a parametrised covariance, statmodels7's random effects need the same
+needs a parametrized covariance, statmodels7's random effects need the same
 object, and distributions7 cannot host multivariate distributions until the
 matrix-parameter layer exists somewhere. This is that layer, built standalone
 first, which is the reason it can start now.
@@ -35,7 +35,7 @@ first, which is the reason it can start now.
 --------------------------------------------------------------------------------
 
 Almost every R package that fits a model with a covariance matrix carries its
-own parametrisation of it, written inside the routine that needs it. nlme has
+own parametrization of it, written inside the routine that needs it. nlme has
 the pdMat classes (pdSymm, pdDiag, pdCompSymm, ...), lme4 has its theta
 vector, glmmTMB has its covariance structures -- three private rewritings of
 the same mathematics, none exposing a derivative, none reusable from outside.
@@ -62,7 +62,7 @@ What it is NOT, and why:
 
   - It is NOT part of distributions7, because its consumers are not all
     distributions: statmodels7's random-effects covariances (the GLMM tau^2
-    generalised to Sigma_u) and penalties7's correlated gaussian prior need
+    generalized to Sigma_u) and penalties7's correlated gaussian prior need
     the object without needing a multivariate density around it.
 
   - It is NOT the general theory of constrained parameter spaces. The general
@@ -97,23 +97,23 @@ One abstract S7 class:
                       Equal to dim for the definite families; strictly less
                       for a rank-deficient precision, where it is the
                       dimension of the space the quadratic form actually
-                      penalises
+                      penalizes
       null_basis      dim x (dim - rank) orthonormal basis of the common null
                       space, or a zero-column matrix when the family is full
                       rank. Carried rather than recomputed, and carried as a
                       BASIS rather than as its dimension alone, for the reason
                       in the note below; it is also what a consumer means by
-                      "the unpenalised part of the model"
+                      "the unpenalized part of the model"
       role            "covariance", "precision" or "either". A LABEL, not a
                       branch: no method reads it and no mathematics depends
                       on it (decision 7h stands). It exists because a family
-                      name does not say which side it parametrises, and the
-                      distinction is a modelling one -- see the note in
+                      name does not say which side it parametrizes, and the
+                      distinction is a modeling one -- see the note in
                       section 2 -- so print(), a model's output and an
                       assertion by a consumer all need somewhere to read it
                       from
 
-and one subclass per parametrisation (section 3). A structure OWNS its
+and one subclass per parametrization (section 3). A structure OWNS its
 dimension: log_cholesky(dim = 3) is a different object from
 log_cholesky(dim = 4), with d = p(p+1)/2 = 6 and 10 respectively. The
 alternative -- a dimensionless recipe applied to whatever arrives -- would
@@ -137,12 +137,12 @@ same range the null-space residual max|M N| / max|M| never moves off 3e-16,
 and a fitted tensor product with smoothing parameters twelve orders of
 magnitude apart is ordinary, not pathological.
 
-So the rank comes from the STACKED, individually normalised components -- the
+So the rank comes from the STACKED, individually normalized components -- the
 null space of a sum of PSD matrices is the intersection of the null spaces,
 hence the null space of rbind(P_1/||P_1||, P_2/||P_2||, ...) -- and membership
 is afterwards tested through null_basis, never by counting eigenvalues of
 M(eta). This is the chol_pd lesson of basis7 one level up: there a
-factorisation was mistaken for a rank test, here an eigenvalue count is, and
+factorization was mistaken for a rank test, here an eigenvalue count is, and
 in both cases the fix is to ask a question about the matrix rather than about
 the arithmetic that happened to be performed on it.
 
@@ -185,7 +185,7 @@ The likelihood byproducts, which are the point of owning the factor:
                                   Computed from the factor where one exists,
                                   never from det(M). The two are one generic
                                   because a consumer asks the same question --
-                                  what normalising constant does this matrix
+                                  what normalizing constant does this matrix
                                   contribute -- and the object knows which
                                   answer is the right one
     struct_dlogdet(s, eta)        its gradient in eta; in log-Cholesky
@@ -206,7 +206,7 @@ compares the two routes. In the rank-deficient case the same identity holds
 with the Moore-Penrose inverse in place of M^{-1}, restricted to the range
 space, and the validator uses the eigendecomposition rather than a solve.
 
-WHICH SIDE THE MATRIX PARAMETRISES CHANGES WHAT THE CONSUMER ASKS FOR, AND
+WHICH SIDE THE MATRIX PARAMETRIZES CHANGES WHAT THE CONSUMER ASKS FOR, AND
 THE PRECISION SIDE ASKS FOR LESS. For a multivariate gaussian written in the
 precision, l = (1/2) log|Omega| - (1/2)(y-mu)' Omega (y-mu) + const, the
 quadratic form is a multiplication and the score in eta is
@@ -238,7 +238,7 @@ factor of the matrix.
 A rank-deficient structure answers struct_solve() and struct_factor() with a
 refusal rather than with a pseudo-inverse. What a consumer of an improper
 prior actually needs is the quadratic form and the log-pseudo-determinant --
-the penalised normal equations invert X'X + lambda P, which is non-singular
+the penalized normal equations invert X'X + lambda P, which is non-singular
 even when P is not, and is assembled by the consumer -- so a pseudo-inverse
 would be a plausible matrix answering a question nobody asked, which is the
 shape of silent wrong answer this toolkit refuses.
@@ -279,7 +279,7 @@ p, d and the free names; check_covstruct(s) is section 6.
 
 (d) dr_prod(d_struct, r_struct)  --  Sigma = D R D', Giovanni's own sketch
     and the reason the design is compositional: scales and correlations have
-    different natures and different natural parametrisations, so the product
+    different natures and different natural parametrizations, so the product
     wrapper combines a diagonal structure and a correlation structure,
     eta = (eta_D, eta_R), with the product rule supplying the derivatives
     from the components'.
@@ -291,7 +291,7 @@ p, d and the free names; check_covstruct(s) is section 6.
     2 here.
 
 (f) block_diag(s1, s2, ...)  --  the composition the model layer actually
-    hands an optimiser: several random-effects terms, each with its own
+    hands an optimizer: several random-effects terms, each with its own
     structure, one block each. eta is the concatenation; derivatives are
     blockwise; free_names are prefixed per block. Flattens like
     tensor_basis() flattens, so the components of a composite are always the
@@ -300,7 +300,7 @@ p, d and the free names; check_covstruct(s) is section 6.
 (g) scaled_struct(P, link = log_link())  --  a FIXED matrix scaled by one
     free parameter, M(eta) = exp(eta) P. One free parameter, and the
     commonest penalty in semiparametric regression: P is a spline Gram
-    G_d from basis7, a difference penalty Delta' Delta, a GMRF neighbourhood
+    G_d from basis7, a difference penalty Delta' Delta, a GMRF neighborhood
     matrix, or the identity (which makes this the ridge). Everything is a
     constant times a power of lambda, so nothing needs deriving:
 
@@ -314,9 +314,9 @@ p, d and the free names; check_covstruct(s) is section 6.
     (rank/2) log lambda the stationary point is lambda = rank/(beta' P beta),
     whereas dropping the constant leaves a derivative of one sign and sends
     lambda to zero. This is the concrete form of the decision to KEEP the
-    normalising constant. (A spline's smoothing parameter still wants REML
-    rather than joint maximisation; the constant is what makes the quantity
-    exist, not what makes joint maximisation correct.)
+    normalizing constant. (A spline's smoothing parameter still wants REML
+    rather than joint maximization; the constant is what makes the quantity
+    exist, not what makes joint maximization correct.)
 
     P is required symmetric PSD and its rank is computed spectrally at
     construction. n_free = 0 is legal, giving a fully known matrix -- the
@@ -339,7 +339,7 @@ p, d and the free names; check_covstruct(s) is section 6.
     The rank of the sum is NOT the sum of the ranks, is not assumed, and is
     not read off the assembled matrix: for PSD components the null space of
     the sum is the intersection of the null spaces, so the rank and the null
-    basis come from the stacked, individually normalised components, once at
+    basis come from the stacked, individually normalized components, once at
     construction (section 1). Measured on a 32-column tensor-product penalty:
     the components have ranks 24 and 16, their sum has rank 28, and the sum of
     the ranks -- 40 -- is not even a possible answer. Two penalties each
@@ -348,7 +348,7 @@ p, d and the free names; check_covstruct(s) is section 6.
 
 Factor-analytic low rank (Lambda Lambda' + Psi) is NOT in v1: its
 identification constraints (which rotations are fixed, and how) are a
-modelling decision, and building it before a consumer states them would
+modeling decision, and building it before a consumer states them would
 freeze the wrong ones. Section 10.
 
 
@@ -378,7 +378,7 @@ class:
   - struct_dlogdet / struct_d2logdet through the trace identities of
     section 2 applied to the (possibly numerical) derivative matrices;
   - struct_free by Cholesky-based inversion where the family's map makes it
-    direct, and refused otherwise: a generic optimisation-based inverse would
+    direct, and refused otherwise: a generic optimization-based inverse would
     return a plausible eta for a matrix outside the set, which is a silent
     wrong answer of the kind the toolkit refuses.
 
@@ -412,7 +412,7 @@ it is given, and truncated() chooses between its continuous and discrete
 classes the same way. A "2" suffix was considered and rejected: a name should
 be its own definition, and mvgaussian2_distrib() is not.
 
-The precision form is the one to prefer where the modelling allows it, and
+The precision form is the one to prefer where the modeling allows it, and
 the reason is arithmetic rather than taste (section 2): the density, the
 score and the Hessian in eta are multiplications there and solves in the
 covariance form, and the mixed block between the mean and the matrix
@@ -424,7 +424,7 @@ get wrong. BOTH forms require FULL RANK, for two different reasons that land
 in the same place: a singular Sigma gives a degenerate law supported on a
 subspace, with no density with respect to Lebesgue measure, while a singular
 Omega gives exp(-x' Omega x / 2) flat along the null space, which does not
-normalise -- the intrinsic GMRF, improper by construction. So the set of
+normalize -- the intrinsic GMRF, improper by construction. So the set of
 structures a multivariate gaussian may take is the same on either side, and
 it is NOT the case that the precision form is the permissive one.
 
@@ -447,7 +447,7 @@ What CAN be consumed immediately, without touching distributions7:
 
   - penalties7's QUADRATIC branch, which is the first and largest of its
     three: the penalty beta' P(eta) beta with P a structure, its
-    log-(pseudo-)determinant -- the normalising constant this session decided
+    log-(pseudo-)determinant -- the normalizing constant this session decided
     to KEEP -- and the derivatives in eta for estimating the penalty's own
     parameters. scaled_struct covers ridge and every single-smoothing-
     parameter spline penalty; sum_struct covers the anisotropic tensor
@@ -535,7 +535,7 @@ keep passing next to both.
     thing: a membership question is about the matrix, not about whichever
     arithmetic was performed on it.
 
-7g. struct_free is exact-or-refused, never optimisation-based (section 4).
+7g. struct_free is exact-or-refused, never optimization-based (section 4).
 
 7h. A precision and a covariance are ONE class, distinguished by the declared
     rank, not two parallel hierarchies. The role is not a property of the
@@ -601,7 +601,7 @@ Phase 2 -- correlations and composition.  ** NEXT **
     (tanh saturation, log-diagonal overflow) written alongside.
 
 Phase 3 -- the likelihood byproducts, hardened.
-    logdet/solve/factor exactness at scale, boundary behaviour (near-singular
+    logdet/solve/factor exactness at scale, boundary behavior (near-singular
     M, large p), and the vignette: defining a structure from eta -> M alone,
     then adding closed forms one generic at a time -- the defining-a-basis
     template.
@@ -629,7 +629,7 @@ the writing rather than in the plan, and are now contracts:
 
   - free_names, frozen: log_cholesky gives `log_L1 ... log_Lp` for the diagonal
     and `L2.1, L3.1, L3.2, ...` below it, column by column. The log appears in
-    the diagonal names because there it IS the parametrisation, while
+    the diagonal names because there it IS the parametrization, while
     diag_struct's names are `d1...dp` with no link in them, because there the
     link is an argument and baking it into a name would make the name depend on
     a choice the caller made.
@@ -670,13 +670,13 @@ Two things the writing exposed:
     consumer exists.
   - Factor-analytic low rank (Lambda Lambda' + Psi): waits for the consumer
     to state the identification constraints.
-  - The matrix logarithm parametrisation (Sigma = expm(A), A symmetric):
+  - The matrix logarithm parametrization (Sigma = expm(A), A symmetric):
     mathematically clean, computationally dear (every derivative needs the
     Frechet derivative of expm); add only if a consumer shows log-Cholesky
     failing it.
   - Toeplitz, banded, tapered structures: straightforward under the same
     contract, none has a consumer yet.
-  - SPARSE STORAGE of a precision (Matrix package, GMRF neighbourhood
+  - SPARSE STORAGE of a precision (Matrix package, GMRF neighborhood
     matrices at large p). The singular precision itself is now v1 -- section
     3(g,h) -- but its representation is dense there. Sparsity is a storage
     decision that interacts with modelterms7's choice of design-matrix type,
@@ -689,14 +689,14 @@ Two things the writing exposed:
   - struct_invert(s): the structure of the inverse, where the family is
     closed under inversion in closed form (diagonal, compound symmetry, and
     unstructured SPD through a Cholesky of the inverse) and a refusal where
-    it is not (AR(1), banded). Useful the moment a consumer parametrises one
+    it is not (AR(1), banded). Useful the moment a consumer parametrizes one
     side and reports the other -- marginal variances from a fitted precision,
     say -- and speculative until then.
 
   - struct_dinverse / struct_d2inverse: the derivatives of M^{-1}, which the
-    COVARIANCE parametrisation of a multivariate gaussian needs at second
+    COVARIANCE parametrization of a multivariate gaussian needs at second
     order and which follow mechanically from the identity in section 2. Not
-    built now because the precision parametrisation avoids them entirely and
+    built now because the precision parametrization avoids them entirely and
     is the one to prefer; build them when a consumer insists on the
     covariance side.
 

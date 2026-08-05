@@ -13,37 +13,37 @@ and derivatives to fourth order, and operators that turn one distribution into
 another. None of that estimated anything. This section closes the gap with the simplest problem that exercises the
 machinery end to end. Given a sample $y_1, \dots, y_n$, independent and
 identically distributed from a member of one of the families in the
-catalogue, the task is to estimate the parameters by maximum likelihood and
+catalog, the task is to estimate the parameters by maximum likelihood and
 to report their uncertainty. There is no regression here — no
 covariates and no design matrix — and deliberately so: `fit_distrib()` is the
 smallest complete consumer of the toolkit, and every component it uses will be
 used in the same way by a regression front end.
 
-### Maximising on the unconstrained scale {#sec-fit-scale}
+### Maximizing on the unconstrained scale {#sec-fit-scale}
 
 The total log-likelihood of the sample is
 
 $$\ell(\theta) = \sum_{i=1}^{n} \log f(y_i; \theta),$$
 
 a function of the $p$-vector $\theta$, each of whose components is confined to
-its own open interval $\Theta_j$. Maximising over a product of open intervals is an awkward problem for a
-general optimiser. Every proposal must be checked for admissibility, and a
+its own open interval $\Theta_j$. Maximizing over a product of open intervals is an awkward problem for a
+general optimizer. Every proposal must be checked for admissibility, and a
 step that overshoots must be shortened rather than taken. Near a boundary the
-objective is unbounded or undefined, so the optimiser spends its effort on
+objective is unbounded or undefined, so the optimizer spends its effort on
 the constraint instead of on the likelihood.
 
-The toolkit avoids the problem by never optimising in $\theta$. Each parameter
+The toolkit avoids the problem by never optimizing in $\theta$. Each parameter
 carries a link, and the estimation is carried out in
 
 $$\eta = \big(g_1(\theta_1), \dots, g_p(\theta_p)\big) \in \mathbb{R}^{p},$$
 
 which is unconstrained by construction. The reparameterisation costs nothing,
 because maximum likelihood is invariant under reparameterisation: if
-$\hat\eta$ maximises $\ell(h(\eta))$, then $h(\hat\eta)$ maximises
+$\hat\eta$ maximizes $\ell(h(\eta))$, then $h(\hat\eta)$ maximizes
 $\ell(\theta)$, the two problems having the same stationary points wherever
 $h$ is a diffeomorphism, which @def-link guarantees because $h'$ never
 vanishes. The gain is that admissibility becomes automatic: whatever the
-optimiser proposes, $h(\eta)$ lies inside the domain, because the inverse link
+optimizer proposes, $h(\eta)$ lies inside the domain, because the inverse link
 is a bijection onto $\Theta$. There is no rejection step and no boundary to
 guard.
 
@@ -60,7 +60,7 @@ log-likelihood is the sum of the individual contributions.
 
 ### Fisher scoring {#sec-fit-scoring}
 
-The optimisation itself is not written here. `fit_distrib()` assembles the
+The optimization itself is not written here. `fit_distrib()` assembles the
 objective, the score and the information on the link scale and hands them to
 `optimizers7`, whose methods are the subject of @sec-optimizers7. What this
 section describes is the choice of matrix to invert, which belongs to the
@@ -78,10 +78,10 @@ observed information $-H(\eta)$; **Fisher scoring** uses the expected
 information $-\mathbb{E}[H(\eta)]$; **BFGS** uses neither, and builds an
 approximation from successive gradients. The first two are the same algorithm
 of @sec-newton with a different second-order argument, so Fisher scoring
-requires no separate implementation --- which is why it is not an optimiser
+requires no separate implementation --- which is why it is not an optimizer
 but an object saying which matrix to use, `fisher_scoring()`, handed to the
 same argument that would otherwise carry `optimizers7::newton()` or
-`optimizers7::lbfgs()`. What that object does carry, and an optimiser could
+`optimizers7::lbfgs()`. What that object does carry, and an optimizer could
 not, is how the expected information is to be obtained when the family has no
 closed form for it. They are treated together in @green1984,
 whose presentation of scoring as iteratively reweighted least squares is the
@@ -100,7 +100,7 @@ link scale as well, and the step it computes is an ascent direction without
 any repair. The observed Hessian carries no such guarantee: away from the
 optimum, $-H$ can fail to be positive definite, and the raw Newton step can
 then point downhill, which is why @sec-newton floors the eigenvalues of the
-matrix it inverts. This comparison concerns the behaviour of the iterations,
+matrix it inverts. This comparison concerns the behavior of the iterations,
 not the quality of the estimators; at the optimum the two informations agree
 in expectation.
 
@@ -112,9 +112,9 @@ ascent direction, a sufficiently small $s$ succeeds in exact arithmetic, so the
 iteration increases the log-likelihood at every step, and a step that would
 enter a region where the density overflows is simply not taken.
 
-The quantity actually handed to the optimiser is not the log-likelihood but
+The quantity actually handed to the optimizer is not the log-likelihood but
 the log-likelihood per observation, $\ell(\eta)/n$, with the score and the
-information divided by $n$ as well. The maximiser is unchanged, and so is
+information divided by $n$ as well. The maximizer is unchanged, and so is
 every Newton step, since the factor cancels between the inverse Hessian and
 the gradient. What changes is the meaning of a threshold. A score is a sum of
 $n$ terms, so a fixed bound on $\max_j \lvert U_j \rvert$ asks a sample of ten
@@ -126,7 +126,7 @@ $$\max_j \left\lvert \frac{U_j(\eta)}{n} \right\rvert < \texttt{tol},$$
 
 which is the stopping rule `crit_grad()` of @sec-optimizers7, an object the
 caller can replace rather than a comparison written inside the iteration. The
-tolerance is the rule's own, and the iteration limit the optimiser's, so both
+tolerance is the rule's own, and the iteration limit the optimizer's, so both
 are set on the method rather than beside it: the fit contributes the objective
 and not the terms on which the search over it ends. The
 log-likelihood, the information and the standard errors are all recomputed
@@ -196,7 +196,7 @@ c(iterations = f4@iterations, converged = f4@converged)
 The chosen method can still fail from a given start: by exceeding its
 iteration budget, by producing a non-finite step, or by raising an error,
 which a numerically approximated expected information can do when its
-quadrature diverges at an unfavourable parameter value. In that case the fit
+quadrature diverges at an unfavorable parameter value. In that case the fit
 falls back to BFGS from the same start before moving to the next. BFGS is
 slower and uses no second-order information, but it makes fewer demands on the
 objective, and a slow answer is preferable to none.
@@ -207,14 +207,14 @@ of the same status the one with the higher likelihood. Only when every start
 has failed by every route does `fit_distrib()` stop, and it then reports the
 failure and asks for a starting value instead of returning an unusable result.
 
-The fallback belongs to the two named second-order strategies. An optimiser
+The fallback belongs to the two named second-order strategies. An optimizer
 supplied explicitly is used as given and is never replaced, since substituting
 a different algorithm for the one the caller chose would report a fit obtained
 by a method other than the one requested.
 
 ### The delta method and confidence intervals {#sec-fit-delta}
 
-The optimiser returns $\hat\eta$ and the information $I_{\hat\eta}$, so the
+The optimizer returns $\hat\eta$ and the information $I_{\hat\eta}$, so the
 asymptotic variance on the link scale is the inverse,
 $V_\eta = I_{\hat\eta}^{-1}$. The user needs the uncertainty of
 $\hat\theta = h(\hat\eta)$, and the diagonal Jacobian provides the conversion.
@@ -243,12 +243,12 @@ leave the parameter's domain, because $h_j$ maps into $\Theta_j$ and nowhere
 else: a variance never receives a negative lower limit, and a probability
 never receives an upper limit above one, regardless of the sample size. And
 the interval is not symmetric about $\hat\theta_j$, correctly so, because
-symmetry on the $\theta$ scale is an artefact of a linear approximation rather
+symmetry on the $\theta$ scale is an artifact of a linear approximation rather
 than a property of the likelihood.
 
 One implementation detail follows from the fact that @def-link does not
 require links to be increasing. A decreasing link — the upper-bounded
-$g(\theta) = \log(u - \theta)$ is the example in the catalogue — sends the
+$g(\theta) = \log(u - \theta)$ is the example in the catalog — sends the
 lower end of the $\eta$-interval to the upper end of the $\theta$-interval, so
 the two mapped endpoints are sorted before being reported. Code that assumed
 an increasing link would silently return an interval with its ends reversed.
@@ -279,8 +279,8 @@ confint(fit, scale = "link")   # symmetric here
 confint(fit)                   # its image under the inverse link
 ```
 
-Because the optimisation is delegated rather than written in, `method` accepts
-any optimiser of @sec-optimizers7 in place of one of the three named
+Because the optimization is delegated rather than written in, `method` accepts
+any optimizer of @sec-optimizers7 in place of one of the three named
 strategies, and the object carries its own stopping rule with it:
 
 ```{r}
@@ -296,7 +296,7 @@ vapply(fits, function(f) as.numeric(logLik(f)), numeric(1))
 vapply(fits, function(f) f@method, character(1))
 ```
 
-The three agree on the maximised log-likelihood, which is the statement that
+The three agree on the maximized log-likelihood, which is the statement that
 matters: the algorithm decides how the optimum is reached, not where it is.
 
 The relation between the two variance matrices is the diagonal Jacobian
@@ -310,7 +310,7 @@ J <- vapply(seq_along(d@params), function(i) {
 diag(J) %*% fit@vcov_eta %*% diag(J)
 ```
 
-The maximised log-likelihood, the information criteria, the number of
+The maximized log-likelihood, the information criteria, the number of
 iterations and the method actually used are all carried on the fitted object.
 The method recorded may differ from the one requested when the fallback was
 taken. The `simulate()` and `plot()` methods compare the fitted distribution

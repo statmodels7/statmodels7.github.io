@@ -1,10 +1,10 @@
-# The distribution catalogue, and the certificates for Chapter 3.
+# The distribution catalog, and the certificates for Chapter 3.
 #
 # As in R/link-formulas.R, each record keeps the printed formula and an
 # independent R transcription of it side by side. The transcription is written
 # from the density as displayed in the book, using only lgamma/lbeta/besselK and
 # arithmetic -- never the `d*` function the package itself calls -- so that the
-# comparison actually tests the parametrisation rather than restating it.
+# comparison actually tests the parametrization rather than restating it.
 
 DISTRIBS <- list()
 
@@ -107,7 +107,7 @@ DISTRIBS$laplace <- list(
   moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = 2b^{2}",
   ld = function(y, th) -log(2 * th$b) - abs(y - th$mu) / th$b,
   grid = function(th) seq(-8, 9, length.out = 40),
-  note = "The one non-regular member of the catalogue: $\\ell$ has a kink at
+  note = "The one non-regular member of the catalog: $\\ell$ has a kink at
   $y = \\mu$, the observed information in $\\mu$ is identically zero, and the
   Fisher information $1/b^{2}$ can only be recovered from the score. See
   @sec-nonregular. `params_smooth` records this, and it is the reason that
@@ -131,7 +131,7 @@ DISTRIBS$pseudohuber <- list(
     -D - lognorm
   },
   grid = function(th) seq(-8, 9, length.out = 40),
-  note = "The normalising constant is exact, not approximate:
+  note = "The normalizing constant is exact, not approximate:
   $\\int_{-\\infty}^{\\infty} e^{-\\sqrt{a^{2}+z^{2}}}\\,dz = 2aK_{1}(a)$, so with
   $a = \\sqrt{\\nu}$ and $dy = \\sigma\\,dz$ the constant is
   $2\\sigma\\sqrt{\\nu}K_{1}(\\sqrt{\\nu})$. The Bessel terms are
@@ -157,9 +157,9 @@ DISTRIBS$gamma <- list(
     a * log(b) - lgamma(a) + (a - 1) * log(y) - b * y
   },
   grid = function(th) seq(0.05, 15, length.out = 40),
-  note = "**Not** the base-R parametrisation. `dgamma()` takes a shape and a rate;
+  note = "**Not** the base-R parametrization. `dgamma()` takes a shape and a rate;
   this object takes the **mean and the variance** directly, which is what a
-  modelling framework wants, since it is $\\mu$ that gets a linear predictor. The
+  modeling framework wants, since it is $\\mu$ that gets a linear predictor. The
   map is $\\alpha = \\mu^{2}/\\sigma^{2}$, $\\beta = \\mu/\\sigma^{2}$, whence
   $\\alpha/\\beta = \\mu$ and $\\alpha/\\beta^{2} = \\sigma^{2}$ as claimed."
 )
@@ -176,7 +176,7 @@ DISTRIBS$invgauss <- list(
     -0.5 * log(2 * pi * th$phi * y^3) - (y - th$mu)^2 / (2 * th$phi * th$mu^2 * y)
   },
   grid = function(th) seq(0.05, 12, length.out = 40),
-  note = "In the **dispersion** parametrisation, $\\phi = 1/\\lambda$ where
+  note = "In the **dispersion** parametrization, $\\phi = 1/\\lambda$ where
   $\\lambda$ is the shape used by some references. The variance function
   $\\phi\\mu^{3}$ is what makes the inverse-square link canonical here (see
   @sec-link-inverse-sq)."
@@ -215,7 +215,7 @@ DISTRIBS$beta <- list(
     (a - 1) * log(y) + (b - 1) * log1p(-y) - (lgamma(a) + lgamma(b) - lgamma(a + b))
   },
   grid = function(th) seq(0.02, 0.98, length.out = 40),
-  note = "The **mean-precision** parametrisation of beta regression, not the
+  note = "The **mean-precision** parametrization of beta regression, not the
   `shape1`/`shape2` one: $a = \\mu\\phi$, $b = (1-\\mu)\\phi$, so
   $a/(a+b) = \\mu$ and $a+b = \\phi$. Larger $\\phi$ means less dispersion."
 )
@@ -282,7 +282,7 @@ DISTRIBS$negbin <- list(
       y * (log(th$mu) - log(th$theta + th$mu))
   },
   grid = function(th) 0:40,
-  note = "The NB2 parametrisation: $\\theta$ is the size, and dispersion
+  note = "The NB2 parametrization: $\\theta$ is the size, and dispersion
   **decreases** as $\\theta$ grows, with the Poisson recovered as
   $\\theta \\to \\infty$. The excess kurtosis is
   $6/\\theta + \\theta/(\\mu(\\theta+\\mu))$. That expression is worth stating
@@ -294,7 +294,7 @@ DISTRIBS$negbin <- list(
 
 
 # ---------------------------------------------------------------------------
-# Catalogue rendering
+# Catalog rendering
 # ---------------------------------------------------------------------------
 
 # hess_pairs() is internal to distributions7; the book needs the same map, so it
@@ -315,7 +315,7 @@ fmt_bounds <- function(b, discrete) {
   }
 }
 
-catalogue_table <- function() {
+catalog_table <- function() {
   rows <- lapply(names(DISTRIBS), function(id) {
     d <- DISTRIBS[[id]]$obj()
     is_disc <- S7::S7_inherits(d, discrete_distrib)
@@ -608,7 +608,7 @@ link_scale_certificate <- function(ids = c("gaussian", "gamma", "beta", "negbin"
 
 
 # ---------------------------------------------------------------------------
-# Certificate: check_distrib() on the whole catalogue
+# Certificate: check_distrib() on the whole catalog
 # ---------------------------------------------------------------------------
 
 distrib_certificate <- function(n = 40, nsim = 5e4, orders = 1:4, seed = 20260726) {
@@ -640,7 +640,7 @@ distrib_certificate <- function(n = 40, nsim = 5e4, orders = 1:4, seed = 2026072
 # Everything here is generated from the package's own constructors, so the
 # tables cannot drift from the code: a family added to the package appears,
 # a renamed one changes, and the gate below fails if a numbered name promises
-# a parametrisation that does not exist.
+# a parametrization that does not exist.
 # ---------------------------------------------------------------------------
 
 # every univariate constructor the package exports, by its exported name
@@ -665,7 +665,7 @@ ALL_FAMILY_CTORS <- c(
   if ("size" %in% names(formals(f))) f(size = 10) else f()
 }
 
-full_catalogue_table <- function() {
+full_catalog_table <- function() {
   rows <- lapply(ALL_FAMILY_CTORS, function(ctor) {
     d <- .family_object(ctor)
     is_disc <- S7::S7_inherits(d, discrete_distrib)
@@ -688,7 +688,7 @@ numbered_families_table <- function() {
                    stringsAsFactors = FALSE)
   agg <- aggregate(name ~ stem, df, function(x) paste(sprintf("`%s`", x),
                                                       collapse = ", "))
-  names(agg) <- c("family", "parametrisations")
+  names(agg) <- c("family", "parametrizations")
   agg[order(agg$family), ]
 }
 
@@ -719,15 +719,15 @@ numbered_families_table <- function() {
   missing <- setdiff(exported, ALL_FAMILY_CTORS)
   extra <- setdiff(ALL_FAMILY_CTORS, exported)
   if (length(missing)) {
-    out <- c(out, sprintf("families missing from the catalogue: %s",
+    out <- c(out, sprintf("families missing from the catalog: %s",
                           paste(missing, collapse = ", ")))
   }
   if (length(extra)) {
-    out <- c(out, sprintf("catalogue names not exported: %s",
+    out <- c(out, sprintf("catalog names not exported: %s",
                           paste(extra, collapse = ", ")))
   }
 
-  # two parametrisations of one family are the same law: equal densities on
+  # two parametrizations of one family are the same law: equal densities on
   # a grid, through the map each pair documents
   y <- c(0.3, 1.1, 2.7, 5)
   a <- distrib_pdf(distributions7::gaussian1_distrib(), y,
@@ -737,7 +737,7 @@ numbered_families_table <- function() {
   cc <- distrib_pdf(distributions7::gaussian3_distrib(), y,
                     list(mu = 1, tau = 0.25), log = TRUE)
   if (max(abs(a - b), abs(a - cc)) > 1e-12) {
-    out <- c(out, "the three gaussian parametrisations are not the same law")
+    out <- c(out, "the three gaussian parametrizations are not the same law")
   }
 
   out
@@ -794,7 +794,7 @@ numbered_families_table <- function() {
 assert_numbering_ok <- function() {
   problems <- c(.certify_numbering(), .certify_moments())
   if (length(problems)) {
-    stop("Section 3.1's family catalogue disagrees with the package:
+    stop("Section 3.1's family catalog disagrees with the package:
   ",
          paste(problems, collapse = "
   "), call. = FALSE)
@@ -805,7 +805,7 @@ assert_numbering_ok <- function() {
 assert_reparametrize_ok <- function() {
   problems <- .certify_reparametrize_twin()
   if (length(problems)) {
-    stop("Section 3.2's reparametrisation claims disagree with the package:
+    stop("Section 3.2's reparametrization claims disagree with the package:
   ",
          paste(problems, collapse = "
   "), call. = FALSE)

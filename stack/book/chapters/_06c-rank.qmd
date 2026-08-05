@@ -12,7 +12,7 @@ source("R/parameter-certificates.R")
 A covariance matrix must be positive definite for the density it describes to
 exist, and a precision matrix must be positive definite for the same reason: a
 singular covariance puts the whole distribution on a subspace, and a singular
-precision leaves the density unnormalisable. Both readings of a multivariate
+precision leaves the density unnormalizable. Both readings of a multivariate
 gaussian therefore require full rank, and the distribution of @sec-mvgaussian
 refuses a rank-deficient parameter.
 
@@ -23,7 +23,7 @@ penalty is that $P$ is singular: its null space is the set of functions the
 penalty leaves alone. A second-difference penalty on a spline has the
 constants and the straight lines in its null space, which is what makes the
 penalty shrink towards a straight line rather than towards zero. That prior is
-improper, and its impropriety is the modelling assumption rather than a defect.
+improper, and its impropriety is the modeling assumption rather than a defect.
 
 The package therefore admits rank-deficient matrices, and everything a
 consumer asks of one has to be redefined so that it still means something.
@@ -38,9 +38,9 @@ $$
 \log|M|_{+} \;=\; \sum_{j : \, \nu_j \neq 0} \log \nu_j ,
 $$ {#eq-pseudodet}
 
-which is the normalising constant of the proper gaussian the penalty induces
+which is the normalizing constant of the proper gaussian the penalty induces
 on the complement of its null space. One generic returns both, because a
-consumer asks the same question of either matrix — what normalising constant
+consumer asks the same question of either matrix — what normalizing constant
 does this contribute — and the object knows which answer is right, through the
 rank it declares.
 
@@ -48,7 +48,7 @@ The gradient identity @eq-parameter-dlogdet survives with the Moore-Penrose
 inverse in place of $M^{-1}$, and for the scaled family of
 @sec-parameter-scaled it collapses to the constant of @eq-scaled-logdet.
 
-That constant is what makes the scale estimable. The penalised objective seen
+That constant is what makes the scale estimable. The penalized objective seen
 as a negative log posterior contributes
 
 $$
@@ -63,7 +63,7 @@ $$ {#eq-scaled-lambda}
 
 Dropping the second term of @eq-scaled-objective, which is what a treatment
 that regards the penalty as a penalty rather than as a prior does, leaves a
-derivative of one sign and sends $\lambda$ to zero. The normalising constant is
+derivative of one sign and sends $\lambda$ to zero. The normalizing constant is
 therefore kept, and the rank in @eq-scaled-lambda is the reason the rank has
 to be right.
 
@@ -78,7 +78,7 @@ beta <- as.numeric(rnorm(8))
 quad <- drop(t(beta) %*% p_mat %*% beta)
 
 # the stationary point of (lambda/2) b'Pb - (r/2) log lambda, and the same
-# point found by minimising the objective numerically
+# point found by minimizing the objective numerically
 obj <- function(lambda) 0.5 * lambda * quad - 0.5 * pen@rank * log(lambda)
 c(closed_form = pen@rank / quad,
   numerical = stats::optimize(obj, c(1e-8, 1e8))$minimum)
@@ -92,7 +92,7 @@ statement. Counting eigenvalues above a relative tolerance is the obvious
 route, and it fails on exactly the object this package exists to carry.
 
 Consider a tensor-product penalty $\lambda_1 P_1 + \lambda_2 P_2$ on a
-$4 \times 8$ grid of coefficients, where $P_1$ penalises second differences
+$4 \times 8$ grid of coefficients, where $P_1$ penalizes second differences
 along one margin and $P_2$ along the other. Its true rank is 28 out of 32.
 Counting eigenvalues of the assembled matrix above a relative tolerance gives
 28 while the two smoothing parameters are comparable and 24 once they are ten
@@ -106,7 +106,7 @@ semidefinite matrices is the **intersection** of their null spaces, since
 $\beta^\top(P_1 + P_2)\beta = 0$ with both terms non-negative forces both to
 vanish. The intersection is the null space of the stacked matrix
 $\begin{pmatrix} P_1 \\ P_2 \end{pmatrix}$, so the rank comes from the
-components, individually normalised and stacked, and never from an assembled
+components, individually normalized and stacked, and never from an assembled
 combination. Membership of the null space is then tested against the stored
 basis rather than by counting eigenvalues again.
 
@@ -141,7 +141,7 @@ The count moves and the null space does not. The residual $\lVert M N \rVert /
 across the whole range, which is the statement that the four directions really
 are annihilated by the penalty at every combination of smoothing parameters.
 
-The same doubt applies wherever a Cholesky factorisation is used to decide a
+The same doubt applies wherever a Cholesky factorization is used to decide a
 branch. On a matrix with an exactly zero eigenvalue the pivot that ought to be
 zero comes out positive or negative according to rounding, so a
 `tryCatch(chol(...))` used as a rank test answers differently on different
@@ -153,7 +153,7 @@ performed on it.
 
 The remaining quantity is the solve, and it is the one that is refused rather
 than redefined. A Moore-Penrose solve $M^{+}B$ exists and is easy to compute,
-but no consumer of an improper prior asks for it. What a penalised fit inverts
+but no consumer of an improper prior asks for it. What a penalized fit inverts
 is $X^\top X + \lambda P$, which is non-singular even when $P$ is not, and
 which the consumer assembles from the penalty and its own design; what it asks
 of the penalty itself is the quadratic form $\beta^\top P \beta$ and the log

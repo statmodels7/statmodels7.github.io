@@ -17,11 +17,11 @@ into `site/` and commit it there; `site/sync-stack-files.sh` does exactly that.
 ## 0. How to talk about it
 
 Get this right before writing any prose for a README, a site or a paper. The
-positioning is **not** "a framework with exact derivatives and optimisation on the
+positioning is **not** "a framework with exact derivatives and optimization on the
 unconstrained scale" — that is a description of the machinery, and it buries the point.
 
 The point is that **these things get rewritten in every package that needs them**.
-Almost every R modelling package carries its own distributions and link functions,
+Almost every R modeling package carries its own distributions and link functions,
 written as internal helper functions — a `switch` on a character string, closures
 private to the package that owns them. They are not objects, so nothing outside can
 reuse them, extend them, or ask them for anything their author did not happen to need.
@@ -29,27 +29,27 @@ And since each package writes only what it needs, that is usually the density an
 score, sometimes the Hessian, and nothing beyond.
 
 A Gamma is a fixed mathematical object. It should be written once, correctly, with
-everything a modelling routine could want already computed — third and fourth
+everything a modeling routine could want already computed — third and fourth
 derivatives, derivatives with respect to the response, derivatives with respect to the
 unconstrained parameters — and then everyone builds on top. That is what this toolkit is:
-infrastructure to be reused, not another modelling package.
+infrastructure to be reused, not another modeling package.
 
 Extension matters just as much in the telling: a toolkit that only worked for the fourteen
 distributions it ships with would have solved nothing.
 
 The same argument is what `optimizers7` is for, and it is worth having the sentence
-ready. Almost every R package that fits a model carries its own optimiser, written
+ready. Almost every R package that fits a model carries its own optimizer, written
 inside the function that needs it — a loop, a `while (!converged)`, a tolerance compared
 against whatever quantity the author had to hand. The stopping rule, which decides what
 the whole thing means by *finished*, is a number buried three levels down. Lead with
 that, not with the list of algorithms.
 
-Giovanni corrected an earlier draft that led with the link scale and the optimisation
+Giovanni corrected an earlier draft that led with the link scale and the optimization
 story. Lead with the reuse argument.
 
 ## 1. What this is
 
-`statmodels7` is an umbrella for a statistical modelling toolkit built entirely on the
+`statmodels7` is an umbrella for a statistical modeling toolkit built entirely on the
 **S7** object system. The naming convention is simply that **every package name ends
 in 7**, the 7 being S7 — `linkfunctions7`, `distributions7`, `statmodels7`. Until
 2026-08-03 the convention also required a plural noun; Giovanni dropped that when
@@ -62,18 +62,18 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 |---|---|
 | `numericals7` | the numerical layer at the ROOT of the toolkit (created 2026-08-05): jets (forward AD to 4th order, moved from parameters7, with Ops/Math dispatch), the enumerations (`set_partitions`, `tuple_indices`, `compositions` -- ONE copy each), the stencil library (`fd_weights`/`fd_offsets`/`fd_step`/`fd_derivative`), `quad_vec`/`series_vec` (quadrature and series vectorized over the parameters, convergence on the SUM of a row's panel errors), and the special functions (`mills_ratio`, `owen_t`, `bessel_i_ratio` with derivatives and inverse). No S7 classes on purpose: these are functions |
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links; stencils delegate to numericals7 |
-| `distributions7` | 38 univariate families -- ONE NAME PER PARAMETRISATION (2026-08-05, Giovanni): 12 numbered groups (gaussian1/2/3, gamma1/2, negbin1/2 after Cameron-Trivedi, weibull1/3 after gamlss WEI/WEI3 with weibull2 deliberately empty, student_t1/2, skewnormal1/2, vonmises1/2, invgauss1/2, lognormal1/2, beta1/2, betabinom1/2, gengamma1/2) -- with exact score and information, closed-form moments where they exist, `reparametrize()` (Faa di Bruno over partitions, user maps differentiated by numericals7 jets), `folded()`, wrappers, transformations, MLE; **4 multivariate families** -- gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does. expectation() and the cdf fallback run on numericals7's batched engines |
-| `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrisation, starting values that need not be written out, and multistart parallel by default |
-| `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalisation, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
+| `distributions7` | 38 univariate families -- ONE NAME PER PARAMETRIZATION (2026-08-05, Giovanni): 12 numbered groups (gaussian1/2/3, gamma1/2, negbin1/2 after Cameron-Trivedi, weibull1/3 after gamlss WEI/WEI3 with weibull2 deliberately empty, student_t1/2, skewnormal1/2, vonmises1/2, invgauss1/2, lognormal1/2, beta1/2, betabinom1/2, gengamma1/2) -- with exact score and information, closed-form moments where they exist, `reparametrize()` (Faa di Bruno over partitions, user maps differentiated by numericals7 jets), `folded()`, wrappers, transformations, MLE; **4 multivariate families** -- gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does. expectation() and the cdf fallback run on numericals7's batched engines |
+| `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrization, starting values that need not be written out, and multistart parallel by default |
+| `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalization, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
 | `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, jets through Levinson-Durbin, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
 
-| `statmodels7` | the meta-package (2026-08-05, Giovanni asked for a tidyverse-style grouping). Installing it installs the five members and `library(statmodels7)` attaches them, reporting versions. `statmodels7_packages()`, `statmodels7_versions()`, `statmodels7_conflicts()`, `statmodels7_update()`. It is ALSO the destination package below: the modelling code lands here later, so nothing gets renamed |
+| `statmodels7` | the meta-package (2026-08-05, Giovanni asked for a tidyverse-style grouping). Installing it installs the five members and `library(statmodels7)` attaches them, reporting versions. `statmodels7_packages()`, `statmodels7_versions()`, `statmodels7_conflicts()`, `statmodels7_update()`. It is ALSO the destination package below: the modeling code lands here later, so nothing gets renamed |
 
-**Planned** — `modelterms7`, `penalties7`, and the modelling layer of
+**Planned** — `modelterms7`, `penalties7`, and the modeling layer of
 `statmodels7` itself, which assembles everything into models. That layer is the
-destination: a GAMLSS-like framework but far more organised, where
+destination: a GAMLSS-like framework but far more organized, where
 
-- every distribution parameter can be modelled, not just the mean;
+- every distribution parameter can be modeled, not just the mean;
 - optimizers are pluggable, and the user chooses frequentist or Bayesian;
 - users can define new model terms and drop them straight into formulas —
   `bs()`, `ps()`, `seg()`, `jump()`, `jseg()`, `ridge()`, `lasso()`, `glasso()`;
@@ -284,7 +284,7 @@ distribution. Each distribution file defines the S7 class, registers methods, an
 a constructor wrapper (`gaussian_distrib()`, `negbin_distrib()`, …) taking link functions
 from linkfunctions7.
 
-**Parameters** travel as a named list `theta`. Every generic normalises it through the
+**Parameters** travel as a named list `theta`. Every generic normalizes it through the
 internal `align_theta()`, which reorders by name, strips stray names off the values, and
 validates against `params_bounds` treated as **open** intervals.
 
@@ -323,7 +323,7 @@ expectation is a derivative of Gamma at 2, i.e. `E[u (log u)^k] =
 Gamma^(k)(2)`, assembled from polygammas at 2 by the moment-cumulant
 relations; the skew normal's expected values share the obstruction of its
 expected information and stay numerical. The four new families keep orders
-1-2 in vectorised R -- measured, a port would buy nothing: the gaussian
+1-2 in vectorized R -- measured, a port would buy nothing: the gaussian
 kernel costs 2.2 ms per gradient at n = 1e5 against weibull's 7.2, but
 weibull's own deriv4, already Rcpp, costs 12.2 -- the gap is the
 transcendentals per element, which C++ pays identically.
@@ -331,7 +331,7 @@ transcendentals per element, which C++ pays identically.
 The four new ones, and what is worth knowing about each:
 
 - **weibull** `(mu = scale, sigma = shape)`, gamlss's `WEI`. `mu` is NOT the
-  mean -- that is `mu*Gamma(1+1/sigma)`, and a mean parametrisation would make
+  mean -- that is `mu*Gamma(1+1/sigma)`, and a mean parametrization would make
   every derivative a derivative of the gamma function and of its inverse.
 - **gumbel** `(mu, sigma)`, for maxima. Location-scale with a FIXED shape: its
   skewness `12*sqrt(6)*zeta(3)/pi^3 = 1.1395` and excess kurtosis `12/5` are
@@ -351,7 +351,7 @@ The four new ones, and what is worth knowing about each:
   (`owen_t()`), one bounded 1-D quadrature per point, which beats the base
   class's semi-infinite integral of the density. Two things to know: the
   expected information is **singular at alpha = 0**, which is a property of the
-  parametrisation and not a defect, and the skewness the family can reach is
+  parametrization and not a defect, and the skewness the family can reach is
   bounded by 0.9953 -- which is the reason the skew t exists.
 - **skewt** `(mu, sigma, alpha, nu)`, the four-parameter family a
   location-scale-shape framework actually wants. Score and Hessian are closed
@@ -385,12 +385,12 @@ distribution — a density plus an atom — and declares that atom through
 
 `truncated(distrib, lower, upper)` restricts to an interval, either side optional, both
 endpoints **included**. It is the odd one out: it adds **no parameter** (the endpoints
-are constants, like a binomial's `size`), and instead adds a θ-dependent normalising
+are constants, like a binomial's `size`), and instead adds a θ-dependent normalizing
 constant `Z(θ) = F(u) − F(ℓ⁻)`. With `m_i = E_T[s_i]` and `M_ij = E_T[H_ij + s_i s_j]`,
 both expectations under the *truncated* law,
 
 ```
-d_i   l_T = s_i(y) - m_i                      (the parent's score, recentred)
+d_i   l_T = s_i(y) - m_i                      (the parent's score, recentered)
 d_ij  l_T = H_ij(y) - M_ij + m_i m_j
 E[d_ij l_T] = -Cov_T(s_i, s_j)                (2nd Bartlett identity)
 ```
@@ -410,7 +410,7 @@ of, `log L` for some θ-dependent `L`, so two partition sums cover all of them:
 Orders 1–2 fall out as special cases and reproduce the hand-written closed forms exactly
 (`w0(1-w0)`, `C_ij`, `M_ij - m_i m_j`), so the two derivations check each other. `L0` is
 **affine in zi**, which kills every block containing two or more zi's. For truncation each
-distinct block costs one quadrature, memoised across the partition sum.
+distinct block costs one quadrature, memoized across the partition sum.
 
 Two traps found while writing it, both worth keeping:
 - **`$` on a list does partial matching.** `d4[["mu_mu_mu"]]` is NULL but `d4$mu_mu_mu`
@@ -465,14 +465,14 @@ not an omission — see below.
 On gamma and beta: the shape direction is a derivative of the incomplete gamma/beta
 *in its parameter*, which is hypergeometric — there is no elementary expression. For
 the gamma the **rate** direction is elementary (`dF/dbeta = y f(y)/beta`), but the
-package parametrises by `(mu, sigma2)` and both of those involve the shape, so neither
+package parametrizes by `(mu, sigma2)` and both of those involve the shape, so neither
 is closed form. What does survive is an exact identity, worth keeping as a test:
 
 ```
 dF/dmu + (2 sigma2/mu) dF/dsigma2 = -y f(y) / mu
 ```
 
-the shape direction cancelling from the combination. The FD fallback delivers ~2e-10
+the shape direction canceling from the combination. The FD fallback delivers ~2e-10
 against the exact partial-expectation integral, so this is not a practical loss.
 
 ⚠️ **Test independence.** Because the implementations differ by kind, a test must use
@@ -489,7 +489,7 @@ log-density at the coefficients; joint estimation of coefficients and
 hyperparameters needs this block, and so does a profiled objective's gradient
 via the implicit function theorem -- `glmm_prova.R` wrote it by hand). Link
 scale is the gradient's own first-order diagonal chain rule, reused verbatim:
-the y-derivative does not interact with a reparametrisation of theta. The
+the y-derivative does not interact with a reparametrization of theta. The
 fallback differentiates `distrib_grad_y` (one FD layer on an analytic response
 gradient; when that is itself the fallback, the two differences act on
 DIFFERENT variables and commute into the four-point mixed stencil -- cross-
@@ -525,11 +525,11 @@ computed and the parameter-scale table is its image under `g^{-1}`, so printing
 both is what makes the mapping legible; `confint()` recomputes at any `level`
 from the stored estimate and standard error, without refitting.
 
-**`fit_distrib()` delegates its optimisation to `optimizers7`** (2026-08-03), and
+**`fit_distrib()` delegates its optimization to `optimizers7`** (2026-08-03), and
 distributions7 now Imports it. Until then the function did the exact thing the
 toolkit's positioning condemns in other packages: a hand-written scoring loop with
 its own step halving, the convergence test spelled out inline, and `stats::optim`
-for the BFGS branch — an *external* optimiser while the sibling package sat unused.
+for the BFGS branch — an *external* optimizer while the sibling package sat unused.
 Three things made the translation nearly literal:
 
 - **Fisher scoring is `newton()` with the expected information passed as `he`.**
@@ -546,10 +546,10 @@ Three things made the translation nearly literal:
   between 1e-15 and 1e-8. A test that asserted digits of the *point* rather
   than of the *objective* was what exposed the difference, and it had already
   gone red on macOS once;
-- `method` now also accepts **any optimiser object**, used as given.
+- `method` now also accepts **any optimizer object**, used as given.
 
-**The objective handed to the optimiser is `-l(eta)/n`** (2026-08-04, Giovanni's
-proposal), with the gradient and the Hessian divided by `n` too. The maximiser is
+**The objective handed to the optimizer is `-l(eta)/n`** (2026-08-04, Giovanni's
+proposal), with the gradient and the Hessian divided by `n` too. The maximizer is
 unchanged and so is every Newton step, since the factor cancels in `H^-1 g`; what
 changes is what a *threshold* means. `crit_grad(tol)` on a summed score asks a
 sample of ten million for an accuracy per observation ten million times finer than
@@ -569,32 +569,32 @@ Two things improved rather than merely moved: the line search requires sufficien
 decrease instead of mere non-decrease, and a non-PD Hessian is repaired by flooring
 its eigenvalues instead of abandoning the start, which `solve()` used to force.
 The BFGS fallback is kept for `"fisher"` and `"newton"` only — silently replacing
-an optimiser the caller *chose* would report a fit obtained by a different method.
+an optimizer the caller *chose* would report a fit obtained by a different method.
 
 ⚠️ **A catch-all for numerical failures must not swallow a configuration error.**
 The restart loop's `tryCatch(..., error = function(e) NULL)` exists to absorb a
 divergent quadrature in a numerically approximated expected information. It was
 also absorbing optimizers7's *refusal* of a stopping rule the method cannot
-evaluate, and reporting it as `"Optimisation failed from every starting value;
+evaluate, and reporting it as `"Optimization failed from every starting value;
 supply 'start'"` — naming the wrong cause entirely. `check_criterion()` is exported
 by optimizers7 for exactly this and is now called before the loop. The general
 shape: when a `tryCatch` is there for one class of failure, check what else reaches
 it. This was found by writing the test for the new feature, not by using it.
 
 **`fisher_scoring()`** (2026-08-04, Giovanni, after correcting an earlier
-attempt). `fit_distrib()` takes ONE argument saying how to optimise, and it
-takes either an `optimizers7` optimiser or `fisher_scoring(approx =, nsim =,
+attempt). `fit_distrib()` takes ONE argument saying how to optimize, and it
+takes either an `optimizers7` optimizer or `fisher_scoring(approx =, nsim =,
 criterion =, maxit =)`. The loose `approx`/`nsim` arguments are gone: how the
 expected information is approximated is a property of Fisher scoring, and had
-no business sitting next to optimisers that never look at it. Fisher scoring
+no business sitting next to optimizers that never look at it. Fisher scoring
 is not an algorithm of its own -- it is `newton()` with one matrix replaced --
-which is exactly why it is an object and not an optimiser:
+which is exactly why it is an object and not an optimizer:
 
 | `method =` | what it does |
 |---|---|
 | `fisher_scoring()` (default) | Newton with the **expected** information |
 | `optimizers7::newton()` | Newton with the **observed** Hessian |
-| `optimizers7::lbfgs()` etc. | whatever that optimiser does |
+| `optimizers7::lbfgs()` etc. | whatever that optimizer does |
 | `"fisher"` / `"newton"` / `"bfgs"` | kept as short names |
 
 A strategy chosen where it would be ignored is refused, through
@@ -604,11 +604,11 @@ that predicate answer backwards.
 **`maxit` and `tol` left `fit_distrib()`'s signature on 2026-08-04**
 (Giovanni: they *"dovrebbero essere tutti governati dagli optimizers"*), and
 he was right for a sharper reason than tidiness -- with `method = <an
-optimiser>` they were **silently ignored**, so a call setting both the
-optimiser's `maxit` and the fit's got no complaint and no effect from the
+optimizer>` they were **silently ignored**, so a call setting both the
+optimizer's `maxit` and the fit's got no complaint and no effect from the
 second. The budget and the stopping rule now live on the method: on an
-optimiser object, or on `fisher_scoring(criterion =, maxit =)`, and
-otherwise at `crit_grad()`'s and the optimiser's own defaults. The internal
+optimizer object, or on `fisher_scoring(criterion =, maxit =)`, and
+otherwise at `crit_grad()`'s and the optimizer's own defaults. The internal
 BFGS fallback inherits whatever the chosen method set. See section 7.
 
 **Multivariate distributions** (2026-08-03/04). Base class `multivariate_distrib`
@@ -657,7 +657,7 @@ whole and a scalar link cannot express it.
   What it buys is that **every expectation is an exact sum**: the mass over
   the support comes back 1 to 7.8e-16 and the closed-form information agrees
   with the summed observed Hessian to 3e-16, where an importance-sampling
-  check would only ever compare against Monte Carlo error. A normalisation
+  check would only ever compare against Monte Carlo error. A normalization
   wrong by a thousandth is caught by the sum and would not be by the sample.
 - **`mv_reference_draw()`** (new generic) supplies the proposal
   `check_distrib()` integrates the density against. The base method is the
@@ -668,7 +668,7 @@ whole and a scalar link cannot express it.
   not a rank test*, met a third time — and the estimate of an integral that
   is 1 comes back **2.0e-08**. A silently wrong number, not an error.
 - `check_distrib()` runs a **nine-check multivariate battery** (both Bartlett
-  identities, the moments, the normalisation by the route above). Two checks
+  identities, the moments, the normalization by the route above). Two checks
   are **emitted only when they apply**, following the univariate convention of
   twelve checks on a discrete family against thirteen on a continuous one:
   the response derivatives are skipped for a family with an enumerable support
@@ -742,7 +742,7 @@ whole and a scalar link cannot express it.
     set** and mapped back, exactly as `fit_distrib()` does for a univariate
     parameter: log for a standard deviation, Fisher's z for a correlation. On
     the raw scale a correlation's interval routinely exceeds 1;
-  - a **precision** parametrisation reports the same standard deviations and
+  - a **precision** parametrization reports the same standard deviations and
     correlations (they are properties of the law) and ADDS the readings that
     are its own: the conditional standard deviations `1/sqrt(Omega_jj)` and the
     partial correlations `-Omega_jk/sqrt(Omega_jj Omega_kk)`. At `p = 2` the
@@ -929,7 +929,7 @@ exactly 1. What was wrong was everything around them.
   mass the parent already puts at zero, so `P(Y=0) = ζ + (1-ζ)f(0) > f(0)`: it can only
   ever produce more zeros, and no single zero can be attributed to a mechanism.
   Zero-adjustment *replaces* it — the parent is truncated away from zero — so `π` is
-  free to be smaller than `f(0)` too, and the likelihood factorises into a binary part
+  free to be smaller than `f(0)` too, and the likelihood factorizes into a binary part
   and a positive part. Hence: inflation needs a discrete parent **with mass at zero**
   (a continuous one has `P(Y=0)=0` and nothing to inflate — that request is
   `zero_adjusted()`); adjustment takes either, and for a continuous parent needs no
@@ -1026,7 +1026,7 @@ exactly 1. What was wrong was everything around them.
   computed `log(-log(1 - theta))`, which for small theta rounds to `log(0) = -Inf` while
   the true value (-176.66 at theta = 1.9e-77) is perfectly representable. `log1p(-theta)`
   returns it, and the four forward derivatives that divide by that logarithm are finite
-  again. **`log1p` and `expm1` are not micro-optimisations here; they are the difference
+  again. **`log1p` and `expm1` are not micro-optimizations here; they are the difference
   between a number and an infinity.**
 - **`numDeriv`'s Richardson stencil reaches ~8e-4·|x|.** Any grid that comes closer than
   that to a domain boundary is differentiated using points outside the domain, which come
@@ -1034,7 +1034,7 @@ exactly 1. What was wrong was everything around them.
 - **Golden-section on a compactified scale is not accurate enough** for locating a mode.
   Its tolerance is expressed in the compactified variable, whose derivative can be
   enormous: with the tangent map `dy/dt ~ y²`, the default tolerance put the "mode" of a
-  density centred at 1000 off by 125 standard deviations. `find_pdf_anchor` now refines a
+  density centered at 1000 off by 125 standard deviations. `find_pdf_anchor` now refines a
   bracket on a grid and stops on the width measured in y.
 - **In R, `NA^0` is 1.** So `theta^(lambda - 2)` silently turns a missing parameter into a
   number as soon as lambda is 2. Any derivative that reduces to a constant must propagate
@@ -1085,7 +1085,7 @@ exactly 1. What was wrong was everything around them.
   earlier draft of this note quoted 26 at 1e8 and 16 at 1e12, from a different
   tolerance.) Smoothing parameters ten orders of
   magnitude apart are an ordinary fitted model, not a pathology. So a rank
-  comes from the **stacked, individually normalised components** (the null
+  comes from the **stacked, individually normalized components** (the null
   space of a sum of PSD matrices is the intersection of the null spaces) and
   membership is tested through the stored null basis, never by counting
   eigenvalues of the assembled matrix. General form of both instances: a
@@ -1226,7 +1226,7 @@ nothing). Decisions and mechanics worth keeping:
   recursively rather than transcribed.
 - **The multivariate gaussian's d3/d4 are now closed** on top of
   param_d3/param_d4 (0.14 s against the fallback's 3.9 s at p = 4, order 3),
-  both parametrisations validated at 4e-10/5e-7. The multivariate t stays on
+  both parametrizations validated at 4e-10/5e-7. The multivariate t stays on
   the disciplined fallback: nu blocks closure exactly as in the univariate
   skew t.
 
@@ -1241,12 +1241,12 @@ keeping.
   `fixed()` against something derived rather than delegated. Reach for that
   pairing whenever a new family happens to be a special case of an old one.
 - **`ifelse()` returns a result the length of its TEST.** A scalar shape in
-  the generalised Pareto's quantile collapsed a vector to one number, and the
+  the generalized Pareto's quantile collapsed a vector to one number, and the
   symptom was a fit converging to (0.5, -0.5) instead of (1.5, 0.3) --- three
   steps away, the random draws having been wrong. Anywhere a distribution
   branches on a PARAMETER rather than on the data, `ifelse` is a defect;
   recycle the test to the answer's length or branch explicitly.
-- **A Monte Carlo check can be the weaker reference.** The generalised
+- **A Monte Carlo check can be the weaker reference.** The generalized
   Pareto's closed-form information disagreed with a 4e5-draw Monte Carlo by 9%
   at `xi = -0.3`, and the formula was right: the second derivative blows up at
   the upper endpoint, so the mean converges slowly. Integrating on the
@@ -1255,7 +1255,7 @@ keeping.
   Monte Carlo disagree, ask which one has the heavier tail before believing
   the Monte Carlo.
 - **The condition for an expectation to exist is the condition for an integral
-  to converge, and it is worth deriving rather than quoting.** The generalised
+  to converge, and it is worth deriving rather than quoting.** The generalized
   Pareto's information exists exactly for `xi > -1/2` because on the
   probability scale the integrand grows like `(1-u)^(-2|xi|)`. `NA` is
   returned below that, which is the honest answer; the quadrature really does
@@ -1270,7 +1270,7 @@ keeping.
   and the ratio `I_1/I_0` needs no exponent at all. Same lesson as `log1p` and
   `expm1` above: the difference between a number and an infinity.
 - **A distribution function saturates well inside its support.** The
-  generalised gamma at a small shape has `F(y) = 1` exactly in double
+  generalized gamma at a small shape has `F(y) = 1` exactly in double
   precision at `y = 4`, so no quantile comes back from there. A round-trip
   test must be asked at points obtained FROM the quantile function, not at
   arbitrary ones.
@@ -1286,7 +1286,7 @@ fit <- fit_distrib(d, y, lbfgs())
 ```
 
 There was nothing wrong with S7 or with the meta-package. `fit_distrib()` is
-`(distrib, y, start, method, level, n_start)`, so an optimiser written
+`(distrib, y, start, method, level, n_start)`, so an optimizer written
 positionally lands in **`start`**, and `align_theta()` refuses to coerce it
 several frames down. `method = lbfgs()` fits in 22 iterations.
 
@@ -1332,7 +1332,7 @@ a mistake in the parsing cannot confirm itself.
 (Outside the toolkit there is one: `testthat` masks
 `distributions7::expectation`. The report's scope is the members, correctly.)
 
-Two things the check caught, both worth generalising:
+Two things the check caught, both worth generalizing:
 
 - **A shared test file carries a hidden dependency.** `test-docs.R` calls
   `rmarkdown::pandoc_available()`, and the five older packages satisfy that
@@ -1391,7 +1391,7 @@ already unrestricted the name is the plain quantity (`L2.1`, `S2.1`).
 `link_tag()` in `R/naming.R` maps a link CLASS — not its `link_name`, since
 a parametric link names itself `"bounded(lwr=-0.25, upr=1)"`, which cannot
 appear in an identifier. The property the spelling reflects is worth
-asserting separately from the spelling: a labelled coordinate ranges over
+asserting separately from the spelling: a labeled coordinate ranges over
 the whole line, tested by sweeping each free value to ±20 and checking the
 matrix stays finite and non-negative-definite. At ±20 a correlation reaches
 its boundary in double precision (min eigenvalue 1e-33 of the max), so
@@ -1416,13 +1416,13 @@ both are asserted.
 
 ### An argument that is accepted and ignored is worse than one that errors
 
-`fit_distrib()` carried `maxit` and `tol` while every optimiser carries its
-own, and with `method = <an optimiser>` the two were **silently discarded**.
+`fit_distrib()` carried `maxit` and `tol` while every optimizer carries its
+own, and with `method = <an optimizer>` the two were **silently discarded**.
 Giovanni's call was `fit_distrib(..., method = bfgs(maxit = 1000), maxit = 100)`:
 1000 governed, the 100 was read by nobody, and nothing said so. Both are
 gone from the signature — Fisher scoring is Newton with one matrix replaced,
 so its budget and its stopping rule live on `fisher_scoring()` like any
-other optimiser's, and the internal BFGS fallback inherits them rather than
+other optimizer's, and the internal BFGS fallback inherits them rather than
 inventing its own.
 
 The consequence worth knowing for next time: **three places restated the
@@ -1524,7 +1524,7 @@ class before trusting a comparison against that class.
 Found on `mvgaussian_distrib(4)` fitted to `iris[, 1:4]` (2026-08-04, Giovanni
 reported it as "the fitting takes really long -- maybe because we have not put
 in Rcpp what should be in Rcpp?"). It was not Rcpp. Measured, from the same
-data, the same derivatives, the same optimiser:
+data, the same derivatives, the same optimizer:
 
 | start | iterations | -logLik | time |
 |---|---|---|---|
@@ -1563,10 +1563,10 @@ be hiding inside the first one's evidence.
   a converged run beats a non-converged one, and among runs of equal status
   the lower objective wins.
 - **AIC and BIC differed between the covariance and the precision
-  parametrisation** of the same model (1594 against 812.9). That was the same
+  parametrization** of the same model (1594 against 812.9). That was the same
   bug seen from the other end: neither run had converged, so the two were
   comparing accidents. They now agree to the digit, which is the invariance a
-  reparametrisation has to satisfy and a useful thing to assert.
+  reparametrization has to satisfy and a useful thing to assert.
 - **optimizers7's gradient check fires at a stationary start.** The difference
   of `fn` along a direction of no slope is its own truncation error, so
   comparing it with a gradient of the same order compares two kinds of
@@ -1600,7 +1600,7 @@ around
 ```
 
 and it **grows with the value at the solution**. The decisive measurement is
-one line: adding a constant to the objective moves neither the minimiser nor
+one line: adding a constant to the objective moves neither the minimizer nor
 the gradient, and on conjugate gradients applied to Rosenbrock it takes the
 attainable gradient from 1.9e-9 at `f* = 0` to 4.4e-8 at `f* = 1`, 2.8e-6 at
 1e3 and 6.5e-5 at 1e6 -- a square-root law, visible with no reference to any
@@ -1621,7 +1621,7 @@ Nothing statistical is lost, a score of 1e-6 per observation placing the
 estimate a small fraction of a standard error from the maximum. Two
 consequences worth knowing:
 
-- **the optimisers no longer restate the constants.** `gd`, `cg`, `bb`,
+- **the optimizers no longer restate the constants.** `gd`, `cg`, `bb`,
   `newton`, `bfgs` and `lbfgs` all had `crit_any(crit_grad(1e-8),
   crit_rel_obj(1e-12))` written out, so changing `crit_grad()`'s default would
   not have reached any of them. They now say `crit_any(crit_grad(),
@@ -1635,7 +1635,7 @@ consequences worth knowing:
   `formals(distributions7::fit_distrib)$tol` — **a threshold that mirrors a
   default belongs to that default, not to a copy of it.**
 
-**What `fit_distrib()` kept from the optimiser, and what it threw away**
+**What `fit_distrib()` kept from the optimizer, and what it threw away**
 (2026-08-04, Giovanni asked). It has delegated to `optimizers7::minimize()`
 since 2026-08-03 and already carried the iteration count, the evaluation
 counts, the rule that fired and the note. It discarded `elapsed` and
@@ -1745,7 +1745,7 @@ family whose score is not entirely closed form.
 
 `fit_distrib()`'s restart loop discarded a BFGS fallback that ran but did not
 converge, so `res` stayed NULL and the caller got
-*"Optimisation failed from every starting value; supply 'start'"* for a fit
+*"Optimization failed from every starting value; supply 'start'"* for a fit
 that existed and was correct (found on the skew t at the default tolerance,
 2026-08-04). The fallback is now kept as a last resort when the chosen method
 raised, and the loop keeps the last result it obtained. General shape: an
@@ -1776,7 +1776,7 @@ broke three of the nine checks in `check_distrib()`'s multivariate battery,
 on code that was correct. Each failure was the battery assuming something
 only an elliptical family satisfies. What that cost, in order:
 
-- **The normalisation check assumed a proposal exists in `R^p`.** For the
+- **The normalization check assumed a proposal exists in `R^p`.** For the
   Dirichlet the support has measure zero there, so a gaussian proposal
   estimates 2.0e-08 for an integral that is 1 -- and does not raise, because
   `chol()` accepts a covariance whose smallest eigenvalue is 8.7e-19. That is
@@ -1784,7 +1784,7 @@ only an elliptical family satisfies. What that cost, in order:
   third package-independent context. The fix is a generic,
   `mv_reference_draw()`, whose base method is the old gaussian and whose
   Dirichlet method is the uniform on the simplex; a discrete family never
-  reaches it, its normalisation being an exact sum over `mv_support()`.
+  reaches it, its normalization being an exact sum over `mv_support()`.
 - **The response-derivative check assumed a refusal is a defect.** The
   multivariate base class refuses `distrib_grad_y` *by design*, so a family
   that has not registered one has made a choice; and a discrete family has no
@@ -1852,7 +1852,7 @@ Two smaller things worth keeping:
   `nu` -- it follows from the scale-mixture representation, since conditioning on
   the mixing variable leaves a gaussian.
 - **The scale matrix and the covariance are different objects and must stay
-  apart.** `mv_sigma()` returns what the parametrisation carries, `variance()`
+  apart.** `mv_sigma()` returns what the parametrization carries, `variance()`
   the moment. Conflating them makes the family undescribable at `nu <= 2`, which
   is exactly the regime it exists for.
 - **A test harness that evaluates chunks in the global environment must not
@@ -1864,8 +1864,8 @@ Two smaller things worth keeping:
 
 - **GRoU (`rng_grou`) is the continuous fallback**, not inverse transform, which costs one
   `uniroot` per draw when the quantile is itself numerical. Two devices make it safe:
-  the kernel is **recentred at the mode** (without which a density at mu = 1000 gives a
-  degenerate bounding box) and **normalised to a maximum of 1**.
+  the kernel is **recentered at the mode** (without which a density at mu = 1000 gives a
+  degenerate bounding box) and **normalized to a maximum of 1**.
 - It refuses far less than expected: bimodal densities, Student t with half a degree of
   freedom, and Pareto with infinite mean are all fine. The only refusal is a density that
   **diverges at an edge**.
@@ -1878,7 +1878,7 @@ Two smaller things worth keeping:
   `T(u) = u^p / (u^p + (1-u)^q)`, `Y = a + (b-a)T(U)`.
 - **Discrete distributions needed no new algorithm.** The cdf of a lattice variable is a
   step function, so inverting it is exact and solves nothing. The cost was one R-level
-  call per draw; vectorising the table lookup took it from 12.6 µs to 0.1.
+  call per draw; vectorizing the table lookup took it from 12.6 µs to 0.1.
 
 ### The batched engines (numericals7, 2026-08-05)
 
@@ -1956,7 +1956,7 @@ Two smaller things worth keeping:
   runs come back wrong *quietly* -- one iteration, converged FALSE, no error.
   The guard is `exists(".__DEVTOOLS__", asNamespace(pkg))`: under pkgload the
   starts run sequentially, and the parallel path belongs to installed sessions
-  (CI exercises it). General shape: any code that serialises S7 objects to
+  (CI exercises it). General shape: any code that serializes S7 objects to
   another R process must ensure both sides run the same namespace.
 - Reading an S7 property costs ~2.2 µs against 0.87 for a plain attribute. In hot paths,
   read properties once into locals.
@@ -2080,8 +2080,8 @@ Two smaller things worth keeping:
   repositories and printed a per-repository verdict therefore reported
   *"TUTTO VERDE"* from **zero runs found**, which is the worst possible
   failure for a check whose entire job is to say whether something is green.
-  Any script that summarises a query must **assert that the query returned
-  something** before summarising it; an empty result is a third answer, not a
+  Any script that summarizes a query must **assert that the query returned
+  something** before summarizing it; an empty result is a third answer, not a
   pass. `git rev-parse HEAD` gives the full sha, and `--json` output is easier
   to count than to read.
 - The Codecov action fetches its own uploader and verifies its GPG signature; when the
@@ -2151,7 +2151,7 @@ Two smaller things worth keeping:
   into apparent agreement. Always confirm such a guard has not blunted the check by
   re-injecting a deliberate error (a gradient 5% wrong must still be caught).
 - **Separate what a component PROMISES from how WELL it does it.** `check_optimizer()`
-  runs twelve checks on what an optimiser *reports* — that `value` is the objective at
+  runs twelve checks on what an optimizer *reports* — that `value` is the objective at
   `par`, that `converged` follows the rule and is never inferred from the run ending,
   that bounds hold strictly — and then a battery of standard problems whose gaps are
   printed as information, not as pass or fail. Conflating them would have made the
@@ -2172,7 +2172,7 @@ Two smaller things worth keeping:
   is free to shrink for reasons of its own.
 - **The way to decide whether Rcpp is worth it is to measure, and the answer was
   mostly no** (2026-07-31). Giovanni asked, before publishing `optimizers7`,
-  whether `statmodels7` would really be able to hand the optimisers
+  whether `statmodels7` would really be able to hand the optimizers
   log-likelihoods with gradients and Hessians assembled in C++ from model terms.
   Measured on a Gamma regression, an R objective against the identical thing
   compiled: **0.88x at n = 200, 0.55x at 2000, 1.39x at 20 000, 2.09x at
@@ -2188,11 +2188,11 @@ Two smaller things worth keeping:
   it — 0.4 per cent. Whatever `modelterms7` composes, the composition is BLAS.
   Compiled kernels earn their keep on **irregular elementwise arithmetic**,
   which is where `distributions7` already puts them. The conclusion for the
-  model layer is *vectorised R over compiled kernels*, and the real order of
+  model layer is *vectorized R over compiled kernels*, and the real order of
   magnitude is algorithmic — Fisher scoring exploiting block structure and sparse
   penalties — not linguistic.
 - **A feature with one caller is that caller's feature.** `adam(resample=)` and
-  `finite_sum()` let the optimiser draw its own minibatches, and between them
+  `finite_sum()` let the optimizer draw its own minibatches, and between them
   cost a second objective class, a rule for which criteria it permitted, a token
   in the criterion machinery, a branch in the compiled loop and an argument to
   select the path. An objective that resamples is a closure; the caller who
@@ -2207,8 +2207,8 @@ Two smaller things worth keeping:
   value would have let a rule comparing `f_new` with `f_old` compare a number
   with itself and fire at once.
 - **Writing the documentation is a test of the design.** The `optimizers7` vignette
-  works through a user-written optimiser, and writing it showed that a user *could not*
-  write a conforming one: honouring `bounds` and refusing an unevaluable stopping rule
+  works through a user-written optimizer, and writing it showed that a user *could not*
+  write a conforming one: honoring `bounds` and refusing an unevaluable stopping rule
   both needed internal functions. The package promised extensibility and did not supply
   the parts. Three exports later it does. The same vignette also disproved two claims
   in its own prose — measure the example before describing it.
@@ -2241,7 +2241,7 @@ Two smaller things worth keeping:
   for are absorbing states**: freezing the previous alpha traps a short step in
   its own shortness (bb2 spent 873 of 945 iterations there), and restarting at
   `alpha0` does exactly the same wherever `alpha0` is itself too short — on a
-  boxed quadratic seen through its reparametrisation, 1395 refusals in 1521
+  boxed quadratic seen through its reparametrization, 1395 refusals in 1521
   iterations. `alpha_max`, which is what the SPG literature does, hands the
   search a direction of length 1e10 that thirty halvings do not rescale, and
   that run stopped a unit from the solution *reporting success*. What works is
@@ -2278,14 +2278,14 @@ Two smaller things worth keeping:
     with a parameter fixed: unit shape is the RELATION `sigma2 = mu^2` and the
     chi-squared `sigma2 = 2*mu`, and `fixed()` holds a parameter at a value,
     not a relation between two.
-  - ~~**generalised Pareto**~~, ~~**beta-binomial**~~, ~~**NB1**~~,
-    ~~**generalised gamma**~~, ~~**von Mises**~~ **done 2026-08-05.**
+  - ~~**generalized Pareto**~~, ~~**beta-binomial**~~, ~~**NB1**~~,
+    ~~**generalized gamma**~~, ~~**von Mises**~~ **done 2026-08-05.**
   - ~~**Dirichlet**~~ and ~~**multinomial**~~ **done 2026-08-05**, both on a
     `parameters7::simplex()`. See §4 for what they cost the validator.
   - **Skipped deliberately**: anything obtained by a wrapper already
     (`truncated`, `zero_*`, `transformation` cover lognormal-like families,
     hurdle models and Box-Cox families), and anything whose only interest is a
-    reparametrisation of a family already present. The book's
+    reparametrization of a family already present. The book's
     `sec-transform-reach` now shows which standard names those are -- the
     inverse Gamma, the Rayleigh, the log-logistic, the Pareto -- with the
     distinction that decides it: `fixed()` holds a parameter at a VALUE and
@@ -2300,14 +2300,14 @@ Two smaller things worth keeping:
   coordinatewise to D beta -- ridge IS fixed(gaussian_distrib(), mu = 0), the
   heavy-tailed prior IS fixed(student_t_distrib(), mu = 0); (iii) families
   defined by their derivative (SCAD, MCP), which are improper priors and
-  cannot come from a distribution. The NORMALISING CONSTANT IS KEPT (Giovanni,
+  cannot come from a distribution. The NORMALIZING CONSTANT IS KEPT (Giovanni,
   explicit): dropping it makes the hyperparameter estimation degenerate
   (lambda -> 0), and estimating nu of a t prior requires it; even so, a
   spline's smoothing parameter needs REML/marginal likelihood, not joint
-  maximisation, so the class must serve both routes. Proximal operators and a
+  maximization, so the class must serve both routes. Proximal operators and a
   prox_grad() in optimizers7: DEFERRED, explicitly. Prerequisites already
   built: fixed() wrapper and distrib_cross_y() in distributions7.
-- **`infer_npar()` cannot decide for a vectorised objective, and that is
+- **`infer_npar()` cannot decide for a vectorized objective, and that is
   arithmetic rather than a gap.** `start_zeros()` with no `npar` and no bounds
   probes the objective, and both plausible guesses about R are wrong: recycling
   warns only when the shorter length is not a **divisor** of the longer, so
@@ -2326,7 +2326,7 @@ Two smaller things worth keeping:
   (lognormal, invgauss, student t, pseudohuber). Mechanical but fiddly; the FD fallback
   is ~1e-8 and adequate.
 - **Gamma and beta shape derivatives** would need the series representation of
-  `d/da P(a,x)` (a convergent alternating sum, badly cancelling for large x) or a
+  `d/da P(a,x)` (a convergent alternating sum, badly canceling for large x) or a
   Meijer-G evaluation. Probably *not* worth it: the FD of pgamma/pbeta already gives
   ~2e-10, and a hand-rolled series would likely be worse in some regime. Revisit only
   if profiling shows it matters.
@@ -2336,7 +2336,7 @@ Two smaller things worth keeping:
   `parameters7` have one from their first commit, which is the right habit.
 - **`expected_by_bartlett()` recomputes too much.** Inside the integrand it calls
   `observed_deriv()` for a whole order and keeps one component, once per block per
-  partition per component — and the integrand runs at every quadrature node. Memoising
+  partition per component — and the integrand runs at every quadrature node. Memoizing
   per integrand call looks worth it at orders 3 and 4, but `"bartlett"` is only the
   default at order 2, where the score is all it needs, so measure before touching it.
 - **The parameters7 glyph was redrawn on 2026-08-04** (Giovanni: the ellipse
@@ -2363,17 +2363,17 @@ Two smaller things worth keeping:
   deserve a generator, but not yet.
 - The book now covers links, distributions, the transformation wrappers and fitting
   (§3.3, written 2026-07-30 as a chapter of its own and folded in when the book
-  went to one chapter per package: the link scale as the place to optimise, Fisher
+  went to one chapter per package: the link scale as the place to optimize, Fisher
   scoring versus Newton and why the congruence corollary makes the expected
   information the right matrix to invert, the line search, the delta method as the same
   congruence applied to the inverse, and intervals built on the link scale and mapped
   back; revised 2026-08-03, when `fit_distrib()` started delegating to
-  `optimizers7` — §3.3 now says the optimisation is not written there, the step
+  `optimizers7` — §3.3 now says the optimization is not written there, the step
   rule is the sufficient-decrease condition of §4.1 rather than plain halving,
   the non-PD Hessian is repaired by §4.2 rather than abandoned, and a chunk shows
   `method = lbfgs(...)`; revised again 2026-08-04 for the averaged objective and
   for `distrib_start()`), and §3.4 on the numerical fallbacks — the ratio-of-uniforms theorem, the
-  mode recentring, the divergence transform at one edge and at two, the
+  mode recentering, the divergence transform at one edge and at two, the
   discrete cumulative table, and the two warnings that belong with them. Chapter 4
   (added 2026-07-31) covers `optimizers7`: descent directions and what a line search
   must guarantee, with Zoutendijk's theorem; Newton's Hessian repairs and why
@@ -2382,7 +2382,7 @@ Two smaller things worth keeping:
   and Barzilai-Borwein as the bottom of a ladder ordered by how much curvature a
   method stores, from p(p+1)/2 down to one number; the subdifferential, Fermat's
   rule, and the bundle subproblem with its dual; and the box
-  reparametrisation and Adam; and 4.5 (added 2026-07-31) on where a run begins --
+  reparametrization and Adam; and 4.5 (added 2026-07-31) on where a run begins --
   why a constant is only sensible on the unconstrained scale, how the number of
   parameters is settled, the Latin hypercube, the count of distinct optima as
   the thing several starts actually measure, and why the parallelism is at the
@@ -2394,7 +2394,7 @@ Two smaller things worth keeping:
   the partition of unity, the Fourier phase shift, the Legendre recurrences;
   the Gram matrix as the matrix of a roughness penalty, its exact integration
   knot interval by knot interval, and the three measures the inner product can
-  be taken against; orthonormalisation, constraints and Demmler-Reinsch as one
+  be taken against; orthonormalization, constraints and Demmler-Reinsch as one
   congruence; and tensor products, separability, and the two coefficient
   shapes a contraction accepts. Its five gates are in
   `book/R/basis-certificates.R`, injection-checked seventeen times.
@@ -2466,7 +2466,7 @@ one `.qmd` that pulls its sections in with `{{< include >}}` from `_`-prefixed
 files that are **not** listed in `_quarto.yml`; that keeps 3.1, 3.2 numbering
 without a two-thousand-line file. `toc-depth` is 4, `number-depth` 3.
 
-⚠️ **Demoting headings when reorganising:** shift `#` levels only outside fenced
+⚠️ **Demoting headings when reorganizing:** shift `#` levels only outside fenced
 code (where `#` is an R comment) and outside `:::` divs — a `##` inside
 `::: {#thm-x}` is the *theorem's title*, which Quarto reads as the block's name,
 not a section heading.
@@ -2483,8 +2483,8 @@ documentation is **aseptic and synthetic**: it states what a function does and
 briefly which method it uses, for EVERY function and S7 method. No anecdotes,
 no measured war stories (the three-knot Gamma tale, iteration counts from named
 runs), no punchy subsection titles, no stock phrases, and no strings of short
-sentences -- flowing prose. Methods whose behaviour a generic's or constructor's
-page fully specifies may share that page; methods with behaviour of their own
+sentences -- flowing prose. Methods whose behavior a generic's or constructor's
+page fully specifies may share that page; methods with behavior of their own
 (defaults, closed-form overrides, numerical fallbacks, wrapper re-derivations)
 get their own internal page. He also said plainly that my writing style did not
 please him: no eloquence, in docs OR book titles -- every heading names its
@@ -2556,7 +2556,7 @@ the §3 trap, landed in a chapter written through a shell heredoc, and it had be
 rendering as garbage at `statmodels7.github.io/book/` for a day. `cat -A` on
 every `.qmd` looking for `^[GHIL]` is the check; `^M` alone is only CRLF and is
 harmless. **Some book files are CRLF and some are LF**, so a Python edit script
-must normalise on read and restore on write, or every marker containing `\n`
+must normalize on read and restore on write, or every marker containing `\n`
 silently fails to match.
 
 **Notation, fixed 2026-07-26 (Giovanni).** Derivatives of the log-likelihood use
@@ -2614,7 +2614,7 @@ that chapter claims, each against a route the chapter does not itself use: that 
 link-scale score really vanishes at the reported optimum, that
 `V_theta = diag(h') V_eta diag(h')` with `h'` taken fresh from linkfunctions7, that
 no interval escapes its parameter's domain or comes back inverted, and that Fisher
-scoring, Newton and BFGS agree on the maximised log-likelihood. Injection-checked
+scoring, Newton and BFGS agree on the maximized log-likelihood. Injection-checked
 too: at the optimum the score is 4e-13 per observation against a 1e-4 threshold and
 2e-1 when displaced by 0.05, and the delta-method check is exact against 1e-1 for a
 Jacobian 5% wrong.
@@ -2662,7 +2662,7 @@ computes `U - exp(eta)`. The same discipline as `link-formulas.R`: the printed
 LaTeX and an independent transcription live in the same record.
 
 The mechanism that makes this cheap: `book/R/link-formulas.R` and
-`distribution-catalogue.R` keep the printed LaTeX and an independent R
+`distribution-catalog.R` keep the printed LaTeX and an independent R
 transcription of it **in the same record**, and the chapters generate the displayed
 formulas from those records. Editing a formula edits both the equation the reader
 sees and the thing under test. Do not split them.

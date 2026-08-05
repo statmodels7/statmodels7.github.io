@@ -1,6 +1,6 @@
 ================================================================================
                        optimizers7 -- PLAN
-        general-purpose optimisation as S7 objects, algorithms in Rcpp
+        general-purpose optimization as S7 objects, algorithms in Rcpp
                         drafted 2026-07-30
 ================================================================================
 
@@ -18,34 +18,34 @@ any is written, plus the ones deliberately left open.
 
 optimizers7 is a *base* package of the toolkit, in the same sense as
 linkfunctions7: it knows nothing about statistics, nothing about likelihoods and
-nothing about the other packages. It provides optimisation algorithms as S7
+nothing about the other packages. It provides optimization algorithms as S7
 objects, with the numerical work in Rcpp.
 
     depends on:      RcppArmadillo, S7, linkfunctions7
     depended on by:  statmodels7         (which will also use distributions7)
 
 The dependency on linkfunctions7 was added on 2026-07-30 and is deliberate. Box
-bounds are handled by reparametrisation through bounded_link(), which already
+bounds are handled by reparametrization through bounded_link(), which already
 exists next door complete with four derivatives in both directions; writing a
 private logit inside this package would be exactly the duplication the toolkit
 argues against. linkfunctions7 itself depends on nothing, so the direction stays
 clean. See section 3b.
 
 The positioning argument is the same one CLAUDE.md section 0 makes for the
-others, and it holds at least as well here. Every R modelling package that
-optimises anything carries its own Newton loop, its own step halving, its own
+others, and it holds at least as well here. Every R modeling package that
+optimizes anything carries its own Newton loop, its own step halving, its own
 convergence test -- written inline, private, and tuned to the one objective its
 author had. They are not objects, so nothing outside can reuse them, swap them,
-or ask them what they did. An optimisation algorithm is a fixed mathematical
+or ask them what they did. An optimization algorithm is a fixed mathematical
 object; it should be written once, carefully, with its safeguards and its
 diagnostics, and then everyone builds on top.
 
 NOT in scope:
-  - general constrained optimisation. Box bounds are supported by
-    reparametrisation (section 3b); linear and nonlinear constraints are not.
+  - general constrained optimization. Box bounds are supported by
+    reparametrization (section 3b); linear and nonlinear constraints are not.
   - IWLS and Fisher scoring. Decided 2026-07-30: they need the model structure
     (design matrix, working response, weights), not just (f, grad), so they
-    cannot honour the generic contract. They belong to statmodels7, where that
+    cannot honor the generic contract. They belong to statmodels7, where that
     structure exists. See section 9.
   - anything requiring the objective's algebraic structure (proximal methods,
     ADMM). Revisit only if a concrete need appears; see section 12.
@@ -58,15 +58,15 @@ NOT in scope:
 The package: optimizers7. Plural noun + 7, as the convention requires.
 
 The main generic: minimize(). NOT optimize() -- stats::optimize() already
-exists and is one-dimensional optimisation; defining an S7 generic of that name
+exists and is one-dimensional optimization; defining an S7 generic of that name
 masks it, breaks existing code, and draws a CRAN comment.
 
     minimize(optimizer, fn, par, gr = NULL, he = NULL, ...)
     maximize(optimizer, fn, par, gr = NULL, he = NULL, ...)
 
 maximize() is thin sugar that negates the objective and its derivatives and
-flips the sign of the reported value. Everything internal minimises, always, and
-the names say so. fit_distrib() in distributions7 already minimises the negative
+flips the sign of the reported value. Everything internal minimizes, always, and
+the names say so. fit_distrib() in distributions7 already minimizes the negative
 log-likelihood internally, so nothing there has to change its convention.
 
 
@@ -79,7 +79,7 @@ Four families of S7 class. The first three are user-facing, the fourth internal.
   (a) optimizer            the algorithm and its settings
   (b) criterion            the stopping rule
   (c) optimizer_result     what a run returns
-  (d) objective            the normalised handle the C++ side is given
+  (d) objective            the normalized handle the C++ side is given
 
 (a) optimizer
 -------------
@@ -161,19 +161,19 @@ Two details worth fixing now rather than discovering later:
 
 
 --------------------------------------------------------------------------------
-3b. BOX BOUNDS BY REPARAMETRISATION, AND WHAT IT CANNOT DO
+3b. BOX BOUNDS BY REPARAMETRIZATION, AND WHAT IT CANNOT DO
 --------------------------------------------------------------------------------
 
 Decided 2026-07-30. Rather than implement L-BFGS-B and an active-set machinery,
 box bounds are handled the way the toolkit handles every other constraint: map
-the box onto the real line and optimise there.
+the box onto the real line and optimize there.
 
     minimize(bfgs(), fn, par, bounds = list(c(0, Inf), c(0, 1)))
 
 Each coordinate's bounds select a link from linkfunctions7 -- bounded_link(lwr,
 upr) already returns the lower-, upper- or doubly-bounded case, and the identity
 when neither is given, which is precisely the dispatch wanted here. The
-optimiser then works on eta, and the chain rule supplies
+optimizer then works on eta, and the chain rule supplies
 
     d f / d eta_i        = (d f / d theta_i) h_i'
     d2 f / d eta_i d eta_j = (d2 f / d theta_i d theta_j) h_i' h_j'
@@ -185,11 +185,11 @@ structure distributions7 exploits at higher order in its link_scale.R.
 
 THE LIMITATION, WHICH MUST BE DOCUMENTED AND NOT DISCOVERED:
 
-Reparametrisation cannot reach a bound. If the constrained optimum lies ON a
+Reparametrization cannot reach a bound. If the constrained optimum lies ON a
 face of the box, the corresponding eta must go to +/- infinity to get there; the
-optimiser will march off, the objective will keep improving by less and less,
+optimizer will march off, the objective will keep improving by less and less,
 and it will stop on a budget or a tolerance at some large eta, reporting a
-theta that is merely close to the bound. It is not a minimiser of the
+theta that is merely close to the bound. It is not a minimizer of the
 constrained problem and nothing in the numbers says so.
 
 For the statistical use this exists to serve, that is irrelevant: a variance is
@@ -198,7 +198,7 @@ model is degenerate. For genuine box-constrained problems with active
 constraints at the solution, L-BFGS-B is the right tool and this is not it.
 
 The documentation says this plainly, and the result object records that bounds
-were handled by reparametrisation, so a user reading the output can see which
+were handled by reparametrization, so a user reading the output can see which
 problem was actually solved.
 
 
@@ -244,7 +244,7 @@ imaginary.
 
 A stochastic method wants to evaluate the objective on a subset of the data. But
 `minimize(adam(), fn, par)` with a black-box `fn` has no data to subset -- the
-optimiser does not know what an observation is, and cannot be allowed to guess.
+optimizer does not know what an observation is, and cannot be allowed to guess.
 Subsampling is not a property of the algorithm; it is a property of the
 objective, and only an objective that is a sum over observations can offer it.
 
@@ -261,7 +261,7 @@ a handle that can be asked for a subsample. The full-sample value is fn(par,
 seq_len(n)), so an ordinary evaluation is a special case and nothing is
 duplicated.
 
-Consequences to honour, or the results will mislead:
+Consequences to honor, or the results will mislead:
   - with resample < 1 the reported objective is a STOCHASTIC ESTIMATE. Criteria
     that compare successive objective values (crit_abs_obj, crit_rel_obj) are
     then meaningless and must be refused, not silently allowed to fire on noise.
@@ -300,9 +300,9 @@ criteria would ever need compiling. They would -- but only for a compiled
 objective. With an R objective the criterion callback disappears into the noise
 of the objective's own callbacks, and compiling it would buy nothing.
 
-The route, when it is worth taking: recognise the built-in criteria in C++ and
+The route, when it is worth taking: recognize the built-in criteria in C++ and
 evaluate them there, falling back to the callback for a user-written one, so
-that extensibility is not paid for by everyone. Not yet: it is an optimisation
+that extensibility is not paid for by everyone. Not yet: it is an optimization
 of a path that currently has one trivial algorithm on it, and the numbers above
 should be taken again once a real method with a line search is in place.
 
@@ -337,9 +337,9 @@ the way check_link() now reports which orders are numerical.
 5. THE RESULT
 --------------------------------------------------------------------------------
 
-S7 class `optimizer_result`, modelled on distrib_fit:
+S7 class `optimizer_result`, modeled on distrib_fit:
 
-    par             the minimiser
+    par             the minimizer
     value           the objective there
     gradient        the gradient there (NULL if never computed)
     counts          evaluations of f, grad, hessian
@@ -359,7 +359,7 @@ S7 class `optimizer_result`, modelled on distrib_fit:
 
 with print(), summary() and plot() methods. plot() draws the objective against
 iteration and, for two-parameter problems, the path over a contour -- which is
-the single most useful thing when an optimiser misbehaves.
+the single most useful thing when an optimizer misbehaves.
 
 `converged` must never be TRUE merely because maxit was reached. This sounds
 obvious and is the most common bug in hand-written loops.
@@ -406,7 +406,7 @@ Phase 3 -- global / non-convex:
                   black-box problems, and considerably more work than the rest.
 
 Every algorithm, without exception:
-  - honours criterion, maxit, max_eval, verbose, refresh, keep_trace;
+  - honors criterion, maxit, max_eval, verbose, refresh, keep_trace;
   - rejects a non-finite objective or gradient by refusing the step rather than
     propagating NaN (this is the single most valuable safeguard in practice);
   - guarantees monotone descent where the method admits it (all of phase 1 with
@@ -457,7 +457,7 @@ TWO METHODS, COVERING DIFFERENT SITUATIONS
       subdifferential. For sum |y_i - mu| that is sum sign(y_i - mu), which the
       user can write in one line, and at a kink any value in [-1, 1] will do.
       The method accumulates past subgradients into a piecewise-linear model of
-      the objective and minimises that plus a proximal term, which is what makes
+      the objective and minimizes that plus a proximal term, which is what makes
       it converge properly where the plain subgradient method merely wanders.
       On a piecewise-linear objective like the Laplace's it is dramatically
       faster than any derivative-free search, because it exploits precisely the
@@ -554,10 +554,10 @@ Recorded here so the boundary stays clear and nothing drifts back down:
   - IWLS and Fisher scoring: they need X, the working response and the weights.
     statmodels7 will define them, and may express them in terms of optimizers7's
     line search and convergence criteria, which are the reusable parts.
-  - the link-scale reparametrisation: linkfunctions7 already does it; the model
+  - the link-scale reparametrization: linkfunctions7 already does it; the model
     layer composes the two Jacobians.
   - anything about standard errors, intervals, or the delta method: that is
-    inference, not optimisation.
+    inference, not optimization.
 
 
 --------------------------------------------------------------------------------
@@ -565,13 +565,13 @@ Recorded here so the boundary stays clear and nothing drifts back down:
 --------------------------------------------------------------------------------
 
 check_optimizer(), the third of its family after check_link() and
-check_distrib(), and the one that makes a user-written optimiser a first-class
+check_distrib(), and the one that makes a user-written optimizer a first-class
 citizen.
 
 It runs the optimizer against a battery of test functions with known minima and
-reports, per function: whether the reported minimiser is within tolerance of the
+reports, per function: whether the reported minimizer is within tolerance of the
 true one, whether the reported value matches the objective at the reported
-minimiser (a surprisingly common inconsistency), whether counts are consistent
+minimizer (a surprisingly common inconsistency), whether counts are consistent
 with the trace, and whether `converged` is honest.
 
 Battery: sphere (trivial), Rosenbrock (curved valley), Beale, Himmelblau (four
@@ -589,7 +589,7 @@ Testing strategy, following what the other two packages learned the hard way:
     objective that is Inf outside a region.
   - test that verbose output appears at the right iterations, since refresh is
     easy to get off by one.
-  - randomise starting points rather than fixing one, and set a seed.
+  - randomize starting points rather than fixing one, and set a seed.
 
 
 --------------------------------------------------------------------------------
@@ -607,7 +607,7 @@ Same standard as the other two, which is now the toolkit's standard:
 
 The book gains a chapter, per the structure fixed on 2026-07-30: one chapter per
 package. `4 The optimizers7 package`, with sections along the lines of what an
-optimiser is as an object, descent and line search, the second-order methods,
+optimizer is as an object, descent and line search, the second-order methods,
 convergence criteria, derivative-free methods, and validation. It ends with the
 hidden assert_optimizers_ok() gate like the others.
 
@@ -625,7 +625,7 @@ Settled 2026-07-30:
   Q2  Which phases. SETTLED: build all of them. Phases stay as an ORDER OF WORK
       (section 13), not as a scope boundary.
 
-  Q3  Box constraints. SETTLED: supported, by reparametrisation through
+  Q3  Box constraints. SETTLED: supported, by reparametrization through
       linkfunctions7's bounded_link(). See section 3b, including the limitation
       that an optimum on a bound is unreachable this way.
 
@@ -641,7 +641,7 @@ Settled 2026-07-30:
 
       One hard constraint to design around: R IS SINGLE-THREADED AND CANNOT BE
       CALLED FROM MULTIPLE THREADS. An OpenMP or RcppParallel loop that calls an
-      R closure is undefined behaviour and will eventually crash, not error. So:
+      R closure is undefined behavior and will eventually crash, not error. So:
         - multistart over a C++ objective may be parallelised in C++;
         - multistart over an R objective must be parallelised in R (parallel,
           future) at the level of whole runs, or not at all;
@@ -720,7 +720,7 @@ decision; what follows is the order of work.
      gradient count, the gradient at the accepted point now serving both the
      stopping rule and the next direction. Rosenbrock from (-1.2, 1): gradient
      descent 19384 iterations, Newton 21, BFGS 33, L-BFGS 35.]
-  5. Box bounds by reparametrisation (section 3b), which needs only h' and h''
+  5. Box bounds by reparametrization (section 3b), which needs only h' and h''
      from linkfunctions7 and touches every algorithm above uniformly.
      [DONE 2026-07-31, with ONE DEVIATION from section 3b. The transform is
      applied on every objective evaluation, so calling linkfunctions7 through R
@@ -799,15 +799,15 @@ decision; what follows is the order of work.
      [DONE 2026-07-31. The design point: THE CHECKS TEST THE CONTRACT, THE
      BATTERY REPORTS THE POWER, reported separately. Conflating them would make
      the function useless -- gradient descent does not solve Rosenbrock in 500
-     iterations and is not broken. Twelve numbered checks every optimiser must
+     iterations and is not broken. Twelve numbered checks every optimizer must
      pass however weak; a table of gaps underneath as information. Six injected
-     liars, each caught by its own check, paired with an honest optimiser of the
+     liars, each caught by its own check, paired with an honest optimizer of the
      same shape that passes.
      IT FOUND TWO REAL DEFECTS IN bundle() IMMEDIATELY.
      (a) t0 was a bare multiplier, so the first step was as long as the gradient
      was big: 0 serious steps in 3000 iterations on rosenbrock, beale and
      powell, aggregate subgradient at 1e196. t0 is now a STEP LENGTH, divided by
-     |g0|, the same normalisation a line search does. rosenbrock 2e+01 -> 1e-09.
+     |g0|, the same normalization a line search does. rosenbrock 2e+01 -> 1e-09.
      Note this failed no CHECK -- bundle did not lie, it merely did not work --
      which is precisely the case for reporting contract and power separately.
      (b) Worse: the stationarity measure was -v = t||p||^2 + alpha, which
@@ -833,15 +833,15 @@ decision; what follows is the order of work.
      are one file, so roxygen wrote both and the second replaced the first. ?Adam
      gave the constructor's page and the built package differed by platform;
      R CMD check passed throughout. Classes now live at X-class with the plain
-     name as an alias, applied to all nine optimiser classes so a future
+     name as an alias, applied to all nine optimizer classes so a future
      single-word algorithm cannot reintroduce it. The collision bit AGAIN during
      the repair: roxygen deleted Adam.Rd as obsolete, which here is adam.Rd.
      The fix is not what prevents recurrence -- tests/testthat/test-docs.R is. It
      asks which namespace object has no help topic, on the machine where the
      evidence is destroyed.
      (b) THE EXTENSION STORY WAS NOT TRUE. Writing the vignette showed that a
-     user CANNOT write a conforming optimiser: honouring `bounds` needs the
-     reparametrisation and refusing an unevaluable criterion needs the
+     user CANNOT write a conforming optimizer: honoring `bounds` needs the
+     reparametrization and refusing an unevaluable criterion needs the
      crit_needs/optimizer_provides comparison, and all of it was internal. So
      check_criterion() was factored out of prepare_objective() and exported,
      optimizer_provides() was exported (a derivative-free method of one's own

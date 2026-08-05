@@ -109,13 +109,13 @@
   gen_eval <- basis7::basis_eval
   S7::method(gen_eval, Bumps) <- function(basis, x, ...) {
     p <- basis@basis_params
-    out <- exp(-0.5 * outer(x, p$centres, "-")^2 / p$width^2)
+    out <- exp(-0.5 * outer(x, p$centers, "-")^2 / p$width^2)
     colnames(out) <- basis7::basis_colnames(basis)
     out
   }
   bumps <- Bumps(
     basis_name = "bumps", dimension = 5L, lower = 0, upper = 1,
-    basis_params = list(centres = seq(0.1, 0.9, length.out = 5), width = 0.15)
+    basis_params = list(centers = seq(0.1, 0.9, length.out = 5), width = 0.15)
   )
 
   flags <- basis7::basis_is_numerical(bumps)
@@ -124,7 +124,7 @@
   }
 
   x <- .inner(0, 1, 15)
-  z <- outer(x, bumps@basis_params$centres, "-") / bumps@basis_params$width
+  z <- outer(x, bumps@basis_params$centers, "-") / bumps@basis_params$width
   ev <- basis7::basis_eval(bumps, x)
   exact <- list(
     -z / bumps@basis_params$width * ev,
@@ -599,12 +599,12 @@ assert_gram_ok <- function() {
     }
   }
 
-  # Equation (orthonorm): the Gram matrix of an orthonormalised basis is the
+  # Equation (orthonorm): the Gram matrix of an orthonormalized basis is the
   # identity, verified by the independent quadrature above.
   err <- .maxdiff(.gram_by_integrate(tr$orthonorm, 0L), diag(6L))
   if (err > 1e-8) {
     out <- c(out, sprintf(
-      "orthonormalisation: the integrated inner products are off the identity by %s",
+      "orthonormalization: the integrated inner products are off the identity by %s",
       format(err)
     ))
   }
@@ -692,12 +692,12 @@ assert_gram_ok <- function() {
       ))
     }
 
-    # The consequence the section states: the penalised normal equations are
+    # The consequence the section states: the penalized normal equations are
     # diagonal, so each coefficient is shrunk on its own.
     a <- zz + 0.37 * tpt
     if (max(abs(a[upper.tri(a)])) / max(diag(a)) > 1e-8) {
       out <- c(out, sprintf(
-        "dr(K=%d): the penalised normal equations are not diagonal", b@dimension
+        "dr(K=%d): the penalized normal equations are not diagonal", b@dimension
       ))
     }
     if (b@dimension - d@dimension != 2L) {

@@ -372,7 +372,7 @@ truncated_closed_form_certificate <- function() {
 }
 
 # Derivatives: score and Hessian against finite differences of the log-density;
-# E[score] = 0 (the first Bartlett identity, which the recentring makes automatic);
+# E[score] = 0 (the first Bartlett identity, which the recentering makes automatic);
 # and the closed-form expected Hessian -Cov_T(s) against the expectation of the
 # observed Hessian.
 truncated_derivative_certificate <- function(seed = 19) {
