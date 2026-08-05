@@ -9,7 +9,7 @@ source("R/distribution-catalogue.R")
 ```
 
 This chapter develops the likelihood theory that the toolkit implements and
-then presents the fourteen distributions that `distributions7` ships. The
+then presents the univariate families that `distributions7` ships. The
 theory comes first because it is shared: the score, the two informations, the
 Bartlett identities and the change of scale are defined once, at the level of
 the base class, and every distribution, including a user-defined one, inherits
@@ -127,8 +127,8 @@ str(distrib_hessian(d, y, th))
 Everything in this section and the next two assumes the model is *regular* at
 $\theta$: the support of $f$ does not depend on $\theta$, the log-likelihood is
 four times differentiable, and derivatives may be exchanged with the integral
-sign at the orders involved. Thirteen of the fourteen distributions in the
-catalogue satisfy these conditions everywhere; the exception is the Laplace,
+sign at the orders involved. Every family in the catalogue satisfies these
+conditions everywhere except the Laplace,
 whose location parameter sits at a kink of the log-likelihood, and
 @sec-nonregular is devoted to what happens then.
 
@@ -543,27 +543,88 @@ An interval-censored observation is assembled from the unlogged derivatives at
 the two endpoints, $\partial\log(F(b)-F(a)) = (\partial F(b) - \partial F(a))/(F(b)-F(a))$,
 which is why the generic offers `log = FALSE` as well.
 
+### One name per parametrisation {#sec-numbering}
+
+Several families are useful in more than one parametrisation. A Gaussian may
+carry its scale, its variance or its precision as the second parameter; a
+negative binomial may have its variance quadratic in the mean or linear in
+it; a von Mises may carry its concentration or its mean resultant length. In
+a modelling framework the parametrisation decides what a linear predictor
+acts on, so each of these is a genuinely different model, and the package
+gives each one a name of its own: a numeral appended to the family, as in
+`gaussian1` for the scale form, `gaussian2` for the variance and `gaussian3`
+for the precision. Where the literature already numbers the forms the
+numbering follows it -- `negbin1` and `negbin2` are the NB1 and NB2 of
+@cameron1986, and `weibull1`/`weibull3` follow the `WEI`/`WEI3` naming of
+@rigby2005, which is why there is no `weibull2`. Each numbered family is a
+family in its own right, with exact derivatives on its own scale.
+
+```{r}
+#| label: numbered-table
+#| echo: false
+knitr::kable(numbered_families_table(), align = "ll", row.names = FALSE,
+             caption = "Families with several parametrisations")
+```
+
+Most of these are produced mechanically by the `reparametrize()` wrapper of
+@sec-reparametrize, validated against a hand-written twin where one exists.
+Two are written by hand for reasons the general mechanism cannot deliver:
+the centered skew normal, whose value lies in a cancellation that a generic
+chain rule would compute as a difference of large numbers, and the von Mises
+in its mean resultant length, whose map has no elementary inverse and is
+differentiated by the inverse function rule of @sec-numerical-special.
+
+### Moments in closed form {#sec-closed-moments}
+
+`mean()`, `variance()`, `skewness()` and `kurtosis()` are implemented
+analytically for every family whose moment has a closed form, and fall back
+on the numerical expectation otherwise -- a family whose moment does not
+exist, like a Student t's kurtosis below five degrees of freedom, returns
+the honest answer rather than a quadrature artifact. The numerical route
+itself is the batched quadrature of @sec-numerical-quadrature: a vector of
+parameter values costs one adaptive pass, not one per value.
+
 ### The catalogue {#sec-distrib-catalogue}
 
-The table below is generated from the distribution objects themselves.
+The tables below are generated from the distribution objects themselves.
+
+```{r}
+#| label: full-catalogue-table
+#| echo: false
+knitr::kable(full_catalogue_table(), align = "lll", row.names = FALSE,
+             caption = "The univariate families")
+```
+
+Detailed entries follow for the core families, whose formulas the rest of
+the chapter draws on; the remaining families state their densities and maps
+on their own reference pages.
 
 ```{r}
 #| label: catalogue-table
 #| echo: false
 knitr::kable(catalogue_table(), align = "lllll", row.names = FALSE,
-             caption = "The fourteen distributions")
+             caption = "The core families")
 ```
 
-The individual entries follow, and a reader who wants any of these families in
+A reader who wants any of these families in
 more depth than a catalogue entry can give will find them in @johnson1994,
 @johnson1995 and @johnson2005. Several of the parametrisations differ from the ones used by the
 corresponding `d*` function in base R: the Gamma is parametrised by mean and
 variance rather than shape and rate, the Beta by mean and precision, the
 negative binomial in its NB2 form. In each such case the entry states the map
-between the two explicitly. All fourteen distributions implement their
-observed derivatives to fourth order in closed form, as compiled Rcpp kernels,
-and the continuous-integration matrix builds them with several compilers on
-several platforms.
+between the two explicitly. Every univariate family implements its
+observed derivatives to fourth order in closed form -- the core families as
+compiled Rcpp kernels, the newer ones in vectorized R where a port was
+measured to buy nothing -- except the skew t's degrees-of-freedom
+components, which have no elementary form and come from one verified
+stencil. The continuous-integration matrix builds the compiled kernels with
+several compilers on several platforms.
+
+```{r}
+#| label: consistency-numbering
+#| include: false
+assert_numbering_ok()
+```
 
 ```{r}
 #| label: catalogue-entries

@@ -329,6 +329,49 @@ DENS_XMAX  <- 11
   write_logo("logo/statmodels7.svg", glyph, "statmodels")
 }
 
+# --- numericals7: the Gauss-Kronrod 7-15 weights, a quadrature made visible --
+
+# The one discrete glyph in the family, deliberately: six siblings are curves,
+# and the package is about numbers computed at points. The stems are the REAL
+# Kronrod weights at the real nodes (the same constants gauss_kronrod15()
+# carries), and the accent dots sit on the seven nodes the embedded Gauss rule
+# shares -- one node set, two weight sets, which is the package's whole trick
+# for getting an estimate and its error from a single evaluation.
+{
+  xh <- c(0.991455371120813, 0.949107912342759, 0.864864423359769,
+          0.741531185599394, 0.586087235467691, 0.405845151377397,
+          0.207784955007898, 0)
+  wkh <- c(0.022935322010529, 0.063092092629979, 0.104790010322250,
+           0.140653259715525, 0.169004726639267, 0.190350578064785,
+           0.204432940075298, 0.209482141084728)
+  nodes <- c(-xh[1:7], xh[8], rev(xh[1:7]))
+  wk <- c(wkh[1:7], wkh[8], rev(wkh[1:7]))
+  # the Gauss nodes are every second one, and carry the accent
+  gauss <- seq_along(nodes) %% 2 == 0
+
+  xlim <- c(-1.08, 1.08)
+  ylim <- c(0, 0.24)
+  px <- function(x) box$x + (x - xlim[1]) / diff(xlim) * box$w
+  py <- function(y) box$y + box$h - (y - ylim[1]) / diff(ylim) * box$h
+
+  base <- py(0)
+  stems <- paste0(vapply(seq_along(nodes), function(i) {
+    sprintf('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="5" stroke-linecap="round"/>\n',
+            px(nodes[i]), base, px(nodes[i]), py(wk[i]), LINE)
+  }, character(1)), collapse = "")
+  dots <- paste0(vapply(which(gauss), function(i) {
+    sprintf('<circle cx="%.1f" cy="%.1f" r="8" fill="%s"/>\n',
+            px(nodes[i]), py(wk[i]), ACCENT)
+  }, character(1)), collapse = "")
+
+  glyph <- paste0(
+    sprintf('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="2" opacity="0.35"/>\n',
+            px(-1.05), base, px(1.05), base, LINE),
+    stems, dots
+  )
+  write_logo("logo/numericals7.svg", glyph, "numericals")
+}
+
 cat("wrote:\n")
 for (f in list.files("logo", pattern = "[.]svg$", full.names = TRUE)) cat("  ", f, "\n")
 
@@ -337,7 +380,7 @@ if (requireNamespace("magick", quietly = TRUE)) {
   # statmodels7 is the umbrella and now also a package -- the meta-package
   # that installs and attaches the rest -- so its glyph is rasterised too.
   for (p in c("linkfunctions7", "distributions7", "optimizers7", "basis7",
-              "parameters7", "statmodels7")) {
+              "parameters7", "statmodels7", "numericals7")) {
     src <- file.path("logo", paste0(p, ".svg"))
     dst_dir <- file.path(p, "man", "figures")
     dir.create(dst_dir, recursive = TRUE, showWarnings = FALSE)

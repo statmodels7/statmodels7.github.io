@@ -996,6 +996,67 @@ the same small blocks repeatedly. It is the same trade the second order already
 made, and the reason the closed forms of a future `distrib_grad_cdf` would pay
 for themselves.
 
+### Reparametrisation {#sec-reparametrize}
+
+The wrappers above change the law. A reparametrisation changes only the
+coordinates the law is written in: a map $\theta = \theta(\psi)$ carries new
+parameters onto the parent's, the density is unchanged, and every
+log-likelihood derivative in $\psi$ follows from the parent's by the
+multivariate Faà di Bruno formula [@constantine1996]. For a multi-index $I$
+on the new parameters,
+$$
+\ell^{(I)}(\psi) \;=\; \sum_{\pi \vdash I}\;
+\sum_{j_1, \dots, j_{\lvert\pi\rvert}}
+\ell^{(j_1 \cdots j_{\lvert\pi\rvert})}\bigl(\theta(\psi)\bigr)
+\prod_{B \in \pi} \partial^{B} \theta_{j_B}(\psi),
+$$
+the outer sum over the partitions of the positions of $I$, the inner over
+assignments of parent components to blocks: the order of the parent
+derivative equals the number of blocks. This is the same formula behind the
+link scale of @sec-link-scale; the difference is that a link acts on one
+parameter at a time, so its Jacobian is diagonal and most terms vanish,
+while a reparametrisation may mix parameters -- a mean-precision Gaussian
+reaches both $\mu$ and $\sigma$ of the parent -- and the full partition sum
+is needed. Under the expectation at a fixed $\psi$ the one-block term
+carries the parent's score alone and drops by the first Bartlett identity,
+which is what makes the expected information in $\psi$ a congruence of the
+parent's.
+
+`reparametrize()` implements the formula for any parent and any map. The
+derivatives of the map itself are not asked of the user: the wrapper
+evaluates the map on the jets of @sec-numerical-jets, so a map written in
+plain R supplies its own derivatives to fourth order, exactly.
+
+```{r}
+#| label: reparam-twin
+g2 <- reparametrize(
+  gaussian1_distrib(),
+  map = function(psi) list(mu = psi$mu, sigma = sqrt(psi$sigma2)),
+  params = c("mu", "sigma2"),
+  bounds = list(mu = c(-Inf, Inf), sigma2 = c(0, Inf)),
+  links = list(mu = identity_link(), sigma2 = log_link())
+)
+
+# against the hand-written mean-variance Gaussian: two implementations of
+# one object, compared component by component -- by name, since the two may
+# enumerate the components in different orders
+y <- c(-0.5, 0.8, 2.2)
+th <- list(mu = 1.2, sigma2 = 3.5)
+ha <- distrib_hessian(g2, y, th)
+hb <- distrib_hessian(gaussian2_distrib(), y, th)
+max(vapply(names(hb), function(nm) max(abs(ha[[nm]] - hb[[nm]])), numeric(1)))
+```
+
+Most of the numbered parametrisations of @sec-numbering are exactly this
+wrapper with the family's own map; the hand-written ones among them serve as
+the wrapper's independent reference, and agree with it to machine precision.
+
+```{r}
+#| label: consistency-reparam
+#| include: false
+assert_reparametrize_ok()
+```
+
 ### Choice of construction {#sec-choosing}
 
 The three families answer different questions, and the differences are easiest

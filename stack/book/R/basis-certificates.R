@@ -47,10 +47,10 @@
 .certify_fd_weights <- function() {
   out <- character()
   for (d in 1:4) {
-    off <- basis7:::fd_offsets(d)
+    off <- numericals7::fd_offsets(d)
     for (nm in c("central", "forward", "backward")) {
       s <- off[[nm]]
-      w <- basis7:::fd_weights(s, d)
+      w <- numericals7::fd_weights(s, d)
       for (i in seq_along(s) - 1L) {
         want <- if (i == d) factorial(d) else 0
         got <- sum(w * s^i)

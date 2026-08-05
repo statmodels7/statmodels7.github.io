@@ -632,3 +632,183 @@ distrib_certificate <- function(n = 40, nsim = 5e4, orders = 1:4, seed = 2026072
        n_ok = sum(tab$passed),
        all_ok = all(tab$checks == tab$passed))
 }
+
+
+# ---------------------------------------------------------------------------
+# The full family list, the numbering convention and its gates (section 3.1).
+#
+# Everything here is generated from the package's own constructors, so the
+# tables cannot drift from the code: a family added to the package appears,
+# a renamed one changes, and the gate below fails if a numbered name promises
+# a parametrisation that does not exist.
+# ---------------------------------------------------------------------------
+
+# every univariate constructor the package exports, by its exported name
+ALL_FAMILY_CTORS <- c(
+  "gaussian1_distrib", "gaussian2_distrib", "gaussian3_distrib",
+  "cauchy_distrib", "logistic_distrib", "student_t1_distrib",
+  "student_t2_distrib", "laplace_distrib", "pseudohuber_distrib",
+  "skewnormal1_distrib", "skewnormal2_distrib", "skewt_distrib",
+  "gumbel_distrib", "gamma1_distrib", "gamma2_distrib",
+  "invgauss1_distrib", "invgauss2_distrib", "lognormal1_distrib",
+  "lognormal2_distrib", "weibull1_distrib", "weibull3_distrib",
+  "exponential_distrib", "chisq_distrib", "beta1_distrib", "beta2_distrib",
+  "bernoulli_distrib", "binomial_distrib", "poisson_distrib",
+  "negbin1_distrib", "negbin2_distrib", "geometric_distrib",
+  "betabinom1_distrib", "betabinom2_distrib", "gpd_distrib",
+  "vonmises1_distrib", "vonmises2_distrib", "gengamma1_distrib",
+  "gengamma2_distrib"
+)
+
+.family_object <- function(ctor) {
+  f <- get(ctor, envir = asNamespace("distributions7"))
+  if ("size" %in% names(formals(f))) f(size = 10) else f()
+}
+
+full_catalogue_table <- function() {
+  rows <- lapply(ALL_FAMILY_CTORS, function(ctor) {
+    d <- .family_object(ctor)
+    is_disc <- S7::S7_inherits(d, discrete_distrib)
+    data.frame(
+      constructor = sprintf("`%s()`", ctor),
+      kind = if (is_disc) "discrete" else "continuous",
+      parameters = paste(sprintf("`%s`", d@params), collapse = ", "),
+      stringsAsFactors = FALSE
+    )
+  })
+  do.call(rbind, rows)
+}
+
+numbered_families_table <- function() {
+  nm <- sub("_distrib$", "", ALL_FAMILY_CTORS)
+  stem <- sub("[0-9]+$", "", nm)
+  digit <- sub("^[a-z_]+", "", nm)
+  keep <- stem %in% stem[digit != ""]
+  df <- data.frame(stem = stem[keep], name = nm[keep],
+                   stringsAsFactors = FALSE)
+  agg <- aggregate(name ~ stem, df, function(x) paste(sprintf("`%s`", x),
+                                                      collapse = ", "))
+  names(agg) <- c("family", "parametrisations")
+  agg[order(agg$family), ]
+}
+
+# The claims of the numbering and moments subsections.
+.certify_numbering <- function() {
+  out <- character()
+
+  # every listed constructor exists and returns a distribution
+  for (ctor in ALL_FAMILY_CTORS) {
+    ok <- tryCatch({
+      d <- .family_object(ctor)
+      S7::S7_inherits(d, distrib)
+    }, error = function(e) FALSE)
+    if (!ok) out <- c(out, sprintf("%s does not construct a distribution", ctor))
+  }
+
+  # the list is the package's export list, not a stale copy: every exported
+  # *_distrib constructor that is univariate appears exactly once
+  exported <- grep("_distrib$", getNamespaceExports("distributions7"), value = TRUE)
+  exported <- setdiff(exported, c(
+    # the multivariate families, which have their own section
+    "mvgaussian_distrib", "mvstudent_t_distrib",
+    "dirichlet_distrib", "multinomial_distrib",
+    # exports that end in _distrib without being family constructors
+    "check_distrib", "fit_distrib",
+    "continuous_distrib", "discrete_distrib", "multivariate_distrib"
+  ))
+  missing <- setdiff(exported, ALL_FAMILY_CTORS)
+  extra <- setdiff(ALL_FAMILY_CTORS, exported)
+  if (length(missing)) {
+    out <- c(out, sprintf("families missing from the catalogue: %s",
+                          paste(missing, collapse = ", ")))
+  }
+  if (length(extra)) {
+    out <- c(out, sprintf("catalogue names not exported: %s",
+                          paste(extra, collapse = ", ")))
+  }
+
+  # two parametrisations of one family are the same law: equal densities on
+  # a grid, through the map each pair documents
+  y <- c(0.3, 1.1, 2.7, 5)
+  a <- distrib_pdf(distributions7::gaussian1_distrib(), y,
+                   list(mu = 1, sigma = 2), log = TRUE)
+  b <- distrib_pdf(distributions7::gaussian2_distrib(), y,
+                   list(mu = 1, sigma2 = 4), log = TRUE)
+  cc <- distrib_pdf(distributions7::gaussian3_distrib(), y,
+                    list(mu = 1, tau = 0.25), log = TRUE)
+  if (max(abs(a - b), abs(a - cc)) > 1e-12) {
+    out <- c(out, "the three gaussian parametrisations are not the same law")
+  }
+
+  out
+}
+
+.certify_moments <- function() {
+  out <- character()
+  # closed moments against the numerical route, which shares no formulas
+  cases <- list(
+    list(d = distributions7::gamma2_distrib(), th = list(mu = 3, sigma2 = 2)),
+    list(d = distributions7::weibull1_distrib(), th = list(mu = 2, sigma = 1.5)),
+    list(d = distributions7::negbin2_distrib(), th = list(mu = 4, theta = 1.3))
+  )
+  for (cs in cases) {
+    m <- mean(cs$d, cs$th)
+    v <- distributions7::variance(cs$d, cs$th)
+    m_num <- distributions7::expectation(cs$d, function(y, theta) y, cs$th)
+    v_num <- distributions7::expectation(cs$d, function(y, theta) (y - m)^2, cs$th)
+    if (abs(m - m_num) > 1e-6 * max(1, abs(m)) ||
+        abs(v - v_num) > 1e-6 * max(1, abs(v))) {
+      out <- c(out, sprintf("closed moments of %s disagree with quadrature",
+                            cs$d@distrib_name))
+    }
+  }
+  out
+}
+
+.certify_reparametrize_twin <- function() {
+  out <- character()
+  r <- distributions7::reparametrize(
+    distributions7::gaussian1_distrib(),
+    map = function(psi) list(mu = psi$mu, sigma = sqrt(psi$sigma2)),
+    params = c("mu", "sigma2"),
+    bounds = list(mu = c(-Inf, Inf), sigma2 = c(0, Inf)),
+    links = list(mu = linkfunctions7::identity_link(),
+                 sigma2 = linkfunctions7::log_link())
+  )
+  h <- distributions7::gaussian2_distrib()
+  y <- c(-0.5, 0.8, 2.2)
+  th <- list(mu = 1.2, sigma2 = 3.5)
+  for (fn in list(distributions7::distrib_gradient,
+                  distributions7::distrib_hessian)) {
+    ga <- fn(r, y, th)
+    gb <- fn(h, y, th)
+    gap <- max(vapply(names(gb), function(nm) max(abs(ga[[nm]] - gb[[nm]])),
+                      numeric(1)))
+    if (gap > 1e-10) {
+      out <- c(out, "reparametrize() and the hand-written gaussian2 disagree")
+    }
+  }
+  out
+}
+
+assert_numbering_ok <- function() {
+  problems <- c(.certify_numbering(), .certify_moments())
+  if (length(problems)) {
+    stop("Section 3.1's family catalogue disagrees with the package:
+  ",
+         paste(problems, collapse = "
+  "), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+assert_reparametrize_ok <- function() {
+  problems <- .certify_reparametrize_twin()
+  if (length(problems)) {
+    stop("Section 3.2's reparametrisation claims disagree with the package:
+  ",
+         paste(problems, collapse = "
+  "), call. = FALSE)
+  }
+  invisible(TRUE)
+}
