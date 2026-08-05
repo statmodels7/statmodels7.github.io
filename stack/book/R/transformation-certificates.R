@@ -70,10 +70,10 @@ TRANSFORMERS <- list(
 transformer_parent <- function(id) {
   switch(id,
     log = , sqrt = , inverse = , power = , bc = , softplus =
-      list(d = gamma_distrib(), th = list(mu = 2, sigma2 = 1), x = seq(0.4, 5, length.out = 30)),
+      list(d = gamma2_distrib(), th = list(mu = 2, sigma2 = 1), x = seq(0.4, 5, length.out = 30)),
     logit =
-      list(d = beta_distrib(), th = list(mu = 0.4, phi = 6), x = seq(0.06, 0.94, length.out = 30)),
-    list(d = gaussian_distrib(), th = list(mu = 0.5, sigma = 1),
+      list(d = beta1_distrib(), th = list(mu = 0.4, phi = 6), x = seq(0.06, 0.94, length.out = 30)),
+    list(d = gaussian1_distrib(), th = list(mu = 0.5, sigma = 1),
          x = seq(-2.2, 2.6, length.out = 30))
   )
 }
@@ -156,15 +156,15 @@ zero_cases <- function() {
     zip = list(title = "Zero-inflated Poisson",
                d = zero_inflated(poisson_distrib()), th = list(mu = 3, zi = 0.25)),
     zinb = list(title = "Zero-inflated NB2",
-                d = zero_inflated(negbin_distrib()), th = list(mu = 4, theta = 1.5, zi = 0.3)),
+                d = zero_inflated(negbin2_distrib()), th = list(mu = 4, theta = 1.5, zi = 0.3)),
     zap = list(title = "Hurdle Poisson",
                d = zero_adjusted(poisson_distrib()), th = list(mu = 3, za = 0.4)),
     zanb = list(title = "Hurdle NB2",
-                d = zero_adjusted(negbin_distrib()), th = list(mu = 4, theta = 1.5, za = 0.35)),
+                d = zero_adjusted(negbin2_distrib()), th = list(mu = 4, theta = 1.5, za = 0.35)),
     zaga = list(title = "Zero-adjusted gamma",
-                d = zero_adjusted(gamma_distrib()), th = list(mu = 3, sigma2 = 2, za = 0.3)),
+                d = zero_adjusted(gamma2_distrib()), th = list(mu = 3, sigma2 = 2, za = 0.3)),
     zabe = list(title = "Zero-adjusted beta",
-                d = zero_adjusted(beta_distrib()), th = list(mu = 0.4, phi = 6, za = 0.25))
+                d = zero_adjusted(beta1_distrib()), th = list(mu = 0.4, phi = 6, za = 0.25))
   )
 }
 
@@ -204,7 +204,10 @@ zero_density_certificate <- function() {
 
     # total mass: sum over the support, or integral plus the atom
     tot <- if (is_disc) {
-      numerical_series(function(k) distrib_pdf(d, k, th), d@bounds[1], d@bounds[2])
+      # a direct finite sum, independent of every summation engine: the gate's
+      # discrete cases put negligible mass beyond 400 support points
+      ks <- seq(d@bounds[1], min(d@bounds[2], d@bounds[1] + 400))
+      sum(distrib_pdf(d, ks, th))
     } else {
       at <- distrib_atoms(d, th)
       bb <- d@bounds
@@ -278,7 +281,7 @@ zero_moment_certificate <- function() {
   zip <- zero_inflated(poisson_distrib()); th_zip <- list(mu = mu, zi = zi)
   za <- 0.4
   zap <- zero_adjusted(poisson_distrib()); th_zap <- list(mu = mu, za = za)
-  zag <- zero_adjusted(gamma_distrib()); th_zag <- list(mu = 3, sigma2 = 2, za = 0.3)
+  zag <- zero_adjusted(gamma2_distrib()); th_zag <- list(mu = 3, sigma2 = 2, za = 0.3)
   f0 <- dpois(0, mu)
 
   data.frame(
@@ -327,13 +330,13 @@ truncation_cases <- function() {
     tpu  = list(title = "Poisson, truncated above at 8",
                 d = truncated(poisson_distrib(), upper = 8), th = list(mu = 3)),
     tnb  = list(title = "NB2 on [1, 15]",
-                d = truncated(negbin_distrib(), 1, 15), th = list(mu = 4, theta = 1.5)),
+                d = truncated(negbin2_distrib(), 1, 15), th = list(mu = 4, theta = 1.5)),
     tn   = list(title = "Gaussian on [-1, 2]",
-                d = truncated(gaussian_distrib(), -1, 2), th = list(mu = 0.5, sigma = 1.5)),
+                d = truncated(gaussian1_distrib(), -1, 2), th = list(mu = 0.5, sigma = 1.5)),
     tg   = list(title = "Gamma on [0.5, 8]",
-                d = truncated(gamma_distrib(), 0.5, 8), th = list(mu = 3, sigma2 = 2)),
+                d = truncated(gamma2_distrib(), 0.5, 8), th = list(mu = 3, sigma2 = 2)),
     tzag = list(title = "Zero-adjusted gamma, capped at 5",
-                d = truncated(zero_adjusted(gamma_distrib()), upper = 5),
+                d = truncated(zero_adjusted(gamma2_distrib()), upper = 5),
                 th = list(mu = 3, sigma2 = 2, za = 0.3))
   )
 }
@@ -344,7 +347,7 @@ truncated_closed_form_certificate <- function() {
   mu <- 2
   ztp <- truncated(poisson_distrib(), lower = 1)
   lo <- -1; up <- 2; m <- 0.5; s <- 1.5
-  tn <- truncated(gaussian_distrib(), lower = lo, upper = up)
+  tn <- truncated(gaussian1_distrib(), lower = lo, upper = up)
   a <- (lo - m) / s; b <- (up - m) / s; Z <- pnorm(b) - pnorm(a)
 
   data.frame(
@@ -447,7 +450,7 @@ truncated_check_certificate <- function(n = 40, nsim = 3e4, orders = 1:2, seed =
   y <- c(0.3, 0.8, 1.5, 3)
 
   a <- 4; b <- 2
-  ig <- distributions7::transformation(distributions7::gamma_distrib(),
+  ig <- distributions7::transformation(distributions7::gamma2_distrib(),
                                        distributions7::inverse_transform(),
                                        new_name = "inverse gamma")
   gap <- max(abs(distributions7::distrib_pdf(
@@ -461,7 +464,7 @@ truncated_check_certificate <- function(n = 40, nsim = 3e4, orders = 1:2, seed =
   }
 
   s <- 1.7
-  ray <- distributions7::fixed(distributions7::weibull_distrib(), sigma = 2)
+  ray <- distributions7::fixed(distributions7::weibull1_distrib(), sigma = 2)
   gap <- max(abs(distributions7::distrib_pdf(ray, y, list(mu = s * sqrt(2))) -
                  (y / s^2) * exp(-y^2 / (2 * s^2))))
   if (gap > 1e-12) {
@@ -472,7 +475,7 @@ truncated_check_certificate <- function(n = 40, nsim = 3e4, orders = 1:2, seed =
   ex <- max(abs(distributions7::distrib_pdf(
     distributions7::exponential_distrib(), y, list(mu = 2.5)) -
     distributions7::distrib_pdf(
-      distributions7::fixed(distributions7::weibull_distrib(), sigma = 1),
+      distributions7::fixed(distributions7::weibull1_distrib(), sigma = 1),
       y, list(mu = 2.5))))
   if (ex > 1e-14) {
     out <- c(out, sprintf(
@@ -481,7 +484,7 @@ truncated_check_certificate <- function(n = 40, nsim = 3e4, orders = 1:2, seed =
 
   # and it is NOT a Gamma with a variance held fixed: that agrees at one mean
   # and nowhere else, which is what makes the exponential a family of its own
-  gf <- distributions7::fixed(distributions7::gamma_distrib(), sigma2 = 2.5^2)
+  gf <- distributions7::fixed(distributions7::gamma2_distrib(), sigma2 = 2.5^2)
   at_match <- max(abs(distributions7::distrib_pdf(gf, y, list(mu = 2.5)) -
                       stats::dexp(y, rate = 1 / 2.5)))
   at_other <- max(abs(distributions7::distrib_pdf(gf, y, list(mu = 4)) -
@@ -531,15 +534,15 @@ assert_transformations_ok <- function() {
   # Third and fourth derivatives: the partition machinery against finite
   # differences, and the closed form for the pure zi component at zero.
   hi <- list(
-    list(d = transformation(gaussian_distrib(), exp_transform()),
+    list(d = transformation(gaussian1_distrib(), exp_transform()),
          th = list(mu = 0.5, sigma = 1.1), y = c(0.6, 1.4, 3.0)),
-    list(d = zero_inflated(negbin_distrib()),
+    list(d = zero_inflated(negbin2_distrib()),
          th = list(mu = 4, theta = 1.5, zi = 0.3), y = c(0, 2, 6)),
     list(d = zero_adjusted(poisson_distrib()),
          th = list(mu = 3, za = 0.4), y = c(0, 1, 5)),
-    list(d = zero_adjusted(gamma_distrib()),
+    list(d = zero_adjusted(gamma2_distrib()),
          th = list(mu = 3, sigma2 = 2, za = 0.3), y = c(0, 1.2, 5)),
-    list(d = truncated(gaussian_distrib(), -1, 3),
+    list(d = truncated(gaussian1_distrib(), -1, 3),
          th = list(mu = 0.5, sigma = 1.5), y = c(-0.5, 0.3, 2.4)),
     list(d = truncated(poisson_distrib(), lower = 1), th = list(mu = 2.5), y = c(1, 3, 6))
   )

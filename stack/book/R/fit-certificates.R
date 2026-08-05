@@ -121,10 +121,10 @@
 # whose location is exactly the non-regular case the chapter appeals to.
 assert_fit_ok <- function() {
   cases <- list(
-    list(d = gaussian_distrib(), theta = list(mu = 1, sigma = 2)),
-    list(d = gamma_distrib(),    theta = list(mu = 4, sigma2 = 6)),
+    list(d = gaussian1_distrib(), theta = list(mu = 1, sigma = 2)),
+    list(d = gamma2_distrib(),    theta = list(mu = 4, sigma2 = 6)),
     list(d = poisson_distrib(),  theta = list(mu = 3)),
-    list(d = beta_distrib(),     theta = list(mu = 0.4, phi = 8)),
+    list(d = beta1_distrib(),     theta = list(mu = 0.4, phi = 8)),
     list(d = laplace_distrib(),  theta = list(mu = 0, b = 1.5))
   )
 
@@ -216,7 +216,7 @@ assert_fit_ok <- function() {
   out <- character()
   set.seed(24)
   n <- 5000
-  d <- gaussian_distrib()
+  d <- gaussian1_distrib()
   y <- distrib_rng(d, n, list(mu = 3, sigma = 2))
 
   mu_hat <- mean(y)
