@@ -656,6 +656,7 @@ ALL_FAMILY_CTORS <- c(
   "bernoulli_distrib", "binomial_distrib", "poisson_distrib",
   "negbin1_distrib", "negbin2_distrib", "geometric_distrib",
   "betabinom1_distrib", "betabinom2_distrib", "gpd_distrib",
+  "pig1_distrib", "pig2_distrib",
   "vonmises1_distrib", "vonmises2_distrib", "gengamma1_distrib",
   "gengamma2_distrib"
 )
