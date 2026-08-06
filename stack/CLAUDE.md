@@ -813,10 +813,10 @@ whole and a scalar link cannot express it.
 | | |
 |---|---|
 | `numericals7` | 0.7.0 (2026-08-06): enumerations (0.1.0), stencils (0.2.0), quad_vec/series_vec (0.3.0), special functions (0.4.0), log-Bessel (0.5.0), jets REMOVED (0.6.0), log-Bessel kernels compiled with R twins in tests (0.7.0). `R CMD check --as-cran` clean apart from the environment notes, CI green. Logo tracked, favicons in place |
-| `linkfunctions7` | 890 tests, `R CMD check` OK, CI green; stencils delegate to numericals7 (Remotes gained its first entry) |
+| `linkfunctions7` | 891 tests, `R CMD check` OK, CI green; stencils delegate to numericals7; the transcendental links' derivatives compiled 2026-08-06 (src/link_kernels.cpp, first compiled code) |
 | `distributions7` | 2993 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-05, local), CI green |
 | `optimizers7` | 710 tests, `R CMD check --as-cran` OK with vignettes, two notes (2026-08-04). Published 2026-07-31; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
-| `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.6.0` (0.6.0: AR derivative arrays in Rcpp, first compiled code). Earlier 0.3.0: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers (D R D', block diagonal, sums) still open. |
+| `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.7.0` (0.7.0: log-Cholesky Leibniz assembly compiled, 30x at p = 8 order 4; 0.6.0: AR derivative arrays in Rcpp, first compiled code). Earlier 0.3.0: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers (D R D', block diagonal, sums) still open. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
 | `statmodels7` | 32 tests, `R CMD check --as-cran` with one deliberate NOTE (see below) and the submission warning, created 2026-08-05. Version `0.1.0` with a `NEWS.md` from the first commit. |
@@ -1176,16 +1176,27 @@ package (min-of-5 timings, R 4.6.0/gcc 14.2 on this machine):
   The rest of the package: mills_ratio/bessel_i_ratio are one-liners over
   C-backed dnorm/pnorm/besselI, owen_t delegates to quad_vec, and the
   batched engines are matrix-op-bound -- nothing to port.
-- **linkfunctions7: PORT MERITED, queued (#84).** d4linkinv(logit) at
-  n = 1e6: R 40 ms vs Rcpp 20 ms (2.0x); 1.75x at n = 1e4. cloglog linkinv
-  1.3-1.6x. The old "transcendentals cost the same in C++" argument is
-  half-true: the transcendental is shared but R's vector TEMPORARIES are
-  not, and an order-4 polynomial in m*(1-m) allocates a dozen of them.
-- **parameters7: AR ported in #82; log_cholesky assembly queued (#85).**
-  param_d4 of log_cholesky at p = 8 costs 9.39 s in pure R (82,251
-  components enumerated in an R loop) against 0.5 ms for the compiled AR
-  d4 at the same p -- four orders of magnitude of loop overhead, the
-  clearest port candidate in the toolkit.
+- **linkfunctions7: PORTED (2026-08-06, sera).** Thirteen scalar kernels
+  (src/link_kernels.cpp) serve the derivative methods of logit, probit,
+  cloglog, loglog, cauchit, rhobit, softplus; the doubly bounded link and
+  the softplus inverse REUSE the logit kernel (scaled by the width,
+  shifted one order). Measured through S7 dispatch: d4linkinv(logit)
+  40 -> 25 ms at n = 1e6. identity/log/sqrt/inverse/power stay in R,
+  their bodies being single C-level primitives. The old "transcendentals
+  cost the same in C++" argument is half-true: the transcendental is
+  shared but R's vector TEMPORARIES are not, and an order-4 polynomial in
+  m*(1-m) allocates a dozen of them. Validator: check_link's numDeriv
+  battery plus the extremes suite, no twins needed.
+- **parameters7: AR ported in #82; log_cholesky assembly PORTED (0.7.0,
+  2026-08-06 sera).** Every derivative of the Cholesky factor is a
+  SINGLE-ENTRY matrix, so each Leibniz term is one row, one column or one
+  cell -- chol_leibniz_cpp assembles all four orders without a matrix
+  product, param_d1/d2 included. Measured at p = 8: order 4 from 9.39 s
+  to 0.28 s (30x; the remainder is allocating the 82,251 result matrices
+  the contract returns), order 2 from 6 ms to 1.2 ms. The dense R
+  assembly stays as the twin `.chol_leibniz_r`, compared at machine
+  precision in the tests. leibniz_gram survives for correlation_matrix,
+  whose factor derivatives are NOT single-entry.
 - **basis7: NOTHING TO PORT.** bspline_design delegates to splines2's
   compiled C++; Fourier/Legendre are vectorized recurrences over
   trig/polynomial ops.
@@ -2414,7 +2425,12 @@ Two smaller things worth keeping:
   col Monte Carlo della GPD: (i) il kernel C++ di `xi_xi` della gpd somma
   -7.998 + 7.996 + 0.0021 per ottenere 9.92e-05 a xi*z piccolo, cioe' un
   pavimento di 1.79e-11, e Richardson su di esso amplifica a 1.65e-4 --
-  l'assemblaggio nuovo e' meglio condizionato (task #89); (ii) la componente
+  l'assemblaggio nuovo e' meglio condizionato, e il kernel e' stato
+  RISCRITTO lo stesso giorno (#89): W = log1p(u)*(z/u) esatto ovunque (la
+  vecchia guardia su |xi| con serie corta in xi troncava (xi z)^3/4,
+  quattro decimali a xi = 1e-8, z = 1e7), e le due derivate passano alla
+  serie sotto |xi z| = 0.2 -- il corner torna a 2.2e-16 e il test
+  kernel-contro-assemblaggio stringe da 1e-9 a 1e-13; (ii) la componente
   in xi di `cross_y` della gpd vale ESATTAMENTE zero a y = sigma, dove nessuna
   misura puntuale relativa esiste, e il confronto va fatto sulla scala
   dell'intero vettore.
