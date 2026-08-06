@@ -1,0 +1,128 @@
+## The three constructions {#sec-penalty-branches}
+
+```{r}
+#| label: setup-08b
+#| include: false
+source("R/_setup.R")
+source("R/penalty-certificates.R")
+```
+
+Every penalty the package ships is one of three shapes, and the three cover
+the penalties regression practice actually uses.
+
+### The quadratic penalty {#sec-penalty-quadratic}
+
+The quadratic penalty is the Gaussian prior
+$\beta \sim N\!\left(0,\,(\lambda\,D'PD)^{-}\right)$ written as its exact
+negative log-density,
+
+$$
+\rho \;=\; \frac{\lambda}{2}\,(D\beta)'P(D\beta)
+  \;-\; \frac{r}{2}\log\lambda
+  \;+\; \frac{r}{2}\log 2\pi
+  \;-\; \frac{1}{2}\log\operatorname{pdet}(P),
+$$ {#eq-penalty-quadratic}
+
+with $P$ a fixed positive semidefinite matrix -- a Gram matrix from
+@sec-basis-gram, a difference penalty $D_k'D_k$ in the manner of
+@eilers1996, or anything the caller supplies -- and $r$ its rank. One
+eigendecomposition at construction fixes $r$ by the relative rule of
+@sec-parameter-rank and stores the exact null basis, so that later
+membership questions never go through a rank recomputed from assembled
+arithmetic. Everything is then closed form in $\lambda$: the gradient is
+$\lambda D'PD\beta$, the Hessian $\lambda D'PD$ constant in $\beta$, the
+$\lambda$-derivative of the value $\tfrac{1}{2}(D\beta)'P(D\beta) -
+r/(2\lambda)$, and the mixed block $D'PD\beta$.
+
+```{r}
+#| label: quadratic-example
+P <- crossprod(diff(diag(6), differences = 2))
+pen <- quadratic_penalty(P)
+
+# an improper prior: flat along the linear polynomials
+penalty_rank(pen)
+is_proper(pen)
+```
+
+### The separable penalty {#sec-penalty-separable}
+
+The second construction applies a univariate log-density from
+@sec-distributions7 coordinatewise:
+
+$$
+\rho(t;\,\theta) \;=\; -\sum_{j=1}^{m} \log f(t_j;\,\theta),
+\qquad t = D\beta .
+$$
+
+The hyperparameters are the distribution's free parameters, with their
+bounds and links read off the distribution object, and every derivative is
+the distribution's, reassembled through the map: the gradient is
+$-D'\ell^{(y)}$, the Hessian $-D'\,\mathrm{diag}(\ell^{(yy)})\,D$, the
+$\theta$ blocks are the summed score and Hessian, and the mixed block is
+$-D'\ell^{(y\theta_k)}$ -- the response-parameter derivative of
+@sec-distributions7, which exists in closed form for every continuous
+family and is the reason no separable penalty differences anything.
+
+The classical penalties are named instances of this construction. Ridge is
+the Gaussian held at zero with its scale free; the lasso is the Laplace
+held at zero, whose kink at the origin the object declares; the
+heavy-tailed prior is the Student t held at zero, whose $\nu$ is estimable
+exactly because the constant travels with the density. Ridge therefore
+exists twice in the package -- once as @eq-penalty-quadratic with the
+identity matrix, once as the separable Gaussian -- and the duplication is
+deliberate: two independent implementations of one object can be compared
+componentwise with no tolerance to choose, and the certification below does
+exactly that at $\lambda = 1/\sigma^2$.
+
+```{r}
+#| label: separable-example
+# the fused lasso: Laplace increments through a difference map
+pen <- lasso_penalty(map = diff(diag(4)))
+beta <- c(0.5, 1.4, -0.3, 2.0)
+penalty_gradient(pen, beta, list(b = 0.8))
+
+penalty_kinks(pen, list(b = 0.8))
+```
+
+### The families defined by their derivative {#sec-penalty-scad}
+
+SCAD [@fan2001] and MCP [@zhang2010] are stated in the literature through
+$\rho'$, because the derivative is where their design lives: a constant
+slope near zero, so small coefficients feel the lasso, and a slope that
+falls to nothing beyond a shoulder, so large coefficients are left
+unbiased. On $t \ge 0$, extended evenly,
+
+$$
+\rho'_{\mathrm{SCAD}}(t) =
+\begin{cases}
+\lambda & t \le \lambda \\[2pt]
+\dfrac{a\lambda - t}{a - 1} & \lambda < t \le a\lambda \\[2pt]
+0 & t > a\lambda,
+\end{cases}
+\qquad
+\rho'_{\mathrm{MCP}}(t) = \left(\lambda - \frac{t}{\gamma}\right)_{+},
+$$ {#eq-penalty-scad}
+
+with $a > 2$ and $\gamma > 1$. The value follows by the closed piecewise
+antiderivative anchored at $\rho(0) = 0$, and the $\theta$ and mixed blocks
+are closed piecewise forms as well. Both penalties are bounded, so
+$\exp(-\rho)$ does not integrate and no constant exists: they are improper
+by construction, and the value is the bare $\rho$. The kink set contains
+the origin, and the second derivative additionally jumps at the region
+boundaries, which the object reports so that a numerical comparison never
+straddles them.
+
+```{r}
+#| label: scad-example
+pen <- scad_penalty(n_coef = 1)
+th <- list(lambda = 1, a = 3.7)
+
+# flat beyond the shoulder: no bias on large coefficients
+penalty_value(pen, 5, th) == penalty_value(pen, 50, th)
+```
+
+```{r}
+#| label: consistency-08b
+#| include: false
+assert_penalty_branches_ok()
+```

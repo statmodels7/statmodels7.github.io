@@ -1,0 +1,85 @@
+## The definition {#sec-penalty-definition}
+
+```{r}
+#| label: setup-08a
+#| include: false
+source("R/_setup.R")
+source("R/penalty-certificates.R")
+```
+
+A penalty on a coefficient vector $\beta \in \mathbb{R}^q$ is a function
+
+$$
+\rho(D\beta;\,\theta),
+$$
+
+built from three parts: an $m \times q$ matrix $D$ selecting what is
+penalized -- the coefficients themselves, their successive differences, the
+jumps of a segmented term -- a scalar function $\rho$ of the resulting
+$m$-vector, and hyperparameters $\theta$ governing how strongly. Penalized
+estimation adds $\rho$ to the negative log-likelihood; Bayesian estimation
+reads $\exp(-\rho)$ as a prior density on $D\beta$. The two readings use the
+same object, and the package takes the Bayesian one as the organizing
+definition because it forces a decision the frequentist reading lets one
+avoid: what to do with the normalizing constant.
+
+`penalties7` keeps the constant. A proper penalty evaluates to exactly the
+negative logarithm of a normalized density, so that, for the ridge penalty
+with scale $\sigma$,
+
+$$
+\rho(\beta;\,\sigma)
+  \;=\; \frac{1}{2\sigma^2}\,\beta'\beta
+  \;+\; q\log\sigma \;+\; \frac{q}{2}\log 2\pi .
+$$
+
+Penalized-likelihood software drops the two trailing terms, because at fixed
+$\sigma$ they do not move the coefficient estimate. They move everything
+else. Joint maximization over $(\beta, \sigma)$ without the constant
+improves without bound as the prior degenerates, and the degrees of freedom
+$\nu$ of a heavy-tailed prior appears only in its constant, so dropping it
+makes $\nu$ inestimable. Keeping the constant costs one closed expression
+per penalty and is what makes the hyperparameters parameters rather than
+tuning knobs.
+
+An improper penalty has no constant to keep. A quadratic penalty whose
+matrix is rank deficient is a Gaussian that is flat along the null space,
+and the bounded penalties of @sec-penalty-branches make $\exp(-\rho)$
+non-integrable outright. The quadratic case keeps the proper constant of its
+non-degenerate part -- the rank replaces the dimension, and the log
+pseudo-determinant replaces the log determinant -- which is precisely the
+constant a marginal-likelihood criterion uses; the bounded case returns the
+bare $\rho$ and `is_proper()` says so.
+
+Each hyperparameter travels with a link function from @sec-links, so that a
+consumer optimizes $\theta$ on the unconstrained scale; the derivatives with
+respect to $\theta$ are returned on the parameter scale by every method and
+carried onto the link scale by the chain rule in one place, exactly as
+`distributions7` does for its parameters. Beyond the value, every penalty
+answers the derivatives an estimation routine asks: the gradient and Hessian
+in $\beta$, the gradient and Hessian in $\theta$, and the mixed block
+$\partial^2 \rho / \partial\beta\,\partial\theta_k$, which joint estimation
+of coefficients and hyperparameters consumes and which the implicit function
+theorem turns into the gradient of a profiled objective. A penalty also
+declares its kink set -- the points where $\rho$ is not differentiable in
+its argument, empty for the smooth penalties and $\{0\}$ for the sparsity
+ones -- so that a validator or a solver can keep away from what the object
+itself says is not smooth.
+
+```{r}
+#| label: penalty-first-look
+pen <- ridge_penalty(n_coef = 3)
+beta <- c(0.8, -0.4, 1.1)
+
+penalty_value(pen, beta, list(sigma = 1.5))
+penalty_gradient(pen, beta, list(sigma = 1.5))
+
+# the mixed block: how the beta-gradient moves when sigma does
+penalty_cross(pen, beta, list(sigma = 1.5))$sigma
+```
+
+```{r}
+#| label: consistency-08a
+#| include: false
+assert_penalty_definition_ok()
+```
