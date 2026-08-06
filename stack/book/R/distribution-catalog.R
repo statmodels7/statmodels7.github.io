@@ -768,26 +768,46 @@ numbered_families_table <- function() {
 
 .certify_reparametrize_twin <- function() {
   out <- character()
-  r <- distributions7::reparametrize(
-    distributions7::gaussian1_distrib(),
-    map = function(psi) list(mu = psi$mu, sigma = sqrt(psi$sigma2)),
-    params = c("mu", "sigma2"),
-    bounds = list(mu = c(-Inf, Inf), sigma2 = c(0, Inf)),
-    links = list(mu = linkfunctions7::identity_link(),
-                 sigma2 = linkfunctions7::log_link())
-  )
+  build <- function(md) {
+    distributions7::reparametrize(
+      distributions7::gaussian1_distrib(),
+      map = function(psi) list(mu = psi$mu, sigma = sqrt(psi$sigma2)),
+      params = c("mu", "sigma2"),
+      bounds = list(mu = c(-Inf, Inf), sigma2 = c(0, Inf)),
+      links = list(mu = linkfunctions7::identity_link(),
+                   sigma2 = linkfunctions7::log_link()),
+      map_derivs = md
+    )
+  }
+  md <- function(psi) {
+    v <- psi[[2]]
+    list(
+      list("1" = rep_len(1, length(v))),
+      list("2" = 0.5 / sqrt(v), "2,2" = -0.25 / v^1.5,
+           "2,2,2" = 0.375 / v^2.5, "2,2,2,2" = -0.9375 / v^3.5)
+    )
+  }
   h <- distributions7::gaussian2_distrib()
   y <- c(-0.5, 0.8, 2.2)
   th <- list(mu = 1.2, sigma2 = 3.5)
-  for (fn in list(distributions7::distrib_gradient,
-                  distributions7::distrib_hessian)) {
+  gap_for <- function(r, fn) {
     ga <- fn(r, y, th)
     gb <- fn(h, y, th)
-    gap <- max(vapply(names(gb), function(nm) max(abs(ga[[nm]] - gb[[nm]])),
-                      numeric(1)))
-    if (gap > 1e-10) {
+    max(vapply(names(gb), function(nm) max(abs(ga[[nm]] - gb[[nm]])),
+               numeric(1)))
+  }
+  # the explicit tables the chunk shows are exact
+  r <- build(md)
+  for (fn in list(distributions7::distrib_gradient,
+                  distributions7::distrib_hessian)) {
+    if (gap_for(r, fn) > 1e-10) {
       out <- c(out, "reparametrize() and the hand-written gaussian2 disagree")
     }
+  }
+  # the stencil fallback serves at its own accuracy
+  r0 <- build(NULL)
+  if (gap_for(r0, distributions7::distrib_gradient) > 1e-5) {
+    out <- c(out, "the stencil-fallback gradient is worse than its floor")
   }
   out
 }

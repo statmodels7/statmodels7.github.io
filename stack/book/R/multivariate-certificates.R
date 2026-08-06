@@ -612,7 +612,7 @@
 # interval is built on the scale named for it. The first is checked by
 # solving the Yule-Walker equations here, by hand, from the assembled matrix;
 # the second against Richardson extrapolation, which shares nothing with the
-# jets; the third by asking whether each interval stays in its own set.
+# recursion; the third by asking whether each interval stays in its own set.
 .certify_mv_structure_block <- function() {
   out <- character()
   q <- 2L

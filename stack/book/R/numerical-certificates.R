@@ -11,48 +11,10 @@
 # conditions read off a hand-built block, the Mills ratio at zero, Owen's
 # two identities, the Bessel asymptotic expansion and the inverse function
 # rule. Injection-checked during development: a Kronrod weight 5% wrong, a
-# jet component 5% wrong, and a mis-signed term in the asymptotic expansion
+# stencil weight 5% wrong, and a mis-signed term in the asymptotic expansion
 # are each caught by the checks below.
 
 .nm_tol <- 1e-10
-
-# --- 1. Jets ---------------------------------------------------------------
-
-.certify_jets <- function() {
-  out <- character()
-
-  # the chapter's Weibull map, its d sigma derivative transcribed by hand
-  lay <- numericals7::jet_layout(2)
-  mu <- numericals7::jet_var(1, list(4.0, 1, 0, 0, 0), lay)
-  sigma <- numericals7::jet_var(2, list(1.7, 1, 0, 0, 0), lay)
-  scale <- mu / gamma(1 + 1 / sigma)
-  hand <- 4.0 * digamma(1 + 1 / 1.7) / (1.7^2 * gamma(1 + 1 / 1.7))
-  if (abs(scale$d[[1]][2] - hand) > 1e-12 * abs(hand)) {
-    out <- c(out, "the jet derivative of the Weibull scale map is not the hand derivative")
-  }
-  # and the value itself
-  if (abs(scale$v - 4.0 / gamma(1 + 1 / 1.7)) > 1e-14) {
-    out <- c(out, "the jet value of the Weibull scale map is wrong")
-  }
-
-  # the map is linear in mu, so every pure-mu component above order one
-  # vanishes; checked through a route the jets do not take, one stencil on
-  # the map in mu alone
-  f <- function(m) m / gamma(1 + 1 / 1.7)
-  if (abs(numericals7::fd_derivative(f, 4.0, order = 2L)) > 1e-6) {
-    out <- c(out, "the second mu derivative of the scale map is not zero")
-  }
-  # and the jet's own gradient in mu is the map's slope
-  if (abs(scale$d[[1]][1] - 1 / gamma(1 + 1 / 1.7)) > 1e-14) {
-    out <- c(out, "the jet's mu gradient of the scale map is not 1/gamma(1 + 1/sigma)")
-  }
-
-  # comparisons are refused, as the chapter states
-  refused <- tryCatch({ mu > sigma; FALSE }, error = function(e) TRUE)
-  if (!refused) out <- c(out, "a comparison on jets was not refused")
-
-  out
-}
 
 # --- 2. Stencils -------------------------------------------------------------
 
@@ -228,15 +190,6 @@
 }
 
 # --- 5. The gates ------------------------------------------------------------
-
-assert_jets_ok <- function() {
-  problems <- .certify_jets()
-  if (length(problems)) {
-    stop("Section 7.1 disagrees with the packages:\n  ",
-         paste(problems, collapse = "\n  "), call. = FALSE)
-  }
-  invisible(TRUE)
-}
 
 assert_stencils_ok <- function() {
   problems <- .certify_stencils()
