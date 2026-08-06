@@ -2361,6 +2361,19 @@ Two smaller things worth keeping:
   model and no toy. So `statmodels7`, which always knows `npar`, will never meet
   this; a user at the console with a toy objective will, and is told to say
   `npar` rather than being guessed at.
+- **Audit analitico 2026-08-06 (secondo passaggio, chiesto da Giovanni).**
+  Matrice famiglia x generica su 41 famiglie univariate, owner del metodo via
+  `attr(m, "signature")[[1]]`. Esito: parametri ordini 1-2 chiusi OVUNQUE;
+  ordini 3-4 mancano a betabinom1, gengamma1, gpd, negbin1, vonmises1/2
+  (chiudibili, task #86); expected info a fallback per pig1/pig2 (somma
+  esatta sul supporto, accettabile) e skewnormal1/skewt (ostruzione nota);
+  grad_y/hess_y mancano a gengamma1, gpd (da scrivere) e invgauss2,
+  vonmises2 (delega banale al parent); cross_y chiuso SOLO per gaussian1 e
+  student_t1 (task #87); grad_cdf chiuso per 12 famiglie, hess_cdf per 4 --
+  le riparametrizzate NON delegano le derivate cdf del parent e cadono nel
+  fallback FD (task #88). Per le discrete il fallback cdf e' la somma
+  parziale esatta, quindi non e' una lacuna. Ostruzioni che restano tali:
+  gamma/beta/chisq/gengamma nella direzione di forma, skew t in nu.
 - **A censored-likelihood front end.** `distrib_grad_cdf()` supplies the pieces, but
   nothing yet assembles them: a `fit_distrib(..., censored = )` taking a status vector,
   or a `Surv()`-like object. That is the step that turns the capability into a feature.
