@@ -2368,19 +2368,41 @@ Two smaller things worth keeping:
   model and no toy. So `statmodels7`, which always knows `npar`, will never meet
   this; a user at the console with a toy objective will, and is told to say
   `npar` rather than being guessed at.
-- **Audit analitico 2026-08-06 (secondo passaggio, chiesto da Giovanni).**
-  Matrice famiglia x generica su 41 famiglie univariate, owner del metodo via
-  `attr(m, "signature")[[1]]`. Esito: parametri ordini 1-2 chiusi OVUNQUE;
-  ordini 3-4 mancano a betabinom1, gengamma1, gpd, negbin1, vonmises1/2
-  (chiudibili, task #86); expected info a fallback per pig1/pig2 (somma
-  esatta sul supporto, accettabile) e skewnormal1/skewt (ostruzione nota);
-  grad_y/hess_y mancano a gengamma1, gpd (da scrivere) e invgauss2,
-  vonmises2 (delega banale al parent); cross_y chiuso SOLO per gaussian1 e
-  student_t1 (task #87); grad_cdf chiuso per 12 famiglie, hess_cdf per 4 --
-  le riparametrizzate NON delegano le derivate cdf del parent e cadono nel
-  fallback FD (task #88). Per le discrete il fallback cdf e' la somma
-  parziale esatta, quindi non e' una lacuna. Ostruzioni che restano tali:
-  gamma/beta/chisq/gengamma nella direzione di forma, skew t in nu.
+- **Audit analitico 2026-08-06 (secondo passaggio, chiesto da Giovanni),
+  e la chiusura che ne e' seguita.** Matrice famiglia x generica su 41
+  famiglie univariate, owner del metodo via `attr(m, "signature")[[1]]`.
+  Ordini 1-2 in forma chiusa OVUNQUE. Cio' che l'audit ha trovato aperto, e
+  dove sta ora:
+  - **derivate della cdf: CHIUSE lo stesso giorno.** Le riparametrizzate
+    (wrapper `reparametrize()` e le scritte a mano) portano le forme chiuse
+    del genitore con la regola della catena sulla mappa invece di
+    differenziare la propria cdf, e la via e' CONDIZIONATA a che il genitore
+    ne abbia davvero una (`has_exact_cdf_deriv`), altrimenti nulla finge.
+    Nuove forme chiuse: gumbel (location-scale, entrambi gli ordini),
+    exponential e weibull1 (elementari in u = (q/mu)^sigma), gpd (con la
+    serie che resta dalla cancellazione a xi -> 0), lognormal1 al secondo
+    ordine, e il blocco location-scale di skewnormal1, skewt, student_t1 e
+    pseudohuber al secondo ordine. Misurato contro l'integrale di
+    aspettativa parziale, che non condivide codice con nessuna di esse:
+    1e-14/1e-16 dove le differenze finite arrivano a 9e-11/1.5e-9, e
+    1.03x-1.60x piu' veloce a n = 2e5.
+  - **ordini 3-4: chiusi vonmises1, vonmises2, gengamma1** (2026-08-06);
+    restano betabinom1, gpd, negbin1 con le vie di derivazione gia' trovate
+    e scritte nel task #86. La tecnica che ha funzionato per la gamma
+    generalizzata merita di essere ripetuta: decomporre la log-densita' in
+    termini elementari piu' composizioni di una funzione univariata con una
+    mappa a due variabili, coperte da `fdb2`, e poi **far girare
+    l'assemblaggio agli ordini 1-2 contro il kernel compilato** — riprodurlo
+    a 2.6e-16 e' cio' che autorizza a fidarsi agli ordini dove non c'e'
+    kernel da confrontare.
+  - **expected info** a fallback per pig1/pig2 (somma esatta sul supporto,
+    accettabile) e skewnormal1/skewt (ostruzione nota).
+  - **grad_y/hess_y** mancano a gengamma1, gpd (da scrivere) e invgauss2,
+    vonmises2 (delega banale al parent); **cross_y chiuso SOLO per gaussian1
+    e student_t1** — la lacuna piu' larga rimasta (task #87).
+  Per le discrete il fallback cdf e' la somma parziale esatta, quindi non e'
+  una lacuna. Ostruzioni che restano tali: gamma/beta/chisq/gengamma nella
+  direzione di forma, skew t in nu.
 - **A censored-likelihood front end.** `distrib_grad_cdf()` supplies the pieces, but
   nothing yet assembles them: a `fit_distrib(..., censored = )` taking a status vector,
   or a `Surv()`-like object. That is the step that turns the capability into a feature.
