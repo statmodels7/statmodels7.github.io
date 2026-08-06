@@ -60,12 +60,12 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 
 | package | what it provides |
 |---|---|
-| `numericals7` | the numerical layer at the ROOT of the toolkit (created 2026-08-05): jets (forward AD to 4th order, moved from parameters7, with Ops/Math dispatch), the enumerations (`set_partitions`, `tuple_indices`, `compositions` -- ONE copy each), the stencil library (`fd_weights`/`fd_offsets`/`fd_step`/`fd_derivative`), `quad_vec`/`series_vec` (quadrature and series vectorized over the parameters, convergence on the SUM of a row's panel errors), and the special functions (`mills_ratio`, `owen_t`, `bessel_i_ratio` with derivatives and inverse; `log_bessel_i`/`log_bessel_k` with four argument-derivatives, after Plesner-Sorensen-Hauberg ICS 2024 (arXiv:2409.08729), 0.5.0 -- finite wherever the log itself is representable, switching guards tightened on the Wronskian, pure R after an Rcpp transcription measured at 0.9-2.7x). No S7 classes on purpose: these are functions |
+| `numericals7` | the numerical layer at the ROOT of the toolkit (created 2026-08-05; jets REMOVED 2026-08-06, see the de-jettization item in section 7): the enumerations (`set_partitions`, `tuple_indices`, `compositions` -- ONE copy each), the stencil library (`fd_weights`/`fd_offsets`/`fd_step`/`fd_derivative`), `quad_vec`/`series_vec` (quadrature and series vectorized over the parameters, convergence on the SUM of a row's panel errors), and the special functions (`mills_ratio`, `owen_t`, `bessel_i_ratio` with derivatives and inverse; `log_bessel_i`/`log_bessel_k` with four argument-derivatives, after Plesner-Sorensen-Hauberg ICS 2024 (arXiv:2409.08729), 0.5.0 -- finite wherever the log itself is representable, switching guards tightened on the Wronskian, pure R after an Rcpp transcription measured at 0.9-2.7x). No S7 classes on purpose: these are functions |
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links; stencils delegate to numericals7 |
-| `distributions7` | 38 univariate families -- ONE NAME PER PARAMETRIZATION (2026-08-05, Giovanni): 12 numbered groups (gaussian1/2/3, gamma1/2, negbin1/2 after Cameron-Trivedi, weibull1/3 after gamlss WEI/WEI3 with weibull2 deliberately empty, student_t1/2, skewnormal1/2, vonmises1/2, invgauss1/2, lognormal1/2, beta1/2, betabinom1/2, gengamma1/2) -- with exact score and information, closed-form moments where they exist, `reparametrize()` (Faa di Bruno over partitions, user maps differentiated by numericals7 jets), `folded()`, wrappers, transformations, MLE; **4 multivariate families** -- gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does. expectation() and the cdf fallback run on numericals7's batched engines |
+| `distributions7` | 38 univariate families -- ONE NAME PER PARAMETRIZATION (2026-08-05, Giovanni): 12 numbered groups (gaussian1/2/3, gamma1/2, negbin1/2 after Cameron-Trivedi, weibull1/3 after gamlss WEI/WEI3 with weibull2 deliberately empty, student_t1/2, skewnormal1/2, vonmises1/2, invgauss1/2, lognormal1/2, beta1/2, betabinom1/2, gengamma1/2) -- with exact score and information, closed-form moments where they exist, `reparametrize()` (Faa di Bruno over partitions, map partials as hand-written keyed tables via `map_derivs`, one stencil per partial as the fallback), `folded()`, wrappers, transformations, MLE; **4 multivariate families** -- gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does. expectation() and the cdf fallback run on numericals7's batched engines |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrization, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalization, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
-| `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, jets through Levinson-Durbin, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
+| `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, derivative arrays through Levinson-Durbin in Rcpp, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
 
 | `statmodels7` | the meta-package (2026-08-05, Giovanni asked for a tidyverse-style grouping). Installing it installs the five members and `library(statmodels7)` attaches them, reporting versions. `statmodels7_packages()`, `statmodels7_versions()`, `statmodels7_conflicts()`, `statmodels7_update()`. It is ALSO the destination package below: the modeling code lands here later, so nothing gets renamed |
 
@@ -784,6 +784,17 @@ whole and a scalar link cannot express it.
   not change between one family and the next. The rule that a red coverage job
   must be read still stands -- it is about reading the result, not about
   blocking on it.
+- **No jets, explicit derivatives, Rcpp when it measures faster** (Giovanni,
+  2026-08-06, emphatic: "abbasso il jet, viva implementazioni esplicite in
+  rcpp"). Jet-based differentiation is BANNED from production paths: the PIG
+  kernels measured its fixed composition overhead at 2x-36x the hand-written
+  closed forms. Derivatives are written out (Faa di Bruno per component),
+  validated against an independent route -- one numDeriv pass per order, or a
+  mechanical twin kept in tests only, like the pig*_hd_jet_cpp kernels. When
+  porting, benchmark R against Rcpp on the real workload and prefer Rcpp
+  "anche se basso" -- any measured advantage decides for it. External
+  packages such as gamlss.dist are not dependencies even in Suggests;
+  references are implemented in-test (recursions, series, closed identities).
 - **Verify, do not assume.** Several times a suspected bug turned out to be a bad test,
   and several times a "cosmetic" finding turned out to be a real defect. Measure first.
 - Report failures faithfully, with the numbers.
@@ -794,11 +805,11 @@ whole and a scalar link cannot express it.
 
 | | |
 |---|---|
-| `numericals7` | 0.5.0 (2026-08-05): jets+enumerations (0.1.0), stencils (0.2.0), quad_vec/series_vec (0.3.0), special functions (0.4.0), log-Bessel (0.5.0). `R CMD check --as-cran` clean apart from the environment notes, CI green. Logo tracked, favicons in place |
+| `numericals7` | 0.7.0 (2026-08-06): enumerations (0.1.0), stencils (0.2.0), quad_vec/series_vec (0.3.0), special functions (0.4.0), log-Bessel (0.5.0), jets REMOVED (0.6.0), log-Bessel kernels compiled with R twins in tests (0.7.0). `R CMD check --as-cran` clean apart from the environment notes, CI green. Logo tracked, favicons in place |
 | `linkfunctions7` | 890 tests, `R CMD check` OK, CI green; stencils delegate to numericals7 (Remotes gained its first entry) |
 | `distributions7` | 2993 tests, `R CMD check --as-cran` clean apart from the submission notes (2026-08-05, local), CI green |
 | `optimizers7` | 710 tests, `R CMD check --as-cran` OK with vignettes, two notes (2026-08-04). Published 2026-07-31; the Rcpp kernels had until then only ever been compiled by one compiler on one machine. |
-| `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.3.0`: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers (D R D', block diagonal, sums) still open. |
+| `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.6.0` (0.6.0: AR derivative arrays in Rcpp, first compiled code). Earlier 0.3.0: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers (D R D', block diagonal, sums) still open. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
 | `statmodels7` | 32 tests, `R CMD check --as-cran` with one deliberate NOTE (see below) and the submission warning, created 2026-08-05. Version `0.1.0` with a `NEWS.md` from the first commit. |
@@ -1144,54 +1155,84 @@ Two things the checks refused, both worth keeping:
   factors, and writing the test before believing the sentence is what
   separates them.
 
-### Jets: when a recursion is polynomial, do not expand it
+### The Rcpp review of 2026-08-06 (#83), the numbers that decided each package
 
-`autoregressive(p, order = q)` (2026-08-04) is the case that forced the
-technique. Its chart HAS to be the partial autocorrelations, because the
-stationary region in the coefficients is not a box -- at q = 2 it is already
-a triangle -- so no collection of scalar links onto intervals covers it;
-Levinson-Durbin carries the PACF onto the coefficients bijectively
-(Barndorff-Nielsen & Schou). But Levinson-Durbin is a RECURSION, and its
-fourth derivative expanded by hand is pages of algebra whose only check would
-be the very finite differences the toolkit refuses to trust at that order.
+Giovanni asked for every package to be benchmarked R against Rcpp, porting
+wherever Rcpp measures ahead "anche se basso". The evidence, package by
+package (min-of-5 timings, R 4.6.0/gcc 14.2 on this machine):
 
-The way out is that the recursion is built from **sums and products only**, so
-it is a polynomial map: carry a JET through it -- a number held together with
-all its partial derivatives to fourth order -- and every order comes out
-exact with nothing transcribed. `R/jet.R` is 130 lines, and `jet_mul()` is
-`leibniz_gram()` in its scalar form, the same subset-of-positions enumeration.
-**Reach for jets whenever a family's map is a recursion rather than a
-formula**; reach for a written derivative when the map is one line.
+- **numericals7, log-Bessel: PORTED (0.7.0).** Mixed workload of 1e6 points
+  across every branch: log K R 1.00 s vs Rcpp 0.34 s (2.9x), log I 3.35 vs
+  3.09 (1.1x -- the series branch is lgamma-bound). The R implementations
+  stay as internal twins (`.log_bessel_i_r/.log_bessel_k_r`) compared
+  against the compiled route in a test; the u_k table is injected at load.
+  The rest of the package: mills_ratio/bessel_i_ratio are one-liners over
+  C-backed dnorm/pnorm/besselI, owen_t delegates to quad_vec, and the
+  batched engines are matrix-op-bound -- nothing to port.
+- **linkfunctions7: PORT MERITED, queued (#84).** d4linkinv(logit) at
+  n = 1e6: R 40 ms vs Rcpp 20 ms (2.0x); 1.75x at n = 1e4. cloglog linkinv
+  1.3-1.6x. The old "transcendentals cost the same in C++" argument is
+  half-true: the transcendental is shared but R's vector TEMPORARIES are
+  not, and an order-4 polynomial in m*(1-m) allocates a dozen of them.
+- **parameters7: AR ported in #82; log_cholesky assembly queued (#85).**
+  param_d4 of log_cholesky at p = 8 costs 9.39 s in pure R (82,251
+  components enumerated in an R loop) against 0.5 ms for the compiled AR
+  d4 at the same p -- four orders of magnitude of loop overhead, the
+  clearest port candidate in the toolkit.
+- **basis7: NOTHING TO PORT.** bspline_design delegates to splines2's
+  compiled C++; Fourier/Legendre are vectorized recurrences over
+  trig/polynomial ops.
+- **distributions7 / optimizers7: already compiled where it counts** (the
+  *_hd.cpp kernels; descent.cpp), and the 2026-07-31 measurement stands
+  for the assembly layer: crossprod IS BLAS in both languages.
 
-Numbers and traps:
+Method note: at n = 1e4 a single call is under the Windows timer's
+resolution, so every number above is min-of-5 over repetition loops sized
+to ~2e6 elements; the earlier NaN-ridden table from raw system.time was
+discarded. Same lesson as the benchmark item in Testing and measurement.
 
-- **q = 1 agrees with the independently written `ar1()` to 1e-17** on the
-  value, all four derivative orders, the log-determinant and the solve. Two
-  implementations of one object is the only comparison that needs no
-  tolerance argument, and it is worth engineering one deliberately when a
-  general family subsumes a special case that already exists.
-- The log-determinant is `p*log(g0) + sum_k (p-k)*log(1 - r_k^2)` from the
-  innovation variances -- one term per free value, hence separable, hence
-  every mixed derivative exactly zero. The precision is banded of width q
-  from the prediction form `U' D^-1 U` (measured: entries beyond the band are
-  EXACTLY 0, and the whole matrix matches `solve()` to 3e-15).
-- **R has no zero-length variable name**, so an environment keyed by "sorted
-  tuple" cannot hold the empty tuple; the lookups short-circuit on it before
-  reaching the environment, so the key is simply not stored.
-- **The constructor is `autoregressive()` and not `ar()`** because
-  `stats::ar` exists and a package meant to be attached alongside others must
-  not mask a base function. Worth checking against `ls("package:stats")`
-  before naming any new export.
-- **A mechanical sweep is only as wide as its file list**, and mine left
-  `book/index.qmd` out: the preface still said "covstructs7" and pointed at
-  three section labels that no longer existed. Nothing failed -- Quarto
-  reports an unresolved crossref as a WARN and renders the book anyway, so a
-  render that "succeeded" had three broken references in its preface. **Read
-  the WARN lines of a render**, and after any rename grep the WHOLE directory
-  rather than the files you edited. The follow-up trap was the CRLF one this
-  file already records: the first correction silently matched nothing,
-  because `index.qmd` is CRLF and the marker contained `
-`.
+### The de-jettization (2026-08-06), and what replaced each jet
+
+The jets were built for `autoregressive(p, order = q)` (2026-08-04): its
+chart HAS to be the partial autocorrelations -- the stationary region in
+the coefficients is not a box, so no collection of scalar links covers it,
+and Levinson-Durbin carries the PACF onto the coefficients bijectively
+(Barndorff-Nielsen & Schou). The recursion's fourth derivative expanded by
+hand is pages of algebra, so the first implementation carried jets through
+it. Giovanni then measured what generic jet composition costs at the R
+level -- the PIG kernels put it at 2x-36x the hand-written closed forms --
+and banned the machinery outright (see section 5). What replaced it:
+
+- **reparametrize() takes `map_derivs`**: keyed tables of the map's
+  non-zero partials ("1", "1,2", "2,2,3,3"; a missing key is an exact
+  zero), hand-derived for all six shipped second parametrizations in
+  `R/reparam_maps.R` (fdb1/fdb2 are the written-out univariate and
+  bivariate Faa di Bruno templates). Without tables, ONE stencil per
+  partial on the analytic map (`reparam_stencil_derivs`) -- usable, and the
+  documented reason to write tables for a family fitted in earnest.
+- **skewnormal2's CP-to-DP map reduces to r = cbrt(2 gamma1/(4-pi))**: xi =
+  mu - sigma*r, omega = sigma*sqrt(1+r^2), alpha = r/sqrt(b^2+(b^2-1)r^2),
+  so `md_skewnormal2` is three univariate chains (a' = b^2 D^{-3/2} and
+  friends). The power rule written through r/gamma keeps every derivative
+  real on both signs of the skewness.
+- **autoregressive propagates plain derivative arrays through
+  Levinson-Durbin in Rcpp** (`src/ar_taylor.cpp`, parameters7's first
+  compiled code): each tracked quantity holds its value and full symmetric
+  tensors to order 4 in the q+1 free values, combined by the product rule
+  written out per order (16 terms at order 4). Seeds are the link inverses
+  with four derivatives, on one variable's diagonal each. The q = 1 case is
+  pinned against products of link derivatives, formulas sharing no code
+  with the kernel; `ar_prediction` and `param_logdet` need no derivatives
+  and now call `linkinv` directly.
+- **The jet twins survive in tests only** (`pig*_hd_jet_cpp`, self-contained
+  C++): a mechanical transcription is an independent reference for the
+  hand-written kernels, which is the one role the ban leaves it.
+
+The general lesson survives the machinery: when a family's map is a
+recursion of sums and products, propagate derivative arrays through it with
+explicit per-order product rules; when the map is a formula, write the
+derivative out. What is banned is the generic composition OBJECT with its
+per-element overhead, not the mathematics.
 
 ### Renaming a PACKAGE reaches further still (covstructs7 -> parameters7)
 
@@ -1403,9 +1444,10 @@ lets a family declare its quantities with the Jacobian from the free vector
 and the scale each interval belongs on; `mv_summary()` prints them as a
 block. For an AR(2) that is the marginal variance, the partial
 autocorrelations and the **coefficients**, which appear nowhere in Σ at all
-and were previously reachable only through the internal `ar_jets()`. Their
-Jacobian is free: the Levinson-Durbin recursion already runs in jets, so the
-first-order component is exactly what the delta method needs. The
+and were previously reachable only through the recursion's internals. Their
+Jacobian is free: the Levinson-Durbin recursion already propagates its
+derivative arrays, so the first-order block is exactly what the delta
+method needs. The
 coefficients are intervalled on the identity scale deliberately — the
 stationary region is not a box, so no scalar transform expresses it.
 

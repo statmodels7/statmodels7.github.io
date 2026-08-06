@@ -1023,9 +1023,13 @@ which is what makes the expected information in $\psi$ a congruence of the
 parent's.
 
 `reparametrize()` implements the formula for any parent and any map. The
-derivatives of the map itself are not asked of the user: the wrapper
-evaluates the map on the jets of @sec-numerical-jets, so a map written in
-plain R supplies its own derivatives to fourth order, exactly.
+derivatives of the map are written out and handed over as `map_derivs`, a
+function returning, for each parent parameter, the non-zero partials keyed
+by the tuple of new-parameter positions -- which is how every shipped
+second parametrization carries its map. When none are supplied, each needed
+partial comes from a single finite-difference stencil applied to the
+analytic map, accurate enough for exploratory use but not the route a
+family fitted in earnest should take.
 
 ```{r}
 #| label: reparam-twin
@@ -1034,7 +1038,15 @@ g2 <- reparametrize(
   map = function(psi) list(mu = psi$mu, sigma = sqrt(psi$sigma2)),
   params = c("mu", "sigma2"),
   bounds = list(mu = c(-Inf, Inf), sigma2 = c(0, Inf)),
-  links = list(mu = identity_link(), sigma2 = log_link())
+  links = list(mu = identity_link(), sigma2 = log_link()),
+  map_derivs = function(psi) {
+    v <- psi[[2]]
+    list(
+      list("1" = rep_len(1, length(v))),
+      list("2" = 0.5 / sqrt(v), "2,2" = -0.25 / v^1.5,
+           "2,2,2" = 0.375 / v^2.5, "2,2,2,2" = -0.9375 / v^3.5)
+    )
+  }
 )
 
 # against the hand-written mean-variance Gaussian: two implementations of

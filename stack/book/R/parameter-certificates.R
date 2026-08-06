@@ -634,7 +634,7 @@ assert_parameter_rank_ok <- function() {
   s <- parameters7::autoregressive(7, order = 2L)
   eta <- c(log(2), atanh(0.7), atanh(-0.3))
 
-  phi <- vapply(parameters7:::ar_jets(s, eta)$phi, function(x) x$v, numeric(1))
+  phi <- parameters7:::ar_taylor(s, eta)$phi[, 1L]
   if (min(Mod(polyroot(c(1, -phi)))) <= 1) {
     out <- c(out, "the chart of 6.2.6 left the stationary region")
   }
