@@ -22,6 +22,7 @@ suppressMessages({
   pkgload::load_all(file.path(.toolkit_root, "optimizers7"), quiet = TRUE, export_all = FALSE)
   pkgload::load_all(file.path(.toolkit_root, "parameters7"), quiet = TRUE, export_all = FALSE)
   pkgload::load_all(file.path(.toolkit_root, "basis7"), quiet = TRUE, export_all = FALSE)
+  pkgload::load_all(file.path(.toolkit_root, "penalties7"), quiet = TRUE, export_all = FALSE)
 })
 
 knitr::opts_chunk$set(
