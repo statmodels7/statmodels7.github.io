@@ -2368,41 +2368,56 @@ Two smaller things worth keeping:
   model and no toy. So `statmodels7`, which always knows `npar`, will never meet
   this; a user at the console with a toy objective will, and is told to say
   `npar` rather than being guessed at.
-- **Audit analitico 2026-08-06 (secondo passaggio, chiesto da Giovanni),
-  e la chiusura che ne e' seguita.** Matrice famiglia x generica su 41
-  famiglie univariate, owner del metodo via `attr(m, "signature")[[1]]`.
-  Ordini 1-2 in forma chiusa OVUNQUE. Cio' che l'audit ha trovato aperto, e
-  dove sta ora:
-  - **derivate della cdf: CHIUSE lo stesso giorno.** Le riparametrizzate
-    (wrapper `reparametrize()` e le scritte a mano) portano le forme chiuse
-    del genitore con la regola della catena sulla mappa invece di
-    differenziare la propria cdf, e la via e' CONDIZIONATA a che il genitore
-    ne abbia davvero una (`has_exact_cdf_deriv`), altrimenti nulla finge.
-    Nuove forme chiuse: gumbel (location-scale, entrambi gli ordini),
-    exponential e weibull1 (elementari in u = (q/mu)^sigma), gpd (con la
-    serie che resta dalla cancellazione a xi -> 0), lognormal1 al secondo
-    ordine, e il blocco location-scale di skewnormal1, skewt, student_t1 e
-    pseudohuber al secondo ordine. Misurato contro l'integrale di
-    aspettativa parziale, che non condivide codice con nessuna di esse:
-    1e-14/1e-16 dove le differenze finite arrivano a 9e-11/1.5e-9, e
-    1.03x-1.60x piu' veloce a n = 2e5.
-  - **ordini 3-4: chiusi vonmises1, vonmises2, gengamma1** (2026-08-06);
-    restano betabinom1, gpd, negbin1 con le vie di derivazione gia' trovate
-    e scritte nel task #86. La tecnica che ha funzionato per la gamma
-    generalizzata merita di essere ripetuta: decomporre la log-densita' in
-    termini elementari piu' composizioni di una funzione univariata con una
-    mappa a due variabili, coperte da `fdb2`, e poi **far girare
-    l'assemblaggio agli ordini 1-2 contro il kernel compilato** — riprodurlo
-    a 2.6e-16 e' cio' che autorizza a fidarsi agli ordini dove non c'e'
-    kernel da confrontare.
+- **Audit analitico 2026-08-06, e la chiusura completa che ne e' seguita.**
+  Matrice famiglia x generica su 41 famiglie univariate, owner del metodo via
+  `attr(m, "signature")[[1]]`. Alla fine della giornata:
+  - **ordini 1-2, 3-4: chiusi OVUNQUE.** Ogni famiglia univariata e' analitica
+    al quarto ordine tranne le componenti in nu della skew t, che non possono
+    esserlo. Chiuse in giornata vonmises1/2, gengamma1, negbin1, betabinom1,
+    gpd.
+  - **derivate della cdf: chiuse dove esistono.** Le riparametrizzate portano
+    le forme del genitore con la regola della catena sulla mappa, la via
+    CONDIZIONATA a che il genitore ne abbia davvero una
+    (`has_exact_cdf_deriv`), altrimenti nulla finge. Nuove: gumbel,
+    exponential, weibull1, gpd, lognormal1 al secondo ordine, e il blocco
+    location-scale di skewnormal1/skewt/student_t1/pseudohuber. Misurato
+    contro l'integrale di aspettativa parziale: 1e-14/1e-16 dove le differenze
+    finite arrivano a 9e-11/1.5e-9, e 1.03x-1.60x piu' veloce a n = 2e5.
+  - **cross_y: da 2 famiglie a TUTTE le 30 continue.** Un test cammina il
+    namespace e fallisce se una famiglia continua resta sul fallback.
+  - **grad_y/hess_y**: scritte per gpd e gengamma1, delegate per invgauss2 e
+    vonmises2.
   - **expected info** a fallback per pig1/pig2 (somma esatta sul supporto,
     accettabile) e skewnormal1/skewt (ostruzione nota).
-  - **grad_y/hess_y** mancano a gengamma1, gpd (da scrivere) e invgauss2,
-    vonmises2 (delega banale al parent); **cross_y chiuso SOLO per gaussian1
-    e student_t1** — la lacuna piu' larga rimasta (task #87).
   Per le discrete il fallback cdf e' la somma parziale esatta, quindi non e'
   una lacuna. Ostruzioni che restano tali: gamma/beta/chisq/gengamma nella
-  direzione di forma, skew t in nu.
+  direzione di forma per la cdf, skew t in nu.
+
+  **Le tre tecniche che hanno fatto il lavoro**, in ordine di quanto hanno
+  reso:
+  - **far girare un assemblaggio generale agli ordini dove esiste gia' un
+    kernel compilato.** gengamma1 riproduce gradiente e Hessiano a 2.6e-16,
+    NB1 a 7e-15, betabinom1 esattamente: questo, non un confronto con
+    differenze finite, e' cio' che autorizza a fidarsi agli ordini dove non
+    c'e' nulla da confrontare.
+  - **cercare l'identita' prima della formula.** Se la risposta entra solo
+    attraverso z = (y-mu)/sigma allora d2l/dy dmu = -l_yy e
+    d2l/dy dsigma = -z l_yy - l_y/sigma: una riga che ha chiuso nove famiglie,
+    verificata contro le due forme chiuse che esistevano gia'.
+  - **la delega**: una famiglia scritta come mappa di un'altra non deve
+    riderivare nulla. betabinom1 e' betabinom2 alle forme, e ne eredita gli
+    ordini 3-4 via `chain_derivatives`; cross_y e' una catena del PRIMO
+    ordine, perche' la derivata nella risposta non interagisce con una
+    riparametrizzazione dei parametri.
+
+  **E due volte il riferimento e' stato il lato debole**, come gia' successo
+  col Monte Carlo della GPD: (i) il kernel C++ di `xi_xi` della gpd somma
+  -7.998 + 7.996 + 0.0021 per ottenere 9.92e-05 a xi*z piccolo, cioe' un
+  pavimento di 1.79e-11, e Richardson su di esso amplifica a 1.65e-4 --
+  l'assemblaggio nuovo e' meglio condizionato (task #89); (ii) la componente
+  in xi di `cross_y` della gpd vale ESATTAMENTE zero a y = sigma, dove nessuna
+  misura puntuale relativa esiste, e il confronto va fatto sulla scala
+  dell'intero vettore.
 - **A censored-likelihood front end.** `distrib_grad_cdf()` supplies the pieces, but
   nothing yet assembles them: a `fit_distrib(..., censored = )` taking a status vector,
   or a `Surv()`-like object. That is the step that turns the capability into a feature.
