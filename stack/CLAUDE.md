@@ -67,6 +67,7 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalization, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
 | `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, derivative arrays through Levinson-Durbin in Rcpp, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
 
+| `penalties7` | penalties as objects (created 2026-08-06 from `piano_penalties7.txt`): rho(D beta; theta) with value (NORMALIZING CONSTANT KEPT -- Giovanni 2026-08-03), exact derivatives in beta and theta, the mixed block (consumes `distrib_cross_y`, closed for all continuous families the same day), kink set, links on the hyperparameters. Three branches: `quadratic_penalty()` (rank/null basis/log-pdet fixed at ONE eigendecomposition, the REML pieces), `distrib_penalty()` (a univariate distributions7 log-density coordinatewise; `ridge_penalty()`/`lasso_penalty()`/`heavy_penalty()` named instances; ridge pinned against its quadratic twin at machine precision), `scad_penalty()`/`mcp_penalty()` (defined by rho', improper by construction). `check_penalty()` with injections |
 | `statmodels7` | the meta-package (2026-08-05, Giovanni asked for a tidyverse-style grouping). Installing it installs the five members and `library(statmodels7)` attaches them, reporting versions. `statmodels7_packages()`, `statmodels7_versions()`, `statmodels7_conflicts()`, `statmodels7_update()`. It is ALSO the destination package below: the modeling code lands here later, so nothing gets renamed |
 
 **Planned** — `modelterms7`, `penalties7`, and the modeling layer of
@@ -819,6 +820,7 @@ whole and a scalar link cannot express it.
 | `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.7.0` (0.7.0: log-Cholesky Leibniz assembly compiled, 30x at p = 8 order 4; 0.6.0: AR derivative arrays in Rcpp, first compiled code). Earlier 0.3.0: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers (D R D', block diagonal, sums) still open. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
+| `penalties7` | 35 tests, created 2026-08-06, phases 1-3 of `piano_penalties7.txt` done in one sitting (phase 4 is the structured quadratic prior via parameters7, phase 5 the book chapter). Repo pushed, Pages enabled the same evening |
 | `statmodels7` | 32 tests, `R CMD check --as-cran` with one deliberate NOTE (see below) and the submission warning, created 2026-08-05. Version `0.1.0` with a `NEWS.md` from the first commit. |
 
 All six repositories run `R-CMD-check` on macOS, Windows and three Linux/R
@@ -2351,8 +2353,9 @@ Two smaller things worth keeping:
     distinction that decides it: `fixed()` holds a parameter at a VALUE and
     cannot impose a RELATION between parameters, which is why the exponential
     and the chi-squared are families of their own and the Rayleigh is not.
-- **`penalties7` design decisions agreed 2026-08-03** (conversation, no plan
-  file yet -- write `piano_penalties7.txt` before code): a penalty is
+- ~~**`penalties7` design decisions agreed 2026-08-03**~~ **done 2026-08-06**:
+  `piano_penalties7.txt` written first, phases 1-3 shipped the same day.
+  The decisions below are preserved for the record: a penalty is
   rho(D beta; theta) -- a linear map, a scalar function, parameters. THREE
   branches: (i) quadratic with matrix P (covers ridge, spline Grams, fused
   quadratic; the correlated gaussian prior, later through parameters7);
