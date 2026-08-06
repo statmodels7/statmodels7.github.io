@@ -180,6 +180,13 @@ cannot see a whole class of defect: adding a test that called
 *"'::' import not declared"* on all five platforms after a local
 `Status: OK`.
 
+The asymmetry runs in BOTH directions (2026-08-06): a local
+`checking Rd \usage sections ... OK` did not cover what CI flags either --
+the `map_derivs`/`reparam_derivs` arguments missing from their Rd passed a
+local `--as-cran` on this machine and failed all five CI platforms. After
+adding an argument to an exported function, grep its man page for the
+argument before pushing; do not rely on the local usage check.
+
 The converse also holds and is worth knowing before chasing a phantom.
 `--as-cran` locally reports a **CRAN incoming feasibility** warning that CI
 never will, because that check needs the network and the action disables it.
