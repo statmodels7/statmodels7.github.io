@@ -1,0 +1,345 @@
+================================================================================
+                         penalties7 -- PLAN
+        penalties as S7 objects: a linear map, a scalar function,
+                  hyperparameters with exact derivatives
+                        drafted 2026-08-06
+================================================================================
+
+Written in English like every other artifact of the toolkit, so that anything
+here can be lifted into package documentation or into the book without
+translation.
+
+Nothing in this file is code yet. It records the decisions agreed with
+Giovanni on 2026-08-03 (conversation; summarized since then in CLAUDE.md
+section 8) and articulates them into phases, checking what the toolkit has
+built in the meantime -- several prerequisites that were planned then exist
+now, and one of them (the mixed response-parameter block) was completed for
+every continuous family on 2026-08-06.
+
+
+--------------------------------------------------------------------------------
+0. WHAT IT IS, AND WHAT IT IS NOT
+--------------------------------------------------------------------------------
+
+A penalty is rho(D beta; theta): a linear map D, a scalar function rho, and
+hyperparameters theta. Everything the package provides follows from taking
+that definition seriously, exactly as distributions7 takes a distribution
+seriously: the value, the exact derivatives in beta to second order, the
+exact derivatives in theta, the mixed beta-theta block, and -- for the
+quadratic branch -- the matrix, its rank, its null space and its log
+pseudo-determinant, which is what a marginal-likelihood criterion assembles.
+
+    depends on:      S7, distributions7 (the separable branch), and through
+                     it linkfunctions7 and numericals7
+    depended on by:  modelterms7  (a term = basis + penalty + data mapping)
+                     statmodels7  (the model layer sums penalties into the
+                                   objective and estimates theta)
+
+The positioning argument is the toolkit's, and it lands harder here than
+anywhere else. Almost every R package that shrinks coefficients carries its
+own penalties as special cases inside the fitting code: mgcv's S matrices,
+glmnet's elastic net hard-wired into the coordinate descent, ncvreg's SCAD
+and MCP living inside the solver. None of them is an object; none can be
+asked for its normalizing constant, its derivative with respect to its own
+hyperparameter, or its null space. A ridge penalty is a fixed mathematical
+object -- it IS the Gaussian log-density at mu = 0 with the scale free -- and
+it should be written once, with everything an estimation routine could want
+already computed, and then everyone builds on top.
+
+What penalties7 is NOT:
+
+  - It is not the smoothing-parameter machinery. Estimating lambda by REML or
+    by marginal likelihood is a property of the MODEL (it needs the design
+    matrix and the likelihood); penalties7 supplies the pieces that criterion
+    is written in -- the quadratic form, the rank, the log pseudo-determinant
+    as functions of theta -- and stops there.
+  - It is not the optimizer. Proximal operators and a prox_grad() in
+    optimizers7 were considered and DEFERRED, explicitly (Giovanni,
+    2026-08-03). The non-smooth penalties declare their kinks; what a solver
+    does about them is the solver's business.
+  - It does not sum penalties. A model has several terms, each with its own
+    penalty, and the sum -- including the rank of the sum, which is a
+    statement about intersected null spaces, not about eigenvalues of the
+    assembled matrix (CLAUDE.md, the tensor-penalty measurement) -- belongs
+    to the layer that knows the terms. penalties7 keeps each penalty's own
+    null basis exact so that the intersection can be computed there.
+
+
+--------------------------------------------------------------------------------
+1. THE DEFINITION, AND THE TWO READINGS
+--------------------------------------------------------------------------------
+
+rho(D beta; theta), with D an m x q matrix (m rows of "things being
+penalized", q coefficients), rho a scalar function of an m-vector, theta the
+hyperparameters.
+
+The Bayesian reading is the organizing one: a penalty is the negative
+log-density of a prior on D beta. THE NORMALIZING CONSTANT IS KEPT (Giovanni,
+explicit, 2026-08-03). Dropping it -- as every penalized-likelihood package
+does -- makes joint hyperparameter estimation degenerate (the objective
+improves without bound as lambda -> 0) and makes a t prior's nu inestimable.
+Keeping it costs nothing for the quadratic branch (a closed constant in
+lambda and the rank) and nothing for the separable branch (distributions7
+densities are normalized already). Even with the constant kept, a smoothing
+parameter wants REML rather than joint maximization; the class serves both
+routes by exposing the pieces (section 4) rather than choosing one.
+
+The frequentist reading -- rho as a roughness measure -- costs nothing extra:
+it is the same object with the constant ignored by whoever ignores it.
+
+For an IMPROPER prior (rank-deficient quadratic; SCAD and MCP, whose
+finiteness at infinity makes the prior non-integrable) the constant does not
+exist as a number. The quadratic branch keeps the PROPER constant of the
+non-degenerate part -- (r/2) log lambda plus half the log pseudo-determinant,
+r the rank -- which is exactly what REML uses; SCAD and MCP declare
+themselves improper and return the bare rho. `is_proper(pen)` says which
+reading a penalty supports.
+
+
+--------------------------------------------------------------------------------
+2. THE CLASS AND THE GENERICS
+--------------------------------------------------------------------------------
+
+One S7 base class `penalty`, with properties:
+
+    penalty_name    a string
+    map             the matrix D, or NULL for the identity (stored as NULL
+                    and treated as such, so the common case pays no matmul)
+    n_coef          q, fixed at construction (m follows from D)
+    params          hyperparameter names, in order
+    params_bounds   open intervals, as in distributions7
+    link_params     one linkfunctions7 link per hyperparameter, so that the
+                    model layer optimizes theta unconstrained -- the same
+                    contract as distributions7, for the same reason
+    params_smooth   which hyperparameters are differentiable (all, so far)
+
+Generics, mirroring distributions7's naming so a reader of one package reads
+the other:
+
+    penalty_value(pen, beta, theta)          the scalar rho, constant included
+    penalty_gradient(pen, beta, theta)       d rho / d beta          (q-vector)
+    penalty_hessian(pen, beta, theta)        d2 rho / d beta2        (q x q)
+    penalty_grad_theta(pen, beta, theta)     d rho / d theta         (named list)
+    penalty_hess_theta(pen, beta, theta)     d2 rho / d theta2       (named list,
+                                             hess_names order)
+    penalty_cross(pen, beta, theta)          d2 rho / d beta d theta (one
+                                             q-vector per hyperparameter)
+    penalty_kinks(pen, theta)                the t-values where rho is not
+                                             differentiable in its argument
+                                             (numeric(0) for smooth ones; 0
+                                             for lasso, SCAD, MCP)
+    is_proper(pen)                           logical
+    is_quadratic(pen)                        logical; TRUE only for section 3a
+    check_penalty(pen, ...)                  the validator (section 5)
+
+Everything is exact and closed form in all three branches; there is no
+numerical fallback layer here, because unlike a user-defined distribution a
+user-defined penalty is expected to be one of these three shapes. If that
+expectation fails in practice, a fallback layer can be added later on the
+stencil library -- deliberately left open.
+
+The theta derivatives are on the PARAMETER scale, with `scale = "link"`
+handled once in the generic bodies by the same interception distributions7
+uses (Faa di Bruno with a diagonal Jacobian; here only orders 1-2 are
+needed, so it is the plain chain rule). Methods always return the parameter
+scale -- the lesson of distributions7's link scale, inherited wholesale.
+
+The map D enters every beta-derivative the same way -- gradient D' g, Hessian
+D' H D with H diagonal for the separable branch -- and this is implemented
+ONCE, in the generic-adjacent helpers, not per branch.
+
+
+--------------------------------------------------------------------------------
+3. THE THREE BRANCHES
+--------------------------------------------------------------------------------
+
+3a. QUADRATIC: rho = (lambda/2) (D beta)' P (D beta) - (r/2) log lambda
+    - (1/2) log pdet(P) + (r/2) log 2 pi, the exact negative log-density of
+    the (possibly degenerate) Gaussian prior.
+
+    quadratic_penalty(P, map = NULL, link_lambda = log_link())
+
+    One hyperparameter, lambda. P is a fixed symmetric PSD matrix -- a basis7
+    Gram matrix, an Eilers-Marx D'D, or anything the caller supplies. At
+    construction, ONE eigendecomposition fixes the rank and the null basis
+    by the relative-eigenvalue rule (min(ev) <= tol * max(ev) is the
+    membership question about the MATRIX; counting eigenvalues of assembled
+    sums is not a rank test -- both lessons from CLAUDE.md, applied at the
+    only moment they are cheap). The log pseudo-determinant is stored, and
+    every later quantity is closed form in lambda:
+
+        value      as above; gradient  lambda D'P D beta;
+        hessian    lambda D'P D (constant in beta);
+        d/dlambda  (1/2) b'Pb - r/(2 lambda);   d2/dlambda2  r/(2 lambda^2);
+        cross      D'P D beta.
+
+    Ridge is quadratic_penalty(diag(q)). The correlated Gaussian prior with
+    a STRUCTURED precision (a parameters7 matrix_parameter, whose theta
+    enters P itself) is phase 4, not phase 1: it changes P from a constant
+    to a function and each derivative gains a param_d1 term, and nothing in
+    the phase-1 API needs to change to accommodate it.
+
+3b. SEPARABLE: rho(t; theta) = - sum_j log f(t_j; theta), f a univariate
+    distributions7 density, t = D beta.
+
+    distrib_penalty(d, map = NULL)
+
+    The hyperparameters ARE the distribution's parameters; bounds and links
+    are read off the distribution object, not restated. The derivatives are
+    the distribution's response and parameter derivatives, reassembled:
+
+        gradient     - D' grad_y
+        hessian      - D' diag(hess_y) D
+        grad_theta   - sum_j distrib_gradient
+        hess_theta   - sum_j distrib_hessian
+        cross        - D' diag(cross_y_k) per hyperparameter k
+
+    This is what distrib_cross_y() was BUILT for (2026-08-03), and the
+    prerequisite completed on 2026-08-06: every continuous family now
+    carries it in closed form, so no separable penalty pays a finite
+    difference anywhere.
+
+    The canonical instances are one-liners and are shipped as helpers, each
+    a documented constructor so the model layer can name what it means:
+
+        ridge_penalty(map)    distrib_penalty(fixed(gaussian1_distrib(),
+                              mu = 0))  -- the scale free
+        lasso_penalty(map)    distrib_penalty(fixed(laplace_distrib(),
+                              mu = 0))  -- kink at 0, declared
+        heavy_penalty(map)    distrib_penalty(fixed(student_t1_distrib(),
+                              mu = 0))  -- scale AND nu free, and nu is
+                              estimable BECAUSE the constant is kept
+
+    Ridge existing in both branches is not redundancy, it is the toolkit's
+    favorite validation device: two independent implementations of one
+    object, compared with no tolerance to choose (the exponential-vs-
+    fixed(weibull) precedent). A test pins quadratic_penalty(diag(q))
+    against ridge_penalty() at the matching theta, on every generic.
+
+    penalty_kinks reads the parent's smoothness: a Laplace at mu = 0 has a
+    kink at 0 and says so; check_penalty must not difference across it (the
+    fd_is_reliable lesson).
+
+3c. DERIVATIVE-DEFINED: SCAD (Fan-Li 2001) and MCP (Zhang 2010), families
+    whose literature defines rho'(t) and whose rho follows by the closed
+    piecewise antiderivative, anchored at rho(0) = 0.
+
+    scad_penalty(map = NULL, link_lambda = log_link(), link_a = ...)
+        rho'(t) = lambda           for |t| <= lambda
+                = (a lambda - |t|)/(a - 1)   for lambda < |t| <= a lambda
+                = 0                beyond,   a > 2 (default 3.7, Fan-Li)
+    mcp_penalty(map = NULL, ...)
+        rho'(t) = sign(t)(lambda - |t|/gamma)_+ , gamma > 1 (default 3)
+
+    Improper by construction: rho is bounded, so exp(-rho) is not
+    integrable and no constant exists -- is_proper() is FALSE and the value
+    is the bare rho. Hyperparameters lambda (log link) and a (lower-bounded
+    at 2) or gamma (lower-bounded at 1). All derivatives are closed
+    piecewise forms, including the theta and cross blocks; the kink set is
+    {0}, and the SECOND derivative additionally jumps at |t| = lambda and
+    |t| = a lambda (SCAD) or gamma lambda (MCP) -- the validator must place
+    its grids away from all of them, and the kink set the object reports is
+    the one check_penalty uses to do so.
+
+
+--------------------------------------------------------------------------------
+4. WHAT A MARGINAL CRITERION CONSUMES
+--------------------------------------------------------------------------------
+
+REML for one quadratic penalty needs, as functions of theta: the matrix
+lambda D'P D (to add to X'WX), its rank, and its log pseudo-determinant
+r log lambda + log pdet(P). Exposed as:
+
+    penalty_matrix(pen, theta)     lambda D'P D, dense (sparsity later, if a
+                                   profile ever shows it matters)
+    penalty_rank(pen)              r, fixed at construction
+    penalty_null_basis(pen)        the exact null basis of D'P D, for the
+                                   model layer to intersect across terms
+    penalty_logpdet(pen, theta)    with its d/dtheta and d2/dtheta2
+
+Only the quadratic branch answers these; the others refuse, because a REML
+criterion for a non-Gaussian prior is not a determinant and pretending
+otherwise would be the base class silently producing numbers (the
+multivariate-cdf lesson).
+
+param_solve-style inversion is deliberately NOT offered: what a consumer of
+an improper prior inverts is X'WX + lambda D'PD, which is nonsingular, and
+that sum lives in the model layer (the same reasoning as parameters7's
+refusal, recorded in CLAUDE.md).
+
+
+--------------------------------------------------------------------------------
+5. THE VALIDATOR
+--------------------------------------------------------------------------------
+
+check_penalty(pen, beta = NULL, theta = NULL), the sibling of check_link and
+check_distrib, with the same discipline: every check compares a closed form
+against a route that shares no code with it, injections prove each check can
+fail, and a clean reference still passes.
+
+    - gradient, hessian against numDeriv on penalty_value, on a grid that
+      avoids the kink set by the object's own declaration;
+    - grad_theta, hess_theta, cross against numDeriv in theta -- cross by
+      Richardson on the analytic penalty_gradient, never a nested difference;
+    - the map: gradient of rho(D beta) against D' applied to the gradient of
+      rho at identity map, the two computed by different code paths;
+    - properness: for is_proper(pen) with one free scale, the value at two
+      theta differs by exactly the constant's difference (a normalization
+      check that needs no quadrature for 3a; for 3b it inherits
+      check_distrib's normalization);
+    - quadratic identities: value quadratic in beta (three-point exactness),
+      hessian constant, logpdet linear in log lambda with slope r;
+    - the ridge twin: quadratic_penalty(diag(q)) vs ridge_penalty(),
+      componentwise, machine precision;
+    - SCAD/MCP: rho' matches the literature's piecewise definition (typed
+      independently in the test), rho(0) = 0, rho constant beyond the flat
+      threshold, and the kink set is where it says.
+
+
+--------------------------------------------------------------------------------
+6. DECISIONS INHERITED, AND FROM WHOM
+--------------------------------------------------------------------------------
+
+  - Normalizing constant KEPT ......... Giovanni, 2026-08-03, explicit
+  - prox/prox_grad DEFERRED ........... Giovanni, 2026-08-03, explicit
+  - ridge IS fixed(gaussian, mu=0) .... Giovanni, 2026-08-03
+  - name ends in 7, singular fine ..... convention (basis7 precedent)
+  - hyperparameters travel with links . distributions7 contract
+  - open bounds, align-by-name ........ distributions7 contract
+  - rank by relative eigenvalue rule,
+    membership via stored null basis .. parameters7 / CLAUDE.md lessons
+  - no numerical fallback layer ....... deliberate; revisit if user-defined
+                                        penalties that are none of the three
+                                        shapes actually appear
+  - Rcpp only where a benchmark says .. toolkit policy 2026-08-06; every
+                                        formula here is one or two vector
+                                        expressions over m elements, so the
+                                        expectation is NO compiled code in
+                                        phase 1-3, measured before assumed
+
+
+--------------------------------------------------------------------------------
+7. PHASES
+--------------------------------------------------------------------------------
+
+  PHASE 1  skeleton and the quadratic branch: class, all generics,
+           quadratic_penalty with rank/null-basis/logpdet at construction,
+           check_penalty with injections, full package infrastructure
+           (test-docs.R guard byte-identical to the siblings, pkgdown, CI,
+           README, NEWS.md from the first commit).
+
+  PHASE 2  the separable branch: distrib_penalty on any univariate
+           distributions7 object, the three named helpers, the ridge twin
+           test, kink propagation from the parent's smoothness.
+
+  PHASE 3  SCAD and MCP, with the piecewise closed forms and the
+           literature-typed validator checks.
+
+  PHASE 4  the structured quadratic prior: P from a parameters7
+           matrix_parameter, theta entering the matrix, derivatives gaining
+           the param_d1/param_d2 terms. Needs nothing new in the API.
+
+  PHASE 5  the handoff: book chapter with gates, portal card, CLAUDE.md;
+           then modelterms7 consumes everything.
+
+================================================================================
