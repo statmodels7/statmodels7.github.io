@@ -1,0 +1,97 @@
+PIANO DI REFACTORING EDITORIALE — la documentazione dei pacchetti
+===================================================================
+Data: 2026-08-08. Gemello di piano_refactoring.txt (libro e sito, chiuso il
+2026-08-07): stessa domanda — "un lettore esterno direbbe che l'ha scritto
+un umano?" — applicata a roxygen, vignette e commenti dei sette pacchetti
+più il meta-pacchetto. Lo stile è già deciso (STILE 1, manuale asciutto,
+per tutto); qui non c'è fase di scelta, solo censimento e applicazione.
+
+STATO: ESEGUITO lo stesso giorno. Le sezioni sotto registrano che cosa è
+stato trovato e che cosa è stato cambiato.
+
+Giudizio complessivo: la documentazione è in uno stato migliore del libro
+pre-refactoring, perché la passata "asettica" del 2026-08-03 aveva già
+tolto aneddoti e titoli a effetto. Quello che restava è la stessa firma
+trovata nel libro, in dose ridotta: personificazione del software e
+qualche chiusa gnomica, concentrate nelle pagine interne di distributions7,
+optimizers7 e parameters7, più due fatti fossili.
+
+A. CENSIMENTO (grep su R/*.R righe roxygen e vignettes/*.Rmd)
+-------------------------------------------------------------------------
+   "refuse/refused/refusal"   78 righe roxygen (36 distributions7,
+                              20 optimizers7, 17 parameters7, 4 basis7,
+                              1 numericals7, 1 penalties7) + 2 in vignetta
+   "knows" (soggetto software) 9
+   "honest/honestly"           6
+   "wearing the (same name /   3 -- la stessa formula del libro,
+    shape of a right one)"        in parameters7/generics.R,
+                                  distributions7/multivariate.R e un
+                                  commento di basis7
+   "worth ..." (tic)          15, di cui ~8 in roxygen
+   "recentre/recentres"        3 (grafia britannica residua)
+   "fourteen" FOSSILE          1 (utility_functions.R: "none of the
+                                  fourteen shipped here has an underscore
+                                  in a parameter name" -- oggi le famiglie
+                                  sono 42 E i nomi liberi multivariati
+                                  CONTENGONO underscore: la frase è falsa
+                                  due volte; il codice resta corretto
+                                  perché gli indici sono generati, ma la
+                                  motivazione va riscritta)
+   "lattice"                   2, entrambi in senso geometrico (griglia di
+                               nodi), fuori dal divieto, lasciati
+   "stack"                     2 in senso "matrice impilata", legittimo
+   "modelling"                 1, nel titolo di un articolo citato: resta
+   vignette: pulite tranne extending-optimizers7 (6 richiami: refuses,
+   knows x2, honest, "says so")
+
+B. COSA È STATO APPLICATO
+-------------------------------------------------------------------------
+B1. refuse -> reject (refuses/refused/refusal -> rejects/rejected/
+    rejection) in TUTTE le righe roxygen e nelle vignette; i commenti di
+    codice non sono stati toccati (seguono l'idioma del codice, non sono
+    superficie utente).
+B2. Le due "wrong answer wearing the shape of a right one" e la "different
+    object wearing the same name" riscritte come nel libro
+    ("indistinguishable from a correct one" / "a different object under
+    the same name"); il commento di basis7 allineato.
+B3. "knows": i nove casi riscritti caso per caso -- "the gaussian knows
+    its own maximum likelihood estimate" -> "the gaussian has a
+    closed-form maximum likelihood estimate"; "A gradient-based method
+    knows it has arrived" -> "recognizes its arrival through the
+    vanishing of \eqn{\nabla f}" e simili; "the layer that knows what the
+    term means" -> "the layer that owns the meaning of the term".
+B4. "honest": "that is the honest answer rather than..." -> "the value is
+    \code{NaN} rather than the artifact of a divergent quadrature" e
+    varianti; "the default is honest" (vignetta) -> "the default reports
+    what was actually checked".
+B5. "Exact or refused, never obtained by optimization" (param_free) ->
+    "Implemented exactly or not at all, never by optimization", come la
+    frase gemella del libro.
+B6. recentre -> recenter (3).
+B7. utility_functions.R: il paragrafo del "fourteen" riscritto senza
+    conteggio e senza cronaca del guasto: la ragione è che i nomi liberi
+    multivariati contengono underscore per costruzione, quindi il parsing
+    del nome è sbagliato oggi, non solo per una distribuzione utente.
+B8. I "worth" in roxygen ridotti dove sono riempitivo ("is worth
+    preferring" -> "is preferable"; "worth naming" -> tolto); lasciati
+    nei commenti.
+B9. Vignetta extending-optimizers7: i sei punti riscritti in stile 1.
+
+C. COSA NON È STATO TOCCATO, E PERCHÉ
+-------------------------------------------------------------------------
+- I commenti di codice (# ...): non sono superficie utente; la loro
+  revisione totale costerebbe centinaia di diff a beneficio zero per il
+  lettore esterno. I due-tre più marcati sono stati allineati quando la
+  stessa riga andava comunque toccata.
+- "lattice" geometrico e "stacked matrix": sensi legittimi, fuori dai
+  rispettivi divieti.
+- "modelling" nel titolo citato di un articolo: i titoli si riportano
+  come pubblicati.
+- I conteggi dinamici del meta-pacchetto: statmodels7 legge i membri da
+  Imports, quindi non ha numeri scritti a mano da correggere.
+
+D. VERIFICA
+-------------------------------------------------------------------------
+roxygenise sui pacchetti toccati, testthat::test_local per ciascuno (la
+guardia test-docs.R copre pagine e \value), commit per repo. Un giro di
+R CMD check --as-cran e CI restano al prossimo batch, come da regola.
