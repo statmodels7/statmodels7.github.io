@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>statmodels7 — an S7 toolkit for statistical modeling</title>
-<meta name="description" content="Distributions, link functions and optimizers as reusable S7 objects, carrying every derivative up to fourth order in closed form. The components every R modeling package rewrites internally, written once.">
+<meta name="description" content="Distributions, link functions, optimizers, bases, constrained parameters and penalties as reusable S7 objects. The components every R modeling package rewrites internally, written once.">
 <link rel="icon" href="logo/statmodels7.svg" type="image/svg+xml">
 <style>
   :root {
@@ -134,10 +134,12 @@
        Framework</b></a>, a book generated from the same source tree as the
        packages. It presents every formula the code implements: the link
        functions and their derivatives to fourth order, the likelihood theory
-       and the Bartlett identities, the change of scale, and the operations
-       that build new distributions from existing ones. The chapter on
-       optimization covers the methods themselves, from the Wolfe conditions
-       and Zoutendijk's theorem to the BFGS update and the bundle method.</p>
+       and the Bartlett identities, the operations that build new
+       distributions from existing ones, the optimization methods from the
+       Wolfe conditions to the bundle method, the basis expansions and their
+       exact inner products, the charts on the positive definite cone, the
+       numerical layer, and the penalties with their normalizing
+       constants.</p>
   </section>
 
   <section>
@@ -148,10 +150,11 @@
 pak::pak("statmodels7/statmodels7")
 
 library(statmodels7)
-<span class="c">#&gt; -- Attaching the statmodels7 toolkit 0.2.0</span>
-<span class="c">#&gt; v basis7         0.4.0        v numericals7    0.4.0</span>
-<span class="c">#&gt; v distributions7 0.0.0.9000   v optimizers7    0.0.0.9000</span>
-<span class="c">#&gt; v linkfunctions7 0.0.0.9000   v parameters7    0.5.0</span></pre>
+<span class="c">#&gt; -- Attaching the statmodels7 toolkit</span>
+<span class="c">#&gt; v numericals7      v optimizers7</span>
+<span class="c">#&gt; v linkfunctions7   v basis7</span>
+<span class="c">#&gt; v distributions7   v parameters7</span>
+<span class="c">#&gt; v penalties7</span></pre>
     <p>Each package installs on its own too, with
        <code>pak::pak("statmodels7/&lt;package&gt;")</code>.</p>
   </section>
@@ -162,11 +165,11 @@ library(statmodels7)
 
       <a class="card" href="https://statmodels7.github.io/numericals7/">
         <h3>numericals<span>7</span></h3>
-        <p>The numerical layer everything above consumes: stencils that
-           differentiate a plain R map to fourth order, one finite-difference
-           stencil library, quadrature and series vectorized over the
-           parameters, and the special functions with their overflow
-           discipline.</p>
+        <p>The numerical layer everything above consumes: one
+           finite-difference stencil library, quadrature and series summation
+           vectorized over the parameters, the combinatorial enumerations
+           behind the chain rules, and special functions that stay finite at
+           extreme arguments.</p>
       </a>
 
       <a class="card" href="https://statmodels7.github.io/linkfunctions7">
@@ -189,7 +192,7 @@ library(statmodels7)
         <h3>optimizers<span>7</span></h3>
         <p>Eleven algorithms as objects, with the stopping rule an object as
            well, chosen and combined by the caller instead of buried in the
-           loop. Box constraints are removed by reparameterisation rather than
+           loop. Box constraints are removed by reparametrization rather than
            enforced.</p>
       </a>
 
@@ -207,8 +210,8 @@ library(statmodels7)
            matrices, probability vectors on the simplex, transition matrices
            &mdash; each a map from an unconstrained vector, with exact
            derivatives to fourth order, log-determinants and solves.
-           Rank-deficient precisions included, because that is what a penalty
-           is.</p>
+           Rank-deficient matrices are admitted, which is what a smoothing
+           penalty requires.</p>
       </a>
 
       <div class="card planned">
@@ -223,8 +226,8 @@ library(statmodels7)
            with its normalizing constant, exact derivatives in the
            coefficients and the hyperparameters, the mixed block, and the
            rank, null space and log pseudo-determinant a marginal criterion
-           consumes. Ridge is the Gaussian at zero, the lasso the Laplace,
-           and both know it.</p>
+           consumes. The ridge and the lasso are the Gaussian and the Laplace
+           prior held at zero, with their normalizing constants kept.</p>
       </a>
 
       <a class="card" href="https://statmodels7.github.io/statmodels7">
@@ -268,7 +271,7 @@ distrib_gradient(d, y, theta, scale = "link")   <span class="c"># w.r.t. eta</sp
        time and produces a diagonal Jacobian, while changing one free value of
        a matrix parametrization changes an entire row and column.</p>
     <p><code>parameters7</code> supplies the missing object: a map from an
-       unconstrained vector to a constrained matrix, exact to second order,
+       unconstrained vector to a constrained matrix, exact to fourth order,
        together with the log-determinant and the solves a likelihood asks for.
        Its consumers are the multivariate distributions below and
        <code>penalties7</code>.</p>
@@ -340,8 +343,8 @@ sum(distrib_pdf(d, mv_support(d, theta), theta))
 
   <section>
     <h2>Built to be extended</h2>
-    <p>A toolkit that only worked for the fourteen distributions it ships with
-       would have solved nothing. Everything dispatches on S7 generics, so a
+    <p>A toolkit that only worked for the forty-two distributions it ships
+       with would have solved nothing. Everything dispatches on S7 generics, so a
        user-defined distribution is a subclass with one method, <b>the
        density</b>. The distribution function, the quantile function, the
        sampler and every derivative then follow from numerical fallbacks, and

@@ -14,7 +14,7 @@
 #      positive definiteness when the curvature condition holds;
 #   3. the L-BFGS two-loop recursion returns the same vector as the explicit
 #      inverse built from the same pairs;
-#   4. the box reparameterisation's chain rule agrees with a numerical
+#   4. the box reparametrization's chain rule agrees with a numerical
 #      derivative of the composed objective;
 #   5. the bundle method's optimality estimate vanishes where a subgradient
 #      does not, at the minimum of a sum of absolute deviations;
@@ -127,7 +127,7 @@
 }
 
 
-# --- 4. the chain rule of the box reparameterisation -------------------------
+# --- 4. the chain rule of the box reparametrization -------------------------
 
 .certify_bounds <- function(tol = 1e-6) {
   out <- character()

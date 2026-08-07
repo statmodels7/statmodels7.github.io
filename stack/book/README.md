@@ -25,9 +25,10 @@ Every count must be zero. A `|` written inside a math expression that sits in a
 markdown table breaks the cell, and kable escapes it to `&#124;`, which MathJax
 prints verbatim. Use `\lvert ... \rvert` for absolute values everywhere.
 
-The two packages are loaded **from source** with `pkgload`, from `../linkfunctions7`
-and `../distributions7`, so the book always documents the working tree rather than
-an installed snapshot. Nothing needs to be installed first.
+The packages are loaded **from source** with `pkgload`, from the sibling
+directories (`../numericals7` through `../penalties7`), so the book always
+documents the working tree rather than an installed snapshot. Nothing needs to
+be installed first.
 
 ## Layout
 
@@ -44,19 +45,19 @@ book/
   chapters/
     01-introduction.qmd        what the toolkit is for
     02-linkfunctions7.qmd      the inverse function theorem, 16 links
-    03-distributions7.qmd      the distributions7 chapter; includes the four below
-    _03a-distributions.qmd       likelihood theory, Bartlett, link scale, 14 families
-    _03b-transformations.qmd     change of variables, zero wrappers, truncation
-    _03c-fitting.qmd             maximum likelihood, Fisher scoring, delta method
-    _03d-fallbacks.qmd           what a density-only distribution gets for free
+    03-distributions7.qmd      distributions; includes _03a to _03e
+    04-optimizers7.qmd         optimization; includes _04a to _04e
+    05-basis7.qmd              bases; includes _05a to _05e
+    06-parameters7.qmd         constrained parameters; includes _06a to _06c
+    07-numericals7.qmd         the numerical layer; includes _07b to _07d
+    08-penalties7.qmd          penalties; includes _08a to _08c
     A1-notation.qmd            notation, session info
-  R/
-    _setup.R                       shared setup and the certification helpers
-    link-formulas.R                the 16 link records + their certificates
-    distribution-catalog.R       the 14 distribution records + certificates
-    transformation-certificates.R  transformer and zero-wrapper certificates
-    fit-certificates.R             the fitting chapter's certificates
-  assets/theme.scss      the toolkit's palette
+    A2-references.qmd          the bibliography
+  R/                   one certificate file per chapter, plus the shared
+                       records (link-formulas.R, distribution-catalog.R)
+                       that keep each printed formula and its transcription
+                       in the same object
+  assets/theme.scss    the toolkit's palette
 ```
 
 ## Notation
