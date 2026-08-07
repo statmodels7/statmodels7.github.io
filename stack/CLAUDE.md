@@ -2658,6 +2658,23 @@ block) were added for this; `bibliography:` and `link-citations: true` sit in
 uncited entries — pandoc silently ignores them, so they rot unnoticed; the check
 is a shell loop over `grep -o "@[a-z]*[0-9]\{4\}"` against `^@[a-z]*{`.
 
+**Prose register, revised 2026-08-07 (Giovanni, explicit): STYLE 1 of
+`piano_refactoring.txt` — the dry classical manual — governs the book, the
+site, the READMEs and the documentation alike** ("mi sembra quello più
+accademico e chiaro"). Its rules: the grammatical subject is the function or
+the quantity, never a personified package ("knows", "refuses", "says",
+"prefers" with a software subject are out); one idea per sentence, minimal
+subordination, parentheses over em dashes; numeric examples live in
+parentheses or executed chunks, not in the narrative; the last sentence of a
+paragraph is a fact or a consequence, never a maxim (the gnomic closer —
+"An explicit failure is preferable to a plausible wrong number" — is the
+single most recognizable LLM tell and is banned); "rather than" only for
+real alternatives, at most once per paragraph. Phase 0 of the plan (the
+factual fixes A1–A15, D1–D7, the American-spelling sweep
+parameterisation→parametrization) was applied the same day; the chapter-by-
+chapter style-1 rewrite is the open phase. This tightens, and does not
+replace, the register below.
+
 **Prose register, fixed 2026-08-03 (Giovanni, explicit, after two milder passes
 did not satisfy him): the book reads as a plain textbook.** Two constructions
 are banned everywhere: the announce-then-reveal opening ("Notice first what the

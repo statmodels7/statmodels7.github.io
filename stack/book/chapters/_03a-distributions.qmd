@@ -153,7 +153,7 @@ left-hand side must vanish, and regularity lets us take those derivatives under
 the integral sign:
 
 $$\int \frac{\partial^{k} f}{\partial\theta_{i_1}\cdots\partial\theta_{i_k}}\,dy = 0.
-\tag{3.1}$$
+$$ {#eq-density-derivs-vanish}
 
 Everything now depends on expressing the derivatives of $f$ through the
 derivatives of $\ell = \log f$, and the expression has a precise
@@ -184,7 +184,7 @@ $(k{+}1)$-element one, and each new partition arises exactly once. The
 combinatorial identity behind this is the recursion for the complete Bell
 polynomials, treated in @comtet1974 and @stanley2012.
 
-Substituting the lemma into (3.1), and noticing that $e^{\ell} = f$ is exactly
+Substituting the lemma into @eq-density-derivs-vanish, and noticing that $e^{\ell} = f$ is exactly
 the density needed to turn the integral into an expectation, we arrive at the
 result.
 
@@ -205,7 +205,7 @@ $$
 \mathbb{E}\!\left[\ell^{(i_1\cdots i_k)}\right]
 = -\sum_{\substack{\pi \in \Pi_k \\ |\pi| > 1}}
    \mathbb{E}\!\left[\prod_{B\in\pi}\ell^{(B)}\right].
-\tag{3.2}$$
+$$ {#eq-bartlett-top-order}
 
 The first three cases, written out, are:
 
@@ -234,7 +234,7 @@ supports.
 When a distribution has no closed-form expected derivative, the expectation has
 to be approximated, and the derivative generics accept an `approx` argument
 choosing among three strategies. The strategy `"bartlett"` (also spelled
-`"opg"`) applies (3.2); at second order it needs nothing but the score, which
+`"opg"`) applies @eq-bartlett-top-order; at second order it needs nothing but the score, which
 makes it the cheapest option, and it is the default there. The strategy
 `"integrate"` computes $\mathbb{E}[\partial^k \ell]$ literally, by quadrature
 for continuous distributions and by summation for discrete ones; when the
@@ -251,19 +251,10 @@ derivative equals *under regularity*. When regularity fails the two quantities
 differ, and the quantity that retains the meaning of an information is the
 Bartlett one; @sec-nonregular shows this on a concrete example.
 
-::: {.callout-note}
-## Quadrature knots
-
-The `expectation()` engine splits its integral at quantiles of the
-distribution, and it uses three knots rather than nine. More knots would extend the range of densities it can integrate at all, but
-they would also convert loud failures into silent wrong answers. At Gamma
-shape $0.02$, a nine-knot rule returns $-54.9$ for a quantity that is exactly
-zero, while the three-knot rule reports that the integral could not be
-computed. In the ordinary
-range three knots are also the more accurate choice, since every extra panel
-contributes its own quadrature error. An explicit failure is preferable to a plausible
-wrong number.
-:::
+The quadrature behind `"integrate"` splits its integral at three quantiles of
+the distribution. The choice of three knots rather than more, and the failure
+mode a finer subdivision introduces at extreme parameter values, are described
+in @sec-fallbacks-caveat.
 
 ### Derivatives on the link scale {#sec-link-scale}
 
