@@ -2659,21 +2659,53 @@ uncited entries — pandoc silently ignores them, so they rot unnoticed; the che
 is a shell loop over `grep -o "@[a-z]*[0-9]\{4\}"` against `^@[a-z]*{`.
 
 **Prose register, revised 2026-08-07 (Giovanni, explicit): STYLE 1 of
-`piano_refactoring.txt` — the dry classical manual — governs the book, the
-site, the READMEs and the documentation alike** ("mi sembra quello più
-accademico e chiaro"). Its rules: the grammatical subject is the function or
-the quantity, never a personified package ("knows", "refuses", "says",
-"prefers" with a software subject are out); one idea per sentence, minimal
-subordination, parentheses over em dashes; numeric examples live in
-parentheses or executed chunks, not in the narrative; the last sentence of a
-paragraph is a fact or a consequence, never a maxim (the gnomic closer —
-"An explicit failure is preferable to a plausible wrong number" — is the
-single most recognizable LLM tell and is banned); "rather than" only for
-real alternatives, at most once per paragraph. Phase 0 of the plan (the
-factual fixes A1–A15, D1–D7, the American-spelling sweep
-parameterisation→parametrization) was applied the same day; the chapter-by-
-chapter style-1 rewrite is the open phase. This tightens, and does not
-replace, the register below.
+`piano_refactoring.txt` — the dry classical manual — governs every prose
+surface of the toolkit** ("mi sembra quello più accademico e chiaro"). Both
+editorial passes are DONE and their records are `piano_refactoring.txt`
+(book + portal, 2026-08-07) and `piano_refactoring_docs.txt` (package
+documentation, 2026-08-08), carried in `site/stack/` like this file.
+
+The rules of the register:
+- the grammatical subject is the function or the quantity, never a
+  personified package: "knows", "refuses", "says so", "prefers", "honest"
+  with a software subject are out. The standing replacements: refuse →
+  reject (or "signals an error"), "knows X" → "carries/has/records X",
+  "the honest answer" → say what is returned (`NaN`, `NA`, an error);
+- the last sentence of a paragraph is a fact or a consequence, never a
+  maxim — the gnomic closer ("An explicit failure is preferable to a
+  plausible wrong number", "both know it", "a wrong answer wearing the
+  shape of a right one") is the single most recognizable LLM tell;
+- no compressed two-beat contrasts, no "The first... The second..."
+  mechanical enumerations, "rather than" only for real alternatives and at
+  most once per paragraph; parentheses over em dashes; "worth
+  noting/stating/recording" is filler and goes;
+- section titles name their subject, without appended relative clauses;
+- numeric examples live in parentheses or executed chunks, not in the
+  narrative, and no counts or versions are hand-typed where an executable
+  source exists (the site's fake `library()` output and three stale
+  "fourteen/four sibling" counts were exactly that rot).
+
+WHICH SURFACES the register covers, learned by finding tells in each: the
+book, the portal, READMEs (edit the .Rmd and re-knit), roxygen (`#'` lines),
+vignettes, NEWS.md, the `desc:` blocks of `_pkgdown.yml`, and **error
+message strings** — a `stop()` text is user-visible prose ("It is refused
+rather than fitted" became "rejected"). Code comments are exempt: they
+follow the code's idiom and are not a reader-facing surface. Also exempt:
+titles of cited papers (reported as published, "modelling" included),
+"lattice" in the geometric grid sense, and "stacked matrix". Before
+renaming a check label or an error text, grep the tests for the literal —
+none matched this time, but a label is load-bearing by construction.
+
+Spelling is American everywhere: parametrization/reparametrization (the
+parameteris*/reparameteris* forms were swept 2026-08-07), recenter (not
+recentre). Notation follows the book: the scalar step length is $\alpha$
+and $s$ is the secant vector — a collision the notation appendix itself
+had recorded without noticing.
+
+The check greps for any NEW prose, before committing it: `refus`, `knows`,
+`honest`, `wearing`, `worth `, `says so`, `parameteris`, `recentre`, a
+paragraph-final aphorism, and hand-typed counts of families/packages/links.
+This tightens, and does not replace, the register below.
 
 **Prose register, fixed 2026-08-03 (Giovanni, explicit, after two milder passes
 did not satisfy him): the book reads as a plain textbook.** Two constructions
