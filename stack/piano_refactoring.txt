@@ -1,0 +1,474 @@
+PIANO DI REFACTORING EDITORIALE — libro e sito letti da un lettore esterno
+===========================================================================
+Data: 2026-08-07. Metodo: lettura integrale di book/ (index.qmd, i sette
+capitoli con tutte le sezioni incluse, l'appendice di notazione) e di
+site/index.html, più un campione dei README, chiedendosi a ogni pagina:
+"questo l'ha scritto un umano o l'ha generato un'AI in modo grossolano?
+si capisce, o sono frasi staccate?". Le note sono divise in: (A) errori
+fattuali e incoerenze che vanno corretti comunque; (B) i tic stilistici
+ricorrenti che tradiscono la generazione automatica, con le frequenze
+misurate; (C) problemi di notazione e di comprensibilità; (D) il sito;
+(E) tre stili di riscrittura generalizzabili, con lo stesso passo
+riscritto in ciascuno; (F) l'ordine operativo proposto.
+
+Giudizio complessivo, per onestà prima della pignoleria: il libro NON
+sembra "generato in modo grossolano". La matematica è esposta con ordine,
+le sezioni si tengono, i riferimenti sono veri. Il problema è più sottile
+e più insidioso: è scritto in un unico registro riconoscibile — periodi
+perfettamente bilanciati, chiuse a effetto a fine paragrafo, personifica-
+zione sistematica del software, triadi ovunque — e quel registro, ripetuto
+per otto capitoli senza mai una sbavatura né una variazione, è esattamente
+ciò che un lettore del 2026 riconosce come voce di un LLM. Un capitolo
+così sarebbe elegante; otto così sono una firma. La riscrittura deve
+rompere l'uniformità, non "migliorare" le singole frasi.
+
+
+A. ERRORI FATTUALI E INCOERENZE (da correggere a prescindere dallo stile)
+-------------------------------------------------------------------------
+
+A1. index.qmd, tabella "This build": mancano penalties7 (il capitolo 8
+    esiste) e statmodels7. Il lettore vede otto capitoli e sei versioni.
+
+A2. chapters/01-introduction.qmd, tabella "The toolkit": penalties7
+    compare DUE volte — una riga reale ("penalties as objects: the value
+    with its normalizing constant, ...") e tre righe sotto la riga
+    fossile "*planned* — penalties". Residuo evidente di un
+    aggiornamento fatto a metà; è il difetto che più di ogni altro fa
+    dire "generato e non riletto".
+
+A3. chapters/01-introduction.qmd, chiusura ("The six chapters that
+    follow present the mathematics behind all of it, one per package"):
+    i capitoli sono sette e l'elenco che segue omette penalties7.
+
+A4. index.qmd, "How the book is organized": "@sec-optimizers7 is
+    `optimizers7`, and divides into four as well" — le sezioni elencate
+    subito dopo sono CINQUE (descent, curvature, nonsmooth, constraints,
+    starting).
+
+A5. _03b-transformations.qmd, fine di @sec-za-continuous: periodo
+    SPEZZATO, mai completato:
+       "— the same formulas as for zero-inflation, because, as the next
+        section explains."
+    La frase finisce lì. Manca la ragione promessa (presumibilmente: "the
+    two models coincide for a continuous parent").
+
+A6. _03b-transformations.qmd, @sec-trunc-derivatives: "The three
+    formulas invite three readings" — le letture date sono DUE (score
+    ricentrato; informazione = covarianza). La terza non c'è.
+
+A7. _06b-families.qmd, @sec-parameter-matrixlog: frase sgrammaticata:
+       "log-Cholesky remains the cheaper one for derivatives, which
+        there are sparse products."
+    ("...for which the derivatives are sparse products", o simile.)
+
+A8. A1-notation.qmd: (i) "Six symbols are reused across chapters" ma i
+    paragrafi che seguono ne trattano nove (g, h, theta, pi, B, m, P,
+    lambda, eta); (ii) il blocco Session elenca solo linkfunctions7,
+    distributions7, optimizers7, basis7 — mancano numericals7,
+    parameters7, penalties7; (iii) non esiste una tabella di notazione
+    per il capitolo 8 (rho, D, m, r, la coppia value/pdet) né per il 7;
+    (iv) la voce "$t$ | the proximity weight, a step length on the
+    parameter scale" convive con "$s$ ... the step $sd$" — vedi C1.
+
+A9. Callout "Quadrature knots" DUPLICATO quasi alla lettera in
+    _03a-distributions.qmd (@sec-approx) e _03d-fallbacks.qmd
+    (@sec-fallbacks-caveat): stesse cifre (shape 0.02, -54.9), stessa
+    chiusa ("An explicit failure is preferable to a plausible wrong
+    number"). Un libro umano lo direbbe una volta e rimanderebbe.
+    Tenerlo in 3d (dove è a tema) e in 3a lasciare una riga di rimando.
+
+A10. 01-introduction.qmd: la formula "there is no registration step and
+     no separate interface for the 'advanced' case" compare identica due
+     volte a trenta righe di distanza (righe ~116 e ~147). Ripetizione
+     verbatim = tell.
+
+A11. ORTOGRAFIA MISTA, tre grafie per la stessa parola (la regola del
+     progetto è l'inglese americano):
+        reparameterisation  x7 nel libro + 1 nel sito (britannica)
+        reparametrization   x3
+        parametrization     x38 (americana, la forma dominante)
+        parameterisation    x7 (britannica)
+     Decidere UNA coppia (proposta: parametrization / reparametrization,
+     coerente con le 38 occorrenze dominanti) e spazzare libro, sito,
+     README e documentazione dei pacchetti nello stesso giro.
+
+A12. index.qmd, preface: "each with the overflow discipline that was
+     learned on it" (ripetuto nel cappello del capitolo 7, e _07d apre
+     con "carry the numerical lesson learned there"). È il registro
+     aneddotico-di-bottega che la linea editoriale del 2026-08-03 ha
+     bandito dalla documentazione; nel libro suona fuori posto per la
+     stessa ragione: racconta la storia di chi ha scritto il codice, non
+     la matematica. Riformulare come proprietà ("each stated with the
+     argument ranges over which it remains finite").
+
+A13. README di distributions7: "Or the whole toolkit at once, which also
+     installs the four sibling packages" — i fratelli sono sei. Censire
+     la stessa frase negli altri README (il conteggio scritto a mano è
+     esattamente la superficie che marcisce, come da CLAUDE.md).
+
+A14. Numerazione delle equazioni incoerente tra capitoli: il capitolo 3
+     usa tag manuali "(3.1)", "(3.2)" dentro $$...$$, il 5-8 usano i
+     label Quarto {#eq-...}, il 4 usa lettere (A), (W), (W'), (P). Tre
+     sistemi. Le lettere del capitolo 4 sono difendibili (sono i nomi
+     classici delle condizioni); i tag manuali del 3 no — se il capitolo
+     viene rinumerato restano "3.x" per sempre. Portare il 3 ai label
+     Quarto.
+
+A15. _08c-marginal.qmd: lo stesso oggetto è chiamato "matrix parameter"
+     e poi quattro volte "the structure" ("the structure's free vector",
+     "the structure's rank"...) nella stessa pagina. Dopo il rename
+     covstructs7 -> parameters7 la parola "structure" è il fossile del
+     nome vecchio; nel capitolo 6 non compare, nell'8 sì. Uniformare a
+     "parameter" (o "matrix parameter").
+
+
+B. I TIC STILISTICI RICORRENTI (le firme da LLM, con le frequenze)
+-------------------------------------------------------------------------
+
+Premessa di metodo: nessuno di questi costrutti è sbagliato in sé; è la
+FREQUENZA che li trasforma in firma. Numeri misurati su ~8000 righe di
+sorgente (equazioni comprese, quindi la densità in prosa è più alta di
+quanto sembri):
+
+    "rather than"            x111   (una ogni ~70 righe)
+    "exactly"                x88
+    em dash "—"              x87
+    "The first ... The second ..."  x35 aperture di paragrafo
+    "which is what/why/the reason"  x25
+    "worth recording/stating/checking"  x5
+    "deliberately"           x5
+
+B1. LA CHIUSA GNOMICA. Il paragrafo che finisce con una massima
+    bilanciata, spesso con personificazione. Esempi raccolti (uno per
+    pagina, ce ne sono molti di più):
+      - "An explicit failure is preferable to a plausible wrong number."
+        (due volte, nei due callout gemelli)
+      - "a wrong answer wearing the shape of a right one" (_06a)
+      - "an `NA` names a failure, where a plausible number would hide
+        one" (_07c — terza variante della stessa massima)
+      - "Both methods find the median. Only one of them knows it."
+        (caption di tabella, _04c)
+      - "Ridge is the Gaussian at zero, the lasso the Laplace, and both
+        know it." (sito)
+      - "skipping loses information, damping invents it, and the toolkit
+        prefers to lose it" (_04b)
+      - "The count moves and the null space does not." (_06c)
+      - "whose value rests on the care taken to keep it true" (preface)
+    Regola di riscrittura: al massimo UNA chiusa di questo tipo per
+    capitolo. Le altre si sciolgono in prosa piana: non "the toolkit
+    prefers to lose it" ma "the package skips the update and records
+    the skip in the trace".
+
+B2. LA PERSONIFICAZIONE SISTEMATICA del software: "a basis also knows
+    its own interval and refuses a point outside it", "the constructor
+    refuses instead, and explains", "the object says what it is, and a
+    consumer that cares can ask", "nothing in the derivative machinery
+    had to be told", "a family that says nothing gets several random
+    draws". Una o due per capitolo danno vivacità; qui sono decine, e
+    l'antropomorfismo costante ("knows", "refuses", "says", "asks",
+    "promises", "honest") è uno dei tratti più riconoscibili della prosa
+    LLM del periodo. Sostituire nella maggior parte dei casi con la
+    voce passiva tecnica o con il soggetto umano ("the constructor
+    signals an error"; "points outside the interval are rejected").
+
+B3. L'ANAFORA ENUMERATIVA: "Three observations about this definition
+    are useful before going on. First, ... Second, ... Third, ..." /
+    "Two additional devices are needed" / "Two warnings apply" / "Three
+    extensions lie outside this section" / "The table contains three
+    separate findings" / "Two topics remain". Trentacinque aperture
+    "The first/The second". È il modo in cui un modello pianifica un
+    paragrafo. Un autore umano ogni tanto enumera, ma più spesso
+    subordina o semplicemente giustappone. Dove l'enumerazione resta,
+    variare la formula d'ingresso; dove è finta (le "three readings"
+    che sono due, A6), toglierla.
+
+B4. IL BILANCIAMENTO A DUE BATTUTE in cui la seconda ribalta la prima:
+    "It simplifies because ... It deepens because ..."; "skipping loses
+    information, damping invents it"; "The mechanics are what the
+    package supplies. Which constraint a term should carry ... belongs
+    to the layer that does." Giovanni ha già bandito questa figura
+    dalla prosa il 2026-08-03 ("compressed two-beat contrast") ed è
+    rientrata dalla finestra: il pattern sopravvive in decine di punti,
+    solo con più parole intorno.
+
+B5. GLI INTERCALARI DI GIUDIZIO: "correctly so", "deliberately so",
+    "and it is not accurate enough", "which matters because", "worth
+    recording because", "is instructive because". Ogni fatto arriva già
+    pesato. Un trattato umano lascia più spesso che il peso lo metta il
+    lettore, e quando giudica varia il lessico.
+
+B6. "rather than" come connettivo universale (x111). Metà delle
+    occorrenze sono contrasti veri e vanno bene; l'altra metà è il
+    riflesso "X, rather than Y" usato per dare a ogni frase una spalla.
+    Idem "exactly" (x88), spesso rafforzativo vuoto ("is exactly the
+    two ways", "which is exactly what a GLM needs").
+
+B7. Titoli di sezione col costrutto "X, and Y" o relative pendenti:
+    "Structure, and the two free values it leaves", "The solve, which a
+    singular matrix does not have", "Marginals and what a picture
+    shows", "Diagonal matrices, and where the two packages meet". La
+    linea editoriale chiede titoli che nominano il soggetto e basta:
+    "Structured covariances", "The solve", "Marginals", "Diagonal
+    matrices".
+
+B8. Ripetizione di materiale tra cappello del capitolo e prima sezione:
+    i cappelli di 03-08 riassumono ogni sezione con una frase che poi
+    la sezione riapre quasi uguale (es. il cappello del 5 su Legendre/
+    Hilbert e _05b che lo ridice con le stesse parole "whose Gram
+    matrix is the Hilbert matrix"). Il lettore sente l'eco. Asciugare i
+    cappelli a 3-4 righe di orientamento.
+
+
+C. NOTAZIONE E COMPRENSIBILITÀ
+-------------------------------------------------------------------------
+
+C1. COLLISIONE $s$ NEL CAPITOLO 4, la più seria del libro: in
+    @sec-descent $s$ è la LUNGHEZZA di passo scalare ("a step length
+    $s > 0$", condizioni (A) e (W)); in @sec-bfgs, venti righe dopo,
+    "write $s = x_+ - x$" — lo stesso simbolo diventa il VETTORE passo
+    della coppia secante, e la derivazione "multiplying by $s > 0$ and
+    rearranging gives $y^\top s \ge (c_2-1)\, s\, \nabla f(x)^\top d$"
+    usa i due significati NELLA STESSA FORMULA (il primo $s$ è il
+    vettore dentro $y^\top s$, il secondo è lo scalare). L'appendice di
+    notazione registra entrambe le voci senza accorgersi del conflitto.
+    Proposta: passo scalare $\alpha$ (come Nocedal-Wright, che è il
+    riferimento citato), coppia secante $(s, y)$ intatta. Toccare (A),
+    (W), Zoutendijk, il testo di 04a/04b e l'appendice.
+
+C2. Capitolo 2, @sec-link-interface: "An S7 dispatch costs roughly five
+    microseconds, against one microsecond for a plain call, so the
+    second dispatch accounts for about a third of the total." Il
+    lettore non può ricostruire il conto (un terzo di cosa? 5+5+1?).
+    O si dà il totale, o si toglie la frazione.
+
+C3. Capitolo 3, tag manuali (3.1)/(3.2) citati nel testo come "(3.1)"
+    mentre tutto il resto del libro usa @eq-: vedi A14.
+
+C4. _03c: "with the sums over observations justified by independence,
+    since the total log-likelihood is the sum of the individual
+    contributions" — circolare (la somma è giustificata... dall'essere
+    una somma). Da riscrivere o tagliare.
+
+C5. "Scope" di _03c e di _04d si chiudono entrambe con la stessa
+    struttura ("Three extensions lie outside this section... belongs to
+    the model layer" / "Three topics lie outside this chapter...
+    belongs to the model layer") e _04d ripete alla lettera il primo
+    paragrafo di @sec-multistart ("Every method here finds a local
+    minimum, and none can determine whether it is the global one" — due
+    volte nello stesso capitolo, a dieci righe dall'inclusione di 04e
+    che lo ridice). Consolidare.
+
+C6. Il glossario dei simboli riusati (fine A1-notation) è una buona
+    idea ma è scritto come autodifesa ("it is better to say so than to
+    invent notation nobody uses" — chiusa gnomica pure lì). Ridurlo a
+    tabella: simbolo / significato nel capitolo X / significato nel
+    capitolo Y.
+
+C7. Cappelli dei capitoli 7 e 8 citano "the same set-partition
+    enumeration was written twice while finite differences existed in
+    three versions" — storia interna del progetto (chi ha scritto cosa
+    e quando), non matematica. Come A12: o proprietà o via.
+
+
+D. IL SITO (site/index.html)
+-------------------------------------------------------------------------
+
+D1. Blocco Installation: l'output di library(statmodels7) è SCRITTO A
+    MANO e fossile — "toolkit 0.2.0", "basis7 0.4.0", "numericals7
+    0.4.0" (reale: 0.7.0), "parameters7 0.5.0" (reale: 0.7.0), e
+    penalties7 MANCA dall'elenco dei membri attaccati. È il "fenced
+    block that is not executed" di CLAUDE.md, in pubblico. O si
+    aggiorna a ogni release (fragile), o si toglie il numero di
+    versione dall'esempio e si mostra solo la forma dell'output.
+
+D2. Sezione "Built to be extended": "A toolkit that only worked for the
+    fourteen distributions it ships with" — quattordici, contro il
+    "Thirty-eight univariate and four multivariate" della card tre
+    schermate sopra. Contraddizione interna alla stessa pagina.
+
+D3. Sezione "Matrix parameters": "exact to second order" — parameters7
+    è al quarto ordine da settimane (e il libro lo dice). Aggiornare.
+
+D4. Card numericals7: "stencils that differentiate a plain R map to
+    fourth order, one finite-difference stencil library, ..." — (i) i
+    primi due item sono la stessa cosa detta due volte; (ii) "stencils
+    that differentiate a plain R map" è il pitch dei JETS, rimossi il
+    2026-08-06. Residuo di de-jettizzazione.
+
+D5. Sezione "The book": descrive solo i capitoli 2-4 (link, likelihood,
+    ottimizzazione). Mancano basi, parametri, numerica, penalità — metà
+    del libro. Inoltre il titolo citato è "The statmodels7 Framework":
+    coerente con _quarto.yml, ma da riconsiderare in blocco col punto
+    E (la parola del progetto è "toolkit"; un libro che si chiama
+    "Framework" mentre tutto il resto dice "toolkit" stona — se il
+    titolo resta, va bene, ma sia una decisione e non un residuo).
+
+D6. Card penalties7: "Ridge is the Gaussian at zero, the lasso the
+    Laplace, and both know it." — vedi B1/B2: è la frase più "AI" di
+    tutta la pagina. Anche "Rank-deficient precisions included, because
+    that is what a penalty is" (card parameters7) ha la stessa cadenza.
+
+D7. La meta description e l'header dicono "carrying every derivative up
+    to fourth order" due volte nella stessa schermata (title/description
+    + hero). Variare una delle due.
+
+
+E. TRE STILI DI RISCRITTURA, SU UN PASSO CAMPIONE
+-------------------------------------------------------------------------
+
+Il passo campione è il callout duplicato (A9), perché contiene tutti i
+tic in dieci righe — enumerazione implicita, aneddoto numerico, chiusa
+gnomica:
+
+  ORIGINALE: "The `expectation()` engine splits its integral at
+  quantiles of the distribution, and it uses three knots rather than
+  nine. More knots would extend the range of densities it can integrate
+  at all, but they would also convert loud failures into silent wrong
+  answers. At Gamma shape 0.02, a nine-knot rule returns -54.9 for a
+  quantity that is exactly zero, while the three-knot rule reports that
+  the integral could not be computed. In the ordinary range three knots
+  are also the more accurate choice, since every extra panel contributes
+  its own quadrature error. An explicit failure is preferable to a
+  plausible wrong number."
+
+STILE 1 — MANUALE ASCIUTTO (de Boor, Golub-Van Loan, R-core).
+Frasi dichiarative, soggetto grammaticale = oggetto matematico, nessuna
+massima, nessuna personificazione, i numeri in una parentesi o in una
+nota. Il più corto e il più sicuro; rischia la piattezza su 300 pagine.
+
+  "expectation() subdivides the range of integration at three quantiles
+  of the distribution. A finer subdivision would integrate a wider class
+  of densities, but the additional panels contribute additional
+  quadrature error in ordinary cases and, for extreme parameter values,
+  can produce a finite result where the integral is numerically
+  intractable (at Gamma shape 0.02, a nine-panel rule yields -54.9 for
+  an integral whose value is 0; the three-panel rule signals failure).
+  The coarser rule is therefore used, and failure is signalled rather
+  than approximated."
+
+  Regole generalizzabili dello stile 1:
+  - soggetto: la funzione o la quantità, mai "the toolkit/the package
+    prefers/knows/refuses"; si ammette il passivo tecnico;
+  - un'idea per frase; subordinazione minima; niente em dash (solo
+    parentesi e due punti);
+  - i numeri d'esempio stanno tra parentesi o in un esempio eseguito,
+    non nel filo del discorso;
+  - vietate le chiuse valutative; l'ultima frase di un paragrafo è un
+    fatto o una conseguenza, non una morale;
+  - "rather than" solo per alternative reali e al massimo una volta per
+    paragrafo.
+
+STILE 2 — TRATTATO DISCORSIVO (Cox-Hinkley, McCullagh-Nelder). La
+motivazione precede il risultato, i periodi sono lunghi ma con
+subordinate vere, il giudizio c'è ma è dell'autore e usa lessico vario;
+la personificazione sparisce, l'aneddoto diventa un'osservazione
+generale di cui l'esempio è testimone. È lo stile più vicino alla linea
+editoriale già dichiarata ("prosa continua e distesa, libro vero") e
+quello che RACCOMANDO.
+
+  "The number of subdivision points involves a compromise that is easy
+  to misread. Since each panel of a composite rule carries its own
+  error, a finer subdivision is not automatically more accurate: over
+  the range of parameters met in ordinary work, three panels placed at
+  quantiles of the distribution give the smaller total error. The case
+  for a finer rule arises only for extreme parameter values, where some
+  integrals become numerically intractable — and precisely there a
+  finer rule is dangerous, because it tends to return a plausible finite
+  value in place of a diagnostic. At Gamma shape 0.02, for instance,
+  nine panels yield -54.9 for an integral that is exactly zero, whereas
+  the three-panel rule reports that no reliable value could be obtained.
+  expectation() accordingly uses three panels and treats the failures as
+  informative."
+
+  Regole generalizzabili dello stile 2:
+  - ogni paragrafo apre nominando il suo tema in forma neutra ("The
+    number of subdivision points...", non "Notice first...");
+  - il contrasto si costruisce con "whereas / while / although" dentro
+    il periodo, mai con la coppia di frasi brevi a effetto;
+  - l'esempio numerico è introdotto da "for instance" e ha un ruolo di
+    prova, non di aneddoto; niente date, niente storia del progetto;
+  - massimo una em dash per paragrafo; la chiusa riporta al software
+    ("expectation() accordingly...") invece che alla massima;
+  - il giudizio è ammesso ma con lessico variato (dangerous, easy to
+    misread, delicate, convenient) e mai due volte con la stessa
+    formula nel capitolo;
+  - "we" espositivo ammesso nelle derivazioni ("we record the identity
+    once"), coerentemente in tutto il libro (oggi compare a caso).
+
+STILE 3 — DIDATTICO ALLA WOOD (Generalized Additive Models, 2a ed.).
+Tono di lezione: prima il problema concreto, poi la soluzione, esempio
+al centro, frasi di media lunghezza, qualche domanda implicita; più
+caldo dello stile 2 ma senza aforismi.
+
+  "How many panels should the integral be split into? Intuition says
+  the more the better, but each panel adds its own quadrature error, so
+  over the ordinary range of parameters three panels at distribution
+  quantiles are in fact the more accurate choice. Extreme cases pull
+  the other way, and in a treacherous manner. Consider a Gamma with
+  shape 0.02: with nine panels the rule returns -54.9 for an integral
+  that is exactly zero, and nothing warns the caller; with three it
+  fails, and says so. Since a clear failure can be acted on while a
+  wrong number cannot, expectation() splits at three quantiles."
+
+  Regole generalizzabili dello stile 3:
+  - apertura di sezione con il problema pratico, anche in forma di
+    domanda (una per sezione al massimo);
+  - "Consider ..." per introdurre gli esempi; l'esempio è il centro del
+    paragrafo, non la decorazione;
+  - le conseguenze pratiche si dicono con "in practice / in fact";
+  - la personificazione è concessa SOLO al codice in esecuzione ("it
+    fails, and says so"), mai al pacchetto come autore morale;
+  - periodi medi (15-25 parole), un connettivo colloquiale ogni tanto
+    ("in fact", "of course" con parsimonia).
+
+Nota sulla scelta: lo stile 1 è il più immune al sospetto di AI ma
+appiattisce un libro che vuole essere "taught from"; lo stile 3 è il più
+caldo ma su otto capitoli rischia di suonare divulgativo per un testo
+che si presenta come companion matematico. Lo stile 2 tiene la promessa
+della prefazione ("continuous and unhurried") ed è quello in cui la
+maggior parte del testo attuale si converte con il minimo di
+stravolgimento: gran parte dei paragrafi sono GIÀ stile 2 rovinati da
+una chiusa gnomica o da una personificazione — spesso basta riscrivere
+l'ultima frase. Propongo: stile 2 per il corpo, con le regole B1-B7 come
+checklist di sweep, e lo stile 1 per i callout e le didascalie delle
+tabelle (dove la massima oggi si annida).
+
+Il sito è un caso a parte: è una landing page, il registro può restare
+più brillante del libro. Ma le card devono perdere le chiuse ("and both
+know it") e i numeri fossili (D1-D4): per una pagina di marketing
+tecnico lo stile 3 è quello giusto.
+
+
+F. ORDINE OPERATIVO PROPOSTO
+-------------------------------------------------------------------------
+
+Fase 0 — correzioni fattuali (A1-A15, D1-D5): un giorno, nessuna
+  decisione di stile richiesta, e il render con i gates conferma che
+  nulla di sostanziale è cambiato. Include lo sweep ortografico A11 su
+  libro + sito + README + roxygen dei pacchetti.
+
+Fase 1 — decisione dello stile (Giovanni sceglie tra 1/2/3 o una
+  combinazione; la mia proposta: 2 per il libro, 1 per callout e
+  caption, 3 per il sito).
+
+Fase 2 — sweep meccanico dei tic con checklist: grep mirati su
+  "rather than", "exactly", "which is what/why", "worth", "knows/
+  refuses/says/asks" con soggetto software, aperture "The first/The
+  second", chiuse di paragrafo aforistiche, em dash >1 per paragrafo.
+  Obiettivo non zero occorrenze ma densità da autore umano: indicativa-
+  mente un terzo delle attuali.
+
+Fase 3 — riscrittura capitolo per capitolo nello stile scelto, un
+  capitolo per sessione, con render e gates a ogni capitolo (i gates
+  verificano le formule, quindi la riscrittura della prosa non può
+  rompere la matematica silenziosamente). Ordine: 1, 2, 3 (il più
+  lungo, spezzato in 3a/3b e 3c/3d/3e), 4, 5, 6, 7, 8, prefazione e
+  appendice per ultime (la prefazione si riscrive quando si sa che
+  libro è diventato).
+
+Fase 4 — notazione: C1 (il passo $\alpha$), A14 (label Quarto nel
+  capitolo 3), A8 (appendice completata per i capitoli 7-8), C6.
+
+Fase 5 — sito e README: D1-D7, A13, con la regola nuova che nessun
+  numero di versione o conteggio di pacchetti compare scritto a mano
+  dove esiste una fonte eseguibile.
