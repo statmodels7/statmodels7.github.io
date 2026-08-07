@@ -22,8 +22,8 @@ only what their author's routine happened to call for — usually the density an
 the score, sometimes the Hessian, almost never anything beyond. A package that
 needs a third derivative writes its own Gamma from scratch; a package that wants
 derivatives with respect to an unconstrained parameter does the same. The result
-is that the R ecosystem contains dozens of Gamma distributions, each partial
-and each capable of being wrong in its own way.
+is that the R ecosystem contains dozens of Gamma implementations, each
+partial, and each a separate opportunity for error.
 
 The observation the toolkit is built on is that all of this is unnecessary,
 because a Gamma distribution is a fixed mathematical object. It does not vary
@@ -32,9 +32,9 @@ with respect to the response and behavior under reparametrization are all
 determined by the definition, once and for all. They can therefore be written
 down once, correctly and completely, for everyone to build on.
 
-That is what `statmodels7` is: infrastructure meant to be reused, rather than
-another modeling package. The measure of its success is not how well it fits
-models but whether somebody else's modeling package can be built on top of it.
+That is what `statmodels7` is: infrastructure meant to be reused, not another
+modeling package. Its success is measured by whether another modeling package
+can be built on top of it.
 
 ## The contents of a complete implementation {#sec-completely}
 
@@ -45,10 +45,11 @@ differs.
 A **link function** is a map between a constrained parameter and an
 unconstrained one, and what a modeling routine can ask of it is its value and
 its derivatives — in both directions. Almost every implementation in R carries
-the first derivative of the inverse link and stops there, which is exactly what a
-GLM fitted by iterative least squares needs and nothing more. A link in this toolkit carries four derivatives of the forward map and four
+the first derivative of the inverse link and stops there, which is all that a
+GLM fitted by iteratively reweighted least squares requires. A link in this toolkit carries four derivatives of the forward map and four
 of the inverse, so it can serve a routine working at any order up to the
-fourth. It also knows its own domain, so the routine does not have to.
+fourth, and it carries its own domain, so that the calling routine need not
+encode it.
 
 A **distribution** supplies, or can derive, the following. It has the density
 or mass function, the cdf, the quantile function and a random generator. It
@@ -108,18 +109,17 @@ seen before*.
 
 ## Extending the toolkit {#sec-extension}
 
-A toolkit that worked only for the sixteen links and forty-two distributions it
-ships with would have solved nothing; it would simply be one more closed
-catalog, larger than the others. What matters is what happens when a user brings an object the authors never
-considered. In both packages the object is treated exactly like the ones that
-came with them: there is no registration step and no separate interface for
-the "advanced" case.
+A toolkit restricted to the sixteen links and forty-two distributions it
+ships with would be one more closed catalog. The relevant test is what happens
+when a user brings an object the authors never considered, and the answer is
+that the object is treated like the ones that came with the packages: there is
+no registration step and no separate interface for the user-defined case.
 
 For a link the requirement is only that the ten generics be implemented, and
 since a link is a formula and its derivatives, that is a dozen lines. Nothing
 distinguishes the result from a built-in one: it can be handed to any
-distribution as the link for any parameter, and the fourth-order machinery will
-use it without knowing where it came from.
+distribution as the link for any parameter, and the fourth-order machinery
+treats it identically to a shipped link.
 
 ```{r}
 #| label: minimal-link
@@ -219,7 +219,7 @@ res[, c("check", "status")]
 ```
 
 The link above declares only two derivative orders of the four, and the
-validator says so rather than passing what it was not given.
+validator reports the remaining orders as unchecked rather than as passed.
 
 `basis7` ships `check_basis()`, which does the same for a basis and reports a
 quantity it cannot check independently as unchecked rather than as passed.

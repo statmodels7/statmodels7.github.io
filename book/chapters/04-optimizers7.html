@@ -306,7 +306,7 @@ window.Quarto = {
   </ul></li>
   <li><a href="#sec-constraints" id="toc-sec-constraints" class="nav-link" data-scroll-target="#sec-constraints"><span class="header-section-number">4.4</span> Box constraints and stochastic gradients</a>
   <ul>
-  <li><a href="#sec-box" id="toc-sec-box" class="nav-link" data-scroll-target="#sec-box"><span class="header-section-number">4.4.1</span> The box reparameterisation</a></li>
+  <li><a href="#sec-box" id="toc-sec-box" class="nav-link" data-scroll-target="#sec-box"><span class="header-section-number">4.4.1</span> The box reparametrization</a></li>
   <li><a href="#sec-adam" id="toc-sec-adam" class="nav-link" data-scroll-target="#sec-adam"><span class="header-section-number">4.4.2</span> Adam</a></li>
   <li><a href="#sec-optimizers-boundary" id="toc-sec-optimizers-boundary" class="nav-link" data-scroll-target="#sec-optimizers-boundary"><span class="header-section-number">4.4.3</span> Scope</a></li>
   </ul></li>
@@ -452,7 +452,7 @@ window.Quarto = {
 </div>
 </div>
 <p>The last column summarizes the difference. A backtracking search spends almost exactly one gradient per iteration — the one it needs to form the next direction — because its rejected trials cost only function values. A Wolfe search spends about a third more, the surplus being the gradients evaluated at trial points it then rejects.</p>
-<p>The comparison is not purely a cost. The Wolfe run needs noticeably fewer iterations, because a step length satisfying the curvature condition is a better step length, so the total gradient counts differ by less than the per-iteration figures suggest. The difference that remains pays for <a href="#thm-zoutendijk" class="quarto-xref">Theorem&nbsp;<span>4.1</span></a>, which backtracking alone does not provide, and for the guarantee in <a href="#sec-bfgs" class="quarto-xref"><span>Section 4.2.2</span></a> that the curvature approximation never has to reject an update.</p>
+<p>The comparison is not only a matter of cost. The Wolfe run needs noticeably fewer iterations, because a step length satisfying the curvature condition is a better step length, so the total gradient counts differ by less than the per-iteration figures suggest. The difference that remains pays for <a href="#thm-zoutendijk" class="quarto-xref">Theorem&nbsp;<span>4.1</span></a>, which backtracking alone does not provide, and for the guarantee in <a href="#sec-bfgs" class="quarto-xref"><span>Section 4.2.2</span></a> that the curvature approximation never has to reject an update.</p>
 </section>
 </section>
 <section id="sec-curvature" class="level2" data-number="4.2">
@@ -510,7 +510,7 @@ window.Quarto = {
 <p>The last calculation is where the condition <span class="math inline">\(y^\top s &gt; 0\)</span> enters, and the condition has a direct meaning. The quantity</p>
 <p><span class="math display">\[y^\top s = \bigl(\nabla f(x_{+}) - \nabla f(x)\bigr)^\top (x_{+} - x)\]</span></p>
 <p>is positive exactly when the function curves upward along the step, that is, when the observed curvature is consistent with a minimum. On a non-convex objective it can be negative, and then no positive definite matrix satisfies the secant equation for that pair: the pair reports negative curvature, and a positive definite matrix cannot reproduce it.</p>
-<p>When this happens the package <strong>skips</strong> the pair: whenever <span class="math inline">\(y^\top s \le \varepsilon \lVert s \rVert \lVert y \rVert\)</span>, the approximation is left unchanged and the skip is recorded in the trace. The alternative, damping the pair towards one that does satisfy the condition, would inject curvature that was never observed; skipping loses information, damping invents it, and the toolkit prefers to lose it.</p>
+<p>When this happens the package <strong>skips</strong> the pair: whenever <span class="math inline">\(y^\top s \le \varepsilon \lVert s \rVert \lVert y \rVert\)</span>, the approximation is left unchanged and the skip is recorded in the trace. The alternative, damping the pair towards one that does satisfy the condition, would inject curvature that was never observed, so the pair is discarded instead.</p>
 <p>A Wolfe search removes the problem entirely. Condition (W) states <span class="math inline">\(\nabla f(x_{+})^\top d \ge c_2 \nabla f(x)^\top d\)</span>, and multiplying by <span class="math inline">\(s &gt; 0\)</span> and rearranging gives</p>
 <p><span class="math display">\[y^\top s \ \ge\ (c_2 - 1)\, s\, \nabla f(x)^\top d \ &gt; \ 0,\]</span></p>
 <p>because <span class="math inline">\(c_2 &lt; 1\)</span> and the directional derivative is negative. A quasi-Newton method paired with a Wolfe search therefore never skips an update. This is the practical reason <code>bfgs()</code> defaults to the Wolfe search, while <code>gd()</code>, which has no approximation to protect, defaults to backtracking.</p>
@@ -681,7 +681,7 @@ f(x)\}\)</span>; at a kink it contains many.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
-<caption>Both methods find the median. Only one of them knows it.</caption>
+<caption>Both methods reach the median; only the bundle method reports convergence.</caption>
 <colgroup>
 <col style="width: 9%">
 <col style="width: 18%">
@@ -830,9 +830,9 @@ f(x)\}\)</span>; at a kink it contains many.</p>
 <h2 data-number="4.4" class="anchored" data-anchor-id="sec-constraints"><span class="header-section-number">4.4</span> Box constraints and stochastic gradients</h2>
 <p>Two topics remain, and neither fits inside the descent framework of the previous sections. The first is the handling of box constraints, which the toolkit removes by a change of variable rather than enforcing. The second is a method that gives up the requirement of descent altogether, and is useful for stochastic objectives precisely because it does.</p>
 <section id="sec-box" class="level3" data-number="4.4.1">
-<h3 data-number="4.4.1" class="anchored" data-anchor-id="sec-box"><span class="header-section-number">4.4.1</span> The box reparameterisation</h3>
+<h3 data-number="4.4.1" class="anchored" data-anchor-id="sec-box"><span class="header-section-number">4.4.1</span> The box reparametrization</h3>
 <p>Suppose each parameter is confined to an interval, <span class="math inline">\(\theta_j \in (L_j, U_j)\)</span>, with either endpoint possibly infinite. Passing such constraints to a general optimizer creates the difficulties described in <a href="03-distributions7.html#sec-fit-scale" class="quarto-xref"><span>Section 3.3.1</span></a>: every proposal must be tested for admissibility, a step that overshoots must be shortened rather than taken, and near an endpoint the objective may be unbounded or undefined.</p>
-<p>The toolkit removes the constraint instead of enforcing it. The alternative, keeping the box and working with an active set, is the approach of <span class="citation" data-cites="byrd1995">Byrd et al. (<a href="A2-references.html#ref-byrd1995" role="doc-biblioref">1995</a>)</span>, and it is the right choice when an optimum lies exactly on a bound; the comparison appears below. Each bounded coordinate is reparameterised by a diffeomorphism <span class="math inline">\(h_j : \mathbb{R} \to (L_j, U_j)\)</span>,</p>
+<p>The toolkit removes the constraint instead of enforcing it. The alternative, keeping the box and working with an active set, is the approach of <span class="citation" data-cites="byrd1995">Byrd et al. (<a href="A2-references.html#ref-byrd1995" role="doc-biblioref">1995</a>)</span>, and it is the right choice when an optimum lies exactly on a bound; the comparison appears below. Each bounded coordinate is reparametrized by a diffeomorphism <span class="math inline">\(h_j : \mathbb{R} \to (L_j, U_j)\)</span>,</p>
 <p><span class="math display">\[\theta_j \ =\ h_j(\eta_j) \ =\
 \begin{cases}
 L_j + e^{\eta_j}
@@ -931,7 +931,7 @@ L_j + (U_j - L_j)\,\dfrac{1}{1 + e^{-\eta_j}}
 </div>
 <div class="callout-body-container callout-body">
 <p><code>adam()</code> contains no notion of observations. The subsample is drawn by the objective itself, an ordinary function of the parameter vector that selects a different set of terms at each call. Adam optimizes it without any indication that this is happening, and <code>set.seed()</code> governs the run because the draws occur in the caller’s code.</p>
-<p>The package once contained machinery for drawing minibatches inside the optimizer, and it was removed. Supporting it required a second kind of objective that declared its own terms, a rule for which stopping criteria such an objective admitted, and a branch through the iteration. All of this served a task the caller can do in one line and do better, since the caller knows what an observation, a stratum or a cluster is. The mathematics is unchanged either way — a stochastic gradient is a stochastic gradient however it is produced — but the knowledge now lives in the layer that has it.</p>
+<p>The package once contained machinery for drawing minibatches inside the optimizer, and it was removed. Supporting it required a second kind of objective that declared its own terms, a rule for which stopping criteria such an objective admitted, and a branch through the iteration. All of this served a task the caller can do in one line and do better, since the caller knows what an observation, a stratum or a cluster is. The mathematics is unchanged either way: a stochastic gradient enters the iteration identically however it is produced.</p>
 </div>
 </div>
 <p>One consequence of the noise concerns what may be asked of a stopping rule. When the gradient is an estimate, the objective value is one as well, and a tolerance applied to either measures the sampling noise rather than the progress; neither can serve as a stopping rule. A stochastic run is therefore governed by its iteration budget and reports that it did not converge, which is the accurate description of a run in which nothing was checked. Whether an objective is stochastic is a property of the objective, not of the optimizer, so this remains a caution to the caller rather than something the package can detect.</p>
@@ -940,17 +940,17 @@ L_j + (U_j - L_j)\,\dfrac{1}{1 + e^{-\eta_j}}
 <section id="sec-optimizers-boundary" class="level3" data-number="4.4.3">
 <h3 data-number="4.4.3" class="anchored" data-anchor-id="sec-optimizers-boundary"><span class="header-section-number">4.4.3</span> Scope</h3>
 <p>Three topics lie outside this chapter.</p>
-<p>Every method here finds a <strong>local</strong> minimum, and none can determine whether it is the global one. This is a property of local optimization, not of the implementations; <a href="#sec-multistart" class="quarto-xref"><span>Section 4.5.2</span></a> describes the standard remedy, which is to run from several starting points and to read the result for the number of distinct optima found rather than only for the best point.</p>
-<p>There are no constraints beyond a box. Linear and nonlinear constraints require Lagrange multipliers and an active set, and the reparameterisation used here does not extend to them.</p>
+<p>The methods are local: none can determine whether the minimum it finds is the global one. <a href="#sec-multistart" class="quarto-xref"><span>Section 4.5.2</span></a> treats the standard remedy, several starting points, and what their results establish.</p>
+<p>There are no constraints beyond a box. Linear and nonlinear constraints require Lagrange multipliers and an active set, and the reparametrization used here does not extend to them.</p>
 <p>There is nothing Bayesian. The toolkit intends to let the user choose a Bayesian treatment in place of a frequentist one, but that requires a sampler rather than an optimizer, and its output is a distribution rather than a point. It belongs to the model layer, which is the subject of future chapters.</p>
 </section>
 </section>
 <section id="sec-starting" class="level2" data-number="4.5">
 <h2 data-number="4.5" class="anchored" data-anchor-id="sec-starting"><span class="header-section-number">4.5</span> Starting values and multiple starts</h2>
-<p>The previous sections took the starting point as given. This section examines how to choose it, why the natural choice is wrong in an easily missed way, and a related question that no single run can address: how many distinct minima the problem has.</p>
+<p>The previous sections took the starting point as given. This section examines how to choose it, why the obvious choice fails, and a related question that no single run can address: how many distinct minima the problem has.</p>
 <section id="sec-starting-scale" class="level3" data-number="4.5.1">
 <h3 data-number="4.5.1" class="anchored" data-anchor-id="sec-starting-scale"><span class="header-section-number">4.5.1</span> Starting values on the unconstrained scale</h3>
-<p>With no other information, the natural starting point is a vector of zeros. For a model with a scale parameter this is not a starting point but a boundary: at <span class="math inline">\(\sigma = 0\)</span> the log-likelihood is usually infinite, its gradient certainly is, and an optimizer started there fails before its first step. Replacing the zeros with ones only moves the problem, because one is a reasonable scale but a poor probability.</p>
+<p>With no other information, the natural starting point is a vector of zeros. For a model with a scale parameter the zero vector lies on a boundary: at <span class="math inline">\(\sigma = 0\)</span> the log-likelihood is usually infinite, its gradient certainly is, and an optimizer started there fails before its first step. Replacing the zeros with ones only moves the problem, because one is a reasonable scale but a poor probability.</p>
 <p>A single constant works for every kind of parameter when it is applied on the unconstrained scale, using the change of variable of <a href="#sec-box" class="quarto-xref"><span>Section 4.4.1</span></a>. On that scale there is no boundary, and the point <span class="math inline">\(\eta = 0\)</span> maps to a reasonable interior value of whatever the parameter is:</p>
 <p><span class="math display">\[
 h(0) \ =\

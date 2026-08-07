@@ -55,9 +55,9 @@ unchanged. A parameter vector $\theta$ is a named list of numbers, the
 derivative components are keyed by parameter names exactly as in
 @sec-likelihood, and the enumeration that produces `hess_names()` produces
 the same strings whether the parameters are $(\mu, \sigma)$ or
-$(\mu_1, \mu_2, \log L_{11}, \log L_{22}, L_{21})$. Nothing in `align_theta()`,
-in the link scale of @sec-link-scale, or in the fitting routine of
-@sec-fitting has to be told that the family is multivariate.
+$(\mu_1, \mu_2, \log L_{11}, \log L_{22}, L_{21})$. None of `align_theta()`,
+the link scale of @sec-link-scale, or the fitting routine of @sec-fitting
+requires a special case for the multivariate family.
 
 Every one of these scalars is unconstrained, so every link is the identity.
 The constraint that would otherwise need a link has been moved into the
@@ -72,8 +72,8 @@ univariate family a parameter may vary from observation to observation, which
 is what a regression does. Here it may not: the parameter's free values
 describe one matrix for the whole sample. A model in which the matrix varies
 by observation belongs to the layer that owns the regression, not to the
-distribution, and the constructor refuses a parameter of length greater than
-one rather than silently using its first entry.
+distribution, and a parameter of length greater than one is rejected rather
+than truncated to its first entry.
 
 The names of the free values carry a prefix saying which matrix they describe,
 `sigma_` for a covariance and `omega_` for a precision. The name a parameter
@@ -123,8 +123,8 @@ $$
   - w^\top A_l \Sigma^{-1} A_k w .
 $$ {#eq-mvgaussian-hessian}
 
-The expected information is where the multivariate case is more pleasant than
-it looks. Taking expectations uses only $\mathbb{E}[w] = 0$ and
+The expected information simplifies more than the observed Hessian suggests.
+Taking expectations uses only $\mathbb{E}[w] = 0$ and
 $\mathbb{E}[w w^\top] = \Sigma^{-1}$. The first kills the mixed block exactly,
 so the mean and the matrix are orthogonal; the second turns each quadratic
 form into a trace. Both second-derivative terms of the matrix block then
@@ -321,10 +321,10 @@ integrates to one by importance sampling, and for an elliptical family the
 proposal it draws from is a gaussian with the family's own mean and an
 inflated covariance. Such a proposal spreads its mass over a set of dimension
 $p$ and places none of it on the simplex, so the estimate it produces is zero
-to within rounding. The proposal has to live where the family does, and the
-uniform distribution on the simplex — the Dirichlet with every shape equal to
-one, of constant density $\Gamma(p)$ — is the simplest one that does. A family
-declares its own through `mv_reference_draw()`.
+to within rounding. The proposal must place its mass on the support of the
+family, and the uniform distribution on the simplex (the Dirichlet with every
+shape equal to one, of constant density $\Gamma(p)$) is the simplest one that
+does. A family declares its own proposal through `mv_reference_draw()`.
 
 The multinomial is the discrete case, with size $n$ and probabilities $\pi$
 carried by a simplex parameter, and its mass function is
@@ -350,8 +350,8 @@ observed Hessian weighted by that mass. The enumeration is practical only for
 a moderate size, growing as it does in both $n$ and $p$, and a family too
 large for it keeps the approximations of @sec-approx.
 
-Both families have closed-form marginals, which is worth recording because it
-is not a consequence of ellipticity. A single coordinate of a Dirichlet is
+Both families have closed-form marginals, a property that is not a
+consequence of ellipticity. A single coordinate of a Dirichlet is
 $\mathrm{Beta}(\alpha_j, \varphi - \alpha_j)$, which in the
 mean-and-precision parametrization of @sec-distributions is mean $\mu_j$ and
 precision $\varphi$, so the concentration is shared by every marginal. A
@@ -383,7 +383,7 @@ supp <- mv_support(dn, theta_n)
 nrow(supp)
 sum(distrib_pdf(dn, supp, theta_n))
 ```
-### Marginals and what a picture shows {#sec-mv-marginal}
+### Marginals and the pairs plot {#sec-mv-marginal}
 
 Integrating a density over the coordinates one is not interested in has no
 closed form for most families. It has one for the elliptical families, where
@@ -403,10 +403,9 @@ and their kernel density estimate are drawn in the same frame. The kernel
 estimate is the comparison that does not assume the model.
 
 Beyond three coordinates the panel matrix stops being readable, so a larger
-distribution is refused with the suggestion of choosing coordinates rather
-than being drawn illegibly. A family with no closed-form marginal is refused
-outright: a numerical marginal would be a different object wearing the same
-name.
+distribution is rejected with a message suggesting a choice of coordinates.
+A family with no closed-form marginal is rejected outright, since a
+numerical marginal would be a different object under the same name.
 
 ```{r}
 #| label: mvt-pairs
@@ -455,12 +454,12 @@ c(
 ### What a fit reports {#sec-mv-reporting}
 
 The free values are coordinates chosen so that an optimizer can move without
-constraint, and they are not quantities anybody reads. The logarithm of a
-diagonal entry of a Cholesky factor has an estimate and a standard error, and
-neither answers a question about the data. What a reader of a fitted
-multivariate gaussian wants is the standard deviations and the correlations,
-which are the decomposition $\Sigma = D R D$ with $D$ the diagonal matrix of
-standard deviations.
+constraint, and they are not the quantities a reader of a fit examines. The
+logarithm of a diagonal entry of a Cholesky factor has an estimate and a
+standard error, and neither answers a question about the data. The quantities
+of interest for a fitted multivariate gaussian are the standard deviations
+and the correlations, the decomposition $\Sigma = D R D$ with $D$ the
+diagonal matrix of standard deviations.
 
 Carrying the uncertainty onto them is the delta method, which
 @sec-fit-delta already applies to a univariate parameter. Writing
@@ -530,9 +529,8 @@ In two dimensions there is nothing to condition on and the partial correlation
 is the correlation, so it is not printed twice.
 
 Both parametrizations describe the same law, so a fit of one and a fit of the
-other reach the same maximized likelihood and the same information criteria.
-That is an invariance worth checking rather than assuming: two runs that
-disagree on it have not both converged.
+other must reach the same maximized likelihood and the same information
+criteria. Two runs that disagree on this invariance have not both converged.
 
 A structured matrix has quantities of its own, and they are not recoverable
 from the standard deviations and correlations. The covariance of a stationary
@@ -550,9 +548,8 @@ read off the first-order block of arrays the family has computed anyway.
 Each quantity names the scale its interval is built on, by the same rule as
 before: a variance on the logarithm, a partial autocorrelation on Fisher's
 $z$, and a coefficient on the identity. The coefficients take the identity
-scale because the stationary region is not a box, so that no scalar
-transformation expresses the constraint they are jointly under, and an
-interval that respected that constraint would not be an interval.
+scale because the stationary region is not a box, so no scalar
+transformation expresses the constraint they are jointly under.
 
 ```{r}
 #| label: mv-structure-block

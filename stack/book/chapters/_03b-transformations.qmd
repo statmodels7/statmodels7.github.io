@@ -223,8 +223,8 @@ max(abs(distrib_pdf(ray, y, list(mu = s * sqrt(2))) -
         (y / s^2) * exp(-y^2 / (2 * s^2))))
 ```
 
-The distinction between the two groups is worth stating, because it decides
-whether a family needs writing at all. `fixed()` can hold a parameter at a
+The distinction between the two groups decides whether a family needs
+writing at all. `fixed()` can hold a parameter at a
 number; it cannot impose a *relation between* parameters. The exponential is
 the Gamma with unit shape, and unit shape means $\sigma^2 = \mu^2$, which ties
 two parameters together rather than pinning one — so the exponential is a
@@ -322,11 +322,10 @@ not, and the weight $w_0$ appears because
 $\partial_i f_0 = f_0 \ell^{(i)}(0)$ leaves the ratio $(1-\zeta)f_0/L_0$ in
 front of the parent's score.
 
-In words: away from zero, the score is the
-parent's, untouched; at the zeros, the parent's score is *down-weighted* by
-$w_0$, the probability that the zero actually came from the count process. An
-observation that is almost certainly structural contributes almost nothing to
-the estimation of $\theta$, which is the correct weighting.
+In words: away from zero the score is the parent's, and at the zeros the
+parent's score is *down-weighted* by $w_0$, the probability that the zero
+came from the count process. An observation that is almost certainly
+structural contributes almost nothing to the estimation of $\theta$.
 
 #### The observed Hessian {#sec-zi-hessian}
 
@@ -364,10 +363,10 @@ $$
 = -\frac{\partial_i f_0}{L_0^{2}}\Big[L_0 + (1-\zeta)(1-f_0)\Big],
 $$
 
-and the bracket is exactly $1$, since
-$\zeta + (1-\zeta)f_0 + (1-\zeta) - (1-\zeta)f_0 = 1$. That is not a cosmetic
-simplification: the unsimplified expression would have to perform the
-cancellation numerically at every evaluation.
+and the bracket equals $1$, since
+$\zeta + (1-\zeta)f_0 + (1-\zeta) - (1-\zeta)f_0 = 1$. The simplification
+matters numerically, because the unsimplified expression performs the
+cancellation in floating point at every evaluation.
 
 #### The expected Hessian {#sec-zi-expected}
 
@@ -418,8 +417,8 @@ $$\operatorname{Var}(Y) = (1-\zeta)\left(\sigma^{2}+\mu^{2}\right) - (1-\zeta)^{
 
 For a Poisson parent, where $\sigma^2 = \mu$, the variance
 $(1-\zeta)\mu + \zeta(1-\zeta)\mu^2$ strictly exceeds the mean $(1-\zeta)\mu$:
-a zero-inflated Poisson is always overdispersed, which is the second reason,
-after the zeros themselves, that the model gets reached for.
+a zero-inflated Poisson is always overdispersed, which is a second reason,
+after the zeros themselves, for using the model.
 
 ### Zero-adjustment of a discrete distribution {#sec-hurdle}
 
@@ -547,12 +546,11 @@ $k \geq 1$, and in particular $\mathbb{E}[Y] = (1-\pi)\mu/(1-f_0)$.
 
 ### Zero-adjustment for continuous distributions {#sec-za-continuous}
 
-When the parent is continuous the situation simplifies in one way and deepens
-in another. It simplifies because $P(W = 0) = 0$ already, so there is nothing
-to truncate: adjustment amounts to placing a point mass at zero next to the
-density. It deepens because the resulting object is neither continuous nor
-discrete but **mixed**, and mixed distributions require a moment of care about
-what "density" even means.
+When the parent is continuous, $P(W = 0) = 0$ already, so there is nothing to
+truncate: adjustment amounts to placing a point mass at zero next to the
+density. The resulting object, however, is neither continuous nor discrete
+but **mixed**, and the density of a mixed distribution has to be taken with
+respect to an explicit dominating measure.
 
 ::: {#def-za-continuous}
 ## Zero-adjusted continuous distribution
@@ -771,10 +769,10 @@ The constructor `truncated(distrib, lower, upper)` accepts either endpoint or
 both, and it examines what it is given, because many syntactically valid calls
 are statistically meaningless. The guiding example: what should
 `truncated(gamma2_distrib(), lower = -2)` do? The Gamma lives on $(0,\infty)$,
-so truncating at $-2$ removes no mass whatsoever and the "truncated"
-distribution would be the Gamma itself. A user who writes such a call has
-misunderstood something, and returning the parent silently would bury the
-misunderstanding; the constructor refuses instead, and explains.
+so truncating at $-2$ removes no mass and the "truncated" distribution would
+be the Gamma itself. A user who writes such a call has misunderstood
+something, and returning the parent silently would leave the misunderstanding
+undetected, so the constructor signals an error.
 
 ```{r}
 #| label: trunc-refusals
@@ -1155,9 +1153,9 @@ try(zero_adjusted(zero_inflated(poisson_distrib())))
 try(zero_inflated(zero_adjusted(poisson_distrib())))
 ```
 
-That these refusals guard against something real, and not a theoretical
-scruple, can be seen by building the forbidden object by hand, bypassing the
-constructor, and watching the parameter vanish:
+That the refusals concern an actual degeneracy can be verified by building
+the forbidden object by hand, bypassing the constructor, and observing that
+the parameter has left the model:
 
 ```{r}
 #| label: stacking-evidence
