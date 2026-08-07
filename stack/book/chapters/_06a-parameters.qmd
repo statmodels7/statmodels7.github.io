@@ -22,9 +22,10 @@ whose image is the whole of $\mathcal{M}$ and which is one-to-one, together
 with the derivatives of that map and the quantities a likelihood asks of its
 value. The vector $\eta$ is called **free** because it carries no constraint:
 every point of $\mathbb{R}^{d}$ is admissible, and an optimizer may take any
-step from any point without leaving the domain. This is the same bargain a
-link function offers for a scalar, and for the same reason: the constraint is
-absorbed into the map so that the estimation problem is unconstrained.
+step from any point without leaving the domain. This is the arrangement a
+link function provides for a scalar, and it exists for the same reason: the
+constraint is absorbed into the map so that the estimation problem is
+unconstrained.
 
 The number $d$ of free values is the dimension of $\mathcal{M}$ as a manifold,
 not $p^2$ or $p(p+1)/2$ in general. A full positive definite matrix has
@@ -69,7 +70,7 @@ Jacobian $\partial \mathrm{vech}(M) / \partial \eta$ is dense. The chain rule
 still holds, but it is a matrix chain rule, and the quantities a consumer
 needs from it are traces rather than products. Nothing that `linkfunctions7`
 computes would be reusable, and a consumer that treated a matrix parametrization
-as a link would be wrong in a way that produces plausible numbers.
+as a link would produce plausible but wrong numbers.
 
 The two constructions therefore stay apart, and meet at the one place where
 they agree, which is a diagonal matrix. There the Jacobian **is** diagonal, and
@@ -90,10 +91,9 @@ $A_{kl} = \partial^2 M/\partial \eta_k \partial \eta_l$ are what the score and
 the observed information of @sec-mvgaussian are built from. Only the
 $d(d+1)/2$ distinct second derivatives are computed, keyed by the same
 enumeration that names them. Recovering an index by splitting a name on its
-separator is the obvious route and it is wrong, since a free value whose own
-label contains the separator splits into the wrong number of pieces; the
-package generates indices and names from one enumeration so that the two
-cannot disagree.
+separator fails for a label that itself contains the separator, so the
+package generates indices and names from one enumeration and the two cannot
+disagree.
 
 The **log-determinant** $\log|M|$ and its first two derivatives are the
 normalizing constant of a gaussian and its derivatives. The identity behind
@@ -111,7 +111,7 @@ validator compares the two routes.
 
 The **solve** $M^{-1}B$ is what a quadratic form needs. It is computed through
 a factorization rather than by forming an inverse, which is both cheaper and
-better conditioned; a family that knows its own factor supplies it, and the
+better conditioned; a family with a closed-form factor supplies it, and the
 rest obtain one from the matrix.
 
 ```{r}
@@ -149,12 +149,11 @@ $\mathcal{M}$, which free vector produces it? This is what allows a fit to be
 started from a sample covariance, and what allows a marginal of
 @sec-mv-marginal to be expressed in the free values of a smaller parameter.
 
-The map is exact or refused, never obtained by optimization. An
-optimization-based inverse would return a plausible $\eta$ for a matrix
-**outside** $\mathcal{M}$, which is a wrong answer wearing the shape of a right
-one, and a caller has no way to tell the two apart. A family whose map has no
-closed-form inverse therefore refuses, and so does the base class on behalf of
-any parameter that does not implement one.
+The inverse map is implemented exactly or not at all, never by optimization.
+An optimization-based inverse would return a plausible $\eta$ for a matrix
+**outside** $\mathcal{M}$, indistinguishable from a correct answer. A family
+whose map has no closed-form inverse therefore signals an error, and so does
+the base class on behalf of any parameter that does not implement one.
 
 ```{r}
 #| label: parameter-roundtrip

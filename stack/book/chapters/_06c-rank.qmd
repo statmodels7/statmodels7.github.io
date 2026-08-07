@@ -136,20 +136,20 @@ data.frame(
 )
 ```
 
-The count moves and the null space does not. The residual $\lVert M N \rVert /
-\lVert M \rVert$, with $N$ the stored basis, stays at the level of rounding
-across the whole range, which is the statement that the four directions really
-are annihilated by the penalty at every combination of smoothing parameters.
+The eigenvalue count varies with the ratio of the smoothing parameters, while
+the residual $\lVert M N \rVert / \lVert M \rVert$, with $N$ the stored
+basis, stays at the level of rounding across the whole range: the four
+directions are annihilated by the penalty at every combination of smoothing
+parameters.
 
 The same doubt applies wherever a Cholesky factorization is used to decide a
 branch. On a matrix with an exactly zero eigenvalue the pivot that ought to be
 zero comes out positive or negative according to rounding, so a
 `tryCatch(chol(...))` used as a rank test answers differently on different
-machines for the same matrix. A verdict of that kind belongs to the
-eigenvalues, which describe the matrix, rather than to the arithmetic that was
-performed on it.
+machines for the same matrix. The verdict must come from the eigenvalues,
+which describe the matrix, and not from the arithmetic performed on it.
 
-### The solve, which a singular matrix does not have {#sec-parameter-singular-solve}
+### The solve {#sec-parameter-singular-solve}
 
 The remaining quantity is the solve, and it is the one that is refused rather
 than redefined. A Moore-Penrose solve $M^{+}B$ exists and is easy to compute,
@@ -157,9 +157,9 @@ but no consumer of an improper prior asks for it. What a penalized fit inverts
 is $X^\top X + \lambda P$, which is non-singular even when $P$ is not, and
 which the consumer assembles from the penalty and its own design; what it asks
 of the penalty itself is the quadratic form $\beta^\top P \beta$ and the log
-pseudo-determinant. Returning a pseudo-inverse would be a plausible matrix
-answering a question nobody asked, and a caller that used it would be wrong
-without being told.
+pseudo-determinant. A pseudo-inverse would answer a question no consumer of
+an improper prior asks, and a caller that used it in place of the intended
+solve would obtain wrong results without any signal.
 
 ```{r}
 #| label: singular-solve

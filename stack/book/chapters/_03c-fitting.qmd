@@ -14,10 +14,10 @@ another. None of that estimated anything. This section closes the gap with the s
 machinery end to end. Given a sample $y_1, \dots, y_n$, independent and
 identically distributed from a member of one of the families in the
 catalog, the task is to estimate the parameters by maximum likelihood and
-to report their uncertainty. There is no regression here — no
-covariates and no design matrix — and deliberately so: `fit_distrib()` is the
-smallest complete consumer of the toolkit, and every component it uses will be
-used in the same way by a regression front end.
+to report their uncertainty. There is no regression here, no covariates and
+no design matrix: `fit_distrib()` is the smallest complete consumer of the
+toolkit, and every component it uses will be used in the same way by a
+regression front end.
 
 ### Maximizing on the unconstrained scale {#sec-fit-scale}
 
@@ -197,14 +197,15 @@ iteration budget, by producing a non-finite step, or by raising an error,
 which a numerically approximated expected information can do when its
 quadrature diverges at an unfavorable parameter value. In that case the fit
 falls back to BFGS from the same start before moving to the next. BFGS is
-slower and uses no second-order information, but it makes fewer demands on the
-objective, and a slow answer is preferable to none.
+slower and uses no second-order information, but it makes fewer demands on
+the objective, so it can produce a result where the chosen method produced
+none.
 
 Across the starts the fit keeps the best run rather than the last: a converged
 run in preference to one that stopped without meeting its rule, and among runs
 of the same status the one with the higher likelihood. Only when every start
-has failed by every route does `fit_distrib()` stop, and it then reports the
-failure and asks for a starting value instead of returning an unusable result.
+has failed by every route does `fit_distrib()` stop; the error message then
+requests a starting value instead of an unusable result being returned.
 
 The fallback belongs to the two named second-order strategies. An optimizer
 supplied explicitly is used as given and is never replaced, since substituting
@@ -241,9 +242,9 @@ This order of operations produces two properties. The mapped interval cannot
 leave the parameter's domain, because $h_j$ maps into $\Theta_j$ and nowhere
 else: a variance never receives a negative lower limit, and a probability
 never receives an upper limit above one, regardless of the sample size. And
-the interval is not symmetric about $\hat\theta_j$, correctly so, because
-symmetry on the $\theta$ scale is an artifact of a linear approximation rather
-than a property of the likelihood.
+the interval is not symmetric about $\hat\theta_j$, since symmetry on the
+$\theta$ scale is an artifact of a linear approximation and not a property of
+the likelihood.
 
 One implementation detail follows from the fact that @def-link does not
 require links to be increasing. A decreasing link — the upper-bounded
@@ -295,8 +296,8 @@ vapply(fits, function(f) as.numeric(logLik(f)), numeric(1))
 vapply(fits, function(f) f@method, character(1))
 ```
 
-The three agree on the maximized log-likelihood, which is the statement that
-matters: the algorithm decides how the optimum is reached, not where it is.
+The three agree on the maximized log-likelihood; the choice of algorithm
+affects the path to the optimum and not its location.
 
 The relation between the two variance matrices is the diagonal Jacobian
 congruence of @sec-fit-delta, and it can be verified directly:
