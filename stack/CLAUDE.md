@@ -6,7 +6,8 @@ path, and these packages were moved here on 2026-07-22, so nothing from the earl
 sessions carries over automatically.
 
 `statmodels7/` is a plain directory, not a repository — the package repositories sit
-inside it. This file, `logo/make-logos.R` and the package plans (`piano_*.txt`, the
+inside it. This file, the logo sources (`logo/svg/*.svg`, `logo/author-svg.py`,
+`logo/make-logos.R`) and the package plans (`piano_*.txt`, the
 decision records drafted before a package's code exists) are therefore versioned in
 the portal repository (`site/`, which is `statmodels7.github.io`) and copied back up
 here, so a fresh clone can recover them. If you edit any of them, copy the change
@@ -101,7 +102,8 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
     statmodels7\     the meta-package, its own repository; note the directory
                      has the same name as the umbrella it sits inside
     book\            the Quarto book (see §9); `quarto render` from inside it
-    logo\            hex logos: make-logos.R draws them, run from this directory
+    logo\            hex logos: hand-authored SVG in svg/ (written by
+                     author-svg.py); make-logos.R only rasterizes, run from here
     site\            the portal, its own repository (statmodels7.github.io)
     articoli\        papers Giovanni drops in as design input (LaTeX sources).
                      LOCAL ONLY — copyrighted material, never committed to any
@@ -2457,26 +2459,35 @@ Two smaller things worth keeping:
   partition per component — and the integrand runs at every quadrature node. Memoizing
   per integrand call looks worth it at orders 3 and 4, but `"bartlett"` is only the
   default at order 2, where the score is all it needs, so measure before touching it.
-- **The parameters7 glyph was redrawn on 2026-08-04** (Giovanni: the ellipse
-  was too close to optimizers7's contours, and it had been wrong even before
-  the rename because it said "covariance"). It is now the 2-simplex with the
-  image of three pencils of straight lines under the additive log-ratio map:
-  the grid crowds against the boundary because equally spaced free values land
-  at `plogis(a)` along an edge, and it stops short of the outline, which is
-  drawn whole. Two things this settled that are worth keeping. **A glyph must
-  not repeat another package's shape**: five of the six were curves, so the one
-  geometric figure now reads instantly as the odd one out, which is what a
-  family of stickers wants. And **a package's logo must be tracked**: covstructs7
-  never committed `man/figures/logo.png` and its README did not show it, unlike
-  every sibling -- `git ls-files man/figures` in each is the check.
-- **Logos** exist but are competent rather than designed — drawn by a script, not by
-  someone with visual judgement. Worth redoing with a designer if the identity matters.
-  `logo/make-logos.R` regenerates them; the curves are the real `plogis()` and `dgamma()`.
-  The palette is deliberately taken from Giovanni's earlier `mvreg` sticker — chalkboard
-  green `#3D6B4C`, rust border `#9C3E11`, chalk `#F7F4D4`, monospace wordmark — so the
-  toolkit reads as one family with his existing work. Keep it if you add a package.
-  A decoration that carries no information does not belong: an earlier version marked
-  the mode of the density with a dot, and he was right to have it removed.
+- **The logos were redesigned on 2026-08-07** (Giovanni: the old set was
+  "blando", all thin single-weight chalk lines). The stickers are now
+  hand-authored SVG under `logo/svg/`, one per package, written by
+  `logo/author-svg.py`; `logo/make-logos.R` only rasterizes them into each
+  repo's `man/figures/logo.png`, the `pkgdown/favicon/` set and a contact
+  sheet. The system: white chalk `#F7F4D4` with real weight hierarchy and
+  translucent fills; the sanguine chalk `#DD7644` survives ONLY at the center
+  of the statmodels7 honeycomb (Giovanni stripped it from every other glyph).
+  Each glyph is the package's own mathematics, sampled exactly: adaptive
+  quadrature panels plus blackboard symbols (numericals7), the bare bold logit
+  (linkfunctions7, reduced at his request to the curve alone), one filled
+  gamma density (distributions7), contours with an exact-Cauchy-step zigzag in
+  dashed chalk (optimizers7), five wide cubic B-spline bells with the central
+  one filled (basis7 — his call: few and wide, not many and tall), concentric
+  circles of the ALR chart pressing into the open 2-simplex (parameters7),
+  ridge/lasso/SCAD told apart by stroke weight (penalties7), a seven-cell
+  honeycomb with the members' lowercase names and numericals at the center as
+  the root (statmodels7), and a scatter of open circles with a chalk fit line
+  and a border-less confidence band (modelterms7, drawn ahead of its package;
+  PNG stays in `logo/png/` until the repo exists). Rules that survived the
+  redesign: palette from the `mvreg` sticker (chalkboard green `#3D6B4C`, rust
+  border `#9C3E11`, chalk, monospace Courier wordmark); a glyph must not
+  repeat another package's shape; no decoration without information; logos
+  must be git-tracked (`git ls-files man/figures` is the check). One geometry
+  trap worth keeping: the honeycomb's cells sit in the vertex directions
+  (30°+60k) of a pointy-top hexagon, so they face each other vertex-to-vertex
+  and need center distance > 2r — at spacing √3·r their strokes cross.
+  The SVG sources and `author-svg.py` are carried by `site/sync-stack-files.sh`
+  like CLAUDE.md itself.
 - The portal is hand-written HTML. If the toolkit grows past a handful of packages it may
   deserve a generator, but not yet.
 - The book now covers links, distributions, the transformation wrappers and fitting

@@ -7,7 +7,10 @@
 set -e
 cp ../CLAUDE.md            stack/CLAUDE.md
 cp ../logo/make-logos.R    stack/make-logos.R
-cp ../logo/statmodels7.svg logo/statmodels7.svg
+cp ../logo/author-svg.py   stack/author-svg.py
+mkdir -p stack/logo-svg
+cp ../logo/svg/*.svg       stack/logo-svg/
+cp ../logo/svg/statmodels7.svg logo/statmodels7.svg
 
 # The package plans are decision records drafted before any code exists, so
 # the umbrella directory is the only place they live; carry them like CLAUDE.md.
