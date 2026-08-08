@@ -83,6 +83,120 @@ term_coef_names(br)
 term_penalty(br)@params
 ```
 
+### Smooth terms
+
+`s(x)` expands a covariate in a `basis7` basis and penalizes it for
+roughness. The default construction is the Demmler-Reinsch
+reparametrization of @sec-basis7 applied to a cubic B-spline basis, and
+what it buys is a decomposition: the transform makes the reparametrized
+functions empirically orthogonal to a constant and to $x$, and carries
+the roughness penalty onto the identity. The block is therefore one
+column for the linear effect followed by the deviation from it, and the
+penalty is
+
+$$
+P \;=\; \operatorname{diag}(0, 1, \dots, 1),
+$$
+
+rank deficient by exactly one. The linear effect is unpenalized and the
+deviation is shrunk towards zero, so as the smoothing parameter grows
+the fit approaches a straight line rather than a constant, and the
+effective degrees of freedom of @sec-terms-edf fall towards one.
+
+```{r}
+#| label: terms-smooth
+set.seed(11)
+dd <- data.frame(x = sort(runif(120)))
+dd$y <- sin(2 * pi * dd$x) + rnorm(120, sd = 0.2)
+
+bs <- term_build(s(x, k = 10), dd)
+H <- crossprod(term_matrix(bs))
+sapply(c(1e-8, 1, 1e8), function(lam)
+  edf(bs, coef = rep(0, term_npar(bs)), hessian = H,
+      theta = list(lambda = lam)))
+```
+
+The three values are the number of columns in the block, an intermediate
+fit, and one: the count of a straight line, which is what an unpenalized
+linear column inside a penalized block means. The columns are one fewer
+than the basis dimension asked for, the reparametrization having spent
+the constant and the linear direction on the constraints that separate
+them.
+
+`te(x, z)` is the tensor-product smooth of several covariates, built on
+`tensor_basis()`. Its penalty is the sum of the marginal roughness
+penalties carried into the product,
+
+$$
+P \;=\; \sum_{v} I \otimes \cdots \otimes P_v \otimes \cdots \otimes I,
+$$
+
+which penalizes curvature in each direction under one smoothing
+parameter. A separate parameter per margin would need a penalty that is
+a sum of quadratics with its own coefficient on each, whose log
+pseudo-determinant is not separable; that construction is not in
+`penalties7`.
+
+Both take a `by` argument. With a factor the term carries one copy per
+level, the block being the smooth multiplied by each level's indicator
+and the penalty the same matrix repeated blockwise, so one smoothing
+parameter governs every level. With a numeric the term is a
+varying-coefficient one: the smooth multiplies that variable, and the
+function being estimated is the coefficient of `by` as it changes with
+the covariate.
+
+### Score-driven dynamics
+
+`gas(p, q)` is the first term of the structural branch, and it produces
+no block at all. It adds a level $f_t$ to the linear predictor, driven
+by the score of the observation density at the previous times,
+
+$$
+f_t \;=\; \omega + \sum_{i=1}^{p} a_i\, s_{t-i}
+  + \sum_{j=1}^{q} b_j\, f_{t-j},
+\qquad s_t = \frac{\partial \ell_t}{\partial \eta_t},
+$$
+
+the recursion of @creal2013 and @harvey2013. The predictor at one time
+depends on the data at the previous ones, so the contribution cannot be
+written as columns and `term_filter()` runs the recursion instead. What
+drives it is the score of whatever distribution the model carries, which
+is why one term covers several familiar models: entering the scale of a
+Gaussian it is a volatility model of the GARCH kind, entering the mean
+of a Poisson a dynamic count model, and entering a Student t a robust
+filter, the heavy-tailed score being bounded in the observation so that
+an outlier moves the level by a bounded amount rather than in proportion
+to its size.
+
+The filter returns the derivative of the predictor with respect to the
+term's parameters alongside the predictor itself. That is not a
+convenience: the recursion is the only place the derivative can be
+computed, since each state depends on the previous one, and a model
+layer differencing the filter would pay a pass per parameter and inherit
+the error of the difference.
+
+The persistence is carried by partial autocorrelations rather than by
+the coefficients $b_j$, for the reason @sec-parameters7 gives for an
+autoregressive covariance: the stationary region of an autoregression is
+not a box, so no collection of scalar links covers it, while the partial
+autocorrelations each range over $(-1, 1)$ independently and the
+Levinson-Durbin recursion carries them onto the coefficients
+bijectively. The coordinate is named for the chart it lives on.
+
+```{r}
+#| label: terms-gas
+set.seed(8)
+ts_dd <- data.frame(t = 1:80, y = as.numeric(arima.sim(list(ar = 0.7), 80)))
+gt <- term_build(gas(p = 1, q = 1, time = t), ts_dd)
+term_params(gt)
+
+out <- term_filter(gt, eta = rep(0, 80), y = ts_dd$y,
+                   score = function(e, i) ts_dd$y[i] - e,
+                   curvature = function(e, i) -1,
+                   psi = list(omega = 0.1, a1 = 0.4, pacf1 = 0.6))
+c(predictor = length(out$eta), jacobian = ncol(out$jacobian))
+```
+
 ### The censored response
 
 `cens(y, lwr = , upr = )` marks a response as censored on the left-hand
