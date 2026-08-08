@@ -63,7 +63,7 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 |---|---|
 | `numericals7` | the numerical layer at the ROOT of the toolkit (created 2026-08-05; jets REMOVED 2026-08-06, see the de-jettization item in section 7): the enumerations (`set_partitions`, `tuple_indices`, `compositions` -- ONE copy each), the stencil library (`fd_weights`/`fd_offsets`/`fd_step`/`fd_derivative`), `quad_vec`/`series_vec` (quadrature and series vectorized over the parameters, convergence on the SUM of a row's panel errors), and the special functions (`mills_ratio`, `owen_t`, `bessel_i_ratio` with derivatives and inverse; `log_bessel_i`/`log_bessel_k` with four argument-derivatives, after Plesner-Sorensen-Hauberg ICS 2024 (arXiv:2409.08729), 0.5.0 -- finite wherever the log itself is representable, switching guards tightened on the Wronskian, pure R after an Rcpp transcription measured at 0.9-2.7x). No S7 classes on purpose: these are functions |
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links; stencils delegate to numericals7 |
-| `distributions7` | 40 univariate families (NAMESPACE census 2026-08-08: 40 univariate + 4 multivariate = 44 constructors; the "38" predated pig1/pig2 and had rotted on the site, the book and the README at once) -- ONE NAME PER PARAMETRIZATION (2026-08-05, Giovanni): 12 numbered groups (gaussian1/2/3, gamma1/2, negbin1/2 after Cameron-Trivedi, weibull1/3 after gamlss WEI/WEI3 with weibull2 deliberately empty, student_t1/2, skewnormal1/2, vonmises1/2, invgauss1/2, lognormal1/2, beta1/2, betabinom1/2, gengamma1/2) -- with exact score and information, closed-form moments where they exist, `reparametrize()` (Faa di Bruno over partitions, map partials as hand-written keyed tables via `map_derivs`, one stencil per partial as the fallback), `folded()`, wrappers, transformations, MLE; **4 multivariate families** -- gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does. expectation() and the cdf fallback run on numericals7's batched engines |
+| `distributions7` | 41 univariate families (census 2026-08-08: 41 univariate + 4 multivariate = 45 constructors; the "38" predated pig1/pig2 and had rotted on the site, the book and the README at once) -- ONE NAME PER PARAMETRIZATION (2026-08-05, Giovanni): 13 numbered groups (gaussian1/2/3, gamma1/2, negbin1/2 after Cameron-Trivedi, weibull1/3 after gamlss WEI/WEI3 with weibull2 deliberately empty, student_t1/2, skewnormal1/2, vonmises1/2, invgauss1/2, lognormal1/2, beta1/2, betabinom1/2, gengamma1/2, laplace/laplace2 -- the Laplace scale was RENAMED b -> sigma and laplace2 carries the rate lambda = 1/sigma, the lasso-friendly form, both 2026-08-08) -- with exact score and information, closed-form moments where they exist, `reparametrize()` (Faa di Bruno over partitions, map partials as hand-written keyed tables via `map_derivs`, one stencil per partial as the fallback), `folded()`, wrappers, transformations, MLE; **4 multivariate families** -- gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does. expectation() and the cdf fallback run on numericals7's batched engines |
 | `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrization, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalization, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
 | `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, derivative arrays through Levinson-Durbin in Rcpp, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
@@ -1174,6 +1174,23 @@ Two things the checks refused, both worth keeping:
   General shape: a structural claim about a product is not a claim about its
   factors, and writing the test before believing the sentence is what
   separates them.
+
+### reparametrize() against a family written in full (measured 2026-08-08)
+
+Giovanni asked whether reparametrize() should build new families or whether
+they should be written out, and the measurement decides for writing out.
+The same law three ways -- the shipped hand-written gaussian2 (Rcpp
+kernels), a reparametrize() twin with hand map_derivs tables, and the same
+twin on the stencil fallback -- at n = 1e5, min-of-5: the tables route costs
+1.5x (gradient), 2.8x (Hessian), 4.0x (order 3), 6.6x (order 4); the
+stencil route 4.9x to 8.1x. The shipped weibull3 against its hand-written
+parent weibull1 shows the same shape, 1.3x to 4.7x. All routes agree to
+1e-16 (tables) and 1e-11 (stencils). The absolute costs stay in
+milliseconds, so the five shipped reparametrized families (weibull3,
+student_t2, lognormal2, gengamma2, invgauss2) are fine as they are; NEW
+families are written in full (laplace2 was, same day), and reparametrize()
+remains the user-facing escape hatch rather than the package's own
+construction route.
 
 ### The Rcpp review of 2026-08-06 (#83), the numbers that decided each package
 

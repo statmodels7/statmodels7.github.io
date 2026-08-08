@@ -9,7 +9,7 @@
 DISTRIBS <- list()
 
 DISTRIBS$gaussian <- list(
-  title = "Gaussian, mean and scale",
+  title = "Gaussian, mean and standard deviation",
   ctor = "gaussian1_distrib()",
   obj = function() gaussian1_distrib(),
   theta = list(mu = 1.5, sigma = 2),
@@ -32,7 +32,7 @@ DISTRIBS$cauchy <- list(
   theta = list(mu = 0.5, sigma = 1.4),
   support = "y \\in \\mathbb{R}",
   pdf_latex = "f(y) = \\frac{1}{\\pi\\sigma\\left[1 + \\left(\\frac{y-\\mu}{\\sigma}\\right)^{2}\\right]}",
-  moments = "no moments exist",
+  moments = "",
   ld = function(y, th) {
     z <- (y - th$mu) / th$sigma
     -log(pi) - log(th$sigma) - log1p(z^2)
@@ -101,17 +101,36 @@ DISTRIBS$laplace <- list(
   title = "Laplace",
   ctor = "laplace_distrib()",
   obj = function() laplace_distrib(),
-  theta = list(mu = 0.5, b = 1.4),
+  theta = list(mu = 0.5, sigma = 1.4),
   support = "y \\in \\mathbb{R}",
-  pdf_latex = "f(y) = \\frac{1}{2b}\\exp\\!\\left\\{-\\frac{|y-\\mu|}{b}\\right\\}",
-  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = 2b^{2}",
-  ld = function(y, th) -log(2 * th$b) - abs(y - th$mu) / th$b,
+  pdf_latex = "f(y) = \\frac{1}{2\\sigma}\\exp\\!\\left\\{-\\frac{|y-\\mu|}{\\sigma}\\right\\}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = 2\\sigma^{2}",
+  ld = function(y, th) -log(2 * th$sigma) - abs(y - th$mu) / th$sigma,
   grid = function(th) seq(-8, 9, length.out = 40),
   note = "The one non-regular member of the catalog: $\\ell$ has a kink at
   $y = \\mu$, the observed information in $\\mu$ is identically zero, and the
-  Fisher information $1/b^{2}$ can only be recovered from the score. See
+  Fisher information $1/\\sigma^{2}$ can only be recovered from the score. See
   @sec-nonregular. `params_smooth` records this, and it is the reason that
-  property exists at all."
+  property exists at all. `laplace2` carries the same law in location and
+  rate."
+)
+
+DISTRIBS$laplace2 <- list(
+  title = "Laplace, location and rate",
+  ctor = "laplace2_distrib()",
+  obj = function() laplace2_distrib(),
+  theta = list(mu = 0.5, lambda = 0.7),
+  support = "y \\in \\mathbb{R}",
+  pdf_latex = "f(y) = \\frac{\\lambda}{2}\\exp\\!\\left\\{-\\lambda|y-\\mu|\\right\\}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = 2/\\lambda^{2}",
+  ld = function(y, th) log(th$lambda / 2) - th$lambda * abs(y - th$mu),
+  grid = function(th) seq(-8, 9, length.out = 40),
+  note = "`laplace` in the rate $\\lambda = 1/\\sigma$. This is the form a
+  penalty consumes: at fixed $\\mu = 0$ the negative log-density is
+  $\\lambda\\lvert y \\rvert$ up to a constant, so the lasso penalty is
+  linear in $\\lambda$ and every derivative in $\\lambda$ beyond the first
+  is free of the data. The kink at $y = \\mu$ and its handling are those of
+  `laplace`."
 )
 
 DISTRIBS$pseudohuber <- list(
@@ -121,7 +140,7 @@ DISTRIBS$pseudohuber <- list(
   theta = list(mu = 0.5, sigma = 1.2, nu = 3),
   support = "y \\in \\mathbb{R}",
   pdf_latex = "f(y) = \\frac{\\exp(-D)}{2\\sigma\\sqrt{\\nu}\\,K_{1}(\\sqrt{\\nu})}, \\qquad D = \\sqrt{\\nu + \\left(\\frac{y-\\mu}{\\sigma}\\right)^{2}}",
-  moments = "\\mathbb{E}[Y] = \\mu; variance has no elementary closed form",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\sigma^{2}\\sqrt{\\nu}\\,\\frac{K_{2}(\\sqrt{\\nu})}{K_{1}(\\sqrt{\\nu})}",
   ld = function(y, th) {
     D <- sqrt(th$nu + ((y - th$mu) / th$sigma)^2)
     sn <- sqrt(th$nu)
@@ -138,7 +157,9 @@ DISTRIBS$pseudohuber <- list(
   degree-homogeneous, which is why the **exponentially scaled**
   `besselK(x, nu, expon.scaled = TRUE)` may be used: the scaling cancels between
   numerator and denominator, so it is exact rather than approximate, and it
-  avoids overflow out to $\\nu = 2000$. $\\nu \\to \\infty$ gives a Gaussian limit
+  avoids overflow out to $\\nu = 2000$. Differentiating the same identity in
+  $a$ gives the variance printed above, computed through the same scaled
+  ratio. $\\nu \\to \\infty$ gives a Gaussian limit
   and small $\\nu$ a Laplace-like one, so the family interpolates between the two
   --- with, unlike the Laplace, a genuinely smooth log-density everywhere."
 )
@@ -462,7 +483,12 @@ DISTRIBS$skewnormal2 <- list(
   $\\omega = \\sigma\\sqrt{1+r^{2}}$ and
   $\\alpha = r/\\sqrt{b^{2} + (b^{2}-1)r^{2}}$, $b = \\sqrt{2/\\pi}$. The map
   is hand-written because a generic chain rule computes it as a difference of
-  large numbers."
+  large numbers. The skewness travels on `bounded(lwr, upr)` with
+  $\\lvert\\gamma_1\\rvert < 0.9953$, the supremum of the skewness a skew
+  normal can attain: a wider chart (a rhobit link, say, reaching all of
+  $(-1,1)$) would let the optimizer propose skewness values for which no
+  member of the family exists and the map to $(\\xi, \\omega, \\alpha)$ has
+  no solution."
 )
 
 DISTRIBS$skewt <- list(
@@ -472,14 +498,15 @@ DISTRIBS$skewt <- list(
   theta = list(mu = 1, sigma = 2, alpha = 2, nu = 6),
   support = "y \\in \\mathbb{R}",
   pdf_latex = "f(y) = \\frac{2}{\\sigma}\\,t_{\\nu}(z)\\;T_{\\nu+1}\\!\\left(\\alpha z\\sqrt{\\frac{\\nu+1}{\\nu+z^{2}}}\\right), \\qquad z = \\frac{y-\\mu}{\\sigma}",
-  moments = "\\text{the mean exists for } \\nu > 1 \\text{ and the variance for } \\nu > 2",
+  moments = "",
   ld = function(y, th) {
     z <- (y - th$mu) / th$sigma
     log(2) - log(th$sigma) + dt(z, th$nu, log = TRUE) +
       pt(th$alpha * z * sqrt((th$nu + 1) / (th$nu + z^2)), th$nu + 1, log.p = TRUE)
   },
   grid = function(th) seq(-4, 9, length.out = 40),
-  note = "The four-parameter family a location-scale-shape framework wants:
+  note = "The mean exists for $\\nu > 1$ and the variance for $\\nu > 2$.
+  The four-parameter family a location-scale-shape framework wants:
   unbounded skewness where the skew normal saturates. The $(\\mu, \\sigma,
   \\alpha)$ block is closed to fourth order; every component involving $\\nu$
   carries $T_{\\nu+1}$, whose derivative in the degrees of freedom has no
@@ -624,11 +651,12 @@ DISTRIBS$vonmises1 <- list(
   theta = list(mu = 0.5, kappa = 2),
   support = "y \\in [-\\pi, \\pi)",
   pdf_latex = "f(y) = \\frac{e^{\\kappa\\cos(y-\\mu)}}{2\\pi I_{0}(\\kappa)}",
-  moments = "\\text{directional mean } \\mu, \\qquad \\mathbb{E}[\\cos(Y-\\mu)] = A(\\kappa) = I_{1}(\\kappa)/I_{0}(\\kappa)",
+  moments = "\\mathbb{E}[\\cos(Y-\\mu)] = A(\\kappa) = I_{1}(\\kappa)/I_{0}(\\kappa)",
   ld = function(y, th) th$kappa * cos(y - th$mu) - log(2 * pi) -
     (log(besselI(th$kappa, 0, expon.scaled = TRUE)) + th$kappa),
   grid = function(th) seq(-3, 3, length.out = 40),
-  note = "The circular family. $\\log I_{0}$ is evaluated by
+  note = "The circular family; $\\mu$ is the directional mean.
+  $\\log I_{0}$ is evaluated by
   `numericals7::log_bessel_i()`, finite past the point where the scaled
   Bessel underflows to an exact zero; the mean direction is carried on a
   bounded link, since an unbounded chart would make the likelihood periodic
@@ -642,7 +670,7 @@ DISTRIBS$vonmises2 <- list(
   theta = list(mu = 0.5, rho = 0.6),
   support = "y \\in [-\\pi, \\pi)",
   pdf_latex = "f(y) = \\frac{e^{\\kappa\\cos(y-\\mu)}}{2\\pi I_{0}(\\kappa)}, \\qquad \\kappa = A^{-1}(\\rho)",
-  moments = "\\text{directional mean } \\mu, \\qquad \\mathbb{E}[\\cos(Y-\\mu)] = \\rho",
+  moments = "\\mathbb{E}[\\cos(Y-\\mu)] = \\rho",
   ld = function(y, th) {
     k <- uniroot(function(k)
       besselI(k, 1, expon.scaled = TRUE) / besselI(k, 0, expon.scaled = TRUE) - th$rho,
@@ -650,7 +678,8 @@ DISTRIBS$vonmises2 <- list(
     k * cos(y - th$mu) - log(2 * pi) - (log(besselI(k, 0, expon.scaled = TRUE)) + k)
   },
   grid = function(th) seq(-3, 3, length.out = 40),
-  note = "The second parameter is the mean resultant length
+  note = "The directional mean is $\\mu$; the second parameter is the
+  mean resultant length
   $\\rho \\in (0, 1)$, which a linear predictor reaches through a logit
   link. The map $\\kappa = A^{-1}(\\rho)$ has no elementary inverse and is
   differentiated by the inverse function rule of
@@ -739,9 +768,12 @@ DISTRIBS$pig1 <- list(
   },
   grid = function(th) 0:15,
   note = "A Poisson whose rate is inverse Gaussian, integrated out: heavier
-  in the tail than the negative binomial at the same variance. The Bessel
-  order is half-integer, so $K_{y-1/2}$ is a finite sum and the derivatives
-  are hand-written closed forms."
+  in the tail than the negative binomial at the same variance. The
+  parameters are $\\mu$ and $\\sigma$ alone; $\\alpha$ is not a third
+  parameter but the abbreviation defined in the display, written out
+  because every derivative is organized around it. The Bessel order is
+  half-integer, so $K_{y-1/2}$ is a finite sum and the derivatives are
+  hand-written closed forms."
 )
 
 DISTRIBS$pig2 <- list(
@@ -760,14 +792,16 @@ DISTRIBS$pig2 <- list(
   },
   grid = function(th) 0:15,
   note = "`pig1` reparametrized by the Bessel argument $\\alpha$, in which
-  the derivatives of the normalizing constant are rational."
+  the derivatives of the normalizing constant are rational. The parameters
+  are $\\mu$ and $\\alpha$ alone; here $\\sigma$ is the abbreviation,
+  defined in the display, that carries the density over from `pig1`."
 )
 
 
 # The entries render in list order; sorting by constructor keeps the numbered
 # parametrizations of one family adjacent, whatever order they were written in.
 DISTRIBS <- DISTRIBS[order(vapply(DISTRIBS, function(r)
-  sub("\\(.*$", "", r$ctor), character(1)))]
+  sub("_distrib$", "", sub("\\(.*$", "", r$ctor)), character(1)))]
 
 # ---------------------------------------------------------------------------
 # Catalog rendering
@@ -822,7 +856,18 @@ render_distrib_entry <- function(id, rec) {
   cat(sprintf("``` r\n%s\n```\n\n", rec$ctor))
   cat(sprintf("Support: $%s$.\n\n", rec$support))
   cat(sprintf("$$%s$$\n\n", rec$pdf_latex))
-  cat(sprintf("$$%s$$\n\n", rec$moments))
+  d <- rec$obj()
+  cat("| parameter | interpretation | domain | default link |\n")
+  cat("|:---|:---|:---|:---|\n")
+  for (par in d@params) {
+    cat(sprintf("| `%s` | %s | %s | `%s` |\n",
+                par,
+                d@params_interpretation[[par]],
+                fmt_bounds(d@params_bounds[[par]], FALSE),
+                d@link_params[[par]]@link_name))
+  }
+  cat("\n")
+  if (nzchar(rec$moments)) cat(sprintf("$$%s$$\n\n", rec$moments))
   cat(gsub("\n\\s+", "\n", rec$note), "\n\n")
 }
 
@@ -902,12 +947,12 @@ assert_distributions_ok <- function() {
 
   # The non-regular section makes three specific numerical claims; pin them.
   # (a) the shipped Laplace has a closed-form E[H], so approx is ignored and all
-  #     strategies return -1/b^2;
-  # (b) on a bare Laplace without closed forms, bartlett recovers -1/b^2 while
+  #     strategies return -1/sigma^2;
+  # (b) on a bare Laplace without closed forms, bartlett recovers -1/sigma^2 while
   #     integrate and mc, which both average the a.e.-zero observed l_mumu,
   #     return zero.
   lap <- laplace_distrib()
-  th <- list(mu = 0, b = 2)
+  th <- list(mu = 0, sigma = 2)
   shipped <- vapply(c("bartlett", "integrate", "mc"), function(a) {
     distrib_expected_hessian(lap, 0, th, approx = a)$mu_mu
   }, numeric(1))
@@ -923,19 +968,19 @@ assert_distributions_ok <- function() {
   S7::method(distrib_gradient, BareLap) <- function(distrib, y, theta,
                                                     scale = c("parameter", "link"), ...) {
     r <- y - theta[[1]]; b <- theta[[2]]
-    list(mu = sign(r) / b, b = (abs(r) / b - 1) / b)
+    list(mu = sign(r) / b, sigma = (abs(r) / b - 1) / b)
   }
   S7::method(distrib_hessian, BareLap) <- function(distrib, y, theta,
                                                    scale = c("parameter", "link"), ...) {
     r <- y - theta[[1]]; b <- theta[[2]]; n <- length(y)
-    list(mu_mu = rep(0, n), b_b = (b - 2 * abs(r)) / b^3, mu_b = -sign(r) / b^2)
+    list(mu_mu = rep(0, n), sigma_sigma = (b - 2 * abs(r)) / b^3, mu_sigma = -sign(r) / b^2)
   }
   bare <- BareLap(
     distrib_name = "bare laplace", dimension = "univariate", bounds = c(-Inf, Inf),
-    params = c("mu", "b"), params_interpretation = c(mu = "location", b = "scale"),
-    n_params = 2, params_bounds = list(mu = c(-Inf, Inf), b = c(0, Inf)),
-    link_params = list(mu = identity_link(), b = log_link()),
-    params_smooth = c(mu = FALSE, b = TRUE)
+    params = c("mu", "sigma"), params_interpretation = c(mu = "location", sigma = "scale"),
+    n_params = 2, params_bounds = list(mu = c(-Inf, Inf), sigma = c(0, Inf)),
+    link_params = list(mu = identity_link(), sigma = log_link()),
+    params_smooth = c(mu = FALSE, sigma = TRUE)
   )
   set.seed(1)
   strat <- c(
@@ -1131,7 +1176,8 @@ distrib_certificate <- function(n = 40, nsim = 5e4, orders = 1:4, seed = 2026072
 ALL_FAMILY_CTORS <- c(
   "gaussian1_distrib", "gaussian2_distrib", "gaussian3_distrib",
   "cauchy_distrib", "logistic_distrib", "student_t1_distrib",
-  "student_t2_distrib", "laplace_distrib", "pseudohuber_distrib",
+  "student_t2_distrib", "laplace_distrib", "laplace2_distrib",
+  "pseudohuber_distrib",
   "skewnormal1_distrib", "skewnormal2_distrib", "skewt_distrib",
   "gumbel_distrib", "gamma1_distrib", "gamma2_distrib",
   "invgauss1_distrib", "invgauss2_distrib", "lognormal1_distrib",
