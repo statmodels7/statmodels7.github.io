@@ -293,6 +293,477 @@ DISTRIBS$negbin <- list(
 )
 
 
+# --- the remaining univariate families --------------------------------------
+
+DISTRIBS$gaussian2 <- list(
+  title = "Gaussian, mean and variance",
+  ctor = "gaussian2_distrib()",
+  obj = function() gaussian2_distrib(),
+  theta = list(mu = 1.5, sigma2 = 4),
+  support = "y \\in \\mathbb{R}",
+  pdf_latex = "f(y) = \\frac{1}{\\sqrt{2\\pi\\sigma^{2}}}\\exp\\!\\left\\{-\\frac{(y-\\mu)^{2}}{2\\sigma^{2}}\\right\\}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\sigma^{2}",
+  ld = function(y, th) -0.5 * log(2 * pi * th$sigma2) - (y - th$mu)^2 / (2 * th$sigma2),
+  grid = function(th) seq(-4, 7, length.out = 40),
+  note = "The variance parametrization of the Gaussian: a linear predictor on
+  the second parameter models $\\sigma^{2}$, where `gaussian1` models
+  $\\sigma$."
+)
+
+DISTRIBS$gaussian3 <- list(
+  title = "Gaussian, mean and precision",
+  ctor = "gaussian3_distrib()",
+  obj = function() gaussian3_distrib(),
+  theta = list(mu = 1.5, tau = 0.25),
+  support = "y \\in \\mathbb{R}",
+  pdf_latex = "f(y) = \\sqrt{\\frac{\\tau}{2\\pi}}\\exp\\!\\left\\{-\\frac{\\tau(y-\\mu)^{2}}{2}\\right\\}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = 1/\\tau",
+  ld = function(y, th) 0.5 * log(th$tau) - 0.5 * log(2 * pi) - th$tau * (y - th$mu)^2 / 2,
+  grid = function(th) seq(-4, 7, length.out = 40),
+  note = "The precision parametrization, the conjugate scale of Bayesian
+  work."
+)
+
+DISTRIBS$gamma1 <- list(
+  title = "Gamma, mean and dispersion",
+  ctor = "gamma1_distrib()",
+  obj = function() gamma1_distrib(),
+  theta = list(mu = 3, phi = 0.4),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\frac{y^{1/\\varphi - 1}e^{-y/(\\varphi\\mu)}}{(\\varphi\\mu)^{1/\\varphi}\\,\\Gamma(1/\\varphi)}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\varphi\\mu^{2}",
+  ld = function(y, th) {
+    k <- 1 / th$phi; r <- 1 / (th$phi * th$mu)
+    k * log(r) + (k - 1) * log(y) - r * y - lgamma(k)
+  },
+  grid = function(th) seq(0.2, 12, length.out = 40),
+  note = "The dispersion form: the squared coefficient of variation is
+  $\\varphi$, constant in the mean, so shape and rate are
+  $1/\\varphi$ and $1/(\\varphi\\mu)$. `gamma2` carries the variance
+  instead."
+)
+
+DISTRIBS$negbin1 <- list(
+  title = "Negative binomial, NB1",
+  ctor = "negbin1_distrib()",
+  obj = function() negbin1_distrib(),
+  theta = list(mu = 4, theta = 1.5),
+  support = "y \\in \\{0, 1, \\dots\\}",
+  pdf_latex = "P(Y=y) = \\frac{\\Gamma(y + \\mu/\\theta)}{\\Gamma(\\mu/\\theta)\\,y!}\\left(\\frac{1}{1+\\theta}\\right)^{\\mu/\\theta}\\left(\\frac{\\theta}{1+\\theta}\\right)^{y}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\mu(1+\\theta)",
+  ld = function(y, th) {
+    r <- th$mu / th$theta
+    lgamma(y + r) - lgamma(r) - lfactorial(y) - r * log1p(th$theta) +
+      y * (log(th$theta) - log1p(th$theta))
+  },
+  grid = function(th) 0:15,
+  note = "The NB1 of Cameron and Trivedi: the variance is linear in the mean,
+  where `negbin2` makes it quadratic. The expected information is a series
+  against the exact mass."
+)
+
+DISTRIBS$weibull1 <- list(
+  title = "Weibull, scale and shape",
+  ctor = "weibull1_distrib()",
+  obj = function() weibull1_distrib(),
+  theta = list(mu = 3, sigma = 1.7),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\frac{\\sigma}{\\mu}\\left(\\frac{y}{\\mu}\\right)^{\\sigma-1}\\exp\\!\\left\\{-\\left(\\frac{y}{\\mu}\\right)^{\\sigma}\\right\\}",
+  moments = "\\mathbb{E}[Y] = \\mu\\,\\Gamma(1+1/\\sigma), \\qquad \\operatorname{Var}(Y) = \\mu^{2}\\left[\\Gamma(1+2/\\sigma) - \\Gamma(1+1/\\sigma)^{2}\\right]",
+  ld = function(y, th) log(th$sigma) - log(th$mu) +
+    (th$sigma - 1) * (log(y) - log(th$mu)) - (y / th$mu)^th$sigma,
+  grid = function(th) seq(0.2, 9, length.out = 40),
+  note = "The `WEI` of gamlss: $\\mu$ is the scale and not the mean. With
+  $u = (Y/\\mu)^{\\sigma}$ standard exponential, every expectation the
+  information needs is a derivative of $\\Gamma$ at 2, so the expected
+  third and fourth orders are closed as well."
+)
+
+DISTRIBS$weibull3 <- list(
+  title = "Weibull, mean and shape",
+  ctor = "weibull3_distrib()",
+  obj = function() weibull3_distrib(),
+  theta = list(mean = 3, sigma = 1.7),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\frac{\\sigma}{b}\\left(\\frac{y}{b}\\right)^{\\sigma-1}e^{-(y/b)^{\\sigma}}, \\qquad b = \\frac{\\mu}{\\Gamma(1+1/\\sigma)}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = b^{2}\\left[\\Gamma(1+2/\\sigma) - \\Gamma(1+1/\\sigma)^{2}\\right]",
+  ld = function(y, th) {
+    b <- th$mean / gamma(1 + 1 / th$sigma)
+    log(th$sigma) - log(b) + (th$sigma - 1) * (log(y) - log(b)) - (y / b)^th$sigma
+  },
+  grid = function(th) seq(0.2, 9, length.out = 40),
+  note = "The `WEI3` of gamlss, `weibull1` reparametrized so that a linear
+  predictor acts on the mean; `weibull2` is deliberately absent, following
+  the gamlss numbering."
+)
+
+DISTRIBS$gumbel <- list(
+  title = "Gumbel",
+  ctor = "gumbel_distrib()",
+  obj = function() gumbel_distrib(),
+  theta = list(mu = 1, sigma = 2),
+  support = "y \\in \\mathbb{R}",
+  pdf_latex = "f(y) = \\frac{1}{\\sigma}\\exp\\!\\left\\{-z - e^{-z}\\right\\}, \\qquad z = \\frac{y-\\mu}{\\sigma}",
+  moments = "\\mathbb{E}[Y] = \\mu + \\gamma\\sigma, \\qquad \\operatorname{Var}(Y) = \\pi^{2}\\sigma^{2}/6",
+  ld = function(y, th) {
+    z <- (y - th$mu) / th$sigma
+    -log(th$sigma) - z - exp(-z)
+  },
+  grid = function(th) seq(-4, 12, length.out = 40),
+  note = "The extreme-value family for maxima, with fixed skewness
+  $12\\sqrt{6}\\,\\zeta(3)/\\pi^{3}$ and excess kurtosis $12/5$. The density
+  is skewed, so $\\mathbb{E}[\\ell^{(\\mu\\sigma)}]$ does not vanish: location
+  and scale are not orthogonal here, unlike in a symmetric location-scale
+  family."
+)
+
+DISTRIBS$skewnormal1 <- list(
+  title = "Skew normal, direct",
+  ctor = "skewnormal1_distrib()",
+  obj = function() skewnormal1_distrib(),
+  theta = list(mu = 1, sigma = 2, alpha = 3),
+  support = "y \\in \\mathbb{R}",
+  pdf_latex = "f(y) = \\frac{2}{\\sigma}\\,\\phi(z)\\,\\Phi(\\alpha z), \\qquad z = \\frac{y-\\mu}{\\sigma}",
+  moments = "\\mathbb{E}[Y] = \\mu + \\sigma\\delta\\sqrt{2/\\pi}, \\quad \\operatorname{Var}(Y) = \\sigma^{2}\\left(1 - 2\\delta^{2}/\\pi\\right), \\quad \\delta = \\alpha/\\sqrt{1+\\alpha^{2}}",
+  ld = function(y, th) {
+    z <- (y - th$mu) / th$sigma
+    log(2) - log(th$sigma) + dnorm(z, log = TRUE) + pnorm(th$alpha * z, log.p = TRUE)
+  },
+  grid = function(th) seq(-2, 8, length.out = 40),
+  note = "Azzalini's direct parametrization. Every derivative is written in
+  the inverse Mills ratio, formed on the log scale by
+  `numericals7::mills_ratio()`; the expected information is singular at
+  $\\alpha = 0$, a property of the parametrization, and the skewness the
+  family reaches is bounded by $0.9953$, which is the reason the skew t
+  exists."
+)
+
+DISTRIBS$skewnormal2 <- list(
+  title = "Skew normal, centered",
+  ctor = "skewnormal2_distrib()",
+  obj = function() skewnormal2_distrib(),
+  theta = list(mu = 1, sigma = 2, gamma1 = 0.5),
+  support = "y \\in \\mathbb{R}",
+  pdf_latex = "f(y) = \\frac{2}{\\omega}\\,\\phi\\!\\left(\\frac{y-\\xi}{\\omega}\\right)\\Phi\\!\\left(\\alpha\\,\\frac{y-\\xi}{\\omega}\\right), \\qquad (\\xi, \\omega, \\alpha) = \\mathrm{DP}(\\mu, \\sigma, \\gamma_1)",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\sigma^{2}",
+  ld = function(y, th) {
+    b <- sqrt(2 / pi)
+    r <- sign(th$gamma1) * (2 * abs(th$gamma1) / (4 - pi))^(1 / 3)
+    xi <- th$mu - th$sigma * r
+    omega <- th$sigma * sqrt(1 + r^2)
+    alpha <- r / sqrt(b^2 + (b^2 - 1) * r^2)
+    z <- (y - xi) / omega
+    log(2) - log(omega) + dnorm(z, log = TRUE) + pnorm(alpha * z, log.p = TRUE)
+  },
+  grid = function(th) seq(-4, 7, length.out = 40),
+  note = "The centered parametrization: the parameters are the mean, the
+  standard deviation and the skewness, carried onto the direct ones through
+  $r = \\{2\\gamma_1/(4-\\pi)\\}^{1/3}$, with $\\xi = \\mu - \\sigma r$,
+  $\\omega = \\sigma\\sqrt{1+r^{2}}$ and
+  $\\alpha = r/\\sqrt{b^{2} + (b^{2}-1)r^{2}}$, $b = \\sqrt{2/\\pi}$. The map
+  is hand-written because a generic chain rule computes it as a difference of
+  large numbers."
+)
+
+DISTRIBS$skewt <- list(
+  title = "Skew t",
+  ctor = "skewt_distrib()",
+  obj = function() skewt_distrib(),
+  theta = list(mu = 1, sigma = 2, alpha = 2, nu = 6),
+  support = "y \\in \\mathbb{R}",
+  pdf_latex = "f(y) = \\frac{2}{\\sigma}\\,t_{\\nu}(z)\\;T_{\\nu+1}\\!\\left(\\alpha z\\sqrt{\\frac{\\nu+1}{\\nu+z^{2}}}\\right), \\qquad z = \\frac{y-\\mu}{\\sigma}",
+  moments = "\\text{the mean exists for } \\nu > 1 \\text{ and the variance for } \\nu > 2",
+  ld = function(y, th) {
+    z <- (y - th$mu) / th$sigma
+    log(2) - log(th$sigma) + dt(z, th$nu, log = TRUE) +
+      pt(th$alpha * z * sqrt((th$nu + 1) / (th$nu + z^2)), th$nu + 1, log.p = TRUE)
+  },
+  grid = function(th) seq(-4, 9, length.out = 40),
+  note = "The four-parameter family a location-scale-shape framework wants:
+  unbounded skewness where the skew normal saturates. The $(\\mu, \\sigma,
+  \\alpha)$ block is closed to fourth order; every component involving $\\nu$
+  carries $T_{\\nu+1}$, whose derivative in the degrees of freedom has no
+  elementary form, and comes from one verified five-point stencil."
+)
+
+DISTRIBS$exponential <- list(
+  title = "Exponential",
+  ctor = "exponential_distrib()",
+  obj = function() exponential_distrib(),
+  theta = list(mu = 3),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\frac{1}{\\mu}\\,e^{-y/\\mu}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\mu^{2}",
+  ld = function(y, th) -log(th$mu) - y / th$mu,
+  grid = function(th) seq(0.1, 15, length.out = 40),
+  note = "In its mean. Not reachable from the Gamma by `fixed()`: unit shape
+  is the relation $\\sigma^{2} = \\mu^{2}$ between two parameters, and
+  `fixed()` holds a parameter at a value. It agrees with
+  `fixed(weibull1_distrib(), sigma = 1)` to machine precision, which is a
+  test of both."
+)
+
+DISTRIBS$geometric <- list(
+  title = "Geometric",
+  ctor = "geometric_distrib()",
+  obj = function() geometric_distrib(),
+  theta = list(mu = 3),
+  support = "y \\in \\{0, 1, \\dots\\}",
+  pdf_latex = "P(Y=y) = \\frac{1}{1+\\mu}\\left(\\frac{\\mu}{1+\\mu}\\right)^{y}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\mu(1+\\mu)",
+  ld = function(y, th) y * (log(th$mu) - log1p(th$mu)) - log1p(th$mu),
+  grid = function(th) 0:15,
+  note = "In its mean, with success probability $1/(1+\\mu)$. It agrees with
+  `fixed(negbin2_distrib(), theta = 1)` to machine precision."
+)
+
+DISTRIBS$chisq <- list(
+  title = "Chi-squared",
+  ctor = "chisq_distrib()",
+  obj = function() chisq_distrib(),
+  theta = list(mu = 5),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\frac{y^{\\mu/2-1}e^{-y/2}}{2^{\\mu/2}\\,\\Gamma(\\mu/2)}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = 2\\mu",
+  ld = function(y, th) (th$mu / 2 - 1) * log(y) - y / 2 -
+    (th$mu / 2) * log(2) - lgamma(th$mu / 2),
+  grid = function(th) seq(0.3, 18, length.out = 40),
+  note = "The degrees of freedom are the mean and need not be an integer.
+  Like the exponential, it is a relation ($\\sigma^{2} = 2\\mu$) and not a
+  fixed value, so it is a family of its own."
+)
+
+DISTRIBS$betabinom1 <- list(
+  title = "Beta-binomial, mean and dispersion",
+  ctor = "betabinom1_distrib(size = 12)",
+  obj = function() betabinom1_distrib(size = 12),
+  theta = list(mu = 0.4, sigma = 0.5),
+  support = "y \\in \\{0, \\dots, n\\}",
+  pdf_latex = "P(Y=y) = \\binom{n}{y}\\frac{B\\!\\left(y + \\mu/\\sigma,\\; n - y + (1-\\mu)/\\sigma\\right)}{B\\!\\left(\\mu/\\sigma,\\; (1-\\mu)/\\sigma\\right)}",
+  moments = "\\mathbb{E}[Y] = n\\mu, \\qquad \\operatorname{Var}(Y) = n\\mu(1-\\mu)\\,\\frac{1+n\\sigma}{1+\\sigma}",
+  ld = function(y, th) {
+    a <- th$mu / th$sigma; b <- (1 - th$mu) / th$sigma
+    lchoose(12, y) + lbeta(y + a, 12 - y + b) - lbeta(a, b)
+  },
+  grid = function(th) 0:12,
+  note = "The `BB` of gamlss, with `size` a constant of the family like a
+  binomial's. It is `betabinom2` at shapes $(\\mu/\\sigma, (1-\\mu)/\\sigma)$
+  and inherits its third and fourth orders through the chain rule; the
+  expected information is an exact finite sum over the support."
+)
+
+DISTRIBS$betabinom2 <- list(
+  title = "Beta-binomial, shapes",
+  ctor = "betabinom2_distrib(size = 12)",
+  obj = function() betabinom2_distrib(size = 12),
+  theta = list(alpha = 2, beta = 3),
+  support = "y \\in \\{0, \\dots, n\\}",
+  pdf_latex = "P(Y=y) = \\binom{n}{y}\\frac{B(y+\\alpha,\\; n-y+\\beta)}{B(\\alpha, \\beta)}",
+  moments = "\\mathbb{E}[Y] = \\frac{n\\alpha}{\\alpha+\\beta}, \\qquad \\operatorname{Var}(Y) = \\frac{n\\alpha\\beta\\,(\\alpha+\\beta+n)}{(\\alpha+\\beta)^{2}(\\alpha+\\beta+1)}",
+  ld = function(y, th) lchoose(12, y) + lbeta(y + th$alpha, 12 - y + th$beta) -
+    lbeta(th$alpha, th$beta),
+  grid = function(th) 0:12,
+  note = "The classical shape parametrization: a binomial whose success
+  probability is Beta$(\\alpha, \\beta)$, integrated out."
+)
+
+DISTRIBS$gpd <- list(
+  title = "Generalized Pareto",
+  ctor = "gpd_distrib()",
+  obj = function() gpd_distrib(),
+  theta = list(sigma = 2, xi = 0.3),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\frac{1}{\\sigma}\\left(1 + \\frac{\\xi y}{\\sigma}\\right)^{-1/\\xi - 1}",
+  moments = "\\mathbb{E}[Y] = \\frac{\\sigma}{1-\\xi} \\;(\\xi < 1), \\qquad \\operatorname{Var}(Y) = \\frac{\\sigma^{2}}{(1-\\xi)^{2}(1-2\\xi)} \\;(\\xi < 1/2)",
+  ld = function(y, th) -log(th$sigma) - (1 / th$xi + 1) * log1p(th$xi * y / th$sigma),
+  grid = function(th) seq(0.1, 15, length.out = 40),
+  note = "The excess-over-threshold family. The information exists exactly
+  for $\\xi > -1/2$; the compiled kernel evaluates
+  $W = \\log(1+u)\\,(z/u)$ with a series below $|\\xi z| = 0.2$, where the
+  direct expression cancels catastrophically."
+)
+
+DISTRIBS$gengamma1 <- list(
+  title = "Generalized gamma, Stacy",
+  ctor = "gengamma1_distrib()",
+  obj = function() gengamma1_distrib(),
+  theta = list(a = 2, d = 3, p = 1.5),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\frac{p\\,y^{d-1}}{a^{d}\\,\\Gamma(d/p)}\\exp\\!\\left\\{-\\left(\\frac{y}{a}\\right)^{p}\\right\\}",
+  moments = "\\mathbb{E}[Y] = a\\,\\frac{\\Gamma((d+1)/p)}{\\Gamma(d/p)}, \\qquad \\operatorname{Var}(Y) = a^{2}\\left[\\frac{\\Gamma((d+2)/p)}{\\Gamma(d/p)} - \\frac{\\Gamma((d+1)/p)^{2}}{\\Gamma(d/p)^{2}}\\right]",
+  ld = function(y, th) log(th$p) + (th$d - 1) * log(y) - (y / th$a)^th$p -
+    th$d * log(th$a) - lgamma(th$d / th$p),
+  grid = function(th) seq(0.2, 8, length.out = 40),
+  note = "Stacy's three-parameter family, containing the gamma ($p = 1$) and
+  the Weibull ($d = p$). Its distribution function saturates well inside the
+  support in double precision, so round trips are tested at points obtained
+  from the quantile function."
+)
+
+DISTRIBS$gengamma2 <- list(
+  title = "Generalized gamma, mean form",
+  ctor = "gengamma2_distrib()",
+  obj = function() gengamma2_distrib(),
+  theta = list(mean = 3, d = 3, p = 1.5),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\frac{p\\,y^{d-1}}{a^{d}\\,\\Gamma(d/p)}\\,e^{-(y/a)^{p}}, \\qquad a = \\mu\\,\\frac{\\Gamma(d/p)}{\\Gamma((d+1)/p)}",
+  moments = "\\mathbb{E}[Y] = \\mu",
+  ld = function(y, th) {
+    a <- th$mean * gamma(th$d / th$p) / gamma((th$d + 1) / th$p)
+    log(th$p) + (th$d - 1) * log(y) - (y / a)^th$p - th$d * log(a) - lgamma(th$d / th$p)
+  },
+  grid = function(th) seq(0.2, 8, length.out = 40),
+  note = "`gengamma1` with the scale replaced by the mean, through
+  `reparametrize()` and a hand-written table of map partials."
+)
+
+DISTRIBS$vonmises1 <- list(
+  title = "von Mises, concentration",
+  ctor = "vonmises1_distrib()",
+  obj = function() vonmises1_distrib(),
+  theta = list(mu = 0.5, kappa = 2),
+  support = "y \\in [-\\pi, \\pi)",
+  pdf_latex = "f(y) = \\frac{e^{\\kappa\\cos(y-\\mu)}}{2\\pi I_{0}(\\kappa)}",
+  moments = "\\text{directional mean } \\mu, \\qquad \\mathbb{E}[\\cos(Y-\\mu)] = A(\\kappa) = I_{1}(\\kappa)/I_{0}(\\kappa)",
+  ld = function(y, th) th$kappa * cos(y - th$mu) - log(2 * pi) -
+    (log(besselI(th$kappa, 0, expon.scaled = TRUE)) + th$kappa),
+  grid = function(th) seq(-3, 3, length.out = 40),
+  note = "The circular family. $\\log I_{0}$ is evaluated by
+  `numericals7::log_bessel_i()`, finite past the point where the scaled
+  Bessel underflows to an exact zero; the mean direction is carried on a
+  bounded link, since an unbounded chart would make the likelihood periodic
+  with infinitely many maxima."
+)
+
+DISTRIBS$vonmises2 <- list(
+  title = "von Mises, mean resultant length",
+  ctor = "vonmises2_distrib()",
+  obj = function() vonmises2_distrib(),
+  theta = list(mu = 0.5, rho = 0.6),
+  support = "y \\in [-\\pi, \\pi)",
+  pdf_latex = "f(y) = \\frac{e^{\\kappa\\cos(y-\\mu)}}{2\\pi I_{0}(\\kappa)}, \\qquad \\kappa = A^{-1}(\\rho)",
+  moments = "\\text{directional mean } \\mu, \\qquad \\mathbb{E}[\\cos(Y-\\mu)] = \\rho",
+  ld = function(y, th) {
+    k <- uniroot(function(k)
+      besselI(k, 1, expon.scaled = TRUE) / besselI(k, 0, expon.scaled = TRUE) - th$rho,
+      c(1e-8, 500), tol = 1e-14)$root
+    k * cos(y - th$mu) - log(2 * pi) - (log(besselI(k, 0, expon.scaled = TRUE)) + k)
+  },
+  grid = function(th) seq(-3, 3, length.out = 40),
+  note = "The second parameter is the mean resultant length
+  $\\rho \\in (0, 1)$, which a linear predictor reaches through a logit
+  link. The map $\\kappa = A^{-1}(\\rho)$ has no elementary inverse and is
+  differentiated by the inverse function rule of
+  `numericals7::bessel_i_ratio_inverse()`."
+)
+
+DISTRIBS$invgauss2 <- list(
+  title = "Inverse Gaussian, mean and shape",
+  ctor = "invgauss2_distrib()",
+  obj = function() invgauss2_distrib(),
+  theta = list(mu = 2, lambda = 3),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\sqrt{\\frac{\\lambda}{2\\pi y^{3}}}\\exp\\!\\left\\{-\\frac{\\lambda(y-\\mu)^{2}}{2\\mu^{2}y}\\right\\}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\mu^{3}/\\lambda",
+  ld = function(y, th) 0.5 * (log(th$lambda) - log(2 * pi) - 3 * log(y)) -
+    th$lambda * (y - th$mu)^2 / (2 * th$mu^2 * y),
+  grid = function(th) seq(0.2, 8, length.out = 40),
+  note = "The textbook $(\\mu, \\lambda)$ form; `invgauss1` carries the
+  dispersion $\\varphi = 1/\\lambda$ instead."
+)
+
+DISTRIBS$lognormal2 <- list(
+  title = "Lognormal, mean and variance",
+  ctor = "lognormal2_distrib()",
+  obj = function() lognormal2_distrib(),
+  theta = list(mean = 3, var = 4),
+  support = "y \\in (0, \\infty)",
+  pdf_latex = "f(y) = \\frac{1}{y\\sqrt{2\\pi s^{2}}}\\exp\\!\\left\\{-\\frac{(\\log y - m)^{2}}{2s^{2}}\\right\\}, \\quad s^{2} = \\log\\!\\left(1+\\frac{v}{\\mu^{2}}\\right)\\!, \\; m = \\log\\mu - \\frac{s^{2}}{2}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = v",
+  ld = function(y, th) {
+    s2 <- log1p(th$var / th$mean^2); m <- log(th$mean) - s2 / 2
+    -log(y) - 0.5 * log(2 * pi * s2) - (log(y) - m)^2 / (2 * s2)
+  },
+  grid = function(th) seq(0.2, 12, length.out = 40),
+  note = "The parameters are the moments of $Y$ itself rather than of
+  $\\log Y$, which is what a model for a positive response usually wants a
+  linear predictor to act on."
+)
+
+DISTRIBS$beta2 <- list(
+  title = "Beta, shapes",
+  ctor = "beta2_distrib()",
+  obj = function() beta2_distrib(),
+  theta = list(alpha = 2, beta = 3),
+  support = "y \\in (0, 1)",
+  pdf_latex = "f(y) = \\frac{y^{\\alpha-1}(1-y)^{\\beta-1}}{B(\\alpha, \\beta)}",
+  moments = "\\mathbb{E}[Y] = \\frac{\\alpha}{\\alpha+\\beta}, \\qquad \\operatorname{Var}(Y) = \\frac{\\alpha\\beta}{(\\alpha+\\beta)^{2}(\\alpha+\\beta+1)}",
+  ld = function(y, th) (th$alpha - 1) * log(y) + (th$beta - 1) * log1p(-y) -
+    lbeta(th$alpha, th$beta),
+  grid = function(th) seq(0.03, 0.97, length.out = 40),
+  note = "The classical shape form of the mean-precision `beta1`, matching
+  `dbeta(y, alpha, beta)`."
+)
+
+DISTRIBS$student_t2 <- list(
+  title = "Student t, standard deviation",
+  ctor = "student_t2_distrib()",
+  obj = function() student_t2_distrib(),
+  theta = list(mu = 1, sigma = 2, nu = 6),
+  support = "y \\in \\mathbb{R}",
+  pdf_latex = "f(y) = \\frac{1}{s_0}\\,t_{\\nu}\\!\\left(\\frac{y-\\mu}{s_0}\\right), \\qquad s_0 = \\sigma\\sqrt{\\frac{\\nu-2}{\\nu}}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\sigma^{2}",
+  ld = function(y, th) {
+    s0 <- th$sigma * sqrt((th$nu - 2) / th$nu)
+    dt((y - th$mu) / s0, th$nu, log = TRUE) - log(s0)
+  },
+  grid = function(th) seq(-6, 8, length.out = 40),
+  note = "`student_t1` with the scale replaced by the standard deviation of
+  $Y$, which requires $\\nu > 2$: the family exists only where its second
+  moment does, and this is the price of the readable parameter."
+)
+
+DISTRIBS$pig1 <- list(
+  title = "Poisson-inverse Gaussian, dispersion",
+  ctor = "pig1_distrib()",
+  obj = function() pig1_distrib(),
+  theta = list(mu = 3, sigma = 1.2),
+  support = "y \\in \\{0, 1, \\dots\\}",
+  pdf_latex = "P(Y=y) = \\sqrt{\\frac{2\\alpha}{\\pi}}\\,\\frac{\\mu^{y}e^{1/\\sigma}}{(\\alpha\\sigma)^{y}\\,y!}\\,K_{y-1/2}(\\alpha), \\qquad \\alpha = \\sqrt{\\frac{1}{\\sigma^{2}} + \\frac{2\\mu}{\\sigma}}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\mu + \\sigma\\mu^{2}",
+  ld = function(y, th) {
+    al <- sqrt(1 / th$sigma^2 + 2 * th$mu / th$sigma)
+    0.5 * (log(2) + log(al) - log(pi)) + y * log(th$mu) + 1 / th$sigma -
+      y * (log(al) + log(th$sigma)) - lfactorial(y) +
+      log(besselK(al, y - 0.5, expon.scaled = TRUE)) - al
+  },
+  grid = function(th) 0:15,
+  note = "A Poisson whose rate is inverse Gaussian, integrated out: heavier
+  in the tail than the negative binomial at the same variance. The Bessel
+  order is half-integer, so $K_{y-1/2}$ is a finite sum and the derivatives
+  are hand-written closed forms."
+)
+
+DISTRIBS$pig2 <- list(
+  title = "Poisson-inverse Gaussian, Bessel argument",
+  ctor = "pig2_distrib()",
+  obj = function() pig2_distrib(),
+  theta = list(mu = 3, alpha = 2),
+  support = "y \\in \\{0, 1, \\dots\\}",
+  pdf_latex = "P(Y=y) = \\sqrt{\\frac{2\\alpha}{\\pi}}\\,\\frac{\\mu^{y}e^{1/\\sigma}}{(\\alpha\\sigma)^{y}\\,y!}\\,K_{y-1/2}(\\alpha), \\qquad \\sigma = \\frac{1}{\\sqrt{\\mu^{2}+\\alpha^{2}} - \\mu}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\mu + \\sigma\\mu^{2}",
+  ld = function(y, th) {
+    s <- 1 / (sqrt(th$mu^2 + th$alpha^2) - th$mu)
+    0.5 * (log(2) + log(th$alpha) - log(pi)) + y * log(th$mu) + 1 / s -
+      y * (log(th$alpha) + log(s)) - lfactorial(y) +
+      log(besselK(th$alpha, y - 0.5, expon.scaled = TRUE)) - th$alpha
+  },
+  grid = function(th) 0:15,
+  note = "`pig1` reparametrized by the Bessel argument $\\alpha$, in which
+  the derivatives of the normalizing constant are rational."
+)
+
+
 # ---------------------------------------------------------------------------
 # Catalog rendering
 # ---------------------------------------------------------------------------
@@ -352,9 +823,17 @@ render_distrib_entry <- function(id, rec) {
 
 # Silent consistency gate for Chapter 3: every printed density against the
 # implementation, the Bartlett identities, the link-scale machinery, and the
-# package's own validator on all fourteen distributions. Stops the render on
-# any disagreement; never rendered.
+# package's own validator. Stops the render on any disagreement; never
+# rendered.
 assert_distributions_ok <- function() {
+  # every univariate constructor has a catalog record, so a new family cannot
+  # ship without an entry
+  rec_ctors <- vapply(DISTRIBS, function(r) sub("\\(.*$", "", r$ctor), character(1))
+  missing <- setdiff(ALL_FAMILY_CTORS, rec_ctors)
+  if (length(missing)) {
+    stop("Families without a catalog record: ", paste(missing, collapse = ", "),
+         call. = FALSE)
+  }
   for (id in names(DISTRIBS)) {
     err <- certify_distrib_density(DISTRIBS[[id]])
     if (is.na(err) || err > 1e-10) {
