@@ -413,9 +413,50 @@ gas(p = , q = , by = , time = )                     DONE 2026-08-08
     Poisson mean, and a robust filter in a Student t, where the bounded
     score moves the level by a bounded amount however large the outlier.
 
-    Still open here: a penalty on the group-varying dynamics under by=,
-    which needs the parameters of a structural term to be penalizable --
-    a contract question for the model layer rather than for the term.
+    TWO THINGS STILL OPEN, both of them the model layer's rather than the
+    term's (Giovanni, 2026-08-08):
+
+    (a) A penalty on the group-varying dynamics under by=, which needs the
+        parameters of a structural term to be penalizable.
+
+    (b) THE MATRIX FORMULATION. What is implemented drives ONE
+        distribution parameter: f_t is a scalar. In the general form of
+        Creal-Koopman-Lucas f_t is a vector with one entry per modeled
+        parameter, omega a vector, and A_i and B_j are k x k matrices, so
+        the scale can respond to the score of the location and the other
+        way round. Three separate observations about closing it:
+
+        - the ARITHMETIC generalizes mechanically. The recursion and the
+          derivative propagated beside it are the same with matrix-vector
+          products in place of scalars, and term_filter()'s signature
+          needs no rename: eta becomes n x k, score returns a k-vector per
+          observation and curvature a k x k matrix. The ONE contract
+          change is the jacobian's shape, n x npar today and n x k x npar
+          then.
+
+        - the BLOCKER is the API, and it is statmod()'s. A term written
+          inside the formula of one parameter has no place to declare that
+          it spans several: two gas() calls in two formulas are two
+          independent filters, and nothing can say they are one. Closing
+          this needs a construct at the model level -- a term declared
+          once and referred to from several formulas -- which cannot be
+          decided from inside modelterms7.
+
+        - the MATHEMATICAL obstacle is the chart. The PACF construction
+          used here is scalar; for a matrix B the stationary region is a
+          bound on the spectral radius of the companion matrix, which is
+          not a box and has no analogous scalar chart. The real choices
+          will be a diagonal B (the common case in practice) or an
+          unconstrained one relying on the likelihood to be -Inf outside
+          stationarity -- and that second one is to be MEASURED, not
+          assumed.
+
+    A third restriction, independent of the above: the score is used
+    UNSCALED, where the general formulation carries a scaling matrix
+    (usually an inverse information). That one is reachable under the
+    present contract, since the curvature callback IS the observed
+    information, but it changes the derivative propagation and is not
+    written.
 
 
 --------------------------------------------------------------------------------
