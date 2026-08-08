@@ -337,14 +337,35 @@ The three real gaps, none of which blocks modelterms7:
 8. RESERVED TERMS, SO THAT TODAY'S CLASSES DO NOT PRECLUDE THEM
 --------------------------------------------------------------------------------
 
-s(x, basis = bspline_basis(...), penalty = )
-    SmoothTerm: basis7 evaluation matrix as the block, quadratic_penalty
-    of the Gram as the penalty. The default (Giovanni, 2026-08-08) is
-    bspline_basis() under the Demmler-Reinsch reparametrization, as in
-    Bach & Klein: the null space of the roughness penalty separates the
-    linear effect from the nonlinear remainder, and the term reports the
-    two parts distinctly. dr_basis() in basis7 is exactly this
-    construction. Deferred only to keep the first release small.
+s(x, by = , k = , degree = , basis = , linear = )   DONE 2026-08-08
+    SmoothTerm. The block is one column for the linear effect, centered
+    and scaled, followed by the Demmler-Reinsch reparametrized basis
+    (dr_basis of a cubic B-spline by default). What makes that ordering
+    worth having is the penalty it admits: quadratic_penalty of
+    diag(0, 1, ..., 1), rank deficient by exactly one, since the DR
+    construction makes T'PT the identity on the deviation and the
+    deviation empirically orthogonal to (1, x). So the linear effect is
+    unpenalized, the deviation is shrunk, and edf runs from k down to 1 --
+    a straight line, not a constant -- which the tests pin at both ends.
+    by = a factor gives one smooth per level with the penalty repeated
+    blockwise (one smoothing parameter for all levels); by = a numeric is
+    a varying-coefficient term.
+
+te(x, z, ..., by = , k = , degree = , bases = )     DONE 2026-08-08
+    The tensor-product smooth, on basis7's tensor_basis(). The penalty is
+    the sum of the marginal roughness penalties carried into the product,
+    P = sum_v I (x) ... (x) P_v (x) ... (x) I, each margin normalized
+    first. NOTE the Kronecker order: tensor_basis varies the FIRST margin
+    fastest, so the product is taken over the REVERSED list of blocks.
+    ONE smoothing parameter governs the sum, so the smoothing is
+    isotropic across margins. Anisotropic smoothing -- one parameter per
+    margin -- needs a penalty that is a sum of quadratics with its own
+    coefficient on each, whose log pseudo-determinant is not separable
+    and whose rank is the intersection of the null spaces (the measured
+    trap of CLAUDE.md section 7: a rank read off the assembled matrix is
+    wrong when the parameters differ by orders of magnitude). That is the
+    "sums" case of penalties7's composition item, and it is the natural
+    next step for te().
 
 nl(~ theta1^x + log(theta2 + exp(z)), links = , subformulas = , by = )
     Nonlinear parametric: the term owns inner parameters with their own
@@ -359,12 +380,33 @@ nl(~ theta1^x + log(theta2 + exp(z)), links = , subformulas = , by = )
     ordinary terms implement as the identity. Not implemented in phase
     1; recorded so the built-term shape does not preclude it.
 
-gas(p = , q = , by = , time = , penalty = )
-    structural_term: rewrites the likelihood recursively in time order
-    (score-driven dynamics), does not produce a block. by= with a
-    user-chosen penalty on the group-varying dynamics is part of the
-    intent from day one. Everything about it is deferred except the class
-    and the router.
+gas(p = , q = , by = , time = )                     DONE 2026-08-08
+    structural_term, and the first one, so the batch built the CONTRACT
+    with it: term_params() names the term's own parameters, term_links()
+    carries them to the unconstrained scale, and term_filter() runs the
+    recursion and returns the predictor WITH the derivative of that
+    predictor in those parameters. The derivative is returned because the
+    recursion is the only place it can be computed: a model layer
+    differencing the filter would pay one pass per parameter and inherit
+    the error of the difference, while propagating it alongside the state
+    costs one vector per parameter and is exact (validated against
+    numDeriv at p, q in {1,2}).
+
+    Two decisions worth keeping. The persistence is carried by PARTIAL
+    AUTOCORRELATIONS, not by the coefficients b_j: the stationary region
+    of an autoregression is not a box, so no collection of scalar links
+    covers it, and Levinson-Durbin carries the PACFs onto the
+    coefficients bijectively -- the same argument parameters7 makes for
+    autoregressive(), and the coordinate is named for its chart (pacf1,
+    ...) for the same reason. And the score that drives the recursion is
+    whatever distribution the model carries, so one term is a GARCH-like
+    volatility model in a Gaussian scale, a dynamic count model in a
+    Poisson mean, and a robust filter in a Student t, where the bounded
+    score moves the level by a bounded amount however large the outlier.
+
+    Still open here: a penalty on the group-varying dynamics under by=,
+    which needs the parameters of a structural term to be penalizable --
+    a contract question for the model layer rather than for the term.
 
 
 --------------------------------------------------------------------------------
