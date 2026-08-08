@@ -1,0 +1,96 @@
+## In practice {#sec-penalty-practice}
+
+```{r}
+#| label: setup-07d
+#| include: false
+source("R/_setup.R")
+```
+
+This section assembles a complete penalized fit from the objects the
+preceding sections defined, with no fitting function in between: the
+likelihood comes from the model, the penalty from `ridge_penalty()`, and the
+optimization from `optimizers7`. The example is a Gaussian linear model with
+a ridge prior on the coefficients, and the point it demonstrates is
+@sec-penalty-definition's: with the normalizing constant kept, the prior
+scale $\sigma$ is estimated jointly with the coefficients by ordinary
+maximization, with no cross-validation and no separate criterion.
+
+The data are simulated with three active coefficients among eight, and the
+error standard deviation is treated as known:
+
+```{r}
+#| label: practice-data
+set.seed(42)
+n <- 120; p <- 8
+X <- matrix(rnorm(n * p), n, p)
+beta_true <- c(2, -1.5, 1, rep(0, p - 3))
+sd_e <- 1.2
+y <- drop(X %*% beta_true + rnorm(n, sd = sd_e))
+```
+
+The negative log posterior is the negative log-likelihood plus the penalty,
+a function of the $p$ coefficients and of the prior scale. The scale is
+optimized on its link scale, $\eta = \log\sigma$, and
+`penalty_grad_theta(scale = "link")` returns the matching derivative, so the
+gradient of the whole objective is assembled from quantities the objects
+already provide:
+
+```{r}
+#| label: practice-objective
+library(penalties7)
+library(optimizers7)
+pen <- ridge_penalty(n_coef = p)
+
+neg_post <- function(par) {
+  b <- par[1:p]; th <- list(sigma = exp(par[p + 1]))
+  -sum(dnorm(y, drop(X %*% b), sd_e, log = TRUE)) + penalty_value(pen, b, th)
+}
+neg_post_gr <- function(par) {
+  b <- par[1:p]; th <- list(sigma = exp(par[p + 1]))
+  c(-crossprod(X, y - drop(X %*% b)) / sd_e^2 + penalty_gradient(pen, b, th),
+    penalty_grad_theta(pen, b, th, scale = "link")$sigma)
+}
+
+fit <- minimize(lbfgs(), neg_post, par = rep(0, p + 1), gr = neg_post_gr)
+fit@converged
+```
+
+The maximizer shrinks the coefficients towards zero relative to least
+squares, and the estimated prior scale lands near the root mean square of
+the coefficients that generated the data, which is the quantity it
+estimates:
+
+```{r}
+#| label: practice-results
+b_map <- fit@par[1:p]
+sigma_hat <- exp(fit@par[p + 1])
+b_ols <- drop(solve(crossprod(X), crossprod(X, y)))
+
+round(rbind(true = beta_true, ols = b_ols, ridge = b_map), 3)
+c(sigma_hat = sigma_hat, rms_beta_true = sqrt(mean(beta_true^2)))
+```
+
+At a fixed prior scale the maximizing coefficients solve the ridge normal
+equations with $\lambda = \mathrm{sd}_e^2/\sigma^2$, so the joint maximum
+must agree with the closed form evaluated at the estimated scale:
+
+```{r}
+#| label: practice-closed-form
+lam <- sd_e^2 / sigma_hat^2
+b_closed <- drop(solve(crossprod(X) + lam * diag(p), crossprod(X, y)))
+max(abs(b_map - b_closed))
+```
+
+Dropping the constant from `penalty_value()` would remove the
+$q\log\sigma$ term of @sec-penalty-definition, the objective would improve
+without bound as $\sigma$ grows, and the joint maximization above would
+drive the penalty to zero. The constant is what makes this section's
+one-line estimation possible.
+
+A sparsity penalty replaces the smooth objective with one that has a kink
+at zero in every coordinate, which `penalty_kinks()` reports; a fit through
+`lasso_penalty()` therefore uses the bundle method of @sec-nonsmooth in
+place of a gradient method. The marginal-likelihood route for a smoothing
+parameter, which integrates the coefficients out instead of maximizing over
+them, consumes the pieces of @sec-penalty-marginal and belongs to the model
+layer.

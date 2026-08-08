@@ -47,10 +47,10 @@ book/
     02-linkfunctions7.qmd      the inverse function theorem, 16 links
     03-distributions7.qmd      distributions; includes _03a to _03e
     04-optimizers7.qmd         optimization; includes _04a to _04e
-    05-basis7.qmd              bases; includes _05a to _05e
-    06-parameters7.qmd         constrained parameters; includes _06a to _06c
-    07-numericals7.qmd         the numerical layer; includes _07b to _07d
-    08-penalties7.qmd          penalties; includes _08a to _08c
+    05-parameters7.qmd         constrained parameters; includes _05a to _05c
+    06-basis7.qmd              bases; includes _06a to _06e
+    07-penalties7.qmd          penalties; includes _07a to _07c
+    08-numericals7.qmd         the numerical layer; includes _08b to _08d
     A1-notation.qmd            notation, session info
     A2-references.qmd          the bibliography
   R/                   one certificate file per chapter, plus the shared
