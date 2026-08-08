@@ -255,6 +255,68 @@ $\theta_j = g_j^{-1}(Z\gamma_j)$, only on the formula route: substituting
 inside $f$ requires knowing where the parameter enters, which a formula
 says and a function does not.
 
+### Markov regimes
+
+`regime(k)` is the other dynamic term, and it is the complement of the
+first: a score-driven level moves continuously, while a regime chain
+moves in jumps between a finite number of states. A latent Markov chain
+visits $K$ regimes, each shifting the predictor by a level of its own,
+and the likelihood is the mixture over the unobserved path, evaluated by
+the forward recursion
+
+$$
+\tilde\alpha_t(j) \;=\; f_j(t) \sum_i \alpha_{t-1}(i)\, P_{ij},
+\qquad c_t = \sum_j \tilde\alpha_t(j),
+\qquad \alpha_t = \tilde\alpha_t / c_t,
+$$
+
+started at the chain's stationary distribution, with
+$\log L = \sum_t \log c_t$. Here $f_j(t)$ is the density of observation
+$t$ at the predictor shifted by the level of regime $j$ — whatever
+density the model carries, which is why the term is not tied to any
+family.
+
+The normalization at each step is not a refinement. The unnormalized
+quantities are products of $t$ densities, so they decay geometrically:
+on the series below they are of order $10^{-142}$ by the two hundredth
+observation and exactly zero in double precision before the five
+hundredth, while the normalized recursion is unaffected.
+
+The contribution of this term is a likelihood and not a predictor, so it
+cannot be reported through `term_filter()`; `term_loglik()` is the second
+shape of the structural branch, returning the contributions $\log c_t$
+with their exact derivatives.
+
+```{r}
+#| label: terms-regime
+set.seed(4)
+m <- 400
+P <- matrix(c(0.95, 0.05, 0.08, 0.92), 2, 2, byrow = TRUE)
+state <- integer(m); state[1] <- 1L
+for (t in 2:m) state[t] <- sample(1:2, 1, prob = P[state[t - 1], ])
+yy <- rnorm(m, c(0, 4)[state])
+rd <- data.frame(t = seq_len(m), y = yy)
+
+rt <- term_build(regime(2, time = t), rd)
+nll <- function(v) {
+  -sum(term_loglik(rt, rep(0, m), yy,
+                   logdens = function(e, i) dnorm(yy[i], e, log = TRUE),
+                   score = function(e, i) yy[i] - e,
+                   psi = list(level1 = v[1], gap2 = exp(v[2]),
+                              alr1.1 = v[3], alr2.1 = v[4]))$loglik)
+}
+fit <- optim(c(0.5, log(2), 2, -2), nll, method = "BFGS")
+round(c(level1 = fit$par[1], level2 = fit$par[1] + exp(fit$par[2])), 2)
+```
+
+The levels are ordered by construction: the first is free and each of
+the others is the previous one plus a positive gap on a log link.
+Without an ordering the regimes are exchangeable, and the likelihood has
+$K!$ identical maxima — a problem that is no harder to fit and whose
+answer cannot be reported. The transition matrix is the row-wise simplex
+chart of @sec-parameters7, so every row is a probability vector at every
+value of the free coordinates.
+
 ### The censored response
 
 `cens(y, lwr = , upr = )` marks a response as censored on the left-hand
