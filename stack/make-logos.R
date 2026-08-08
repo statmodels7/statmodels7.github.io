@@ -19,7 +19,7 @@ root <- normalizePath("..")
 
 # modelterms7 has no repository yet; its sticker waits here until it does.
 pkgs <- c("numericals7", "linkfunctions7", "distributions7", "optimizers7",
-          "basis7", "parameters7", "penalties7", "statmodels7")
+          "basis7", "parameters7", "penalties7", "modelterms7", "statmodels7")
 
 manifest <- '{
   "name": "",
@@ -74,9 +74,6 @@ for (pkg in pkgs) {
   cat("done", pkg, "\n")
 }
 
-# modelterms7: PNG only, kept beside the others for the day it has a home.
-png_at(file.path("svg", "modelterms7.svg"), 480,
-       file.path("png", "modelterms7.png"))
 
 sheet <- image_montage(
   image_join(lapply(sort(list.files("png", full.names = TRUE)), image_read)),

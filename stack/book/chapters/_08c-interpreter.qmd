@@ -1,0 +1,58 @@
+## The formula interpreter {#sec-terms-formula}
+
+`interpret_formula(formula, data)` splits a model formula into a response
+specification and a list of term specifications. Its recognition rule is
+by evaluation, not by name: each call on the right-hand side is evaluated
+in the data, and it becomes a term of its own exactly when its value
+inherits from `model_term`. `log(x)` evaluates to a numeric vector and
+stays a covariate; `poly(x, 2)` evaluates to a matrix and stays a
+covariate; `lasso(L)` evaluates to a term specification and is routed as
+one. Bare symbols and interaction labels are never evaluated directly --
+`x1:x2` parses as a call to the sequence operator, which on numeric
+vectors returns something unrelated to a model matrix column -- and flow,
+together with every unrecognized entry, into one collected `linpar()`
+block with the formula's own intercept convention.
+
+The consequence of recognizing by value is that the interpreter carries
+no list of special names: a term class defined outside the package works
+in a formula the day it is written. The demonstration below defines a
+minimal term inline and uses it next to the shipped ones.
+
+```{r}
+#| label: interpreter-user
+MatTerm <- S7::new_class("MatTerm", parent = additive_term, package = NULL,
+                         properties = list(mat = S7::class_any))
+mat_term <- function(m) {
+  MatTerm(label = "mat", mat = as.matrix(m), X = NULL,
+          coef_names = character(0), blueprint = list(), penalty = NULL)
+}
+S7::method(term_build, MatTerm) <- function(term, data, ...) {
+  X <- term@mat
+  colnames(X) <- paste(term@label, seq_len(ncol(X)), sep = ".")
+  term@X <- X
+  term@coef_names <- colnames(X)
+  term@blueprint <- list(ncol = ncol(X))
+  term
+}
+
+set.seed(4)
+dd <- data.frame(y = rnorm(12), x1 = rnorm(12), x2 = runif(12),
+                 g = factor(rep(letters[1:3], 4)))
+dd$L <- matrix(rnorm(24), 12, 2)
+
+out <- interpret_formula(y ~ x1 + log(x2) + lasso(L) + mat_term(dd$L) +
+                           random(~ 1 | g), dd)
+names(out$terms)
+```
+
+The left-hand side, when present, is evaluated in the data as well: a
+plain expression gives the numeric response and a response constructor
+such as `cens()` gives its object. The intercept belongs to the collected
+parametric block, so a formula whose right-hand side holds only special
+terms still produces an intercept-only `linpar()` and `- 1` removes it.
+
+```{r}
+#| label: interpreter-intercept
+names(interpret_formula(y ~ lasso(L), dd)$terms)
+names(interpret_formula(y ~ lasso(L) - 1, dd)$terms)
+```

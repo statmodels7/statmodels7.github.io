@@ -1,0 +1,59 @@
+## The term contract {#sec-terms-contract}
+
+```{r}
+#| label: setup-08
+#| include: false
+source("R/_setup.R")
+source("R/term-certificates.R")
+```
+
+A term has two states. As written in a formula it is a specification: the
+object `ridge(R)` returns records what was asked and holds no design
+matrix. `term_build(spec, data)` returns the built term, a copy of the
+specification carrying the $n \times k$ design block, the $k$ coefficient
+names, the penalty over those coefficients (or `NULL` for an unpenalized
+term), and a blueprint. The blueprint is the part of the contract that
+concerns new data: it records whatever reapplying the mapping requires --
+the terms object, the factor levels, the contrasts, and later knots or
+centering constants -- so that `term_predict(built, newdata)` reproduces
+the mapping exactly instead of re-deriving it from the rows it happens to
+receive. A factor level absent from the new data is encoded against the
+levels recorded at build time, and a level the blueprint has never seen is
+rejected.
+
+```{r}
+#| label: contract-linpar
+library(modelterms7)
+
+dd <- data.frame(x = rnorm(8), g = factor(rep(c("a", "b", "c", "d"), 2)))
+spec <- linpar(~ x + g)
+built <- term_build(spec, dd)
+term_coef_names(built)
+
+# a subset that loses two levels keeps the encoding of build time
+sub <- droplevels(dd[dd$g %in% c("a", "b"), ])
+dim(term_predict(built, sub))
+```
+
+A consumer reads a built term through a small set of generics:
+`term_matrix()` for the block, `term_npar()` and `term_coef_names()` for
+its size and labels, `term_penalty()` for the penalty object, and
+`term_predict()` for the block on new data. One flag deserves its own
+statement. `term_smooth()` says whether the term's contribution to the
+penalized objective is differentiable in the coefficients, and the answer
+is read from the penalty rather than declared by the term: an unpenalized
+term is smooth, and a penalized one is smooth exactly when its penalty's
+kink set (@sec-penalties7) is empty. The model layer uses this flag to
+split the coefficient vector into the block the optimizers of
+@sec-optimizers7 handle on the unconstrained scale and the block that
+needs non-smooth strategies, and deriving it from the kink set means a
+term cannot disagree with its own penalty.
+
+`check_term()` validates a term against a data frame: that it builds,
+that the block's dimensions, names and count agree, that prediction on
+the same data reproduces the block exactly, and that prediction on a
+subset of rows equals the corresponding rows. The subset is chosen to
+drop a factor level whenever the data carry one, and the dropped level is
+what gives the check its power: a term that re-derives the encoding from
+the new data instead of reusing its blueprint loses a column there, while
+a subset that keeps every level would leave the defect invisible.
