@@ -64,11 +64,11 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | `numericals7` | the numerical layer at the ROOT of the toolkit (created 2026-08-05; jets REMOVED 2026-08-06, see the de-jettization item in section 7): the enumerations (`set_partitions`, `tuple_indices`, `compositions` -- ONE copy each), the stencil library (`fd_weights`/`fd_offsets`/`fd_step`/`fd_derivative`), `quad_vec`/`series_vec` (quadrature and series vectorized over the parameters, convergence on the SUM of a row's panel errors), and the special functions (`mills_ratio`, `owen_t`, `bessel_i_ratio` with derivatives and inverse; `log_bessel_i`/`log_bessel_k` with four argument-derivatives, after Plesner-Sorensen-Hauberg ICS 2024 (arXiv:2409.08729), 0.5.0 -- finite wherever the log itself is representable, switching guards tightened on the Wronskian, pure R after an Rcpp transcription measured at 0.9-2.7x). No S7 classes on purpose: these are functions |
 | `linkfunctions7` | 16 link classes (14 constructors) with exact analytical derivatives to 4th order, both directions, plus numerical fallbacks for user-defined links; stencils delegate to numericals7 |
 | `distributions7` | 41 univariate families (census 2026-08-08: 41 univariate + 4 multivariate = 45 constructors; the "38" predated pig1/pig2 and had rotted on the site, the book and the README at once) -- ONE NAME PER PARAMETRIZATION (2026-08-05, Giovanni): 13 numbered groups (gaussian1/2/3, gamma1/2, negbin1/2 after Cameron-Trivedi, weibull1/3 after gamlss WEI/WEI3 with weibull2 deliberately empty, student_t1/2, skewnormal1/2, vonmises1/2, invgauss1/2, lognormal1/2, beta1/2, betabinom1/2, gengamma1/2, laplace/laplace2 -- the Laplace scale was RENAMED b -> sigma and laplace2 carries the rate lambda = 1/sigma, the lasso-friendly form, both 2026-08-08) -- with exact score and information, closed-form moments where they exist, `reparametrize()` (Faa di Bruno over partitions, map partials as hand-written keyed tables via `map_derivs`, one stencil per partial as the fallback), `folded()`, wrappers, transformations, MLE; **4 multivariate families** -- gaussian and Student t, whose matrix parameter comes from `parameters7`, plus Dirichlet and multinomial, whose simplex parameter does. expectation() and the cdf fallback run on numericals7's batched engines |
-| `optimizers7` | 11 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrization, starting values that need not be written out, and multistart parallel by default |
+| `optimizers7` | 12 algorithms as objects — newton, bfgs, lbfgs, cg, bb, gd, adam, nelder_mead, compass, bundle, prox_grad (2026-08-08: FISTA with backtracking and adaptive restart, the only method written in R rather than C++ since every iteration calls caller-supplied R functions), multistart — with composable stopping rules, self-reporting safeguards, box bounds removed by reparametrization, starting values that need not be written out, and multistart parallel by default |
 | `basis7` | bases as objects: evaluation, derivatives of any order, the integral anchored at the lower endpoint, and exact Gram matrices against a choice of measure. B-splines, Fourier and Legendre; one `TransformedBasis` wrapper for orthonormalization, constraints and the Demmler-Reinsch construction; `tensor_basis()` for several variables, with `basis_contract()` computing what a fit needs without forming the product; numerical fallbacks make an evaluation-only basis complete |
 | `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, derivative arrays through Levinson-Durbin in Rcpp, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes); `kron_identity(structure, m)` (0.8.0, 2026-08-08) -- m identical diagonal blocks sharing one free vector, every contract quantity a linear lift (I_m kron A_k, m*logdet, blockwise solve), the FIRST composition wrapper, built for grouped random effects. `piano_parameters7.txt` supersedes piano_covstructs7.txt |
 
-| `penalties7` | penalties as objects (created 2026-08-06 from `piano_penalties7.txt`): rho(D beta; theta) with value (NORMALIZING CONSTANT KEPT -- Giovanni 2026-08-03), exact derivatives in beta and theta, the mixed block (consumes `distrib_cross_y`, closed for all continuous families the same day), kink set, links on the hyperparameters. Three branches: `quadratic_penalty()` (rank/null basis/log-pdet fixed at ONE eigendecomposition, the REML pieces), `distrib_penalty()` (a univariate distributions7 log-density coordinatewise; `ridge_penalty()`/`lasso_penalty()`/`heavy_penalty()` named instances; ridge pinned against its quadratic twin at machine precision), `scad_penalty()`/`mcp_penalty()` (defined by rho', improper by construction). `check_penalty()` with injections |
+| `penalties7` | penalties as objects (created 2026-08-06 from `piano_penalties7.txt`): rho(D beta; theta) with value (NORMALIZING CONSTANT KEPT -- Giovanni 2026-08-03), exact derivatives in beta and theta, the mixed block (consumes `distrib_cross_y`, closed for all continuous families the same day), kink set, links on the hyperparameters. Three branches: `quadratic_penalty()` (rank/null basis/log-pdet fixed at ONE eigendecomposition, the REML pieces), `distrib_penalty()` (a univariate distributions7 log-density coordinatewise; `ridge_penalty()`/`lasso_penalty()`/`heavy_penalty()` named instances; ridge pinned against its quadratic twin at machine precision), `scad_penalty()`/`mcp_penalty()` (defined by rho', improper by construction). `check_penalty()` with injections. 0.3.0 (2026-08-08) adds `penalty_prox()`/`has_prox()`: one linear solve for the quadratic and structured branches (ANY map), closed forms for the Gaussian and Laplace instances, the closed piecewise operators of SCAD and MCP over their convex regions (a step past t = a-1 / t = gamma is REJECTED, the operator being set-valued there), and a coordinatewise root of (b-v)/t = l^(y)(b) for any other separable parent; a separable penalty under a general map is rejected, that being the generalized-lasso problem rather than a different formula |
 | `modelterms7` | model terms as S7 objects (phase 1 shipped 2026-08-08 from `piano_modelterms7.txt`): `model_term` -> `additive_term`/`structural_term` (the second RESERVED for gas() and routed but refused), `linpar()` with a blueprint (terms/xlev/contrasts) so `term_predict()` reapplies rather than rebuilds, `interpret_formula()` with RECOGNITION BY EVALUATION (a call whose value inherits model_term is a term; log(x) stays a covariate; bare covariates collapse into one linpar; the intercept convention is the formula's), `cens()`/`censored_response` (statuses observed/left/right/interval derived from the values), `check_term()` whose subset check DROPLEVELS the subset (a plain row subset keeps unused factor levels and cannot expose a rebuild-from-newdata predict). Phase 2 (same day): `ridge()/lasso()/scad()/mcp()` over formula (intercept removed, linpar blueprint) or matrix input -- a matrix is predicted by re-evaluating its expression in the NEW DATA ONLY (a build-env fallback would silently reuse the build-time rows when the counts coincide), so the intended pattern is a matrix column of the data frame; the penalty is attached at build and `term_smooth` reads `penalty_kinks()` at a probe theta (midpoint-of-bounds, the reparametrize() probe rule); `by =` reserved in all four signatures. Phases 3-4 (same day): `edf()` counting per penalty (exact for linpar, tr[(H+S)^-1 H] on the block for a smooth penalty with S from `penalty_hessian()`, nonzero count for lasso/scad/mcp after Zou-Hastie-Tibshirani 2007), `print` showing a built penalized term's penalty, `plot` at supplied coefficients; `random(~ 1 | g)` = the indicator block with the effect distribution as penalty (ridge by default -- the random intercept IS the ridge -- a parameters7 PRECISION via structured_penalty, or a distributions7 object via distrib_penalty with the joint-mode reading documented). Random SLOPES landed the same day (Giovanni: intercepts AND slopes, correlated or not): `random(~ x | g)` interacts the within-group design with the indicators GROUP-MAJOR (the order I_m kron S assumes), default gaussian unstructured (log_cholesky(d)) or diagonal by `correlated =`, per-group `precision =` replicated by the NEW parameters7::kron_identity(), `distrib =` coordinatewise. Phase 5 (same day): book chapter 8 with `assert_terms_ok()` (injection-checked twice), CI matrix + coverage + pkgdown workflows, Pages enabled, README, logo deployed (make-logos.R now includes it in the loop), portal card activated, eighth member of the meta-package |
 | `statmodels7` | the meta-package (2026-08-05, Giovanni asked for a tidyverse-style grouping). Installing it installs the five members and `library(statmodels7)` attaches them, reporting versions. `statmodels7_packages()`, `statmodels7_versions()`, `statmodels7_conflicts()`, `statmodels7_update()`. It is ALSO the destination package below: the modeling code lands here later, so nothing gets renamed |
 
@@ -834,7 +834,7 @@ whole and a scalar link cannot express it.
 | `parameters7` | renamed from covstructs7 on 2026-08-04 (clean cut; GitHub redirects the repo, the PAGES URL DOES NOT redirect). Version `0.8.0` (0.8.0: kron_identity, the first composition wrapper -- identical blocks sharing a free vector; 0.7.0: log-Cholesky Leibniz assembly compiled, 30x at p = 8 order 4; 0.6.0: AR derivative arrays in Rcpp, first compiled code). Earlier 0.3.0: base/matrix split, orders 3-4 everywhere, simplex, transition_matrix, matrix_log, phase 2's correlation_matrix/compound_symmetry/ar1/autoregressive, free names tagged by their transform, and `param_readable()`. Composition wrappers: kron_identity done (identical blocks); D R D', general block diagonals and sums still open. |
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
-| `penalties7` | 45 tests, created 2026-08-06; ALL FIVE PHASES of `piano_penalties7.txt` done by 2026-08-07: 0.2.0 adds `structured_penalty()` (a parameters7 matrix_parameter as the PRECISION, free vector = theta, identity links, every derivative from param_d1/param_d2 and the logdet contract; at a zero log-Cholesky free vector it IS the plain ridge, pinned at machine precision) and the book gained chapter 8 with three injection-checked gates (`book/R/penalty-certificates.R`). Repo pushed, Pages enabled |
+| `penalties7` | 79 tests, version `0.3.0` (2026-08-08: the proximal operator), created 2026-08-06; ALL FIVE PHASES of `piano_penalties7.txt` done by 2026-08-07: 0.2.0 adds `structured_penalty()` (a parameters7 matrix_parameter as the PRECISION, free vector = theta, identity links, every derivative from param_d1/param_d2 and the logdet contract; at a zero log-Cholesky free vector it IS the plain ridge, pinned at machine precision) and the book gained chapter 8 with three injection-checked gates (`book/R/penalty-certificates.R`). Repo pushed, Pages enabled |
 | `modelterms7` | 153 tests, `R CMD check --as-cran` clean apart from the environment notes and the local-only `Remotes` warning, ALL FIVE PHASES of `piano_modelterms7.txt` done 2026-08-08, random slopes included. Version `0.5.0`, `NEWS.md` from the first commit. CI, coverage, pkgdown and Pages live |
 | `statmodels7` | 32 tests, `R CMD check --as-cran` with one deliberate NOTE (see below) and the submission warning, created 2026-08-05. Version `0.1.0` with a `NEWS.md` from the first commit. |
 
@@ -1178,6 +1178,60 @@ Two things the checks refused, both worth keeping:
   General shape: a structural claim about a product is not a claim about its
   factors, and writing the test before believing the sentence is what
   separates them.
+
+### The non-smooth block: what the measurements decided (2026-08-08)
+
+GAP 1 of `piano_modelterms7.txt`, closed. `penalty_prox()` in penalties7
+and `prox_grad()` in optimizers7, then three comparisons on one lasso
+objective, every route agreeing on the optimum to machine precision:
+
+- **LLA is not needed.** The direct SCAD proximal operator beats the
+  iterated weighted lasso on total inner iterations at every conditioning
+  tried -- 26 against 45, 123 against 300, 370 against 390 -- at the same
+  objective to 1e-16. A route that solves a sequence of surrogates does
+  not beat one that solves the thing.
+- **Coordinate descent is faster, and is NOT an optimizer.** 1.1x to 5.3x
+  faster than prox_grad across condition numbers 2.8 to 7900, at a tighter
+  stationarity (1e-10 against 1e-8). But it needs the columns of X and the
+  running residual -- the MODEL, not fn and gr -- so it cannot live behind
+  optimizers7's black-box interface. It belongs to statmodels7's fitting
+  layer as a specialized path for a linear predictor with a separable
+  penalty; prox_grad is the general route, for any smooth loss and any
+  operator.
+- **Acceleration is for ill-conditioned problems.** At a condition number
+  of 3 the plain iteration wins narrowly (39 against 24); at 55 it is 4153
+  against 126; at 480 the plain method does not converge in 50000
+  iterations while the accelerated one takes 334.
+
+Two defects the measurements exposed, both in the first version of the
+loop, and both of a shape section 7 already records in other words:
+
+- **a restart consumed an iteration of the budget.** The accelerated
+  method then looked SLOWER than the plain one for no reason but the
+  bookkeeping, and the trace had gaps. A retry that makes no progress must
+  not spend the budget that measures progress.
+- **the stationarity measure was read at the EXTRAPOLATED point, not at
+  the iterate.** With momentum the two differ, so the mapping never
+  vanished: the run circled the answer at 3.7e-9 for 20000 iterations
+  reporting failure, while the plain variant reached exactly 0 in 49. Read
+  at the iterate it agrees with the KKT violation to the digit (4.45e-07
+  against 4.45e-07, 7.12e-09 against 7.12e-09), which is what says the
+  reported quantity is the right one. It costs one extra gradient per
+  iteration under acceleration, since the point a step is taken from is
+  not the point being reported.
+
+⚠️ The attainable mapping obeys the rounding floor of §7's tolerance
+item: with acceleration it stalls at ~4e-9 on an objective of order 2, so
+`crit_grad(1e-10)` is unreachable there and asking for it reports failure
+at the answer. The tests ask 1e-8.
+
+**`optimizer_bounded()`** was added with it: a new generic, TRUE by
+default, FALSE for `prox_grad`, which `check_optimizer()` consults before
+testing box bounds. A proximal method takes its constraint INSIDE the
+operator, where it composes with the term already there, so bounds beside
+the objective would be a second and conflicting route to the same thing --
+and the check would otherwise fail a correct optimizer, the shape §7
+records as *separate what a component promises from how well it does it*.
 
 ### reparametrize() against a family written in full (measured 2026-08-08)
 
@@ -2355,7 +2409,7 @@ Two smaller things worth keeping:
   is also now **relative**, `s'y > curv_tol*||s||*||y||`, as `bfgs()` already had
   it. General lesson: a policy chosen on one problem is a policy chosen on one
   problem — the boxed case disagreed with Rosenbrock about all three constants.
-- GAP 1 of `piano_modelterms7.txt` (penalty_prox in penalties7 + a proximal method in optimizers7, measured against coordinate descent and LLA) is the next batch before statmodels7's fitting layer. kron_identity() closed the identical-blocks case of the composition item; D R D', general block diagonals of distinct structures and sums remain open.
+- ~~GAP 1 of `piano_modelterms7.txt`~~ **done 2026-08-08**; the next batch is statmodels7's own fitting layer, which owes a coordinate-descent path for the separable case (measured 1.1x-5.3x faster than prox_grad, and not expressible as an optimizer). kron_identity() closed the identical-blocks case of the composition item; D R D', general block diagonals of distinct structures and sums remain open.
 - Next packages: **`parameters7` phase 2** (`piano_covstructs7.txt`:
   correlations via canonical partial correlations, D R D', compound
   symmetry/AR(1), block diagonal, composition -- phase 1 shipped 2026-08-03),

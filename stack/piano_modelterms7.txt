@@ -276,16 +276,50 @@ revision now; the pieces were built for this consumer.
 
 The three real gaps, none of which blocks modelterms7:
 
-  GAP 1 -- proximal machinery for the non-smooth block. Deferred
-      explicitly when penalties7 was planned; it becomes due when
-      statmodels7 first FITS a lasso/scad/mcp term. The natural shape:
-      penalty_prox(pen, v, step) in penalties7 (closed forms exist for
-      all three: soft threshold; SCAD and MCP have piecewise closed
-      proximal operators) and a proximal-gradient method in optimizers7,
-      with coordinate descent and the LLA route (SCAD/MCP as iterated
-      weighted lasso) as candidates to be MEASURED against each other,
-      not assumed. Schedule: its own batch, between modelterms7 and the
-      statmodels7 fitting layer.
+  GAP 1 -- proximal machinery for the non-smooth block. DONE 2026-08-08.
+      penalties7 0.3.0 has penalty_prox()/has_prox(): one linear solve for
+      the quadratic and structured branches (any map), closed forms for
+      the Gaussian and Laplace instances, the closed piecewise operators
+      of SCAD and MCP over their convex regions, and a coordinatewise
+      root of (b - v)/t = l^(y)(b) for any other separable parent. A
+      separable penalty under a general map is REJECTED: the problem does
+      not split by coordinate there, and that is the generalized-lasso
+      problem rather than a different formula. optimizers7 has
+      prox_grad(), FISTA with backtracking and adaptive restart.
+
+      What the measurements decided, all on the same lasso objective and
+      all agreeing on the optimum to machine precision:
+
+      (a) LLA IS NOT NEEDED. The direct SCAD operator beats the iterated
+          weighted lasso on total inner iterations at every conditioning
+          tried -- 26 against 45, 123 against 300, 370 against 390 -- and
+          reaches the same objective to 1e-16. A route that solves a
+          sequence of surrogates cannot beat one that solves the thing.
+
+      (b) COORDINATE DESCENT IS FASTER, AND IS NOT AN OPTIMIZER. It runs
+          1.1x to 5.3x faster than prox_grad across condition numbers 2.8
+          to 7900, and reaches a tighter stationarity (1e-10 against
+          1e-8). But it needs the columns of X and the running residual --
+          the MODEL, not fn and gr -- so it cannot live behind
+          optimizers7's black-box interface. It belongs to statmodels7's
+          fitting layer as a specialized path for a linear predictor with
+          a separable penalty, with prox_grad as the general route that
+          works for any smooth loss and any operator.
+
+      (c) ACCELERATION IS FOR ILL-CONDITIONED PROBLEMS. At a condition
+          number of 3 the plain iteration wins narrowly (39 against 24,
+          the accelerated one paying an extra gradient per iteration for
+          its stationarity measure); at 55 it is 4153 against 126, and at
+          480 the plain method does not converge in 50000 iterations while
+          the accelerated one takes 334.
+
+      Two defects the measurements exposed, both in the first version of
+      the loop: a restart consumed an iteration of the budget, which made
+      the accelerated method look slower than it is and left gaps in the
+      trace; and the stationarity measure was read at the EXTRAPOLATED
+      point rather than at the iterate, so it never vanished and the run
+      circled the answer reporting failure. Read at the iterate it agrees
+      with the KKT violation to the digit.
 
   GAP 2 -- the censored-likelihood assembler (open item #67). cens() is
       defined here as vocabulary; the assembler belongs to statmodels7's
