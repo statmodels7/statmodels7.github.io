@@ -293,6 +293,7 @@ window.Quarto = {
   <li><a href="#sec-link-fallback-chain" id="toc-sec-link-fallback-chain" class="nav-link" data-scroll-target="#sec-link-fallback-chain"><span class="header-section-number">2.7.1</span> The finite-difference scheme</a></li>
   <li><a href="#sec-link-fallback-catch" id="toc-sec-link-fallback-catch" class="nav-link" data-scroll-target="#sec-link-fallback-catch"><span class="header-section-number">2.7.2</span> Validation of numerical orders</a></li>
   </ul></li>
+  <li><a href="#sec-link-practice" id="toc-sec-link-practice" class="nav-link" data-scroll-target="#sec-link-practice"><span class="header-section-number">2.8</span> In practice</a></li>
   </ul>
 </nav>
     </div>
@@ -1202,6 +1203,131 @@ f'''' \approx \frac{f_{+2} - 4f_{+1} + 6f_{0} - 4f_{-1} + f_{-2}}{h^{4}},
 <span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Every link in the catalog reports four analytic orders in both directions. The fallbacks exist for links that are still incomplete: they make such a link usable rather than exact, the catalog does not rely on them, and a link intended for regular use should eventually not need them either.</p>
+</section>
+</section>
+<section id="sec-link-practice" class="level2" data-number="2.8">
+<h2 data-number="2.8" class="anchored" data-anchor-id="sec-link-practice"><span class="header-section-number">2.8</span> In practice</h2>
+<p>The census below constructs every link and reads its name and domain off the object, so it stays current by construction:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>links <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="fu">identity_link</span>(), <span class="fu">log_link</span>(), <span class="fu">logit_link</span>(), <span class="fu">probit_link</span>(),</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>              <span class="fu">cloglog_link</span>(), <span class="fu">loglog_link</span>(), <span class="fu">cauchit_link</span>(), <span class="fu">rhobit_link</span>(),</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>              <span class="fu">sqrt_link</span>(), <span class="fu">inverse_link</span>(), <span class="fu">inverse_sq_link</span>(), <span class="fu">power_link</span>(<span class="dv">2</span>),</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>              <span class="fu">softplus_link</span>(<span class="dv">1</span>), <span class="fu">bounded_link</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="fu">bounded_link</span>(<span class="at">lwr =</span> <span class="dv">2</span>),</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>              <span class="fu">bounded_link</span>(<span class="at">upr =</span> <span class="dv">5</span>))</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">link =</span> <span class="fu">sapply</span>(links, <span class="cf">function</span>(l) l<span class="sc">@</span>link_name),</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">domain =</span> <span class="fu">sapply</span>(links, <span class="cf">function</span>(l)</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sprintf</span>(<span class="st">"(%g, %g)"</span>, l<span class="sc">@</span>link_bounds[<span class="dv">1</span>], l<span class="sc">@</span>link_bounds[<span class="dv">2</span>]))</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>), <span class="at">row.names =</span> <span class="cn">FALSE</span>, <span class="at">caption =</span> <span class="st">"The link classes, read off the objects."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>The link classes, read off the objects.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">link</th>
+<th style="text-align: left;">domain</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">identity</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">log</td>
+<td style="text-align: left;">(0, Inf)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">logit</td>
+<td style="text-align: left;">(0, 1)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">probit</td>
+<td style="text-align: left;">(0, 1)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">cloglog</td>
+<td style="text-align: left;">(0, 1)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">loglog</td>
+<td style="text-align: left;">(0, 1)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">cauchit</td>
+<td style="text-align: left;">(0, 1)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">rhobit</td>
+<td style="text-align: left;">(-1, 1)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">sqrt</td>
+<td style="text-align: left;">(0, Inf)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">inverse</td>
+<td style="text-align: left;">(0, Inf)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">inverse_sq</td>
+<td style="text-align: left;">(0, Inf)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">power(lambda=2)</td>
+<td style="text-align: left;">(0, Inf)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">softplus(a=1)</td>
+<td style="text-align: left;">(0, Inf)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">bounded(lwr=0, upr=1)</td>
+<td style="text-align: left;">(0, 1)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">lower_bounded(lwr=2)</td>
+<td style="text-align: left;">(2, Inf)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">upper_bounded(upr=5)</td>
+<td style="text-align: left;">(-Inf, 5)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>A link is a property of a distribution’s parameter, so exchanging one for another changes the scale a model works on without touching the family. The same Gamma carries its mean through a log link or through a square root link, and the two fits agree on the parameter scale:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>d_log  <span class="ot">&lt;-</span> <span class="fu">gamma2_distrib</span>()</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>d_sqrt <span class="ot">&lt;-</span> <span class="fu">gamma2_distrib</span>(<span class="at">link_mu =</span> <span class="fu">sqrt_link</span>())</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">4</span>)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d_log, <span class="dv">400</span>, <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>))</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>f_log  <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d_log, y)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>f_sqrt <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d_sqrt, y)</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">log_link =</span> <span class="fu">unlist</span>(<span class="fu">coef</span>(f_log)), <span class="at">sqrt_link =</span> <span class="fu">unlist</span>(<span class="fu">coef</span>(f_sqrt)))</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                 mu   sigma2</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; log_link  3.074183 2.088450</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sqrt_link 3.074183 2.088451</span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">log_link =</span> <span class="fu">unlist</span>(<span class="fu">coef</span>(f_log, <span class="at">scale =</span> <span class="st">"link"</span>)),</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>      <span class="at">sqrt_link =</span> <span class="fu">unlist</span>(<span class="fu">coef</span>(f_sqrt, <span class="at">scale =</span> <span class="st">"link"</span>)))</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                 mu    sigma2</span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; log_link  1.123039 0.7364223</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sqrt_link 1.753335 0.7364225</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The derivatives behind the fit are the ten generics of <a href="#sec-link-interface" class="quarto-xref"><span>Section 2.4</span></a>, reached one order at a time or through the routers:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>lk <span class="ot">&lt;-</span> <span class="fu">sqrt_link</span>()</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="dv">2</span>, <span class="dv">8</span>)</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">d1 =</span> <span class="fu">dlinkinv</span>(lk, <span class="fu">linkfun</span>(lk, theta)),</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">d2 =</span> <span class="fu">d2linkinv</span>(lk, <span class="fu">linkfun</span>(lk, theta)),</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">d3 =</span> <span class="fu">linkinvderiv</span>(lk, <span class="fu">linkfun</span>(lk, theta), <span class="at">order =</span> <span class="dv">3</span>))</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        [,1]     [,2]     [,3]</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; d1 1.414214 2.828427 5.656854</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; d2 2.000000 2.000000 2.000000</span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; d3 0.000000 0.000000 0.000000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
 
 
 <div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
@@ -1224,7 +1350,6 @@ Nelder, John A., and Robert W. M. Wedderburn. 1972. <span>“Generalized Linear 
 Press, William H., Saul A. Teukolsky, William T. Vetterling, and Brian P. Flannery. 2007. <em>Numerical Recipes: The Art of Scientific Computing</em>. 3rd ed. Cambridge: Cambridge University Press.
 </div>
 </div>
-</section>
 </section>
 
 </main> <!-- /main -->

@@ -520,6 +520,30 @@ r/(2\lambda)\)</span>, and the mixed block <span class="math inline">\(D'PD\beta
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 8.571594e-09</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Dropping the constant from <code>penalty_value()</code> would remove the <span class="math inline">\(q\log\sigma\)</span> term of <a href="#sec-penalty-definition" class="quarto-xref"><span>Section 7.1</span></a>, the objective would improve without bound as <span class="math inline">\(\sigma\)</span> grows, and the joint maximization above would drive the penalty to zero. The constant is what makes this section’s one-line estimation possible.</p>
+<p>A penalty is validated like every other object of the toolkit, and the quadratic branch answers the marginal pieces of <a href="#sec-penalty-marginal" class="quarto-xref"><span>Section 7.3</span></a> directly:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>qp <span class="ot">&lt;-</span> <span class="fu">quadratic_penalty</span>(<span class="fu">crossprod</span>(<span class="fu">diff</span>(<span class="fu">diag</span>(<span class="dv">6</span>), <span class="at">differences =</span> <span class="dv">2</span>)))</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">check_penalty</span>(qp, <span class="at">beta =</span> <span class="fu">rnorm</span>(<span class="dv">6</span>), <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">lambda =</span> <span class="dv">2</span>),</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                     <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>res[, <span class="fu">c</span>(<span class="st">"check"</span>, <span class="st">"status"</span>)]</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                                         check status</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1                        gradient vs numDeriv     OK</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2         hessian vs numDeriv on the gradient     OK</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3              grad_theta[lambda] vs numDeriv     OK</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4       hess_theta[lambda_lambda] vs numDeriv     OK</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5 cross[lambda] vs Richardson on the gradient     OK</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6              quadratic three-point identity     OK</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7   logpdet linear in log lambda with slope r     OK</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8           null basis annihilates the matrix     OK</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">rank =</span> <span class="fu">penalty_rank</span>(qp), <span class="at">proper =</span> <span class="fu">is_proper</span>(qp))</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   rank proper </span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      4      0</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="co"># the log pseudo-determinant is linear in log(lambda) with slope = rank</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="fu">penalty_logpdet</span>(qp, <span class="fu">list</span>(<span class="at">lambda =</span> <span class="fu">exp</span>(<span class="dv">1</span>)))<span class="sc">$</span>value <span class="sc">-</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">penalty_logpdet</span>(qp, <span class="fu">list</span>(<span class="at">lambda =</span> <span class="dv">1</span>))<span class="sc">$</span>value</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
 <p>A sparsity penalty replaces the smooth objective with one that has a kink at zero in every coordinate, which <code>penalty_kinks()</code> reports; a fit through <code>lasso_penalty()</code> therefore uses the bundle method of <a href="04-optimizers7.html#sec-nonsmooth" class="quarto-xref"><span>Section 4.3</span></a> in place of a gradient method. The marginal-likelihood route for a smoothing parameter, which integrates the coefficients out instead of maximizing over them, consumes the pieces of <a href="#sec-penalty-marginal" class="quarto-xref"><span>Section 7.3</span></a> and belongs to the model layer.</p>
 
 

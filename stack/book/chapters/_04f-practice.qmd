@@ -1,0 +1,115 @@
+## In practice {#sec-optim-practice}
+
+```{r}
+#| label: setup-04f
+#| include: false
+source("R/_setup.R")
+```
+
+This section shows the interface of the package: the stopping rules as
+objects, a rule written by a user, the validator, and bounds. The examples
+run on Rosenbrock's function, defined once:
+
+```{r}
+#| label: op-setup
+library(optimizers7)
+f  <- function(p) 100 * (p[2] - p[1]^2)^2 + (1 - p[1])^2
+gr <- function(p) c(-400 * p[1] * (p[2] - p[1]^2) - 2 * (1 - p[1]),
+                    200 * (p[2] - p[1]^2))
+```
+
+### The stopping rules {#sec-optim-criteria-practice}
+
+A criterion is an object handed to the optimizer, not a number buried in a
+loop. The package ships rules on the gradient (`crit_grad`), on the change
+of the objective (`crit_rel_obj`, `crit_abs_obj`), on the change of the
+parameters (`crit_rel_par`, `crit_abs_par`), on the bundle method's
+stationarity measure (`crit_stationary`), and the rule that never fires
+(`crit_never`, which leaves the iteration budget in charge). They combine
+with `crit_any()` and `crit_all()`:
+
+```{r}
+#| label: op-criteria
+runs <- list(
+  gradient  = minimize(bfgs(criterion = crit_grad(1e-8)), f, c(-1.2, 1), gr = gr),
+  objective = minimize(bfgs(criterion = crit_rel_obj(1e-12)), f, c(-1.2, 1), gr = gr),
+  either    = minimize(bfgs(criterion = crit_any(crit_grad(1e-8), crit_rel_obj(1e-12))),
+                       f, c(-1.2, 1), gr = gr)
+)
+data.frame(iterations = sapply(runs, function(r) r@iterations),
+           criterion_met = sapply(runs, function(r) r@criterion_met),
+           gradient_norm = sapply(runs, function(r) max(abs(r@gradient))))
+```
+
+The two rules stop the same method at different points: the objective rule
+fires while the gradient is still large, which is the reason
+@sec-fit-scoring dropped it from the default of `fit_distrib()`.
+
+A rule the package does not ship is one S7 class and one method. The rule
+below stops when the objective falls under a target value:
+
+```{r}
+#| label: op-custom-criterion
+CritTarget <- S7::new_class("CritTarget", parent = criterion,
+                            properties = list(target = S7::class_numeric))
+S7::method(crit_met, CritTarget) <- function(criterion, state) {
+  state$f_new < criterion@target
+}
+
+r <- minimize(bfgs(criterion = CritTarget(target = 1e-6)), f, c(-1.2, 1), gr = gr)
+c(value = r@value, iterations = r@iterations)
+```
+
+An optimizer rejects a rule it cannot evaluate, before the first iteration:
+
+```{r}
+#| label: op-reject-rule
+#| error: true
+minimize(nelder_mead(criterion = crit_grad(1e-8)), f, c(-1.2, 1))
+```
+
+### The validator {#sec-optim-check-practice}
+
+`check_optimizer()` verifies what a method reports (that `value` is the
+objective at `par`, that `converged` follows the stopping rule, that bounds
+hold strictly) and then runs the standard problems, whose gaps are printed
+as information rather than as verdicts:
+
+```{r}
+#| label: op-check
+res <- check_optimizer(bb(), verbose = FALSE)
+data.frame(passed = res$checks)          # the twelve numbered checks
+res$battery[, c("problem", "gap", "converged")] # the standard problems, as information
+```
+
+### Bounds without constraint code {#sec-optim-bounds-practice}
+
+`lower` and `upper` are removed by the change of variable of @sec-box, so
+no method contains constraint handling and every iterate is admissible by
+construction. The maximum likelihood scale of a centered Gaussian, kept
+positive:
+
+```{r}
+#| label: op-bounds
+set.seed(6)
+yv <- rnorm(300, sd = 2)
+nll  <- function(s) length(yv) * log(s) + sum(yv^2) / (2 * s^2)
+
+r <- minimize(bfgs(), nll, par = 1, lower = 0)
+c(estimate = r@par, closed_form = sqrt(mean(yv^2)))
+```
+
+### Reading a multistart {#sec-optim-multistart-practice}
+
+`multistart()` runs one optimizer from a Latin hypercube of starts and its
+result is read for the number of distinct optima, which is what several
+runs measure and one cannot:
+
+```{r}
+#| label: op-multistart
+tw <- function(p) (p[1]^2 - 1)^2 + p[2]^2 + 0.3 * p[1]
+set.seed(1)
+ms <- minimize(multistart(bfgs(), n = 12), tw, c(0, 0))
+ms@message
+table(distinct_optimum = round(ms@trace$value, 6))
+```
