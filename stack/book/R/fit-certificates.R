@@ -125,7 +125,7 @@ assert_fit_ok <- function() {
     list(d = gamma2_distrib(),    theta = list(mu = 4, sigma2 = 6)),
     list(d = poisson_distrib(),  theta = list(mu = 3)),
     list(d = beta1_distrib(),     theta = list(mu = 0.4, phi = 8)),
-    list(d = laplace_distrib(),  theta = list(mu = 0, b = 1.5))
+    list(d = laplace_distrib(),  theta = list(mu = 0, sigma = 1.5))
   )
 
   problems <- character()

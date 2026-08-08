@@ -621,14 +621,14 @@ for (id in names(DISTRIBS)) render_distrib_entry(id, DISTRIBS[[id]])
 ### Non-regular models {#sec-nonregular}
 
 The Laplace distribution, with density
-$f(y) = (2b)^{-1} e^{-|y-\mu|/b}$, is the one non-regular family in the
+$f(y) = (2\sigma)^{-1} e^{-|y-\mu|/\sigma}$, is the one non-regular family in the
 catalog: its log-likelihood has a kink at $y = \mu$. Families of this kind
 are treated in @lehmann1998, where the information of a non-regular model is
 defined as the variance of the score rather than as an expected second
 derivative, which is the definition that survives here. Away from the kink
 one computes
 
-$$\ell^{(\mu)} = \frac{\operatorname{sign}(y-\mu)}{b}, \qquad \ell^{(\mu\mu)} = 0,$$
+$$\ell^{(\mu)} = \frac{\operatorname{sign}(y-\mu)}{\sigma}, \qquad \ell^{(\mu\mu)} = 0,$$
 
 so the observed information in $\mu$ vanishes identically — the log-likelihood
 is piecewise linear in the location — and yet the Fisher information certainly
@@ -636,21 +636,21 @@ exists. The second Bartlett identity delivers it directly: since
 $\operatorname{sign}(y-\mu)^2 = 1$ almost surely,
 
 $$\mathcal{I}_{\mu\mu} = \mathbb{E}\left[(\ell^{(\mu)})^{2}\right]
-= \mathbb{E}\left[\frac{\operatorname{sign}(y-\mu)^{2}}{b^{2}}\right]
-= \frac{1}{b^{2}}.$$
+= \mathbb{E}\left[\frac{\operatorname{sign}(y-\mu)^{2}}{\sigma^{2}}\right]
+= \frac{1}{\sigma^{2}}.$$
 
 The distribution the package ships is not affected by any of this in daily
 use. `laplace_distrib()` implements the expected Hessian in closed form,
-returning the score-variance value $-1/b^{2}$ just computed, and, as always
+returning the score-variance value $-1/\sigma^{2}$ just computed, and, as always
 when an analytical method exists, the `approx` argument is simply ignored:
 
 ```{r}
 #| label: laplace-nonregular
 lap <- laplace_distrib()
-th <- list(mu = 0, b = 2)
+th <- list(mu = 0, sigma = 2)
 c(bartlett  = distrib_expected_hessian(lap, 0, th, approx = "bartlett")$mu_mu,
   integrate = distrib_expected_hessian(lap, 0, th, approx = "integrate")$mu_mu,
-  exact     = -1 / th$b^2)
+  exact     = -1 / th$sigma^2)
 ```
 
 The three strategies of @sec-approx give different answers only on a
@@ -668,30 +668,30 @@ S7::method(distrib_pdf, BareLaplace) <- function(distrib, y, theta, log = FALSE)
 S7::method(distrib_gradient, BareLaplace) <- function(distrib, y, theta,
                                                       scale = c("parameter", "link"), ...) {
   r <- y - theta[[1]]; b <- theta[[2]]
-  list(mu = sign(r) / b, b = (abs(r) / b - 1) / b)
+  list(mu = sign(r) / b, sigma = (abs(r) / b - 1) / b)
 }
 S7::method(distrib_hessian, BareLaplace) <- function(distrib, y, theta,
                                                      scale = c("parameter", "link"), ...) {
   r <- y - theta[[1]]; b <- theta[[2]]; n <- length(y)
-  list(mu_mu = rep(0, n), b_b = (b - 2 * abs(r)) / b^3, mu_b = -sign(r) / b^2)
+  list(mu_mu = rep(0, n), sigma_sigma = (b - 2 * abs(r)) / b^3, mu_sigma = -sign(r) / b^2)
 }
 bare <- BareLaplace(
   distrib_name = "bare laplace", dimension = "univariate", bounds = c(-Inf, Inf),
-  params = c("mu", "b"), params_interpretation = c(mu = "location", b = "scale"),
-  n_params = 2, params_bounds = list(mu = c(-Inf, Inf), b = c(0, Inf)),
-  link_params = list(mu = identity_link(), b = log_link()),
-  params_smooth = c(mu = FALSE, b = TRUE)
+  params = c("mu", "sigma"), params_interpretation = c(mu = "location", sigma = "scale"),
+  n_params = 2, params_bounds = list(mu = c(-Inf, Inf), sigma = c(0, Inf)),
+  link_params = list(mu = identity_link(), sigma = log_link()),
+  params_smooth = c(mu = FALSE, sigma = TRUE)
 )
 
 set.seed(1)
 c(bartlett  = distrib_expected_hessian(bare, 0, th, approx = "bartlett")$mu_mu,
   integrate = distrib_expected_hessian(bare, 0, th, approx = "integrate")$mu_mu,
   mc        = distrib_expected_hessian(bare, 0, th, approx = "mc")$mu_mu,
-  exact     = -1 / th$b^2)
+  exact     = -1 / th$sigma^2)
 ```
 
 On this distribution the strategies disagree, and the pattern of the
-disagreement identifies the mechanism. The Bartlett route recovers $-1/b^{2}$
+disagreement identifies the mechanism. The Bartlett route recovers $-1/\sigma^{2}$
 exactly, because it works from the score alone and never touches the second
 derivative. The other two both return zero, for the same reason. Each averages the
 observed $\ell^{(\mu\mu)}$, by quadrature in one case and over simulated
