@@ -1,0 +1,57 @@
+## Degrees of freedom and the fitted views {#sec-terms-edf}
+
+The effective degrees of freedom of a term follow from its penalty, and
+`edf()` implements one counting rule per case. An unpenalized term counts
+its coefficients exactly. A term with a smooth penalty uses the trace of
+the penalized smoother restricted to its block,
+
+$$
+\mathrm{edf} \;=\; \operatorname{tr}\!\big[(H + S(\hat\theta))^{-1} H\big],
+$$
+
+where $H$ is the term's unpenalized curvature at the fit -- the weighted
+crossproduct of its design block -- and $S(\hat\theta)$ the penalty's
+Hessian in the coefficients at the estimated hyperparameters. Without a
+penalty the trace reduces to the coefficient count, and as the penalty
+grows it falls toward the dimension of the penalty's null space, which is
+the standard smoother reading [@wood2017]. A term with a non-smooth
+penalty counts its nonzero coefficients, which for the lasso is an
+unbiased estimator of its degrees of freedom [@zou2007].
+
+The method takes the fit pieces as arguments because no term can know its
+edf without them; what the term contributes is the rule, and the choice
+of rule is derived from the penalty exactly as `term_smooth()` is.
+
+```{r}
+#| label: edf-ridge
+set.seed(9)
+dd <- data.frame(x1 = rnorm(40), x2 = rnorm(40), x3 = rnorm(40))
+br <- term_build(ridge(~ x1 + x2 + x3), dd)
+H <- crossprod(term_matrix(br))
+beta <- c(0.4, -1, 2)
+
+sapply(c(0.05, 0.5, 5, 500), function(sigma)
+  edf(br, coef = beta, hessian = H, theta = list(sigma = sigma)))
+```
+
+The sweep shows the two limits: a hard penalty removes the block and a
+vanishing one recovers the count of three. For the non-smooth terms the
+count is the support:
+
+```{r}
+#| label: edf-lasso
+bl <- term_build(lasso(~ x1 + x2 + x3), dd)
+edf(bl, coef = c(0.8, 0, -0.3))
+```
+
+A built term also displays itself. `print()` names the class, the label
+and the block, and for a penalized term the penalty and its
+hyperparameters; `plot()` draws the term at supplied coefficients, one
+needle per coefficient with its name, which is the fitted-point view a
+model summary composes term by term.
+
+```{r}
+#| label: fitted-plot
+#| fig-height: 3.4
+plot(br, coef = beta)
+```

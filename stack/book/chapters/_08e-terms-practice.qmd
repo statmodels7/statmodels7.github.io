@@ -1,0 +1,69 @@
+## In practice {#sec-terms-practice}
+
+The functions above compose into the workflow the model layer will run:
+interpret a formula, build every term, and read the blocks, penalties and
+flags off the built objects. The formula below is the shape `statmod()`
+will take -- a censored response, bare covariates, a penalized block and
+grouped random effects, all in one right-hand side.
+
+```{r}
+#| label: practice-interpret
+set.seed(12)
+n <- 60
+dd <- data.frame(x1 = rnorm(n), x2 = runif(n),
+                 id = factor(sample(letters[1:6], n, TRUE)))
+dd$L <- matrix(rnorm(n * 4), n, 4)
+dd$y <- pmax(0, 1 + 0.5 * dd$x1 + rnorm(n))
+
+out <- interpret_formula(cens(y, lwr = 0) ~ x1 + log(x2) + lasso(L) +
+                           random(~ x1 | id), dd)
+out$response@status[1:8]
+names(out$terms)
+```
+
+Building every term gives the blocks a fit assembles, and each built term
+reports its size, its smoothness and its hyperparameters:
+
+```{r}
+#| label: practice-build
+built <- lapply(out$terms, term_build, data = dd)
+
+data.frame(
+  npar = sapply(built, term_npar),
+  smooth = sapply(built, term_smooth),
+  theta = sapply(built, function(b) {
+    p <- term_penalty(b)
+    if (is.null(p)) "" else paste(p@params, collapse = ", ")
+  })
+)
+```
+
+`check_term()` runs the structural battery of @sec-terms-contract on each
+specification, and every shipped term passes it on these data:
+
+```{r}
+#| label: practice-check
+sapply(out$terms, function(sp)
+  all(check_term(sp, dd, verbose = FALSE)$status == "OK"))
+```
+
+Prediction reapplies each blueprint: the rows of a subset reproduce the
+corresponding rows of every block, factor encodings included, which is
+what makes fitted values on new data trustworthy before any fitting
+exists.
+
+```{r}
+#| label: practice-predict
+idx <- c(3, 17, 41)
+all(vapply(built, function(b)
+  isTRUE(all.equal(unname(term_predict(b, dd[idx, , drop = FALSE])),
+                   unname(term_matrix(b)[idx, , drop = FALSE]),
+                   tolerance = 1e-12, check.attributes = FALSE)),
+  logical(1)))
+```
+
+```{r}
+#| label: terms-gate
+#| include: false
+assert_terms_ok()
+```

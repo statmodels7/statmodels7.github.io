@@ -1,0 +1,103 @@
+## The terms {#sec-terms-catalog}
+
+### The parametric block
+
+`linpar()` is the unpenalized block: the design matrix of a one-sided
+formula with the usual `model.matrix()` conventions for factors,
+contrasts, interactions and the intercept. The formula interpreter of
+@sec-terms-formula collects the bare covariates of a model formula into
+one term of this kind, so the default model is exactly a GLM design
+matrix; the explicit constructor exists for callers who want several
+parametric blocks with distinct labels.
+
+### The penalized blocks
+
+`ridge()`, `lasso()`, `scad()` and `mcp()` take their block as a
+one-sided formula or as a numeric matrix, and differ only in the
+`penalties7` object they attach to its coefficients at build time:
+`ridge_penalty()`, `lasso_penalty()`, `scad_penalty()` and
+`mcp_penalty()` of @sec-penalties7. The term adds no mathematics of its
+own. The hyperparameters, their bounds and links, every derivative in the
+coefficients and the hyperparameters, the mixed block and the kink set
+are the penalty object's, so the lasso term's hyperparameter is the rate
+$\lambda$ of the Laplace prior and the SCAD term carries $(\lambda, a)$
+with the bounds the penalty declares.
+
+```{r}
+#| label: terms-penalized
+dd <- data.frame(x1 = rnorm(20), x2 = rnorm(20), x3 = rnorm(20))
+bl <- term_build(lasso(~ x1 + x2 + x3), dd)
+term_penalty(bl)@params
+c(lasso = term_smooth(bl),
+  ridge = term_smooth(term_build(ridge(~ x1 + x2), dd)))
+```
+
+A formula input removes the intercept -- a penalized block does not
+penalize an intercept, which lives in the parametric block -- and keeps
+the blueprint discipline of @sec-terms-contract. A matrix input is used
+as given, and prediction re-evaluates the expression that produced it in
+the new data alone, so the intended pattern is a matrix column of the
+model data frame: a subset of the data then carries the matching rows,
+while an expression that resolves only outside the new data is rejected
+rather than silently reusing the build-time rows.
+
+### Grouped random effects
+
+`random(~ 1 | g)` builds one coefficient per level of the grouping
+factor, and `random(~ x | g)` one intercept and one slope per level, the
+bar's left side being an ordinary one-sided formula for the within-group
+design with the usual intercept convention. The block interacts that
+design with the group indicators, ordered group by group, so with $m$
+groups and $d$ within-group columns the coefficients of one group occupy
+$d$ adjacent positions.
+
+The distribution of the effects is the penalty on those coefficients,
+which is the penalized-likelihood reading of a random effect. By default
+the effects are Gaussian with one covariance shared by every group,
+carried as a precision through the structured penalty of
+@sec-penalties7 on the block-replicated parameter
+
+$$
+\Omega_{\mathrm{full}}(\eta) \;=\; I_m \otimes \Omega_d(\eta),
+$$
+
+built by `parameters7::kron_identity()`: $m$ identical diagonal blocks
+sharing one free vector, with every contract quantity a linear lift of
+the per-group parameter's ($\partial_k \Omega_{\mathrm{full}} = I_m
+\otimes \partial_k \Omega_d$, $\log\lvert \Omega_{\mathrm{full}}
+\rvert = m \log\lvert \Omega_d \rvert$, blockwise solves). The per-group
+parameter is the unstructured `log_cholesky(d)` chart of
+@sec-parameters7 when `correlated = TRUE`, so intercepts and slopes may
+correlate, and `diagonal_matrix(d)` when `correlated = FALSE`; a
+`precision` argument replaces either with any `parameters7` matrix
+parameter of dimension $d$. With `distrib`, a univariate
+`distributions7` object holding its own location is applied
+coordinatewise instead, which gives joint-mode estimation of the effects;
+integrating them out is a different computation and is not provided here.
+
+```{r}
+#| label: terms-random
+dd$g <- factor(rep(letters[1:4], 5))
+br <- term_build(random(~ x1 | g), dd)
+term_coef_names(br)
+term_penalty(br)@params
+```
+
+### The censored response
+
+`cens(y, lwr = , upr = )` marks a response as censored on the left-hand
+side of a model formula. The bounds recycle to the length of the
+response, and the status of each observation follows from the values: at
+or below the lower bound the observation is left-censored, at or above
+the upper bound right-censored, strictly inside observed, and an `NA`
+value with two finite bounds interval-censored. The object carries the
+values, the bounds and the statuses; the likelihood assembler of the
+model layer consumes it, contributing a density where the observation is
+exact and a difference of distribution functions -- through the cdf
+derivatives of @sec-distributions7 -- where it is censored.
+
+```{r}
+#| label: terms-cens
+r <- cens(c(0, 0.7, 2.4, NA), lwr = 0, upr = c(5, 5, 5, 4))
+r@status
+```
