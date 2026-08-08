@@ -141,6 +141,11 @@ criterion its theta is meant for, "joint" (the normalizing constant is
 kept, so joint maximum likelihood is defensible -- the argument penalties7
 records) or "marginal" (the REML pieces of quadratic_penalty: rank, null
 basis, log pseudo-determinant). A term states it; statmodels7 acts on it.
+The user-facing selection Giovanni wants there -- ml(), reml(), aic(),
+bic(), gaic(k = ), gcv() and the like as criterion objects, in the
+fisher_scoring() mold -- is statmodels7 vocabulary; what the terms owe it
+is only the pieces those criteria read: edf (aic, bic, gaic, gcv) and the
+quadratic penalty's REML pieces (reml), both already in the contract.
 
 
 --------------------------------------------------------------------------------
@@ -300,19 +305,25 @@ The three real gaps, none of which blocks modelterms7:
 
 s(x, basis = bspline_basis(...), penalty = )
     SmoothTerm: basis7 evaluation matrix as the block, quadratic_penalty
-    of the Gram (or a Demmler-Reinsch reparametrization) as the penalty.
-    Everything it needs exists; it is deferred only to keep the first
-    release small.
+    of the Gram as the penalty. The default (Giovanni, 2026-08-08) is
+    bspline_basis() under the Demmler-Reinsch reparametrization, as in
+    Bach & Klein: the null space of the roughness penalty separates the
+    linear effect from the nonlinear remainder, and the term reports the
+    two parts distinctly. dr_basis() in basis7 is exactly this
+    construction. Deferred only to keep the first release small.
 
 nl(~ theta1^x + log(theta2 + exp(z)), links = , subformulas = , by = )
     Nonlinear parametric: the term owns inner parameters with their own
     links, each optionally developed as a function of covariates
-    (theta1 ~ g). This breaks the "one design block" shape -- its
-    contribution to the predictor is nonlinear in its parameters -- so it
-    will need a third branch under additive_term whose contract adds the
-    derivative of the contribution in its own parameters. The API sketch
-    is recorded now; the design work is its own piano section when it
-    arrives.
+    (theta1 ~ g). Giovanni's observation of 2026-08-08 simplifies the
+    contract: as long as the user's nonlinear model is smooth, the
+    design block IS the Jacobian of the contribution in the inner
+    parameters, X = J, refreshed at each iteration. The term therefore
+    stays an additive_term whose block depends on the current
+    coefficient values, and the contract needs one addition rather than
+    a third branch: a refresh hook (term_refresh(built, coef)) that the
+    ordinary terms implement as the identity. Not implemented in phase
+    1; recorded so the built-term shape does not preclude it.
 
 gas(p = , q = , by = , time = , penalty = )
     structural_term: rewrites the likelihood recursively in time order
