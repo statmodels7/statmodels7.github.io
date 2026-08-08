@@ -295,6 +295,13 @@ window.Quarto = {
   <li><a href="#sec-numerical-owen" id="toc-sec-numerical-owen" class="nav-link" data-scroll-target="#sec-numerical-owen"><span class="header-section-number">8.3.2</span> Owen’s T function</a></li>
   <li><a href="#sec-numerical-bessel" id="toc-sec-numerical-bessel" class="nav-link" data-scroll-target="#sec-numerical-bessel"><span class="header-section-number">8.3.3</span> The Bessel ratio and its inverse</a></li>
   </ul></li>
+  <li><a href="#sec-numerical-practice" id="toc-sec-numerical-practice" class="nav-link" data-scroll-target="#sec-numerical-practice"><span class="header-section-number">8.4</span> In practice</a>
+  <ul>
+  <li><a href="#sec-numerical-batched-practice" id="toc-sec-numerical-batched-practice" class="nav-link" data-scroll-target="#sec-numerical-batched-practice"><span class="header-section-number">8.4.1</span> Batched quadrature and series</a></li>
+  <li><a href="#sec-numerical-stencil-practice" id="toc-sec-numerical-stencil-practice" class="nav-link" data-scroll-target="#sec-numerical-stencil-practice"><span class="header-section-number">8.4.2</span> The stencil library</a></li>
+  <li><a href="#sec-numerical-special-practice" id="toc-sec-numerical-special-practice" class="nav-link" data-scroll-target="#sec-numerical-special-practice"><span class="header-section-number">8.4.3</span> The special functions at their extremes</a></li>
+  <li><a href="#sec-numerical-enum-practice" id="toc-sec-numerical-enum-practice" class="nav-link" data-scroll-target="#sec-numerical-enum-practice"><span class="header-section-number">8.4.4</span> The enumerations</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -321,7 +328,7 @@ window.Quarto = {
 
 
 <p>Every chapter so far has leaned on a small amount of numerical machinery: finite-difference stencils behind the fallback derivatives of <a href="02-linkfunctions7.html" class="quarto-xref"><span>Chapter 2</span></a> and <a href="03-distributions7.html" class="quarto-xref"><span>Chapter 3</span></a>, quadrature behind the expectations of <a href="03-distributions7.html#sec-transformations" class="quarto-xref"><span>Section 3.2</span></a>, combinatorial enumerations behind the chain rules of <a href="03-distributions7.html#sec-link-scale" class="quarto-xref"><span>Section 3.1.4</span></a>. <code>numericals7</code> holds that machinery once, at the bottom of the toolkit, so that no package above it carries a copy of its own.</p>
-<p><a href="#sec-numerical-stencils" class="quarto-xref"><span>Section 8.1</span></a> presents the single stencil library – the weights of a finite-difference rule for any derivative order at any offsets, from one linear system. <a href="#sec-numerical-quadrature" class="quarto-xref"><span>Section 8.2</span></a> presents quadrature and series summation vectorized over the parameters, which is the shape a regression model needs: the same integrand at hundreds of parameter values, evaluated as a matrix rather than in a loop. <a href="#sec-numerical-special" class="quarto-xref"><span>Section 8.3</span></a> presents the special functions the distributions are written in, each evaluated so that it remains finite over the argument ranges statistical work reaches.</p>
+<p><a href="#sec-numerical-stencils" class="quarto-xref"><span>Section 8.1</span></a> presents the single stencil library – the weights of a finite-difference rule for any derivative order at any offsets, from one linear system. <a href="#sec-numerical-quadrature" class="quarto-xref"><span>Section 8.2</span></a> presents quadrature and series summation vectorized over the parameters, which is the shape a regression model needs: the same integrand at hundreds of parameter values, evaluated as a matrix rather than in a loop. <a href="#sec-numerical-special" class="quarto-xref"><span>Section 8.3</span></a> presents the special functions the distributions are written in, each evaluated so that it remains finite over the argument ranges statistical work reaches. <a href="#sec-numerical-practice" class="quarto-xref"><span>Section 8.4</span></a> closes the chapter with each engine called directly.</p>
 <section id="sec-numerical-stencils" class="level2" data-number="8.1">
 <h2 data-number="8.1" class="anchored" data-anchor-id="sec-numerical-stencils"><span class="header-section-number">8.1</span> Finite-difference stencils</h2>
 <p>A finite-difference rule approximates the <span class="math inline">\(m\)</span>-th derivative of <span class="math inline">\(f\)</span> at <span class="math inline">\(x\)</span> by a weighted combination of values on a grid of offsets, <span class="math display">\[
@@ -428,6 +435,93 @@ A(\kappa) \;=\; 1 - \frac{1}{2\kappa} - \frac{1}{8\kappa^2}
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">kappa =</span> inv<span class="sc">$</span>kappa, <span class="at">round_trip =</span> <span class="fu">bessel_i_ratio</span>(inv<span class="sc">$</span>kappa))</span>
 <span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      kappa round_trip </span></span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   2.013628   0.700000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-numerical-practice" class="level2" data-number="8.4">
+<h2 data-number="8.4" class="anchored" data-anchor-id="sec-numerical-practice"><span class="header-section-number">8.4</span> In practice</h2>
+<section id="sec-numerical-batched-practice" class="level3" data-number="8.4.1">
+<h3 data-number="8.4.1" class="anchored" data-anchor-id="sec-numerical-batched-practice"><span class="header-section-number">8.4.1</span> Batched quadrature and series</h3>
+<p><code>quad_vec()</code> evaluates one integrand at many parameter rows in a single adaptive pass, and <code>series_vec()</code> does the same for sums. Four Gaussian mean absolute deviations in one call, against the closed form <span class="math inline">\(\sigma\sqrt{2/\pi}\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(numericals7)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>sig <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">10</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>mad_g <span class="ot">&lt;-</span> <span class="fu">quad_vec</span>(<span class="cf">function</span>(x, i) <span class="fu">abs</span>(x) <span class="sc">*</span> <span class="fu">dnorm</span>(x, <span class="dv">0</span>, sig[i]),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">lower =</span> <span class="fu">rep</span>(<span class="sc">-</span><span class="cn">Inf</span>, <span class="dv">4</span>), <span class="at">upper =</span> <span class="fu">rep</span>(<span class="cn">Inf</span>, <span class="dv">4</span>))</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">quad_vec =</span> mad_g, <span class="at">closed =</span> sig <span class="sc">*</span> <span class="fu">sqrt</span>(<span class="dv">2</span> <span class="sc">/</span> pi))</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;               [,1]      [,2]     [,3]     [,4]</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; quad_vec 0.3989423 0.7978846 1.595769 7.978846</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; closed   0.3989423 0.7978846 1.595769 7.978846</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co"># three negative binomial means summed as series, rows retiring as they converge</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>mu <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">15</span>, <span class="dv">80</span>)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="fu">series_vec</span>(<span class="cf">function</span>(k, i) k <span class="sc">*</span> <span class="fu">dnbinom</span>(k, <span class="at">size =</span> <span class="dv">5</span>, <span class="at">mu =</span> mu[i]), <span class="at">n =</span> <span class="dv">3</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  2 15 80</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-numerical-stencil-practice" class="level3" data-number="8.4.2">
+<h3 data-number="8.4.2" class="anchored" data-anchor-id="sec-numerical-stencil-practice"><span class="header-section-number">8.4.2</span> The stencil library</h3>
+<p><code>fd_weights()</code> solves the Vandermonde system of <a href="#sec-numerical-stencils" class="quarto-xref"><span>Section 8.1</span></a> for any derivative order at any offsets, and <code>fd_derivative()</code> applies the resulting rule with the balanced step:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fd_weights</span>(<span class="sc">-</span><span class="dv">2</span><span class="sc">:</span><span class="dv">2</span>, <span class="dv">2</span>L) <span class="sc">*</span> <span class="dv">12</span>          <span class="co"># the five-point second-derivative weights</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  -1  16 -30  16  -1</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">fd_offsets</span>(<span class="dv">3</span>L, <span class="at">accuracy =</span> <span class="dv">2</span>L)      <span class="co"># the grid a third derivative uses</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $reach</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $central</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -2 -1  0  1  2</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $forward</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0 1 2 3 4</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $backward</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -4 -3 -2 -1  0</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co"># lgamma and its first four derivatives at x = 2.5, against the polygammas</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fl">2.5</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>est <span class="ot">&lt;-</span> <span class="fu">vapply</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="cf">function</span>(m) <span class="fu">fd_derivative</span>(lgamma, x, <span class="at">order =</span> m), <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>ref <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">digamma</span>(x), <span class="fu">trigamma</span>(x), <span class="fu">psigamma</span>(x, <span class="dv">2</span>), <span class="fu">psigamma</span>(x, <span class="dv">3</span>))</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="fu">signif</span>(<span class="fu">abs</span>(est <span class="sc">-</span> ref), <span class="dv">2</span>)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.9e-11 1.1e-09 2.5e-07 3.9e-06</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-numerical-special-practice" class="level3" data-number="8.4.3">
+<h3 data-number="8.4.3" class="anchored" data-anchor-id="sec-numerical-special-practice"><span class="header-section-number">8.4.3</span> The special functions at their extremes</h3>
+<p>Each special function exists for an argument range where the textbook expression fails; the table evaluates both routes at such a point:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>naive_mills <span class="ot">&lt;-</span> <span class="cf">function</span>(t) <span class="fu">dnorm</span>(t) <span class="sc">/</span> <span class="fu">pnorm</span>(t)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>naive_logi0 <span class="ot">&lt;-</span> <span class="cf">function</span>(x) <span class="fu">log</span>(<span class="fu">besselI</span>(x, <span class="dv">0</span>, <span class="at">expon.scaled =</span> <span class="cn">TRUE</span>)) <span class="sc">+</span> x</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">naive =</span> <span class="fu">naive_mills</span>(<span class="sc">-</span><span class="dv">40</span>), <span class="at">numericals7 =</span> <span class="fu">mills_ratio</span>(<span class="sc">-</span><span class="dv">40</span>)<span class="sc">$</span>r),</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">naive =</span> <span class="fu">naive_logi0</span>(<span class="fl">5e5</span>), <span class="at">numericals7 =</span> <span class="fu">log_bessel_i</span>(<span class="fl">5e5</span>, <span class="dv">0</span>)),</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">naive =</span> <span class="fu">log</span>(<span class="fu">besselK</span>(<span class="dv">1500</span>, <span class="dv">2</span>)), <span class="at">numericals7 =</span> <span class="fu">log_bessel_k</span>(<span class="dv">1500</span>, <span class="dv">2</span>))</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      naive  numericals7</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,]   NaN     40.02497</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,]  -Inf 499992.51988</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [3,]  -Inf  -1503.42957</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">bessel_i_ratio</span>(<span class="fl">1e8</span>),                       <span class="co"># past the scaled underflow</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bessel_i_ratio_inverse</span>(<span class="fl">0.7</span>)<span class="sc">$</span>kappa)         <span class="co"># and the inverse map</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.000000 2.013628</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">owen_t</span>(<span class="fl">1.3</span>, <span class="cn">Inf</span>), <span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">pnorm</span>(<span class="sc">-</span><span class="fl">1.3</span>))       <span class="co"># the closed tail identity</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.04840024 0.04840024</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-numerical-enum-practice" class="level3" data-number="8.4.4">
+<h3 data-number="8.4.4" class="anchored" data-anchor-id="sec-numerical-enum-practice"><span class="header-section-number">8.4.4</span> The enumerations</h3>
+<p>The chain rules of <a href="03-distributions7.html#sec-link-scale" class="quarto-xref"><span>Section 3.1.4</span></a> and the Bartlett identities enumerate set partitions, and the multinomial support of <a href="03-distributions7.html#sec-mv-simplex" class="quarto-xref"><span>Section 3.5.4</span></a> enumerates weak compositions; both enumerations live here, written once:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">set_partitions</span>(<span class="dv">4</span>))          <span class="co"># the Bell number B4</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 15</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">compositions</span>(<span class="dv">3</span>, <span class="dv">2</span>)                 <span class="co"># the support of a multinomial(3) on 2 cells</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2]</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,]    0    3</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,]    1    2</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [3,]    2    1</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [4,]    3    0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

@@ -87,6 +87,23 @@ without bound as $\sigma$ grows, and the joint maximization above would
 drive the penalty to zero. The constant is what makes this section's
 one-line estimation possible.
 
+A penalty is validated like every other object of the toolkit, and the
+quadratic branch answers the marginal pieces of @sec-penalty-marginal
+directly:
+
+```{r}
+#| label: practice-check
+qp <- quadratic_penalty(crossprod(diff(diag(6), differences = 2)))
+res <- check_penalty(qp, beta = rnorm(6), theta = list(lambda = 2),
+                     verbose = FALSE)
+res[, c("check", "status")]
+
+c(rank = penalty_rank(qp), proper = is_proper(qp))
+# the log pseudo-determinant is linear in log(lambda) with slope = rank
+penalty_logpdet(qp, list(lambda = exp(1)))$value -
+  penalty_logpdet(qp, list(lambda = 1))$value
+```
+
 A sparsity penalty replaces the smooth objective with one that has a kink
 at zero in every coordinate, which `penalty_kinks()` reports; a fit through
 `lasso_penalty()` therefore uses the bundle method of @sec-nonsmooth in

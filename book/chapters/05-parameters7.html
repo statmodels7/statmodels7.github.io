@@ -310,6 +310,12 @@ window.Quarto = {
   <li><a href="#sec-parameter-rank-determination" id="toc-sec-parameter-rank-determination" class="nav-link" data-scroll-target="#sec-parameter-rank-determination"><span class="header-section-number">5.3.3</span> Determining the rank</a></li>
   <li><a href="#sec-parameter-singular-solve" id="toc-sec-parameter-singular-solve" class="nav-link" data-scroll-target="#sec-parameter-singular-solve"><span class="header-section-number">5.3.4</span> The solve</a></li>
   </ul></li>
+  <li><a href="#sec-parameter-practice" id="toc-sec-parameter-practice" class="nav-link" data-scroll-target="#sec-parameter-practice"><span class="header-section-number">5.4</span> In practice</a>
+  <ul>
+  <li><a href="#sec-parameter-census" id="toc-sec-parameter-census" class="nav-link" data-scroll-target="#sec-parameter-census"><span class="header-section-number">5.4.1</span> The families that ship</a></li>
+  <li><a href="#sec-parameter-calls" id="toc-sec-parameter-calls" class="nav-link" data-scroll-target="#sec-parameter-calls"><span class="header-section-number">5.4.2</span> The contract in five calls</a></li>
+  <li><a href="#sec-parameter-check-practice" id="toc-sec-parameter-check-practice" class="nav-link" data-scroll-target="#sec-parameter-check-practice"><span class="header-section-number">5.4.3</span> Validation and the readable quantities</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -339,7 +345,7 @@ window.Quarto = {
 <p>The mathematics of differentiating a function of a matrix with respect to a parametrization of that matrix is classical, and <span class="citation" data-cites="magnus1999">Magnus and Neudecker (<a href="A2-references.html#ref-magnus1999" role="doc-biblioref">1999</a>)</span> is the standard reference. The unconstrained parametrizations themselves come from <span class="citation" data-cites="pinheiro1996">Pinheiro and Bates (<a href="A2-references.html#ref-pinheiro1996" role="doc-biblioref">1996</a>)</span>, whose paper is the origin of the log-Cholesky map used here, and <span class="citation" data-cites="pourahmadi2011">Pourahmadi (<a href="A2-references.html#ref-pourahmadi2011" role="doc-biblioref">2011</a>)</span> reviews the field.</p>
 <p><a href="#sec-parameter-contract" class="quarto-xref"><span>Section 5.1</span></a> sets out what a constrained parameter is: a map from an unconstrained vector to a value in a constrained set, the derivatives of that map, and, when the value is a symmetric matrix, the quantities a likelihood asks of it. It explains why the Jacobian of such a map is not diagonal and why that single fact rules out treating the construction as a link.</p>
 <p><a href="#sec-parameter-families" class="quarto-xref"><span>Section 5.2</span></a> presents the families the package ships. The log-Cholesky map is the general positive definite case, and its log-determinant turns out to be linear in the free vector; the matrix logarithm is the other chart on the same set, with the log-determinant linear and the inverse exact by construction. The diagonal families are where this package composes with <code>linkfunctions7</code> rather than competing with it, and the scaled fixed matrix is the case a penalty needs. The simplex and the transition matrix leave the matrix branch altogether: their values are a probability vector and a row-stochastic matrix, and their derivatives close over the value itself.</p>
-<p><a href="#sec-parameter-rank" class="quarto-xref"><span>Section 5.3</span></a> treats rank-deficient matrices. Such a matrix is not a defect here but the definition of a penalty, and the section explains what has to change to accommodate one: the determinant becomes a pseudo-determinant, the inverse becomes a solve restricted to the range, and the rank itself has to be determined in a way that does not depend on the arithmetic that produced the matrix.</p>
+<p><a href="#sec-parameter-rank" class="quarto-xref"><span>Section 5.3</span></a> treats rank-deficient matrices. Such a matrix is not a defect here but the definition of a penalty, and the section explains what has to change to accommodate one: the determinant becomes a pseudo-determinant, the inverse becomes a solve restricted to the range, and the rank itself has to be determined in a way that does not depend on the arithmetic that produced the matrix. <a href="#sec-parameter-practice" class="quarto-xref"><span>Section 5.4</span></a> closes the chapter with the census of the families and the contract exercised call by call.</p>
 <section id="sec-parameter-contract" class="level2" data-number="5.1">
 <h2 data-number="5.1" class="anchored" data-anchor-id="sec-parameter-contract"><span class="header-section-number">5.1</span> Constrained parameters</h2>
 <section id="sec-parameter-map" class="level3" data-number="5.1.1">
@@ -416,8 +422,8 @@ M : \mathbb{R}^{d} \longrightarrow \mathcal{M}, \qquad \eta \longmapsto M(\eta),
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] round trip           7.77e-16</span></span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] first derivatives    2.90e-11</span></span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] second derivatives   3.67e-11</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] log-determinant      2.89e-15</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] logdet gradient      4.50e-14</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] log-determinant      6.54e-15</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] logdet gradient      3.95e-14</span></span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] logdet hessian       0.00e+00</span></span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] solve and factor     3.90e-15</span></span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK         ] shapes and names  </span></span>
@@ -744,6 +750,161 @@ M(\eta) = \lambda P, \qquad \lambda = h(\eta),
 <span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                         2                         0                        24 </span></span>
 <span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; line_is_in_the_null_space </span></span>
 <span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                         1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-parameter-practice" class="level2" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="sec-parameter-practice"><span class="header-section-number">5.4</span> In practice</h2>
+<section id="sec-parameter-census" class="level3" data-number="5.4.1">
+<h3 data-number="5.4.1" class="anchored" data-anchor-id="sec-parameter-census"><span class="header-section-number">5.4.1</span> The families that ship</h3>
+<p>The census is generated by constructing each family and reading its dimension and free labels off the object:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(parameters7)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>fams <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">log_cholesky(4)</span><span class="st">`</span>          <span class="ot">=</span> <span class="fu">log_cholesky</span>(<span class="dv">4</span>),</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">matrix_log(4)</span><span class="st">`</span>            <span class="ot">=</span> <span class="fu">matrix_log</span>(<span class="dv">4</span>),</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">diagonal_matrix(4)</span><span class="st">`</span>       <span class="ot">=</span> <span class="fu">diagonal_matrix</span>(<span class="dv">4</span>),</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">scaled_matrix(P)</span><span class="st">`</span>         <span class="ot">=</span> <span class="fu">scaled_matrix</span>(<span class="fu">crossprod</span>(<span class="fu">diff</span>(<span class="fu">diag</span>(<span class="dv">6</span>), <span class="at">differences =</span> <span class="dv">2</span>))),</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">correlation_matrix(4)</span><span class="st">`</span>    <span class="ot">=</span> <span class="fu">correlation_matrix</span>(<span class="dv">4</span>),</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">compound_symmetry(6)</span><span class="st">`</span>     <span class="ot">=</span> <span class="fu">compound_symmetry</span>(<span class="dv">6</span>),</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">ar1(6)</span><span class="st">`</span>                   <span class="ot">=</span> <span class="fu">ar1</span>(<span class="dv">6</span>),</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">autoregressive(6, 2)</span><span class="st">`</span>     <span class="ot">=</span> <span class="fu">autoregressive</span>(<span class="dv">6</span>, <span class="at">order =</span> <span class="dv">2</span>),</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">simplex(4)</span><span class="st">`</span>               <span class="ot">=</span> <span class="fu">simplex</span>(<span class="dv">4</span>),</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">transition_matrix(3)</span><span class="st">`</span>     <span class="ot">=</span> <span class="fu">transition_matrix</span>(<span class="dv">3</span>)</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">constructor =</span> <span class="fu">names</span>(fams),</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">d =</span> <span class="fu">sapply</span>(fams, <span class="cf">function</span>(s) s<span class="sc">@</span>n_free),</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">free labels</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sapply</span>(fams, <span class="cf">function</span>(s)</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste</span>(<span class="fu">head</span>(s<span class="sc">@</span>free_names, <span class="dv">3</span>), <span class="at">collapse =</span> <span class="st">", "</span>)),</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>), <span class="at">row.names =</span> <span class="cn">FALSE</span>, <span class="at">caption =</span> <span class="st">"The parameter families, read off the objects."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>The parameter families, read off the objects.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">constructor</th>
+<th style="text-align: right;">d</th>
+<th style="text-align: left;">free labels</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">log_cholesky(4)</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: left;">log_L1, log_L2, log_L3</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">matrix_log(4)</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: left;">S1, S2, S3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">diagonal_matrix(4)</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: left;">log_d1, log_d2, log_d3</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">scaled_matrix(P)</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">log_scale</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">correlation_matrix(4)</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">z2.1, z3.1, z3.2</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">compound_symmetry(6)</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: left;">log_scale, logit_rho</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ar1(6)</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: left;">log_scale, z_rho</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">autoregressive(6, 2)</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">log_scale, z_pacf1, z_pacf2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">simplex(4)</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">alr1, alr2, alr3</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">transition_matrix(3)</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">alr1.1, alr1.2, alr2.1</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="sec-parameter-calls" class="level3" data-number="5.4.2">
+<h3 data-number="5.4.2" class="anchored" data-anchor-id="sec-parameter-calls"><span class="header-section-number">5.4.2</span> The contract in five calls</h3>
+<p>A parameter answers the matrix, its derivatives, the log-determinant with its derivatives, the solve, and the inverse map:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>s <span class="ot">&lt;-</span> <span class="fu">ar1</span>(<span class="dv">5</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>eta <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">log</span>(<span class="dv">2</span>), <span class="fu">atanh</span>(<span class="fl">0.6</span>))</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="fu">param_value</span>(s, eta)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(M[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="dv">4</span>)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      v1  v2   v3</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v1 2.00 1.2 0.72</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v2 1.20 2.0 1.20</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v3 0.72 1.2 2.00</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">param_d1</span>(s, eta))                   <span class="co"># one derivative matrix per free value</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">logdet =</span> <span class="fu">param_logdet</span>(s, eta),</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">reference =</span> <span class="fu">determinant</span>(M)<span class="sc">$</span>modulus)</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    logdet reference </span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  1.680587  1.680587</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="fu">unlist</span>(<span class="fu">param_dlogdet</span>(s, eta))</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; log_scale     z_rho </span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       5.0      -4.8</span></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">param_solve</span>(s, eta) <span class="sc">%*%</span> M <span class="sc">-</span> <span class="fu">diag</span>(<span class="dv">5</span>)))</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4.440892e-16</span></span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">param_free</span>(s, M) <span class="sc">-</span> eta))           <span class="co"># the inverse map, exact</span></span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A matrix outside the family is rejected by the inverse map rather than projected onto it:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">param_free</span>(s, <span class="fu">diag</span>(<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>)))</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Error:</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ! 'm' does not have a constant diagonal, so it is not AR(1).</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-parameter-check-practice" class="level3" data-number="5.4.3">
+<h3 data-number="5.4.3" class="anchored" data-anchor-id="sec-parameter-check-practice"><span class="header-section-number">5.4.3</span> Validation and the readable quantities</h3>
+<p><code>check_parameter()</code> compares every closed form against an independent route, and reports which orders came from a fallback; <code>param_readable()</code> declares the quantities a reader of a fit examines, with the Jacobian the delta method needs:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">check_parameter</span>(<span class="fu">autoregressive</span>(<span class="dv">5</span>, <span class="at">order =</span> <span class="dv">2</span>), <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>res[, <span class="fu">c</span>(<span class="st">"check"</span>, <span class="st">"status"</span>)]</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                check status</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1         membership     OK</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2         round trip     OK</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3  first derivatives     OK</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4 second derivatives     OK</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5    log-determinant     OK</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6    logdet gradient     OK</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7     logdet hessian     OK</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8   solve and factor     OK</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9   shapes and names     OK</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>r <span class="ot">&lt;-</span> <span class="fu">param_readable</span>(<span class="fu">autoregressive</span>(<span class="dv">5</span>, <span class="at">order =</span> <span class="dv">2</span>), <span class="fu">c</span>(<span class="fu">log</span>(<span class="dv">2</span>), <span class="fu">atanh</span>(<span class="fl">0.6</span>), <span class="fu">atanh</span>(<span class="sc">-</span><span class="fl">0.2</span>)))</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">quantity =</span> <span class="fu">names</span>(r<span class="sc">$</span>value), <span class="at">value =</span> <span class="fu">round</span>(<span class="fu">unlist</span>(r<span class="sc">$</span>value), <span class="dv">4</span>),</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>           <span class="at">interval_scale =</span> <span class="fu">unlist</span>(r<span class="sc">$</span>transform))</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       quantity value interval_scale</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale    scale  2.00            log</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; pacf1    pacf1  0.60          atanh</span></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; pacf2    pacf2 -0.20          atanh</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; phi1      phi1  0.72       identity</span></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; phi2      phi2 -0.20       identity</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

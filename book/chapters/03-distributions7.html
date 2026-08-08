@@ -372,6 +372,14 @@ window.Quarto = {
   <li><a href="#sec-mv-fitting" id="toc-sec-mv-fitting" class="nav-link" data-scroll-target="#sec-mv-fitting"><span class="header-section-number">3.5.6</span> Fitting</a></li>
   <li><a href="#sec-mv-reporting" id="toc-sec-mv-reporting" class="nav-link" data-scroll-target="#sec-mv-reporting"><span class="header-section-number">3.5.7</span> What a fit reports</a></li>
   </ul></li>
+  <li><a href="#sec-distrib-practice" id="toc-sec-distrib-practice" class="nav-link" data-scroll-target="#sec-distrib-practice"><span class="header-section-number">3.6</span> In practice</a>
+  <ul>
+  <li><a href="#sec-distrib-census" id="toc-sec-distrib-census" class="nav-link" data-scroll-target="#sec-distrib-census"><span class="header-section-number">3.6.1</span> The families that ship</a></li>
+  <li><a href="#sec-distrib-tour" id="toc-sec-distrib-tour" class="nav-link" data-scroll-target="#sec-distrib-tour"><span class="header-section-number">3.6.2</span> One object, every question</a></li>
+  <li><a href="#sec-distrib-wrappers-practice" id="toc-sec-distrib-wrappers-practice" class="nav-link" data-scroll-target="#sec-distrib-wrappers-practice"><span class="header-section-number">3.6.3</span> The wrappers at work</a></li>
+  <li><a href="#sec-distrib-censored-practice" id="toc-sec-distrib-censored-practice" class="nav-link" data-scroll-target="#sec-distrib-censored-practice"><span class="header-section-number">3.6.4</span> A censored fit from the pieces</a></li>
+  <li><a href="#sec-distrib-fit-practice" id="toc-sec-distrib-fit-practice" class="nav-link" data-scroll-target="#sec-distrib-fit-practice"><span class="header-section-number">3.6.5</span> The fit and its extractors</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -401,7 +409,7 @@ window.Quarto = {
 <p>The chapter divides into five parts, which can be read in order or separately. <a href="#sec-distributions" class="quarto-xref"><span>Section 3.1</span></a> sets out what a <code>distrib</code> object provides and develops the likelihood theory the package rests on: score, observed and expected information, and the Bartlett identities in full generality. The same section transports derivatives onto the unconstrained scale by Faà di Bruno’s formula, and covers derivatives with respect to the response and derivatives of the distribution function, which censored likelihoods require. It then presents the families, one name per parametrization where a family has several.</p>
 <p><a href="#sec-transformations" class="quarto-xref"><span>Section 3.2</span></a> treats <strong>operators on distributions</strong>: a change of variables, zero-inflation, zero-adjustment and truncation, each of which takes a distribution and returns another with the same machinery intact. The derivatives of the constructed model must be assembled from those of its parent, and doing so at fourth order in full generality requires some combinatorics of set partitions.</p>
 <p><a href="#sec-fitting" class="quarto-xref"><span>Section 3.3</span></a> applies the apparatus to the simplest problem that exercises all of it, maximum likelihood for an i.i.d. sample. <a href="#sec-fallbacks" class="quarto-xref"><span>Section 3.4</span></a> describes what a distribution receives when it implements nothing but its density, which is the part of the package that makes user-defined families practical.</p>
-<p><a href="#sec-multivariate" class="quarto-xref"><span>Section 3.5</span></a> treats families whose observations are vectors. The likelihood theory is unchanged, and the section shows how the matrix parameter such a family carries is reduced to a list of scalars, so that everything the previous four sections describe applies to it without alteration.</p>
+<p><a href="#sec-multivariate" class="quarto-xref"><span>Section 3.5</span></a> treats families whose observations are vectors. The likelihood theory is unchanged, and the section shows how the matrix parameter such a family carries is reduced to a list of scalars, so that everything the previous four sections describe applies to it without alteration. <a href="#sec-distrib-practice" class="quarto-xref"><span>Section 3.6</span></a> closes the chapter with the package in use: the census of the families, the wrappers, and a censored fit assembled from the cdf derivatives.</p>
 <section id="sec-distributions" class="level2" data-number="3.1">
 <h2 data-number="3.1" class="anchored" data-anchor-id="sec-distributions"><span class="header-section-number">3.1</span> Distributions</h2>
 <p>This chapter develops the likelihood theory that the toolkit implements and then presents the univariate families that <code>distributions7</code> ships. The theory comes first because it is shared: the score, the two informations, the Bartlett identities and the change of scale are defined once, at the level of the base class, and every distribution, including a user-defined one, inherits them. The catalog follows, with particular attention to the places where the parametrization chosen here differs from the one used by base R, because those are the places where misreadings arise.</p>
@@ -2582,7 +2590,7 @@ J = \frac{\partial g}{\partial \theta},
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>fit</span>
 <span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Maximum-likelihood fit: multivariate gaussian [2d, sigma=log_cholesky]</span></span>
 <span id="cb61-3"><a href="#cb61-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 2000   Log-likelihood: -5424   AIC: 10859   BIC: 10887</span></span>
-<span id="cb61-4"><a href="#cb61-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 1   evaluations: f 2, g 2   time: 30 ms</span></span>
+<span id="cb61-4"><a href="#cb61-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Method: Fisher scoring   iterations: 1   evaluations: f 2, g 2   time: 20 ms</span></span>
 <span id="cb61-5"><a href="#cb61-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converged: yes (gradient (max-norm) &lt; 1e-06 or |df| &lt; 1e-12 (relative))</span></span>
 <span id="cb61-6"><a href="#cb61-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb61-7"><a href="#cb61-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Location:</span></span>
@@ -2639,6 +2647,445 @@ J = \frac{\partial g}{\partial \theta},
 <span id="cb63-5"><a href="#cb63-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v1 0.9858549 0.03637639 0.9170755 1.0597927</span></span>
 <span id="cb63-6"><a href="#cb63-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; scale_sd_v2 0.8954998 0.03342303 0.8323305 0.9634632</span></span>
 <span id="cb63-7"><a href="#cb63-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cor_v1_v2   0.4348343 0.03257377 0.3688688 0.4964414</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-distrib-practice" class="level2" data-number="3.6">
+<h2 data-number="3.6" class="anchored" data-anchor-id="sec-distrib-practice"><span class="header-section-number">3.6</span> In practice</h2>
+<p>This section shows the package in use: the census of the shipped families, the full set of questions one distribution object answers, the wrappers, and a censored fit assembled from the pieces of <a href="#sec-cdf-derivatives" class="quarto-xref"><span>Section 3.1.6</span></a>. Every block is executed against the packages loaded from the working tree.</p>
+<section id="sec-distrib-census" class="level3" data-number="3.6.1">
+<h3 data-number="3.6.1" class="anchored" data-anchor-id="sec-distrib-census"><span class="header-section-number">3.6.1</span> The families that ship</h3>
+<p>The table is generated by constructing every univariate family and reading its properties off the object, so a family added to the package appears here at the next render and a renamed one breaks the build:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb64"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>ctors <span class="ot">&lt;-</span> <span class="fu">grep</span>(<span class="st">"_distrib$"</span>, <span class="fu">getNamespaceExports</span>(<span class="st">"distributions7"</span>), <span class="at">value =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a>skip <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"check_distrib"</span>, <span class="st">"fit_distrib"</span>, <span class="st">"continuous_distrib"</span>,</span>
+<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a>          <span class="st">"discrete_distrib"</span>, <span class="st">"multivariate_distrib"</span>, <span class="st">"mvgaussian_distrib"</span>,</span>
+<span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a>          <span class="st">"mvstudent_t_distrib"</span>, <span class="st">"dirichlet_distrib"</span>, <span class="st">"multinomial_distrib"</span>)</span>
+<span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a>ctors <span class="ot">&lt;-</span> <span class="fu">sort</span>(<span class="fu">setdiff</span>(ctors, skip))</span>
+<span id="cb64-6"><a href="#cb64-6" aria-hidden="true" tabindex="-1"></a>extra <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">binomial_distrib =</span> <span class="fu">list</span>(<span class="at">size =</span> <span class="dv">10</span>),</span>
+<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a>              <span class="at">betabinom1_distrib =</span> <span class="fu">list</span>(<span class="at">size =</span> <span class="dv">10</span>),</span>
+<span id="cb64-8"><a href="#cb64-8" aria-hidden="true" tabindex="-1"></a>              <span class="at">betabinom2_distrib =</span> <span class="fu">list</span>(<span class="at">size =</span> <span class="dv">10</span>))</span>
+<span id="cb64-9"><a href="#cb64-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb64-10"><a href="#cb64-10" aria-hidden="true" tabindex="-1"></a>census <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(ctors, <span class="cf">function</span>(nm) {</span>
+<span id="cb64-11"><a href="#cb64-11" aria-hidden="true" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">do.call</span>(<span class="fu">get</span>(nm, <span class="fu">asNamespace</span>(<span class="st">"distributions7"</span>)),</span>
+<span id="cb64-12"><a href="#cb64-12" aria-hidden="true" tabindex="-1"></a>               <span class="cf">if</span> (nm <span class="sc">%in%</span> <span class="fu">names</span>(extra)) extra[[nm]] <span class="cf">else</span> <span class="fu">list</span>())</span>
+<span id="cb64-13"><a href="#cb64-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">constructor =</span> <span class="fu">paste0</span>(nm, <span class="st">"()"</span>),</span>
+<span id="cb64-14"><a href="#cb64-14" aria-hidden="true" tabindex="-1"></a>             <span class="at">parameters =</span> <span class="fu">paste</span>(d<span class="sc">@</span>params, <span class="at">collapse =</span> <span class="st">", "</span>),</span>
+<span id="cb64-15"><a href="#cb64-15" aria-hidden="true" tabindex="-1"></a>             <span class="at">support =</span> <span class="fu">sprintf</span>(<span class="st">"(%g, %g)"</span>, d<span class="sc">@</span>bounds[<span class="dv">1</span>], d<span class="sc">@</span>bounds[<span class="dv">2</span>]),</span>
+<span id="cb64-16"><a href="#cb64-16" aria-hidden="true" tabindex="-1"></a>             <span class="at">kind =</span> <span class="cf">if</span> (S7<span class="sc">::</span><span class="fu">S7_inherits</span>(d, continuous_distrib))</span>
+<span id="cb64-17"><a href="#cb64-17" aria-hidden="true" tabindex="-1"></a>               <span class="st">"continuous"</span> <span class="cf">else</span> <span class="st">"discrete"</span>)</span>
+<span id="cb64-18"><a href="#cb64-18" aria-hidden="true" tabindex="-1"></a>}))</span>
+<span id="cb64-19"><a href="#cb64-19" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(census)</span>
+<span id="cb64-20"><a href="#cb64-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 40</span></span>
+<span id="cb64-21"><a href="#cb64-21" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(census, <span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb64-22"><a href="#cb64-22" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"The univariate families, read off the objects."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>The univariate families, read off the objects.</caption>
+<colgroup>
+<col style="width: 29%">
+<col style="width: 28%">
+<col style="width: 27%">
+<col style="width: 14%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">constructor</th>
+<th style="text-align: left;">parameters</th>
+<th style="text-align: left;">support</th>
+<th style="text-align: left;">kind</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">bernoulli_distrib()</td>
+<td style="text-align: left;">mu</td>
+<td style="text-align: left;">(0, 1)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">beta1_distrib()</td>
+<td style="text-align: left;">mu, phi</td>
+<td style="text-align: left;">(0, 1)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">beta2_distrib()</td>
+<td style="text-align: left;">alpha, beta</td>
+<td style="text-align: left;">(0, 1)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">betabinom1_distrib()</td>
+<td style="text-align: left;">mu, sigma</td>
+<td style="text-align: left;">(0, 10)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">betabinom2_distrib()</td>
+<td style="text-align: left;">alpha, beta</td>
+<td style="text-align: left;">(0, 10)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">binomial_distrib()</td>
+<td style="text-align: left;">mu</td>
+<td style="text-align: left;">(0, 10)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">cauchy_distrib()</td>
+<td style="text-align: left;">mu, sigma</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">chisq_distrib()</td>
+<td style="text-align: left;">mu</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">exponential_distrib()</td>
+<td style="text-align: left;">mu</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gamma1_distrib()</td>
+<td style="text-align: left;">mu, phi</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">gamma2_distrib()</td>
+<td style="text-align: left;">mu, sigma2</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gaussian1_distrib()</td>
+<td style="text-align: left;">mu, sigma</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">gaussian2_distrib()</td>
+<td style="text-align: left;">mu, sigma2</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gaussian3_distrib()</td>
+<td style="text-align: left;">mu, tau</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">gengamma1_distrib()</td>
+<td style="text-align: left;">a, d, p</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gengamma2_distrib()</td>
+<td style="text-align: left;">mean, d, p</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">geometric_distrib()</td>
+<td style="text-align: left;">mu</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gpd_distrib()</td>
+<td style="text-align: left;">sigma, xi</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">gumbel_distrib()</td>
+<td style="text-align: left;">mu, sigma</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">invgauss1_distrib()</td>
+<td style="text-align: left;">mu, phi</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">invgauss2_distrib()</td>
+<td style="text-align: left;">mu, lambda</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">laplace_distrib()</td>
+<td style="text-align: left;">mu, b</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">logistic_distrib()</td>
+<td style="text-align: left;">mu, sigma</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">lognormal1_distrib()</td>
+<td style="text-align: left;">mu, sigma2</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">lognormal2_distrib()</td>
+<td style="text-align: left;">mean, var</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">negbin1_distrib()</td>
+<td style="text-align: left;">mu, theta</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">negbin2_distrib()</td>
+<td style="text-align: left;">mu, theta</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">pig1_distrib()</td>
+<td style="text-align: left;">mu, sigma</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">pig2_distrib()</td>
+<td style="text-align: left;">mu, alpha</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">poisson_distrib()</td>
+<td style="text-align: left;">mu</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">discrete</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">pseudohuber_distrib()</td>
+<td style="text-align: left;">mu, sigma, nu</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">skewnormal1_distrib()</td>
+<td style="text-align: left;">mu, sigma, alpha</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">skewnormal2_distrib()</td>
+<td style="text-align: left;">mu, sigma, gamma1</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">skewt_distrib()</td>
+<td style="text-align: left;">mu, sigma, alpha, nu</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">student_t1_distrib()</td>
+<td style="text-align: left;">mu, sigma, nu</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">student_t2_distrib()</td>
+<td style="text-align: left;">mu, sigma, nu</td>
+<td style="text-align: left;">(-Inf, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">vonmises1_distrib()</td>
+<td style="text-align: left;">mu, kappa</td>
+<td style="text-align: left;">(-3.14159, 3.14159)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">vonmises2_distrib()</td>
+<td style="text-align: left;">mu, rho</td>
+<td style="text-align: left;">(-3.14159, 3.14159)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">weibull1_distrib()</td>
+<td style="text-align: left;">mu, sigma</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">weibull3_distrib()</td>
+<td style="text-align: left;">mean, sigma</td>
+<td style="text-align: left;">(0, Inf)</td>
+<td style="text-align: left;">continuous</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="sec-distrib-tour" class="level3" data-number="3.6.2">
+<h3 data-number="3.6.2" class="anchored" data-anchor-id="sec-distrib-tour"><span class="header-section-number">3.6.2</span> One object, every question</h3>
+<p>A single distribution answers the probability questions, the moment questions and the derivative questions of <a href="#sec-distributions" class="quarto-xref"><span>Section 3.1</span></a>. On the mean-variance Gamma:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">gamma2_distrib</span>()</span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">3</span>, <span class="at">sigma2 =</span> <span class="dv">2</span>)</span>
+<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb65-4"><a href="#cb65-4" aria-hidden="true" tabindex="-1"></a>q <span class="ot">&lt;-</span> <span class="fu">distrib_quantile</span>(d, <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.5</span>, <span class="fl">0.9</span>), th)</span>
+<span id="cb65-5"><a href="#cb65-5" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_cdf</span>(d, q, th)                       <span class="co"># the round trip</span></span>
+<span id="cb65-6"><a href="#cb65-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1 0.5 0.9</span></span>
+<span id="cb65-7"><a href="#cb65-7" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb65-8"><a href="#cb65-8" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">5</span>, th)</span>
+<span id="cb65-9"><a href="#cb65-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb65-10"><a href="#cb65-10" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">mean =</span> <span class="fu">mean</span>(d, th), <span class="at">variance =</span> <span class="fu">variance</span>(d, th),</span>
+<span id="cb65-11"><a href="#cb65-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">skewness =</span> <span class="fu">skewness</span>(d, th), <span class="at">kurtosis =</span> <span class="fu">kurtosis</span>(d, th))</span>
+<span id="cb65-12"><a href="#cb65-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     mean variance skewness kurtosis </span></span>
+<span id="cb65-13"><a href="#cb65-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3.000000 2.000000 0.942809 1.333333</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The derivatives come in the four directions the chapter derived: with respect to the parameters on both scales, with respect to the response, and mixed:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb66"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(<span class="fu">distrib_gradient</span>(d, y, th))                    <span class="co"># parameter scale</span></span>
+<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; List of 2</span></span>
+<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ mu    : num [1:5] -0.478 0.847 0.833 0.46 0.832</span></span>
+<span id="cb66-4"><a href="#cb66-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ sigma2: num [1:5] -0.0551 0.0151 -0.0123 -0.2519 -0.0146</span></span>
+<span id="cb66-5"><a href="#cb66-5" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(<span class="fu">distrib_gradient</span>(d, y, th, <span class="at">scale =</span> <span class="st">"link"</span>))    <span class="co"># d/d eta, eta = g(theta)</span></span>
+<span id="cb66-6"><a href="#cb66-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; List of 2</span></span>
+<span id="cb66-7"><a href="#cb66-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ mu    : num [1:5] -1.43 2.54 2.5 1.38 2.49</span></span>
+<span id="cb66-8"><a href="#cb66-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ sigma2: num [1:5] -0.1102 0.0301 -0.0245 -0.5038 -0.0293</span></span>
+<span id="cb66-9"><a href="#cb66-9" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(<span class="fu">distrib_hess_y</span>(d, y, th))                      <span class="co"># d2 l / dy2</span></span>
+<span id="cb66-10"><a href="#cb66-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  num [1:5] -0.973 -0.156 -0.163 -0.332 -0.164</span></span>
+<span id="cb66-11"><a href="#cb66-11" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(<span class="fu">distrib_cross_y</span>(d, y, th))                     <span class="co"># d2 l / dy dtheta</span></span>
+<span id="cb66-12"><a href="#cb66-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; List of 2</span></span>
+<span id="cb66-13"><a href="#cb66-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ mu    : num [1:5] 1.082 0.134 0.148 0.424 0.149</span></span>
+<span id="cb66-14"><a href="#cb66-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  $ sigma2: num [1:5] -0.4362 0.2748 0.2644 0.0573 0.2634</span></span>
+<span id="cb66-15"><a href="#cb66-15" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(<span class="fu">distrib_deriv4</span>(d, y[<span class="dv">1</span>], th))                 <span class="co"># the fourth-order components</span></span>
+<span id="cb66-16"><a href="#cb66-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu_mu_mu_mu"                 "mu_mu_mu_sigma2"            </span></span>
+<span id="cb66-17"><a href="#cb66-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [3] "mu_mu_sigma2_sigma2"         "mu_sigma2_sigma2_sigma2"    </span></span>
+<span id="cb66-18"><a href="#cb66-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [5] "sigma2_sigma2_sigma2_sigma2"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-distrib-wrappers-practice" class="level3" data-number="3.6.3">
+<h3 data-number="3.6.3" class="anchored" data-anchor-id="sec-distrib-wrappers-practice"><span class="header-section-number">3.6.3</span> The wrappers at work</h3>
+<p>Each wrapper of <a href="#sec-transformations" class="quarto-xref"><span>Section 3.2</span></a> returns an ordinary distribution, and the machinery above applies to it unchanged:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb67"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a><span class="co"># hold a parameter at a value</span></span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>ray <span class="ot">&lt;-</span> <span class="fu">fixed</span>(<span class="fu">weibull1_distrib</span>(), <span class="at">sigma =</span> <span class="dv">2</span>)</span>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>ray<span class="sc">@</span>params</span>
+<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu"</span></span>
+<span id="cb67-5"><a href="#cb67-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb67-6"><a href="#cb67-6" aria-hidden="true" tabindex="-1"></a><span class="co"># restrict to an interval and renormalize</span></span>
+<span id="cb67-7"><a href="#cb67-7" aria-hidden="true" tabindex="-1"></a>tg <span class="ot">&lt;-</span> <span class="fu">truncated</span>(<span class="fu">gamma2_distrib</span>(), <span class="at">lower =</span> <span class="dv">1</span>, <span class="at">upper =</span> <span class="dv">6</span>)</span>
+<span id="cb67-8"><a href="#cb67-8" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_cdf</span>(tg, <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">6</span>), th)</span>
+<span id="cb67-9"><a href="#cb67-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0 1</span></span>
+<span id="cb67-10"><a href="#cb67-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb67-11"><a href="#cb67-11" aria-hidden="true" tabindex="-1"></a><span class="co"># absolute value, and a change of variables with its own name</span></span>
+<span id="cb67-12"><a href="#cb67-12" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(<span class="fu">folded</span>(<span class="fu">gaussian1_distrib</span>()), <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">0</span>, <span class="at">sigma =</span> <span class="dv">1</span>)) <span class="sc">-</span> <span class="fu">sqrt</span>(<span class="dv">2</span> <span class="sc">/</span> pi)</span>
+<span id="cb67-13"><a href="#cb67-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -2.442491e-15</span></span>
+<span id="cb67-14"><a href="#cb67-14" aria-hidden="true" tabindex="-1"></a>ig <span class="ot">&lt;-</span> <span class="fu">transformation</span>(<span class="fu">gamma2_distrib</span>(), <span class="fu">inverse_transform</span>(),</span>
+<span id="cb67-15"><a href="#cb67-15" aria-hidden="true" tabindex="-1"></a>                     <span class="at">new_name =</span> <span class="st">"inverse gamma"</span>)</span>
+<span id="cb67-16"><a href="#cb67-16" aria-hidden="true" tabindex="-1"></a>ig<span class="sc">@</span>distrib_name</span>
+<span id="cb67-17"><a href="#cb67-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "inverse gamma"</span></span>
+<span id="cb67-18"><a href="#cb67-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb67-19"><a href="#cb67-19" aria-hidden="true" tabindex="-1"></a><span class="co"># a point mass at zero next to a density</span></span>
+<span id="cb67-20"><a href="#cb67-20" aria-hidden="true" tabindex="-1"></a>zag <span class="ot">&lt;-</span> <span class="fu">zero_adjusted</span>(<span class="fu">gamma2_distrib</span>())</span>
+<span id="cb67-21"><a href="#cb67-21" aria-hidden="true" tabindex="-1"></a><span class="fu">distrib_atoms</span>(zag, <span class="fu">c</span>(th, <span class="at">za =</span> <span class="fl">0.25</span>))</span>
+<span id="cb67-22"><a href="#cb67-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $y</span></span>
+<span id="cb67-23"><a href="#cb67-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb67-24"><a href="#cb67-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb67-25"><a href="#cb67-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $p</span></span>
+<span id="cb67-26"><a href="#cb67-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-distrib-censored-practice" class="level3" data-number="3.6.4">
+<h3 data-number="3.6.4" class="anchored" data-anchor-id="sec-distrib-censored-practice"><span class="header-section-number">3.6.4</span> A censored fit from the pieces</h3>
+<p>No front end for censored likelihoods ships yet, and none is needed to fit one: the score of an observation censored at the ceiling <span class="math inline">\(c\)</span> is the derivative of <span class="math inline">\(\log\{1 - F(c)\}\)</span>, which <code>distrib_grad_cdf()</code> returns. The sample below is Weibull with every value above <span class="math inline">\(c = 5.5\)</span> recorded as <span class="math inline">\(5.5\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(optimizers7)</span>
+<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">7</span>)</span>
+<span id="cb68-3"><a href="#cb68-3" aria-hidden="true" tabindex="-1"></a>dw <span class="ot">&lt;-</span> <span class="fu">weibull1_distrib</span>()</span>
+<span id="cb68-4"><a href="#cb68-4" aria-hidden="true" tabindex="-1"></a>th_true <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">sigma =</span> <span class="fl">1.6</span>)</span>
+<span id="cb68-5"><a href="#cb68-5" aria-hidden="true" tabindex="-1"></a>y0 <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(dw, <span class="dv">400</span>, th_true)</span>
+<span id="cb68-6"><a href="#cb68-6" aria-hidden="true" tabindex="-1"></a>cl <span class="ot">&lt;-</span> <span class="fl">5.5</span></span>
+<span id="cb68-7"><a href="#cb68-7" aria-hidden="true" tabindex="-1"></a>cens <span class="ot">&lt;-</span> y0 <span class="sc">&gt;</span> cl</span>
+<span id="cb68-8"><a href="#cb68-8" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">pmin</span>(y0, cl)</span>
+<span id="cb68-9"><a href="#cb68-9" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(cens)                                  <span class="co"># the censored fraction</span></span>
+<span id="cb68-10"><a href="#cb68-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1675</span></span>
+<span id="cb68-11"><a href="#cb68-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb68-12"><a href="#cb68-12" aria-hidden="true" tabindex="-1"></a>nll <span class="ot">&lt;-</span> <span class="cf">function</span>(eta) {</span>
+<span id="cb68-13"><a href="#cb68-13" aria-hidden="true" tabindex="-1"></a>  th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">exp</span>(eta[<span class="dv">1</span>]), <span class="at">sigma =</span> <span class="fu">exp</span>(eta[<span class="dv">2</span>]))</span>
+<span id="cb68-14"><a href="#cb68-14" aria-hidden="true" tabindex="-1"></a>  <span class="sc">-</span>(<span class="fu">sum</span>(<span class="fu">distrib_pdf</span>(dw, y[<span class="sc">!</span>cens], th, <span class="at">log =</span> <span class="cn">TRUE</span>)) <span class="sc">+</span></span>
+<span id="cb68-15"><a href="#cb68-15" aria-hidden="true" tabindex="-1"></a>      <span class="fu">sum</span>(<span class="fu">log1p</span>(<span class="sc">-</span><span class="fu">distrib_cdf</span>(dw, <span class="fu">rep</span>(cl, <span class="fu">sum</span>(cens)), th))))</span>
+<span id="cb68-16"><a href="#cb68-16" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb68-17"><a href="#cb68-17" aria-hidden="true" tabindex="-1"></a>gr <span class="ot">&lt;-</span> <span class="cf">function</span>(eta) {</span>
+<span id="cb68-18"><a href="#cb68-18" aria-hidden="true" tabindex="-1"></a>  th <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">exp</span>(eta[<span class="dv">1</span>]), <span class="at">sigma =</span> <span class="fu">exp</span>(eta[<span class="dv">2</span>]))</span>
+<span id="cb68-19"><a href="#cb68-19" aria-hidden="true" tabindex="-1"></a>  g <span class="ot">&lt;-</span> <span class="fu">distrib_gradient</span>(dw, y[<span class="sc">!</span>cens], th, <span class="at">scale =</span> <span class="st">"link"</span>)</span>
+<span id="cb68-20"><a href="#cb68-20" aria-hidden="true" tabindex="-1"></a>  gc <span class="ot">&lt;-</span> <span class="fu">distrib_grad_cdf</span>(dw, <span class="fu">rep</span>(cl, <span class="fu">sum</span>(cens)), th,</span>
+<span id="cb68-21"><a href="#cb68-21" aria-hidden="true" tabindex="-1"></a>                         <span class="at">lower.tail =</span> <span class="cn">FALSE</span>, <span class="at">log =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb68-22"><a href="#cb68-22" aria-hidden="true" tabindex="-1"></a>  <span class="sc">-</span>(<span class="fu">c</span>(<span class="fu">sum</span>(g<span class="sc">$</span>mu), <span class="fu">sum</span>(g<span class="sc">$</span>sigma)) <span class="sc">+</span></span>
+<span id="cb68-23"><a href="#cb68-23" aria-hidden="true" tabindex="-1"></a>      <span class="fu">c</span>(<span class="fu">sum</span>(gc<span class="sc">$</span>mu) <span class="sc">*</span> th<span class="sc">$</span>mu, <span class="fu">sum</span>(gc<span class="sc">$</span>sigma) <span class="sc">*</span> th<span class="sc">$</span>sigma))</span>
+<span id="cb68-24"><a href="#cb68-24" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb68-25"><a href="#cb68-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb68-26"><a href="#cb68-26" aria-hidden="true" tabindex="-1"></a>fit_c <span class="ot">&lt;-</span> <span class="fu">minimize</span>(<span class="fu">lbfgs</span>(), nll, <span class="at">par =</span> <span class="fu">c</span>(<span class="fu">log</span>(<span class="fu">mean</span>(y)), <span class="dv">0</span>), <span class="at">gr =</span> gr)</span>
+<span id="cb68-27"><a href="#cb68-27" aria-hidden="true" tabindex="-1"></a>naive <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(dw, y)                  <span class="co"># censoring ignored</span></span>
+<span id="cb68-28"><a href="#cb68-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb68-29"><a href="#cb68-29" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">true =</span> <span class="fu">unlist</span>(th_true),</span>
+<span id="cb68-30"><a href="#cb68-30" aria-hidden="true" tabindex="-1"></a>      <span class="at">censored_likelihood =</span> <span class="fu">exp</span>(fit_c<span class="sc">@</span>par),</span>
+<span id="cb68-31"><a href="#cb68-31" aria-hidden="true" tabindex="-1"></a>      <span class="at">censoring_ignored =</span> <span class="fu">unlist</span>(<span class="fu">coef</span>(naive)))</span>
+<span id="cb68-32"><a href="#cb68-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                           mu    sigma</span></span>
+<span id="cb68-33"><a href="#cb68-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; true                4.000000 1.600000</span></span>
+<span id="cb68-34"><a href="#cb68-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; censored_likelihood 3.817477 1.688911</span></span>
+<span id="cb68-35"><a href="#cb68-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; censoring_ignored   3.547499 2.048094</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The censored likelihood recovers the parameters; treating the ceiling values as exact biases the scale downward, since the largest observations have been replaced by smaller ones.</p>
+</section>
+<section id="sec-distrib-fit-practice" class="level3" data-number="3.6.5">
+<h3 data-number="3.6.5" class="anchored" data-anchor-id="sec-distrib-fit-practice"><span class="header-section-number">3.6.5</span> The fit and its extractors</h3>
+<p><code>fit_distrib()</code> returns an object whose extractors answer on either scale, and whose <code>method</code> argument accepts any optimizer of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb69"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">3</span>)</span>
+<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a>yg <span class="ot">&lt;-</span> <span class="fu">distrib_rng</span>(d, <span class="dv">500</span>, th)</span>
+<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a>f1 <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, yg)</span>
+<span id="cb69-4"><a href="#cb69-4" aria-hidden="true" tabindex="-1"></a>f2 <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(d, yg, <span class="at">method =</span> <span class="fu">lbfgs</span>(<span class="at">criterion =</span> <span class="fu">crit_grad</span>(<span class="fl">1e-7</span>)))</span>
+<span id="cb69-5"><a href="#cb69-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb69-6"><a href="#cb69-6" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="fu">logLik</span>(f1) <span class="sc">-</span> <span class="fu">logLik</span>(f2))                   <span class="co"># the same maximum</span></span>
+<span id="cb69-7"><a href="#cb69-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -1.136868e-13</span></span>
+<span id="cb69-8"><a href="#cb69-8" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(f1)</span>
+<span id="cb69-9"><a href="#cb69-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
+<span id="cb69-10"><a href="#cb69-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3.041540 1.774298</span></span>
+<span id="cb69-11"><a href="#cb69-11" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(f1, <span class="at">scale =</span> <span class="st">"link"</span>)</span>
+<span id="cb69-12"><a href="#cb69-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       mu   sigma2 </span></span>
+<span id="cb69-13"><a href="#cb69-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.112364 0.573405</span></span>
+<span id="cb69-14"><a href="#cb69-14" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(f1)                                  <span class="co"># mapped through the inverse link</span></span>
+<span id="cb69-15"><a href="#cb69-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            2.5%    97.5%</span></span>
+<span id="cb69-16"><a href="#cb69-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     2.926998 3.160565</span></span>
+<span id="cb69-17"><a href="#cb69-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 1.538451 2.046301</span></span>
+<span id="cb69-18"><a href="#cb69-18" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(f1, <span class="at">level =</span> <span class="fl">0.99</span>, <span class="at">scale =</span> <span class="st">"link"</span>)</span>
+<span id="cb69-19"><a href="#cb69-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             0.5%     99.5%</span></span>
+<span id="cb69-20"><a href="#cb69-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu     1.0619151 1.1628130</span></span>
+<span id="cb69-21"><a href="#cb69-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2 0.3859592 0.7608509</span></span>
+<span id="cb69-22"><a href="#cb69-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb69-23"><a href="#cb69-23" aria-hidden="true" tabindex="-1"></a>sims <span class="ot">&lt;-</span> <span class="fu">simulate</span>(f1, <span class="at">nsim =</span> <span class="dv">3</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb69-24"><a href="#cb69-24" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(sims, mean, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb69-25"><a href="#cb69-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    sim_1    sim_2    sim_3 </span></span>
+<span id="cb69-26"><a href="#cb69-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3.007009 2.930154 3.100247</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

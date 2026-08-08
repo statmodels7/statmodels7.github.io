@@ -1,0 +1,78 @@
+## In practice {#sec-numerical-practice}
+
+```{r}
+#| label: setup-08e
+#| include: false
+source("R/_setup.R")
+```
+
+### Batched quadrature and series {#sec-numerical-batched-practice}
+
+`quad_vec()` evaluates one integrand at many parameter rows in a single
+adaptive pass, and `series_vec()` does the same for sums. Four Gaussian
+mean absolute deviations in one call, against the closed form
+$\sigma\sqrt{2/\pi}$:
+
+```{r}
+#| label: np-quad
+library(numericals7)
+sig <- c(0.5, 1, 2, 10)
+mad_g <- quad_vec(function(x, i) abs(x) * dnorm(x, 0, sig[i]),
+                  lower = rep(-Inf, 4), upper = rep(Inf, 4))
+rbind(quad_vec = mad_g, closed = sig * sqrt(2 / pi))
+
+# three negative binomial means summed as series, rows retiring as they converge
+mu <- c(2, 15, 80)
+series_vec(function(k, i) k * dnbinom(k, size = 5, mu = mu[i]), n = 3)
+```
+
+### The stencil library {#sec-numerical-stencil-practice}
+
+`fd_weights()` solves the Vandermonde system of @sec-numerical-stencils for
+any derivative order at any offsets, and `fd_derivative()` applies the
+resulting rule with the balanced step:
+
+```{r}
+#| label: np-stencils
+fd_weights(-2:2, 2L) * 12          # the five-point second-derivative weights
+fd_offsets(3L, accuracy = 2L)      # the grid a third derivative uses
+
+# lgamma and its first four derivatives at x = 2.5, against the polygammas
+x <- 2.5
+est <- vapply(1:4, function(m) fd_derivative(lgamma, x, order = m), numeric(1))
+ref <- c(digamma(x), trigamma(x), psigamma(x, 2), psigamma(x, 3))
+signif(abs(est - ref), 2)
+```
+
+### The special functions at their extremes {#sec-numerical-special-practice}
+
+Each special function exists for an argument range where the textbook
+expression fails; the table evaluates both routes at such a point:
+
+```{r}
+#| label: np-special
+naive_mills <- function(t) dnorm(t) / pnorm(t)
+naive_logi0 <- function(x) log(besselI(x, 0, expon.scaled = TRUE)) + x
+
+rbind(
+  c(naive = naive_mills(-40), numericals7 = mills_ratio(-40)$r),
+  c(naive = naive_logi0(5e5), numericals7 = log_bessel_i(5e5, 0)),
+  c(naive = log(besselK(1500, 2)), numericals7 = log_bessel_k(1500, 2))
+)
+
+c(bessel_i_ratio(1e8),                       # past the scaled underflow
+  bessel_i_ratio_inverse(0.7)$kappa)         # and the inverse map
+c(owen_t(1.3, Inf), 0.5 * pnorm(-1.3))       # the closed tail identity
+```
+
+### The enumerations {#sec-numerical-enum-practice}
+
+The chain rules of @sec-link-scale and the Bartlett identities enumerate
+set partitions, and the multinomial support of @sec-mv-simplex enumerates
+weak compositions; both enumerations live here, written once:
+
+```{r}
+#| label: np-enum
+length(set_partitions(4))          # the Bell number B4
+compositions(3, 2)                 # the support of a multinomial(3) on 2 cells
+```

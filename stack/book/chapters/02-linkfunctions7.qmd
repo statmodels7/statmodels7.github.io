@@ -339,6 +339,56 @@ The fallbacks exist for links that are still incomplete: they make such a link
 usable rather than exact, the catalog does not rely on them, and a link
 intended for regular use should eventually not need them either.
 
+## In practice {#sec-link-practice}
+
+The census below constructs every link and reads its name and domain off
+the object, so it stays current by construction:
+
+```{r}
+#| label: lp-census
+links <- list(identity_link(), log_link(), logit_link(), probit_link(),
+              cloglog_link(), loglog_link(), cauchit_link(), rhobit_link(),
+              sqrt_link(), inverse_link(), inverse_sq_link(), power_link(2),
+              softplus_link(1), bounded_link(0, 1), bounded_link(lwr = 2),
+              bounded_link(upr = 5))
+knitr::kable(data.frame(
+  link = sapply(links, function(l) l@link_name),
+  domain = sapply(links, function(l)
+    sprintf("(%g, %g)", l@link_bounds[1], l@link_bounds[2]))
+), row.names = FALSE, caption = "The link classes, read off the objects.")
+```
+
+A link is a property of a distribution's parameter, so exchanging one for
+another changes the scale a model works on without touching the family.
+The same Gamma carries its mean through a log link or through a square
+root link, and the two fits agree on the parameter scale:
+
+```{r}
+#| label: lp-swap
+d_log  <- gamma2_distrib()
+d_sqrt <- gamma2_distrib(link_mu = sqrt_link())
+set.seed(4)
+y <- distrib_rng(d_log, 400, list(mu = 3, sigma2 = 2))
+
+f_log  <- fit_distrib(d_log, y)
+f_sqrt <- fit_distrib(d_sqrt, y)
+rbind(log_link = unlist(coef(f_log)), sqrt_link = unlist(coef(f_sqrt)))
+rbind(log_link = unlist(coef(f_log, scale = "link")),
+      sqrt_link = unlist(coef(f_sqrt, scale = "link")))
+```
+
+The derivatives behind the fit are the ten generics of
+@sec-link-interface, reached one order at a time or through the routers:
+
+```{r}
+#| label: lp-derivs
+lk <- sqrt_link()
+theta <- c(0.5, 2, 8)
+rbind(d1 = dlinkinv(lk, linkfun(lk, theta)),
+      d2 = d2linkinv(lk, linkfun(lk, theta)),
+      d3 = linkinvderiv(lk, linkfun(lk, theta), order = 3))
+```
+
 ```{r}
 #| label: consistency-links
 #| include: false

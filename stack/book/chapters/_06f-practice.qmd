@@ -1,0 +1,70 @@
+## In practice {#sec-basis-practice}
+
+```{r}
+#| label: setup-06p
+#| include: false
+source("R/_setup.R")
+```
+
+### A penalized smooth from the pieces {#sec-basis-smooth-practice}
+
+The package supplies the design matrix and the exact penalty matrix; a
+penalized least-squares fit is then two lines of linear algebra. The data
+are a noisy sine, the basis a cubic B-spline of twenty functions, and the
+penalty the integrated squared second derivative of @sec-gram-definition:
+
+```{r}
+#| label: bp-smooth
+#| fig-height: 4
+#| fig-cap: "A B-spline smooth at three values of the smoothing parameter. The penalty matrix is the exact Gram matrix of the second derivatives."
+library(basis7)
+set.seed(2)
+x <- sort(runif(150))
+yy <- sin(2 * pi * x) + rnorm(150, sd = 0.35)
+
+b <- bspline_basis(lower = 0, upper = 1, dimension = 20, degree = 3)
+B <- basis_eval(b, x)
+P <- basis_gram(b, order = 2)
+
+fit_smooth <- function(lambda)
+  drop(solve(crossprod(B) + lambda * P, crossprod(B, yy)))
+
+xg <- seq(0, 1, length.out = 300)
+Bg <- basis_eval(b, xg)
+plot(x, yy, col = "grey55", pch = 16, cex = 0.6, xlab = "x", ylab = "y")
+for (lam in c(1e-6, 1e-3, 1)) lines(xg, Bg %*% fit_smooth(lam))
+lines(xg, sin(2 * pi * xg), lty = 2)
+```
+
+The smallest smoothing parameter follows the noise and the largest is close
+to the straight line the null space of $G_2$ contains; the dashed curve is
+the function that generated the data.
+
+The derivative of the fitted function costs one more matrix, since
+@eq-basis-derivative applies the same coefficients to the differentiated
+basis:
+
+```{r}
+#| label: bp-deriv
+beta <- fit_smooth(1e-3)
+d1 <- basis_deriv(b, c(0.25, 0.5, 0.75), order = 1) %*% beta
+cbind(estimate = drop(d1),
+      truth = 2 * pi * cos(2 * pi * c(0.25, 0.5, 0.75)))
+```
+
+### The transforms composed {#sec-basis-transform-practice}
+
+The three transformations of @sec-basis-transforms return bases, so they
+compose with everything above. A constrained, orthonormalized basis in two
+calls:
+
+```{r}
+#| label: bp-transform
+grid <- seq(0, 1, length.out = 200)
+cb <- constrain_basis(b, colSums(basis_eval(b, grid)))   # sum-to-zero
+ob <- orthonorm_basis(cb)
+
+c(dimension = ob@dimension)
+max(abs(basis_gram(ob) - diag(ob@dimension)))            # orthonormal
+max(abs(colSums(basis_eval(ob, grid))))                  # still constrained
+```
