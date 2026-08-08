@@ -1,4 +1,4 @@
-## The three constructions {#sec-penalty-branches}
+## The four constructions {#sec-penalty-branches}
 
 ```{r}
 #| label: setup-08b
@@ -7,7 +7,7 @@ source("R/_setup.R")
 source("R/penalty-certificates.R")
 ```
 
-Every penalty the package ships is one of three shapes, and the three cover
+Every penalty the package ships is one of four shapes, and the four cover
 the penalties regression practice actually uses.
 
 ### The quadratic penalty {#sec-penalty-quadratic}
@@ -44,9 +44,55 @@ penalty_rank(pen)
 is_proper(pen)
 ```
 
+### The sum of quadratics {#sec-penalty-additive}
+
+A single matrix under a single scale forces every direction to be
+smoothed alike. A tensor-product smooth wants the opposite: one
+smoothing parameter per margin, so that a surface may be rough in one
+direction and smooth in another. `additive_penalty()` carries
+
+$$
+S(\lambda) \;=\; \sum_{k} \lambda_k P_k,
+$$
+
+and everything a marginal criterion reads follows from one
+eigendecomposition of that sum:
+$\partial_k \log\mathrm{pdet}\,S = \operatorname{tr}(S^{+}P_k)$ and
+$\partial^2_{kl} \log\mathrm{pdet}\,S =
+-\operatorname{tr}(S^{+}P_kS^{+}P_l)$.
+
+The rank needs care, and @sec-parameter-rank is the reason. Counting the
+eigenvalues of $S(\lambda)$ above a tolerance answers correctly only
+while the parameters are comparable: once they differ by orders of
+magnitude the small contributions sink below any fixed tolerance and are
+read as zeros, so the rank appears to fall as the fit is smoothed. What
+does not move is the null space, because the null space of a sum of
+positive semidefinite matrices is the intersection of theirs and does
+not depend on the parameters at all. The rank is therefore fixed once,
+at construction, from the components stacked and individually
+normalized.
+
+```{r}
+#| label: penalty-additive
+P1 <- crossprod(diff(diag(4), differences = 2))
+pen <- additive_penalty(list(kronecker(diag(4), P1),
+                             kronecker(P1, diag(4))))
+penalty_rank(pen)
+
+# the count taken from the assembled matrix, as the parameters spread
+sapply(c(1, 1e6, 1e12), function(ratio) {
+  S <- kronecker(diag(4), P1) + ratio * kronecker(P1, diag(4))
+  ev <- eigen(S, symmetric = TRUE, only.values = TRUE)$values
+  sum(ev > 1e-10 * max(ev))
+})
+```
+
+The stored rank is the first number at every value of the parameters;
+the counted one is not.
+
 ### The separable penalty {#sec-penalty-separable}
 
-The second construction applies a univariate log-density from
+The third construction applies a univariate log-density from
 @sec-distributions7 coordinatewise:
 
 $$
