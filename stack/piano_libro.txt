@@ -1,0 +1,132 @@
+PIANO DI RIORGANIZZAZIONE ED ESPANSIONE DEL LIBRO
+===================================================================
+Data: 2026-08-08. Origine: Giovanni — l'ordine dei capitoli segue la
+cronologia di creazione dei pacchetti e non deve; il libro è poco
+dettagliato sui metodi effettivamente implementati e deve mostrare le
+cose principali di ogni pacchetto con più esempi d'uso.
+
+STATO: riordino ESEGUITO (2026-08-08); l'espansione dei contenuti è il
+programma per capitolo qui sotto, da consumare a lotti. La prima sezione
+"In practice" (capitolo penalties7) è scritta come modello delle altre.
+
+A. LA DIAGNOSI, MISURATA
+-------------------------------------------------------------------------
+Censimento export-contro-libro (un export "citato" se il suo nome appare
+in un qualunque .qmd):
+
+    numericals7      19 export,  6 mai citati (log_bessel_i/k e le loro
+                     derivate, set_partitions, tuple_indices)
+    linkfunctions7   30 export, 10 mai citati (metà del catalogo dei
+                     costruttori non è mai nominata per nome)
+    distributions7  122 export, 62 mai citati (fra cui distrib_cross_y,
+                     folded, fixed, reparametrize a livello d'uso, le
+                     beta/betabinom/chisq/cauchy come voci, confint)
+    optimizers7      43 export, 20 mai citati (l'INTERO catalogo crit_*,
+                     check_optimizer, check_criterion, le trasformate box)
+    basis7           22 export,  5 mai citati (solo classi: buona copertura)
+    parameters7      46 export, 27 mai citati (le classi, ma anche i
+                     generici param_d*/param_readable a livello d'uso)
+    penalties7       28 export, 14 mai citati (check_penalty, is_proper,
+                     penalty_matrix, penalty_null_basis, i costruttori
+                     mcp/heavy/distrib_penalty)
+
+Il libro dimostra la matematica e trascura l'interfaccia: le funzioni che
+un utente chiama (check_*, i criteri, gli estrattori) sono le meno coperte.
+
+B. IL NUOVO ORDINE (eseguito)
+-------------------------------------------------------------------------
+Prima: intro, links, distributions, optimizers, basis, parameters,
+numericals, penalties (= ordine di creazione).
+Ora:
+
+    1  Introduction
+    2  linkfunctions7      la trasformazione di un numero
+    3  distributions7      il cuore; consuma i link
+    4  optimizers7         stimare ciò che il 3 definisce
+    5  parameters7         il parametro matrice, subito dopo i suoi
+                           consumatori (multivariate del 3, fit del 4)
+    6  basis7              l'ingrediente di regressione
+    7  penalties7          consuma parameters7 (5) e le Gram di basis7 (6)
+    8  numericals7         la sala macchine, in chiusura
+
+Il criterio è la dipendenza pedagogica, non la cronologia: penalties7
+siede accanto ai suoi due fornitori; numericals7 chiude come "under the
+hood" (aprire con gli stencil sarebbe respingente). Meccanica: rinominati
+i file dei capitoli 05-08 e le loro sezioni _NNx- incluse, aggiornati gli
+{{< include >}}, l'ordine dei paragrafi della prefazione, _quarto.yml,
+book/README.md e la struttura in CLAUDE.md §9. Le ancore {#sec-...} sono
+invariate, quindi nessun riferimento incrociato cambia.
+
+C. IL PROGRAMMA DI ESPANSIONE: UNA SEZIONE "IN PRACTICE" PER CAPITOLO
+-------------------------------------------------------------------------
+Regola di formato: ogni capitolo si chiude con una sezione "In practice"
+(## ... {#sec-<pkg>-practice}) fatta di esempi ESEGUITI, in stile 1, che
+mostrano l'interfaccia: costruire, interrogare, validare, e un caso d'uso
+completo. Il codice eseguito è la propria verifica (freeze è off), i gates
+esistenti restano; nessun gate nuovo salvo dove l'esempio stampa una
+formula.
+
+Cap. 2 linkfunctions7 — "In practice":
+  - costruire tutti i 14 costruttori in una tabella eseguita (nome,
+    dominio, immagine) così ogni costruttore è nominato;
+  - un link parametrico (power, softplus, bounded) in un fit reale;
+  - leggere per esteso l'output di check_link su un link utente;
+  - link_fallback_orders in uno script.
+
+Cap. 3 distributions7 — "In practice" (il più grande, due sezioni):
+  - giro completo su una famiglia: pdf/cdf/quantile/rng, momenti,
+    gradient/hessian sui due scale, cross_y, grad_cdf;
+  - i wrapper all'opera: fixed(), folded(), transformation() con il
+    catalogo dei 12 transformer, reparametrize() con map_derivs;
+  - fit end-to-end: fit_distrib, print, coef/vcov/confint sui due scale,
+    simulate/plot, method = ottimizzatore esterno, fisher_scoring(approx=);
+  - censura: lo score censurato assemblato (già presente, da promuovere
+    a esempio con fit numerico via optimizers7);
+  - estendere il catalogo generato (render_distrib_entry) a TUTTE le 40
+    famiglie univariate invece delle sole 14 core.
+
+Cap. 4 optimizers7 — "In practice":
+  - il catalogo dei criteri crit_* con combinazioni any/all e un criterio
+    utente via crit_met (ora ZERO criteri citati nel libro);
+  - le due line search a confronto su un problema (già in 4.1, da
+    collegare all'API);
+  - check_optimizer letto per esteso su un metodo utente;
+  - multistart: leggere il conteggio degli ottimi distinti;
+  - keep_trace e il grafico della traiettoria (esiste, da estendere).
+
+Cap. 5 parameters7 — "In practice":
+  - costruire ogni famiglia in una tabella eseguita (nome, d, chart);
+  - param_value/d1/logdet/solve/free su un caso; check_parameter letto;
+  - param_readable e mv_summary insieme (il ponte col cap. 3);
+  - un parametro utente minimo (solo mappa) validato.
+
+Cap. 6 basis7 — "In practice":
+  - plot(basis) per le tre famiglie; check_basis letto per esteso;
+  - dr_basis dentro uno smoothing penalizzato a mano (ponte col 7);
+  - basis_contract su un prodotto grande (esiste, da commentare di più).
+
+Cap. 7 penalties7 — "In practice" (SCRITTA, è il modello):
+  - regressione ridge A MANO con il toolkit intero: verosimiglianza
+    gaussiana + ridge_penalty, obiettivo e gradiente assemblati,
+    minimize(lbfgs()), iperparametro stimato CONGIUNTAMENTE grazie alla
+    costante di normalizzazione mantenuta; confronto con OLS;
+  - da aggiungere nei lotti: check_penalty letto, penalty_matrix/
+    null_basis/logpdet per un criterio marginale, scad/mcp su un caso.
+
+Cap. 8 numericals7 — "In practice":
+  - quad_vec e series_vec chiamate direttamente (righe multiple, una
+    passata); fd_weights/fd_derivative; le speciali con un grafico
+    (mills, owen_t, bessel_i_ratio, log_bessel_i/k — sei export oggi mai
+    citati sono di questo capitolo).
+
+D. LOTTI DI ESECUZIONE
+-------------------------------------------------------------------------
+  Lotto 0 (fatto): riordino + questa prima "In practice" del cap. 7 +
+          render di verifica.
+  Lotto 1: cap. 3 (catalogo a 40 famiglie + le due sezioni d'uso) — il
+          più pesante e il più richiesto.
+  Lotto 2: cap. 4 (criteri, check_optimizer) e cap. 2.
+  Lotto 3: cap. 5 e 6.
+  Lotto 4: cap. 8 e completamento del 7.
+Ogni lotto: scrivere, eseguire i chunk standalone, UN render con i gates,
+sync del portale.

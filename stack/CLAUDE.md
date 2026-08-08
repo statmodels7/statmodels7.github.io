@@ -2588,15 +2588,29 @@ Preface / 1 Introduction / 2 The linkfunctions7 package /
                                3.5 Several dimensions) /
 4 The optimizers7 package     (4.1 Descent, 4.2 Curvature, 4.3 Non-smooth,
                                4.4 Constraints, 4.5 Starting points) /
-5 The basis7 package          (5.1 Expansions, 5.2 Families, 5.3 Inner
-                               products, 5.4 Transformations, 5.5 Several
+5 The parameters7 package     (5.1 Matrix parameters, 5.2 The families,
+                               5.3 Rank and the null space) /
+6 The basis7 package          (6.1 Expansions, 6.2 Families, 6.3 Inner
+                               products, 6.4 Transformations, 6.5 Several
                                variables) /
-6 The parameters7 package     (6.1 Matrix parameters, 6.2 The families,
-                               6.3 Rank and the null space) /
-7 The numericals7 package     (7.1 Jets, 7.2 Stencils, 7.3 Quadrature and
-                               series, 7.4 Special functions) /
+7 The penalties7 package      (7.1 Definition, 7.2 The three constructions,
+                               7.3 Marginal pieces, 7.4 In practice) /
+8 The numericals7 package     (8.1 Stencils, 8.2 Quadrature and series,
+                               8.3 Special functions) /
 A Notation / B References
 ```
+
+**The chapter order was changed on 2026-08-08** (Giovanni: the order
+followed package creation and did not have to). It is now pedagogical by
+dependency: parameters7 right after its consumers (the multivariate section
+of 3 and the fitting of 4), penalties7 beside its two suppliers (5 and 6),
+numericals7 closing as the machinery. The section files were renamed with
+their chapters (`_05a-parameters.qmd` etc.); the `{#sec-...}` anchors are
+unchanged, so no cross-reference moved. `piano_libro.txt` carries the
+export-versus-book coverage census (62 of distributions7's 122 exports,
+the whole crit_* catalog and every check_* reader were unmentioned) and
+the chapter-by-chapter "In practice" expansion program, to be consumed in
+batches; the penalties7 section of 2026-08-08 is the template.
 
 When `modelterms7` and the rest arrive they arrive as chapters, and nothing
 already written moves. Quarto numbers chapters per *file*, so a package chapter is
