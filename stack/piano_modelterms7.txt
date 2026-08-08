@@ -367,18 +367,27 @@ te(x, z, ..., by = , k = , degree = , bases = )     DONE 2026-08-08
     "sums" case of penalties7's composition item, and it is the natural
     next step for te().
 
-nl(~ theta1^x + log(theta2 + exp(z)), links = , subformulas = , by = )
-    Nonlinear parametric: the term owns inner parameters with their own
-    links, each optionally developed as a function of covariates
-    (theta1 ~ g). Giovanni's observation of 2026-08-08 simplifies the
-    contract: as long as the user's nonlinear model is smooth, the
-    design block IS the Jacobian of the contribution in the inner
-    parameters, X = J, refreshed at each iteration. The term therefore
-    stays an additive_term whose block depends on the current
-    coefficient values, and the contract needs one addition rather than
-    a third branch: a refresh hook (term_refresh(built, coef)) that the
-    ordinary terms implement as the identity. Not implemented in phase
-    1; recorded so the built-term shape does not preclude it.
+nl(fn, params = , x = , links = , subformulas = )   DONE 2026-08-08
+    Nonlinear parametric. Giovanni's observation shaped it: while f is
+    smooth the design block IS the Jacobian, X = J, so the term stays an
+    additive_term and the contract needed one addition rather than a
+    third branch -- term_refresh(built, coef), the identity for every
+    ordinary term, plus term_value() reporting f itself, which is the
+    pair a Gauss-Newton step consumes. A test runs that iteration and
+    recovers the truth.
+
+    TWO INPUT ROUTES, and their reach differs. A FORMULA is read
+    symbolically: the names it uses that the data do not supply are the
+    parameters, and stats::deriv() gives the derivatives, with a central
+    difference where deriv cannot read the expression (besselJ is the
+    test case). An opaque FUNCTION f(x, theta) is always differenced and
+    must name its parameters.
+
+    Links per parameter, and subformulas developing a parameter as
+    g^-1(Z gamma), are on the FORMULA route ONLY, and the constructor
+    rejects subformulas on a function naming the reason: substituting
+    inside f requires knowing where the parameter enters, which an
+    opaque function does not say. Giovanni anticipated exactly this.
 
 gas(p = , q = , by = , time = )                     DONE 2026-08-08
     structural_term, and the first one, so the batch built the CONTRACT

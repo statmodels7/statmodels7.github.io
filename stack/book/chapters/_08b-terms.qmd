@@ -128,14 +128,26 @@ them.
 penalties carried into the product,
 
 $$
-P \;=\; \sum_{v} I \otimes \cdots \otimes P_v \otimes \cdots \otimes I,
+P_v \;=\; I \otimes \cdots \otimes P_v \otimes \cdots \otimes I,
 $$
 
-which penalizes curvature in each direction under one smoothing
-parameter. A separate parameter per margin would need a penalty that is
-a sum of quadratics with its own coefficient on each, whose log
-pseudo-determinant is not separable; that construction is not in
-`penalties7`.
+each penalizing curvature in one direction. By default those components
+keep a smoothing parameter each, through the additive penalty of
+@sec-penalty-branches, so the surface may be rough in one direction and
+smooth in another; with `anisotropic = FALSE` they are summed first and
+one parameter governs the total.
+
+```{r}
+#| label: terms-te
+d2 <- data.frame(x = runif(150), z = runif(150))
+bt <- term_build(te(x, z, k = 4), d2)
+term_penalty(bt)@params
+```
+
+Anisotropy is the usual reason for fitting a tensor smooth rather than
+an isotropic one, and it is what the second parameter buys: a surface
+whose curvature in $x$ is penalized separately from its curvature in
+$z$.
 
 Both take a `by` argument. With a factor the term carries one copy per
 level, the block being the smooth multiplied by each level's indicator
@@ -196,6 +208,52 @@ out <- term_filter(gt, eta = rep(0, 80), y = ts_dd$y,
                    psi = list(omega = 0.1, a1 = 0.4, pacf1 = 0.6))
 c(predictor = length(out$eta), jacobian = ncol(out$jacobian))
 ```
+
+### Nonlinear parametric terms
+
+`nl()` carries a contribution $f(x;\theta)$ that is nonlinear in its own
+parameters. It is not a branch of its own, and the reason is worth
+stating: while $f$ is differentiable the contribution is linearized as
+
+$$
+f(x;\theta(\beta)) \;\approx\; f(x;\theta(\beta_0))
+  + J(\beta_0)\,(\beta - \beta_0),
+\qquad J = \frac{\partial f}{\partial \beta},
+$$
+
+so the design block is the Jacobian and the term is an ordinary additive
+one at every point. What distinguishes it is only that the block moves
+with the parameters: `term_refresh()` recomputes it, and `term_value()`
+reports $f$ itself, which the Jacobian does not give and a Gauss-Newton
+step needs beside it.
+
+```{r}
+#| label: terms-nl
+set.seed(13)
+nd <- data.frame(x = seq(0, 3, length.out = 60))
+nd$y <- 2 * exp(-1.3 * nd$x) + rnorm(60, sd = 0.05)
+
+bn <- term_build(nl(~ a * exp(-r * x), start = list(a = 1, r = 0.5)), nd)
+b <- c(1, 0.5)
+for (it in 1:25) {
+  cur <- term_refresh(bn, b)
+  J <- term_matrix(cur)
+  b <- b + solve(crossprod(J) + 1e-10 * diag(2),
+                 crossprod(J, nd$y - term_value(cur)))
+}
+round(as.numeric(b), 3)
+```
+
+The function may be given as a formula or as a function of the
+covariates and the parameters, and the two do not reach equally far. A
+formula is read symbolically: the names it uses that the data do not
+supply are the parameters, and the derivatives come from `deriv()` where
+that manages the expression and from a central difference where it does
+not. An opaque function is always differenced. More than that, a
+parameter can be given a link, and developed with covariates as
+$\theta_j = g_j^{-1}(Z\gamma_j)$, only on the formula route: substituting
+inside $f$ requires knowing where the parameter enters, which a formula
+says and a function does not.
 
 ### The censored response
 
