@@ -9,7 +9,7 @@
 DISTRIBS <- list()
 
 DISTRIBS$gaussian <- list(
-  title = "Gaussian",
+  title = "Gaussian, mean and scale",
   ctor = "gaussian1_distrib()",
   obj = function() gaussian1_distrib(),
   theta = list(mu = 1.5, sigma = 2),
@@ -78,7 +78,7 @@ DISTRIBS$logistic <- list(
 )
 
 DISTRIBS$student_t <- list(
-  title = "Student t",
+  title = "Student t, scale",
   ctor = "student_t1_distrib()",
   obj = function() student_t1_distrib(),
   theta = list(mu = 0.5, sigma = 1.3, nu = 6),
@@ -144,7 +144,7 @@ DISTRIBS$pseudohuber <- list(
 )
 
 DISTRIBS$gamma <- list(
-  title = "Gamma",
+  title = "Gamma, mean and variance",
   ctor = "gamma2_distrib()",
   obj = function() gamma2_distrib(),
   theta = list(mu = 3, sigma2 = 2),
@@ -165,7 +165,7 @@ DISTRIBS$gamma <- list(
 )
 
 DISTRIBS$invgauss <- list(
-  title = "Inverse Gaussian",
+  title = "Inverse Gaussian, mean and dispersion",
   ctor = "invgauss1_distrib()",
   obj = function() invgauss1_distrib(),
   theta = list(mu = 2, phi = 0.7),
@@ -183,7 +183,7 @@ DISTRIBS$invgauss <- list(
 )
 
 DISTRIBS$lognormal <- list(
-  title = "Lognormal",
+  title = "Lognormal, log-scale parameters",
   ctor = "lognormal1_distrib()",
   obj = function() lognormal1_distrib(),
   theta = list(mu = 0.5, sigma2 = 1.3),
@@ -202,7 +202,7 @@ DISTRIBS$lognormal <- list(
 )
 
 DISTRIBS$beta <- list(
-  title = "Beta",
+  title = "Beta, mean and precision",
   ctor = "beta1_distrib()",
   obj = function() beta1_distrib(),
   theta = list(mu = 0.4, phi = 6),
@@ -269,7 +269,7 @@ DISTRIBS$poisson <- list(
 )
 
 DISTRIBS$negbin <- list(
-  title = "Negative binomial (NB2)",
+  title = "Negative binomial, NB2",
   ctor = "negbin2_distrib()",
   obj = function() negbin2_distrib(),
   theta = list(mu = 4, theta = 1.7),
@@ -763,6 +763,11 @@ DISTRIBS$pig2 <- list(
   the derivatives of the normalizing constant are rational."
 )
 
+
+# The entries render in list order; sorting by constructor keeps the numbered
+# parametrizations of one family adjacent, whatever order they were written in.
+DISTRIBS <- DISTRIBS[order(vapply(DISTRIBS, function(r)
+  sub("\\(.*$", "", r$ctor), character(1)))]
 
 # ---------------------------------------------------------------------------
 # Catalog rendering
