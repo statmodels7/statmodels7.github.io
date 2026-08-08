@@ -202,6 +202,16 @@ if it is not that one.
 
 Vignettes need pandoc: `$env:RSTUDIO_PANDOC="C:\Users\giova\AppData\Local\Programs\Quarto\bin\tools"`.
 
+⚠️ **Set that variable when running the test suite too, or the documentation
+guard silently skips.** `test-docs.R`'s first check calls
+`pkgdown::check_pkgdown()`, which is what catches an exported object missing
+from `_pkgdown.yml` -- and it is guarded by `skip_if_not(rmarkdown::pandoc_available())`,
+so on this machine it reports `S` and tests nothing. That is precisely how
+`optimizer_bounded` reached CI unindexed on 2026-08-08 and reddened pkgdown
+minutes after the push. With the variable set, all six packages' guards run
+and pass. The rule: after exporting anything, run the docs guard WITH pandoc
+before pushing, not the ordinary suite.
+
 ### Windows traps that cost time
 
 - **`install.packages` fails with "cannot remove earlier installation, is it in use?"**
@@ -1203,6 +1213,18 @@ objective, every route agreeing on the optimum to machine precision:
   against 126; at 480 the plain method does not converge in 50000
   iterations while the accelerated one takes 334.
 
+⚠️ **An iteration COUNT on an ill-conditioned problem is platform
+arithmetic, and a ratio calibrated here fails elsewhere.** The plain method
+takes 4153 iterations on this machine and **652 on macOS** from the same
+start on the same problem: the products are summed differently, the
+trajectory diverges, and the count moves by a factor of six. The
+accelerated one is far steadier (126 against 133), which is itself part of
+the story. A test asserting the measured ratio went red on macOS alone;
+what it asserts now is the structural claim with room (acceleration at
+least halves the count) and it PRINTS both counts, per the `fit_report()`
+lesson -- an assertion that prints only TRUE/FALSE cannot be diagnosed on a
+platform you do not have.
+
 Two defects the measurements exposed, both in the first version of the
 loop, and both of a shape section 7 already records in other words:
 
@@ -1219,6 +1241,30 @@ loop, and both of a shape section 7 already records in other words:
   reported quantity is the right one. It costs one extra gradient per
   iteration under acceleration, since the point a step is taken from is
   not the point being reported.
+
+⚠️ **An S7 generic declared without a body gets a `...` in its usage, and
+only CI calls it undocumented.** `S7::new_generic("f", "x")` generates
+`function(x, ...)`, so `--as-cran` reports *"Undocumented arguments in Rd
+file"* -- on all five CI platforms, while the local check said `checking Rd
+\usage sections ... OK`. The sibling `optimizer_provides` passes an explicit
+`function(optimizer) S7::S7_dispatch()` and has no dots; matching that shape
+is the fix, and is better than documenting a `...` no method reads. Third
+instance of the §3 asymmetry, and the second one this year on a `\usage`
+section.
+
+⚠️ **A test that names a package UP the dependency graph closes a cycle,
+and only CI says so.** The first version put the "penalty_prox drives a
+proximal run" test in optimizers7, which meant `penalties7` in its
+`Suggests` -- and penalties7 depends on distributions7, which depends on
+optimizers7. `R CMD check --as-cran` was clean here, because penalties7
+is installed on this machine and a local check never resolves anything;
+on CI **all three workflows failed at dependency setup**, before a single
+test ran, with *"Can't find package called penalties7"*. The test moved
+to penalties7, where the direction is right, and it is the better home
+anyway: the question it asks is whether the OPERATOR works, not whether
+the optimizer does. General shape: a package may only name packages
+BELOW it, in Suggests as much as in Imports, and the local check cannot
+see the violation.
 
 ⚠️ The attainable mapping obeys the rounding floor of §7's tolerance
 item: with acceleration it stalls at ~4e-9 on an objective of order 2, so
