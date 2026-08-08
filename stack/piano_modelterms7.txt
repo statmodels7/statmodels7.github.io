@@ -460,6 +460,76 @@ gas(p = , q = , by = , time = )                     DONE 2026-08-08
 
 
 --------------------------------------------------------------------------------
+8b. WHAT ELSE IS WORTH BUILDING, AND THE CRITERION THAT DECIDES
+--------------------------------------------------------------------------------
+
+Giovanni, 2026-08-08: gas() was chosen because it is developed in a
+DISTRIBUTIONAL setting and therefore adapts to any family, unlike ARMA and
+its relatives, which are specific to additive-error models. That is the
+criterion, and it is the toolkit's own positioning argument applied to
+model terms: build what is defined through the DENSITY AND ITS SCORE, not
+what is defined through an error structure.
+
+DONE 2026-08-08, by that criterion: regime(), a latent Markov chain. The
+forward recursion works with any density, and the piece it needs --
+parameters7::transition_matrix(), with exact derivatives -- had been built
+and had NO consumer at all until this. Together with gas() it covers the
+two families of nonlinear dynamics: one driven by the score and moving
+continuously, one driven by a latent discrete state and moving in jumps.
+
+Building it required a second shape in the structural branch, and that is
+worth recording. term_filter() returns a PREDICTOR; a regime model's
+contribution is a likelihood mixed over states and cannot be reported as
+a predictor, so term_loglik() was added beside it. The branch now has two
+contracts, and a term implements whichever fits.
+
+STILL WORTH BUILDING, in order:
+
+  MIXTURES, at the distributions7 level rather than here. mixture(d1, d2,
+  ...) generalizes zero_inflated(), which is already a two-component
+  mixture with one component degenerate. The score is the responsibility-
+  weighted average of the components' scores and the Hessian carries the
+  standard extra term: written once, it composes with every family and
+  every other wrapper.
+
+  COPULAS, also at the distributions7 level. The four multivariate
+  families are elliptical plus Dirichlet and multinomial, so the marginals
+  are decided by the joint; a copula reverses that and lets any marginals
+  meet any dependence. It is the positioning argument carried to the
+  multivariate case, and the largest of the three.
+
+SPATIAL AND SPATIOTEMPORAL (Giovanni asked, 2026-08-08). The criterion
+cuts cleanly here too:
+
+  QUALIFIES -- MARKOV RANDOM FIELDS ON AREAL DATA. An intrinsic CAR prior
+  IS a quadratic penalty with P = D - W, the Laplacian of the adjacency
+  graph, rank deficient with the constants of each connected component in
+  its null space. penalties7 admits rank-deficient matrices precisely for
+  this, and CLAUDE.md already names "a neighborhood matrix" among the
+  intended P's. Being a prior on COEFFICIENTS it is orthogonal to the
+  response distribution, so it is distribution-agnostic by construction.
+  An mrf(area, nb) term is close to free: an indicator block plus
+  quadratic_penalty(L). This is the cheapest high-value spatial addition.
+
+  QUALIFIES, AND IS A REAL GAP -- ISOTROPIC SMOOTHS OF COORDINATES. te()
+  is a tensor product, so it is anisotropic IN THE MARGINS and not
+  invariant under rotation. Coordinates want isotropy in the DISTANCE: a
+  thin-plate-like construction, which neither basis7 nor modelterms7 has.
+  Spatiotemporal work is then the tensor of a spatial basis with a
+  temporal one, which te() already expresses once the spatial basis
+  exists, and separable covariance structures are already kron_identity().
+
+  DOES NOT QUALIFY -- SAR/CAR ON THE RESPONSE. y = rho W y + X beta + eps
+  presupposes an additive error, exactly as ARMA does. It is the spatial
+  instance of what the criterion excludes.
+
+  DOES NOT QUALIFY -- THE GAUSSIAN STATE SPACE / KALMAN FILTER. The filter
+  is exact only in the linear gaussian case, and the general version is a
+  particle filter or a Laplace approximation. gas() exists as the
+  deterministic answer to that problem, so implementing the Kalman filter
+  would be a step backwards.
+
+--------------------------------------------------------------------------------
 9. PHASES
 --------------------------------------------------------------------------------
 
