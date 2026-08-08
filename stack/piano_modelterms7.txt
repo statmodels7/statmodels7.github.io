@@ -1,0 +1,385 @@
+================================================================================
+                         modelterms7 -- PLAN
+       model terms as S7 objects: a data mapping, a design block,
+                a penalty, and the methods a fit reads
+                        drafted 2026-08-08
+================================================================================
+
+Written in English like every other artifact of the toolkit. It records the
+design conversation of 2026-08-08, in which Giovanni laid out the API he
+wants for statmodels7 -- statmod(cens(y, lwr = 0) ~ x1 + ... + xp +
+ridge(R) + lasso(L) + scad(S) + mcp(M), distrib = student_t1_distrib(),
+data = dd) -- and asked how modelterms7 should be organized so that the
+model layer can be built on it, and whether anything already implemented
+needs revision.
+
+The short answers, expanded below: a term is a data mapping plus a design
+block plus a penalties7 object plus metadata, and the packages built so far
+already supply every piece the first six terms need; nothing shipped needs
+revision now; three gaps are real but belong to later phases and are
+scheduled here so they cannot be forgotten (proximal machinery, the
+censored-likelihood assembler, marginal likelihood for non-gaussian random
+effects).
+
+
+--------------------------------------------------------------------------------
+0. WHAT IT IS, AND WHAT IT IS NOT
+--------------------------------------------------------------------------------
+
+A model term is what a formula names: the recipe that turns a data frame
+into a block of the design matrix, the penalty attached to that block's
+coefficients, and the metadata a fit needs to report itself -- coefficient
+names, hyperparameters with their links, whether the penalized objective is
+differentiable, and how effective degrees of freedom are counted.
+
+The positioning argument is the toolkit's. Every modeling package carries
+its own term machinery inside its formula interpreter -- mgcv's
+smooth.construct methods, gamlss's additive-term functions, lme4's Zt
+assembly -- written as internals that nothing outside can reuse or extend.
+Here a term is an object: statmodels7 consumes it, a user can define one
+and drop it into a formula, and the formula interpreter does not need to
+know its name in advance (section 4).
+
+    depends on:      S7, penalties7 (and through it distributions7,
+                     linkfunctions7, numericals7); parameters7 (random());
+                     basis7 arrives with s() in a later batch
+    depended on by:  statmodels7, which sums the blocks into predictors,
+                     assembles the likelihood, and estimates everything
+
+modelterms7 builds terms; it does not fit anything. The likelihood, the
+optimizer choice, the hyperparameter criterion and the handling of the
+non-smooth block are statmodels7's, reading what the terms declare.
+
+
+--------------------------------------------------------------------------------
+1. THE TWO KINDS OF TERM
+--------------------------------------------------------------------------------
+
+The class split follows the distinction Giovanni drew between terms that
+add columns and terms that change the likelihood's structure.
+
+  model_term                       abstract base
+  ├── additive_term                contributes X_j beta_j to the linear
+  │                                predictor of ONE distribution parameter
+  │     ├── LinparTerm             linpar(): unpenalized parametric block
+  │     ├── PenalizedTerm          ridge(), lasso(), scad(), mcp()
+  │     ├── RandomTerm             random(): grouped coefficients with a
+  │     │                          distribution on the effects
+  │     └── SmoothTerm             s(): basis7 expansion + Gram penalty
+  │                                [reserved; a later batch]
+  └── structural_term              rewrites likelihood contributions
+        └── GasTerm                gas(p, q): score-driven dynamics
+                                   [reserved; a later batch]
+
+structural_term exists from phase 1 so the formula interpreter can route
+it and so nothing has to be renamed when gas() arrives, but every generic
+on it signals an error until the term is actually built. The same applies
+to SmoothTerm: reserving the class costs nothing, retrofitting a hierarchy
+costs a rename, and the covstructs7 -> parameters7 episode is the record
+of what a rename reaches.
+
+A term addresses one distribution parameter. Which parameter is not the
+term's business: statmod() will carry one formula per modeled parameter
+(the GAMLSS shape), and each formula's terms attach to that parameter.
+
+
+--------------------------------------------------------------------------------
+2. THE LIFE CYCLE: SPECIFICATION, BUILT TERM, FITTED VIEWS
+--------------------------------------------------------------------------------
+
+A term as written in a formula is a SPECIFICATION: ridge(R) evaluated in
+the data environment returns a small object recording what was asked, with
+no design matrix in it. term_build(spec, data) returns the BUILT term:
+
+    X            the n x k design block
+    coef_names   k names, prefixed by the term's own label
+    penalty      a penalties7 object over the k coefficients, or NULL
+    blueprint    whatever re-applying the mapping to new data requires
+
+The blueprint is a contract, not an implementation detail: factor levels,
+centering constants, and later knots and basis parameters are recorded at
+build time, so term_predict(built, newdata) reproduces the mapping exactly.
+This is the discipline mgcv enforces through Predict.matrix, adopted here
+from the first term rather than discovered at the first wrong prediction.
+
+Fitted views come last: edf and plot need pieces only the fit has (the
+weighted crossproduct, the estimated hyperparameters, the coefficient
+values), so those methods take the built term AND the fit's blocks
+(section 6). The term declares how it is to be read; the model object
+supplies the numbers.
+
+
+--------------------------------------------------------------------------------
+3. THE GENERICS
+--------------------------------------------------------------------------------
+
+    term_build(spec, data)             specification -> built term
+    term_matrix(built)                 the design block
+    term_penalty(built)                the penalties7 object, or NULL
+    term_npar(built)                   k
+    term_coef_names(built)             the k names
+    term_smooth(built)                 is the penalized objective smooth in
+                                       beta? READ from the penalty's kink
+                                       set -- never restated, so a term
+                                       cannot disagree with its own penalty
+    term_predict(built, newdata)       the block on new data
+    edf(built, fit pieces)             section 6
+    print(), plot()                    per class
+    check_term(spec, data)             the validator, injection-checked
+
+term_smooth is what statmodels7 reads to split the coefficient vector into
+the differentiable block (linpar, ridge, s(), gaussian random effects) and
+the non-smooth block (lasso, scad, mcp): the first goes to the classical
+optimizers7 methods on the unconstrained scale, the second to the
+strategies of section 8, gap 1. The split is a property of the penalty,
+which is why it is derived and not declared.
+
+Hyperparameters are read off the penalty too: names, bounds, links, the
+theta derivatives and the mixed beta-theta block all already exist in
+penalties7. modelterms7 adds exactly one declaration per term: which
+criterion its theta is meant for, "joint" (the normalizing constant is
+kept, so joint maximum likelihood is defensible -- the argument penalties7
+records) or "marginal" (the REML pieces of quadratic_penalty: rank, null
+basis, log pseudo-determinant). A term states it; statmodels7 acts on it.
+
+
+--------------------------------------------------------------------------------
+4. THE FORMULA LAYER
+--------------------------------------------------------------------------------
+
+interpret_formula(formula, data) returns the response specification and the
+list of term specifications. Two decisions define it.
+
+RECOGNITION IS BY EVALUATION, NOT BY NAME. Each call on the right-hand side
+is evaluated in the data; if the result inherits from model_term, it is a
+term specification; otherwise it is an ordinary covariate expression and
+flows into the parametric block. log(x) evaluates to a numeric and stays a
+covariate; poly(x, 2) evaluates to a matrix and stays a covariate;
+ridge(R) evaluates to a specification and becomes a term. The consequence
+is the extension property the toolkit exists for: a user-defined term
+works in a formula the day it is written, with no specials whitelist to
+amend and nothing to register.
+
+BARE TERMS COLLECT INTO ONE linpar(). x1 + x2 + log(x3) becomes a single
+LinparTerm through model.matrix, with the usual contrasts and intercept
+conventions, so the default model is exactly a GLM design matrix and
+linpar() is also available explicitly for anyone who wants two parametric
+blocks with different labels.
+
+THE LEFT-HAND SIDE has its own constructors. cens(y, lwr = , upr = )
+returns a censored_response object carrying the observation, the bounds
+and the implied status (observed, left, right, interval). modelterms7
+defines the vocabulary because it is formula vocabulary; the likelihood
+assembly that consumes it -- density where observed, cdf difference where
+censored, through the distrib_grad_cdf/hess_cdf machinery distributions7
+already has -- is statmodels7's (open item #67, scheduled there).
+
+
+--------------------------------------------------------------------------------
+5. THE FIRST TERMS
+--------------------------------------------------------------------------------
+
+linpar(~ x1 + x2, label = )
+    model.matrix semantics, no penalty, term_smooth TRUE. The implicit
+    collector of section 4 and the explicit constructor are the same class.
+
+ridge(x, ...), lasso(x, ...), scad(x, ...), mcp(x, ...)
+    x is a formula or, as a convenience, a matrix; a formula goes through
+    the same blueprint discipline as linpar. The penalty is the penalties7
+    object: ridge_penalty(), lasso_penalty() -- since 2026-08-08 the
+    Laplace in location and rate, so the hyperparameter IS the lasso's
+    lambda -- scad_penalty(), mcp_penalty(). The term adds nothing to the
+    mathematics: derivatives, kinks, links and the mixed block are the
+    penalty's. A `by =` argument is reserved in the signature from day one
+    (a factor splitting the block into per-level copies), because
+    retrofitting an argument into four signatures and their tests is the
+    kind of sweep section 7 of CLAUDE.md documents.
+
+random(~ 1 | g)  /  random(~ x | g)
+    Builds the indicator/interaction block Z for the grouping factor, with
+    coefficients b, and attaches the distribution of the effects:
+
+      covariance =   a parameters7 matrix_parameter for the per-group
+                     covariance (default log_cholesky of the right
+                     dimension; ar1(), compound_symmetry() etc. drop in).
+                     The penalty is structured_penalty() with the structure
+                     as PRECISION -- shipped in penalties7 0.2.0, built for
+                     exactly this.
+      distrib =      a univariate distributions7 family for non-gaussian
+                     effects, applied through distrib_penalty(). ACCEPTED
+                     FROM DAY ONE, with the reading stated plainly in the
+                     documentation: a distribution used as a penalty gives
+                     joint-mode (penalized likelihood) estimation of the
+                     effects; the marginal likelihood, which integrates
+                     them out, needs machinery that does not exist yet
+                     (section 8, gap 3) and arrives later. The gaussian
+                     case does not suffer the distinction in the quantities
+                     a REML criterion uses.
+
+    term_smooth follows the chosen penalty, as everywhere.
+
+s(), nl(), gas() are NOT in this package's first release. Their contracts
+are sketched in section 9 so nothing built now precludes them.
+
+
+--------------------------------------------------------------------------------
+6. EFFECTIVE DEGREES OF FREEDOM
+--------------------------------------------------------------------------------
+
+edf is a method on the built term, taking the fit pieces (the weighted
+crossproduct H restricted to the term's columns, the penalty at the
+estimated theta, the coefficient values), because no term can know its edf
+without them. The counting rule is the term's declaration:
+
+  - quadratic penalty (ridge, s(), gaussian random): the trace of
+    (H + S(theta))^{-1} H over the term's block -- the standard smoother
+    trace, one linear solve per term;
+  - no penalty (linpar): k exactly, and the trace formula reduces to it;
+  - lasso: the number of nonzero coefficients, an unbiased estimator of
+    the degrees of freedom [Zou, Hastie & Tibshirani 2007];
+  - scad/mcp: the nonzero count as well, with the local-quadratic trace
+    available as the refinement when the fit carries it.
+
+print() on a fitted model will show one line per term with its edf, which
+is the reason edf is a first-class generic and not a summary afterthought.
+
+
+--------------------------------------------------------------------------------
+7. WHAT THE TOOLKIT ALREADY HAS -- THE REVISION AUDIT GIOVANNI ASKED FOR
+--------------------------------------------------------------------------------
+
+Checked package by package against the API above. Nothing shipped needs
+revision now; the pieces were built for this consumer.
+
+  penalties7    IS the term backend: value, exact beta/theta/mixed
+                derivatives, kink sets, links on hyperparameters, REML
+                pieces on the quadratic branch, structured_penalty for
+                random effects. The lasso moved to laplace2 (rate lambda)
+                on 2026-08-08, so the term's hyperparameter is the
+                textbook one.
+  basis7        phase 5 of piano_basis7 was, verbatim, the handoff to
+                penalties7 and modelterms7: evaluation matrices, exact
+                Grams, tensor products and basis_contract are waiting for
+                s().
+  parameters7   the covariance charts random() needs, with derivative
+                arrays; free names prefixed by the matrix they describe.
+  distributions7  per-observation scores and Hessians on the link scale
+                (the chain to beta is crossprod, i.e. BLAS -- measured
+                2026-07-31), cdf derivatives for censoring, cross_y for
+                the penalties.
+  optimizers7   the whole differentiable block.
+
+The three real gaps, none of which blocks modelterms7:
+
+  GAP 1 -- proximal machinery for the non-smooth block. Deferred
+      explicitly when penalties7 was planned; it becomes due when
+      statmodels7 first FITS a lasso/scad/mcp term. The natural shape:
+      penalty_prox(pen, v, step) in penalties7 (closed forms exist for
+      all three: soft threshold; SCAD and MCP have piecewise closed
+      proximal operators) and a proximal-gradient method in optimizers7,
+      with coordinate descent and the LLA route (SCAD/MCP as iterated
+      weighted lasso) as candidates to be MEASURED against each other,
+      not assumed. Schedule: its own batch, between modelterms7 and the
+      statmodels7 fitting layer.
+
+  GAP 2 -- the censored-likelihood assembler (open item #67). cens() is
+      defined here as vocabulary; the assembler belongs to statmodels7's
+      likelihood builder, and the distributions7 pieces are already
+      verified. No new mathematics.
+
+  GAP 3 -- marginal likelihood for non-gaussian random effects. Laplace
+      approximation or quadrature over grouped effects exists nowhere in
+      the toolkit. random(distrib = ) is honest about giving joint-mode
+      estimation until this exists. Not scheduled yet; recorded so the
+      deferral is a decision rather than an oversight.
+
+
+--------------------------------------------------------------------------------
+8. RESERVED TERMS, SO THAT TODAY'S CLASSES DO NOT PRECLUDE THEM
+--------------------------------------------------------------------------------
+
+s(x, basis = bspline_basis(...), penalty = )
+    SmoothTerm: basis7 evaluation matrix as the block, quadratic_penalty
+    of the Gram (or a Demmler-Reinsch reparametrization) as the penalty.
+    Everything it needs exists; it is deferred only to keep the first
+    release small.
+
+nl(~ theta1^x + log(theta2 + exp(z)), links = , subformulas = , by = )
+    Nonlinear parametric: the term owns inner parameters with their own
+    links, each optionally developed as a function of covariates
+    (theta1 ~ g). This breaks the "one design block" shape -- its
+    contribution to the predictor is nonlinear in its parameters -- so it
+    will need a third branch under additive_term whose contract adds the
+    derivative of the contribution in its own parameters. The API sketch
+    is recorded now; the design work is its own piano section when it
+    arrives.
+
+gas(p = , q = , by = , time = , penalty = )
+    structural_term: rewrites the likelihood recursively in time order
+    (score-driven dynamics), does not produce a block. by= with a
+    user-chosen penalty on the group-varying dynamics is part of the
+    intent from day one. Everything about it is deferred except the class
+    and the router.
+
+
+--------------------------------------------------------------------------------
+9. PHASES
+--------------------------------------------------------------------------------
+
+Phase 1 -- skeleton and contract.
+    Repository, DESCRIPTION (Imports: S7, penalties7, parameters7),
+    base classes and the generics of section 3, LinparTerm complete,
+    interpret_formula with evaluation-based recognition and the bare-term
+    collector, cens() and the censored_response class, check_term() with
+    paired injections (a wrong blueprint must fail, a correct one must
+    pass), test-docs.R copied byte-identical from the source of truth.
+
+Phase 2 -- the penalized quartet.
+    ridge(), lasso(), scad(), mcp() over matrix and formula inputs, by=
+    reserved, term_smooth read from kinks, every derivative pinned against
+    the penalty called directly (no tolerance to choose: same object).
+
+Phase 3 -- reading the terms.
+    edf per section 6, print() for specs and built terms, plot()
+    (coefficient paths for the penalized terms, effect displays for
+    linpar), the fitted-view contract documented for statmodels7.
+
+Phase 4 -- random().
+    Z construction with the blueprint discipline, covariance= through
+    structured_penalty, distrib= through distrib_penalty with the
+    joint-mode reading documented, print/edf.
+
+Phase 5 -- the surroundings.
+    pkgdown site, Pages enabled at creation, CI matrix, book chapter with
+    gates (the chapter shows a formula being interpreted and pins each
+    block and penalty against direct construction), portal card, logo
+    (the modelterms7 sticker already exists in logo/png), meta-package
+    membership, CLAUDE.md.
+
+One check pass at the end of each phase batch, per the standing rule.
+
+
+--------------------------------------------------------------------------------
+10. DECISIONS TAKEN HERE, AND DECISIONS LEFT TO GIOVANNI
+--------------------------------------------------------------------------------
+
+Taken (revocable, but the plan assumes them):
+  - recognition by evaluation, not by a specials whitelist;
+  - bare covariates collect into one implicit linpar();
+  - term_smooth derived from the penalty's kink set, never declared;
+  - hyperparameter criterion ("joint"/"marginal") declared per term;
+  - structural_term reserved now, implemented later;
+  - random(distrib = ) accepted from day one with the joint-mode reading
+    stated, marginal integration deferred as gap 3.
+
+Left open:
+  - the statmod() surface for several modeled parameters (a list of
+    formulas, or one formula per parameter argument) -- a statmodels7
+    decision that modelterms7 does not constrain;
+  - when gap 1 (proximal machinery) is scheduled: before statmodels7's
+    fitting layer is the plan's assumption;
+  - whether plot() on a penalized term shows a path over lambda by
+    refitting or only the fitted point -- deferred to phase 3, where it
+    can be measured.
+
+================================================================================
