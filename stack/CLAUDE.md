@@ -69,6 +69,7 @@ rule — do not "fix" singular names, and do not cite the plural reading in new 
 | `parameters7` | constrained parameters as maps from an unconstrained vector, exact to 4th order (RENAMED from covstructs7, 2026-08-04): base class `parameter` + SPD branch `matrix_parameter` (rank, log-(pseudo-)determinant, solves); `log_cholesky()`, `matrix_log()`, `correlation_matrix()` (spherical chart), `compound_symmetry()`/`ar1()` (two free values at any p, closed separable logdet, closed inverse), `autoregressive(p, order)` (PACF chart, derivative arrays through Levinson-Durbin in Rcpp, banded precision) (logdet = tr(S) linear, inverse = expm(-S) exact, Frechet derivatives by Daleckii-Krein/Opitz), `diagonal_matrix()`/`scalar_matrix()` (linkfunctions7 links), `scaled_matrix()` (rank-deficient ADMITTED), `simplex()` (ALR, cumulant recursion), `transition_matrix()` (row-wise simplexes). `piano_parameters7.txt` supersedes piano_covstructs7.txt |
 
 | `penalties7` | penalties as objects (created 2026-08-06 from `piano_penalties7.txt`): rho(D beta; theta) with value (NORMALIZING CONSTANT KEPT -- Giovanni 2026-08-03), exact derivatives in beta and theta, the mixed block (consumes `distrib_cross_y`, closed for all continuous families the same day), kink set, links on the hyperparameters. Three branches: `quadratic_penalty()` (rank/null basis/log-pdet fixed at ONE eigendecomposition, the REML pieces), `distrib_penalty()` (a univariate distributions7 log-density coordinatewise; `ridge_penalty()`/`lasso_penalty()`/`heavy_penalty()` named instances; ridge pinned against its quadratic twin at machine precision), `scad_penalty()`/`mcp_penalty()` (defined by rho', improper by construction). `check_penalty()` with injections |
+| `modelterms7` | model terms as S7 objects (phase 1 shipped 2026-08-08 from `piano_modelterms7.txt`): `model_term` -> `additive_term`/`structural_term` (the second RESERVED for gas() and routed but refused), `linpar()` with a blueprint (terms/xlev/contrasts) so `term_predict()` reapplies rather than rebuilds, `interpret_formula()` with RECOGNITION BY EVALUATION (a call whose value inherits model_term is a term; log(x) stays a covariate; bare covariates collapse into one linpar; the intercept convention is the formula's), `cens()`/`censored_response` (statuses observed/left/right/interval derived from the values), `check_term()` whose subset check DROPLEVELS the subset (a plain row subset keeps unused factor levels and cannot expose a rebuild-from-newdata predict). Phases 2-5 pending: the penalized quartet, edf/plot, random(), book+CI |
 | `statmodels7` | the meta-package (2026-08-05, Giovanni asked for a tidyverse-style grouping). Installing it installs the five members and `library(statmodels7)` attaches them, reporting versions. `statmodels7_packages()`, `statmodels7_versions()`, `statmodels7_conflicts()`, `statmodels7_update()`. It is ALSO the destination package below: the modeling code lands here later, so nothing gets renamed |
 
 **Planned** — `modelterms7`, `penalties7`, and the modeling layer of
@@ -99,6 +100,7 @@ C:\Users\giova\Desktop\labstatr\statmodels7\
     optimizers7\
     basis7\
     parameters7\
+    modelterms7\
     statmodels7\     the meta-package, its own repository; note the directory
                      has the same name as the umbrella it sits inside
     book\            the Quarto book (see §9); `quarto render` from inside it
@@ -832,6 +834,7 @@ whole and a scalar link cannot express it.
 | `basis7` | 683 tests, `R CMD check --as-cran` clean apart from the two environment notes, CI green (2026-08-03). Version `0.3.1`, a `NEWS.md` from the first commit and a vignette. Phases 1 to 4 of `piano_basis7.txt` are done; phase 5 is the handoff to `penalties7` and `modelterms7`. |
 
 | `penalties7` | 45 tests, created 2026-08-06; ALL FIVE PHASES of `piano_penalties7.txt` done by 2026-08-07: 0.2.0 adds `structured_penalty()` (a parameters7 matrix_parameter as the PRECISION, free vector = theta, identity links, every derivative from param_d1/param_d2 and the logdet contract; at a zero log-Cholesky free vector it IS the plain ridge, pinned at machine precision) and the book gained chapter 8 with three injection-checked gates (`book/R/penalty-certificates.R`). Repo pushed, Pages enabled |
+| `modelterms7` | 65 tests, `R CMD check --as-cran` clean apart from the two environment notes, created 2026-08-08 (phase 1 of `piano_modelterms7.txt`). Version `0.1.0`, `NEWS.md` from the first commit. Repo pushed; CI, pkgdown and Pages arrive with phase 5 |
 | `statmodels7` | 32 tests, `R CMD check --as-cran` with one deliberate NOTE (see below) and the submission warning, created 2026-08-05. Version `0.1.0` with a `NEWS.md` from the first commit. |
 
 All six repositories run `R-CMD-check` on macOS, Windows and three Linux/R
@@ -2048,6 +2051,15 @@ Two smaller things worth keeping:
   starts run sequentially, and the parallel path belongs to installed sessions
   (CI exercises it). General shape: any code that serializes S7 objects to
   another R process must ensure both sides run the same namespace.
+- **A method registered on a BASE generic needs `S7::methods_register()` in
+  `.onLoad`, and pkgload hides its absence** (2026-08-08). `S7::method(print,
+  cls) <- fn` registers with the S3 dispatch table under pkgload, so
+  `test_local()` is green; from an INSTALLED package the method is simply
+  absent and the object prints as the raw S7 property dump. penalties7 shipped
+  that way and nothing noticed until modelterms7's `R CMD check` (which
+  installs) failed on its own print tests. Both packages now carry the
+  `.onLoad`; any future package with methods on base generics needs it, and a
+  print test is what makes the omission visible.
 - Reading an S7 property costs ~2.2 µs against 0.87 for a plain attribute. In hot paths,
   read properties once into locals.
 - S7 dispatch itself is ~5 µs against ~0.9 for a plain call. Irreducible.
@@ -2342,6 +2354,7 @@ Two smaller things worth keeping:
   is also now **relative**, `s'y > curv_tol*||s||*||y||`, as `bfgs()` already had
   it. General lesson: a policy chosen on one problem is a policy chosen on one
   problem — the boxed case disagreed with Rosenbrock about all three constants.
+- `modelterms7` phases 2-5 (`piano_modelterms7.txt`): the penalized quartet, edf/plot, random(), book chapter and CI; then GAP 1 of the piano (penalty_prox in penalties7 + a proximal method in optimizers7, measured against coordinate descent and LLA) before statmodels7's fitting layer.
 - Next packages: **`parameters7` phase 2** (`piano_covstructs7.txt`:
   correlations via canonical partial correlations, D R D', compound
   symmetry/AR(1), block diagonal, composition -- phase 1 shipped 2026-08-03),
