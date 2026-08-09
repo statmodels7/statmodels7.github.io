@@ -1,19 +1,19 @@
-# The catalog's figures: each family drawn at several values of one of its
-# parameters.
+# The catalog's figures: one panel per parameter, each drawing the family at
+# three values of that parameter with the others held at the record's theta.
 #
-# The parameter varied is declared per family in the catalog's `curves` field,
-# because which one changes the SHAPE is a fact about the family and not
-# something to be guessed: for a location-scale family it is the scale, for the
-# Student t the degrees of freedom, for the generalized Pareto the tail index.
-# assert_curves_ok() refuses a record without the field, so a family cannot be
-# added without saying what its picture should show.
+# The values are declared per family in the catalog's `curves` field rather
+# than derived, because what is worth showing is a fact about the family: a
+# location wants positions either side of its default, a scale a small, a
+# middle and a large one, a shape the values that change the shape. Every
+# parameter gets a panel, so none of them goes unshown, and
+# assert_curves_ok() rejects a record whose `curves` are not exactly the
+# family's parameters in the family's own order.
 
 
-# The parameter settings a record asks for: everything at `theta`, one
-# parameter taken through the declared values.
-distrib_curve_thetas <- function(rec) {
-  pname <- names(rec$curves)[1L]
-  lapply(rec$curves[[1L]], function(v) {
+# The parameter settings one panel asks for: everything at `theta`, the named
+# parameter taken through its declared values.
+distrib_curve_thetas <- function(rec, pname) {
+  lapply(rec$curves[[pname]], function(v) {
     th <- rec$theta
     th[[pname]] <- v
     th
@@ -26,12 +26,21 @@ distrib_curve_thetas <- function(rec) {
 # some setting still puts a visible amount of density. Only distrib_pdf() is
 # called, never the quantile function, which for several families is itself a
 # root-finding fallback.
-distrib_curve_data <- function(rec) {
+distrib_curve_data <- function(rec, pname = names(rec$curves)[1L]) {
   d <- rec$obj()
-  thetas <- distrib_curve_thetas(rec)
+  thetas <- distrib_curve_thetas(rec, pname)
   discrete <- S7::S7_inherits(d, distributions7::discrete_distrib)
 
   rng <- range(unlist(lapply(thetas, rec$grid)), finite = TRUE)
+  # A parameter free on the whole line moves the density ALONG the axis, and
+  # the record's grid is sized for one position of it, so the candidate range
+  # is widened by how far the values travel. Every other kind of parameter
+  # reshapes the density in place and needs no room.
+  b <- d@params_bounds[[pname]]
+  if (is.infinite(b[1L]) && is.infinite(b[2L])) {
+    travel <- diff(range(rec$curves[[pname]]))
+    rng <- rng + c(-1, 1) * travel / 2
+  }
 
   eval_at <- function(y) {
     lapply(thetas, function(th) {
@@ -54,15 +63,31 @@ distrib_curve_data <- function(rec) {
   y <- make_y(rng)
   dens <- eval_at(y)
 
-  peak <- do.call(pmax, c(dens, list(na.rm = TRUE)))
-  keep <- which(is.finite(peak) & peak > 1e-4 * max(peak, na.rm = TRUE))
+  keep <- if (discrete) {
+    # For a discrete family the criterion is the mass itself rather than a
+    # ratio of densities: the window is the smallest one holding 99% of
+    # every setting, so a long thin tail does not fill the panel with stems
+    # that carry nothing. negbin is the only family this bites, its grid
+    # running to 40 while the mass is under 15.
+    cuts <- vapply(dens, function(v) {
+      v[!is.finite(v)] <- 0
+      tot <- sum(v)
+      if (!(tot > 0)) return(c(1, length(v)))
+      c(which(cumsum(v) >= 0.005 * tot)[1L],
+        which(cumsum(v) >= 0.995 * tot)[1L])
+    }, numeric(2))
+    seq.int(min(cuts[1L, ]), max(cuts[2L, ]))
+  } else {
+    peak <- do.call(pmax, c(dens, list(na.rm = TRUE)))
+    which(is.finite(peak) & peak > 1e-4 * max(peak, na.rm = TRUE))
+  }
   if (length(keep) > 1L) {
     span <- seq.int(min(keep), max(keep))
     y <- y[span]
     dens <- lapply(dens, function(v) v[span])
   }
   list(y = y, dens = dens, thetas = thetas, discrete = discrete,
-       param = names(rec$curves)[1L], values = rec$curves[[1L]])
+       param = pname, values = rec$curves[[pname]])
 }
 
 # One panel, drawn by the package's own plot method.
@@ -75,39 +100,49 @@ distrib_curve_data <- function(rec) {
 # drawing), and an empty title, the section heading having named the family
 # already.
 plot_distrib_entry <- function(rec) {
-  cd <- distrib_curve_data(rec)
-  theta <- rec$theta
-  theta[[cd$param]] <- cd$values
-
-  op <- graphics::par(mar = c(4, 4, 0.6, 0.6), cex = 0.9)
+  d <- rec$obj()
+  pars <- names(rec$curves)
+  op <- graphics::par(mfrow = c(1, length(pars)),
+                      mar = c(4, 4, 1.6, 0.6), cex = 0.75)
   on.exit(graphics::par(op), add = TRUE)
 
-  plot(rec$obj(), theta,
-       xlim = range(cd$y), main = "", xlab = "y",
-       ylab = if (cd$discrete) "probability" else "density",
-       bty = "n", lwd = 2)
-  invisible(cd)
+  out <- lapply(pars, function(pname) {
+    cd <- distrib_curve_data(rec, pname)
+    theta <- rec$theta
+    theta[[pname]] <- cd$values
+    # bty = "l" rather than "n": with no box R draws each axis only between
+    # its extreme ticks, and a discrete family whose support runs past the
+    # last tick then has stems standing on nothing
+    plot(d, theta,
+         xlim = range(cd$y), main = "", xlab = "y",
+         ylab = if (cd$discrete) "probability" else "density",
+         bty = "l", lwd = 2)
+    cd
+  })
+  names(out) <- pars
+  invisible(out)
 }
 
 # The sentence under the picture: which parameter moves and where the others
 # are held, so the figure is readable without counting back to the code.
 distrib_curve_caption <- function(rec) {
   what <- if (S7::S7_inherits(rec$obj(), distributions7::discrete_distrib)) {
-    "The probability mass"
+    "the probability mass"
   } else {
-    "The density"
+    "the density"
   }
-  n <- length(rec$curves[[1L]])
-  count <- c("two", "three", "four", "five")[max(1L, min(4L, n - 1L))]
-  held <- setdiff(names(rec$theta), names(rec$curves)[1L])
-  if (!length(held)) {
-    return(sprintf("%s at %s values of `%s`.", what, count,
-                   names(rec$curves)[1L]))
+  pars <- names(rec$curves)
+  fmt <- function(v) paste(format(v, trim = TRUE), collapse = ", ")
+  if (length(pars) == 1L) {
+    return(sprintf("%s at `%s` = %s.",
+                   sub("^t", "T", what), pars, fmt(rec$curves[[1L]])))
   }
-  sprintf("%s at %s values of `%s`, with %s held fixed.",
-          what, count, names(rec$curves)[1L],
-          paste(sprintf("`%s = %s`", held,
-                        format(unlist(rec$theta[held]), trim = TRUE)),
+  # the values themselves are in each panel's legend; the caption says what
+  # the panels are and where the parameters not varying are held
+  sprintf("One panel per parameter: %s at three values of each, the others held at %s.",
+          what,
+          paste(sprintf("`%s = %s`", pars,
+                        format(unlist(rec$theta[pars]), trim = TRUE)),
                 collapse = ", "))
 }
 
@@ -117,50 +152,54 @@ distrib_curve_caption <- function(rec) {
 # density that is not finite and positive somewhere, and a set of settings
 # that draw the same curve.
 assert_curves_ok <- function() {
-  missing <- names(DISTRIBS)[!vapply(DISTRIBS,
-                                     function(r) is.list(r$curves) &&
-                                       length(r$curves) == 1L &&
-                                       length(r$curves[[1L]]) >= 2L,
-                                     logical(1))]
-  if (length(missing)) {
-    stop("Families without a 'curves' field: ",
-         paste(missing, collapse = ", "), call. = FALSE)
-  }
-
   for (id in names(DISTRIBS)) {
     rec <- DISTRIBS[[id]]
     d <- rec$obj()
-    pname <- names(rec$curves)[1L]
 
-    if (!pname %in% d@params) {
-      stop(sprintf("Distribution '%s': curves vary '%s', which is not a parameter.",
-                   id, pname), call. = FALSE)
+    if (!is.list(rec$curves) || !length(rec$curves)) {
+      stop(sprintf("Distribution '%s': no 'curves' field.", id), call. = FALSE)
     }
-    b <- d@params_bounds[[pname]]
-    v <- rec$curves[[1L]]
-    if (any(!is.finite(v)) || any(v <= b[1L]) || any(v >= b[2L])) {
-      stop(sprintf("Distribution '%s': a value of '%s' is outside (%s, %s).",
-                   id, pname, format(b[1L]), format(b[2L])), call. = FALSE)
+    # every parameter gets a panel, so no parameter's effect goes unshown, and
+    # the panels appear in the order the family declares its parameters
+    if (!identical(names(rec$curves), d@params)) {
+      stop(sprintf(paste0("Distribution '%s': 'curves' names (%s) are not the ",
+                          "family's parameters (%s). Every parameter needs a ",
+                          "panel, in the family's own order."),
+                   id, paste(names(rec$curves), collapse = ", "),
+                   paste(d@params, collapse = ", ")), call. = FALSE)
     }
 
-    cd <- distrib_curve_data(rec)
-    for (i in seq_along(cd$dens)) {
-      f <- cd$dens[[i]]
-      if (!any(is.finite(f) & f > 0)) {
-        stop(sprintf("Distribution '%s': the density at %s = %s is nowhere finite and positive.",
-                     id, pname, format(v[i])), call. = FALSE)
+    for (pname in d@params) {
+      v <- rec$curves[[pname]]
+      if (length(v) < 2L) {
+        stop(sprintf("Distribution '%s': '%s' needs at least two values.",
+                     id, pname), call. = FALSE)
       }
-    }
-    # the settings must actually differ on the page
-    spread <- max(vapply(seq_along(cd$dens)[-1L], function(i) {
-      a <- cd$dens[[1L]]; b2 <- cd$dens[[i]]
-      ok <- is.finite(a) & is.finite(b2)
-      if (!any(ok)) return(0)
-      max(abs(a[ok] - b2[ok]))
-    }, numeric(1)))
-    if (!is.finite(spread) || spread < 1e-6) {
-      stop(sprintf("Distribution '%s': the curves for '%s' are indistinguishable.",
-                   id, pname), call. = FALSE)
+      b <- d@params_bounds[[pname]]
+      if (any(!is.finite(v)) || any(v <= b[1L]) || any(v >= b[2L])) {
+        stop(sprintf("Distribution '%s': a value of '%s' is outside (%s, %s).",
+                     id, pname, format(b[1L]), format(b[2L])), call. = FALSE)
+      }
+
+      cd <- distrib_curve_data(rec, pname)
+      for (i in seq_along(cd$dens)) {
+        fi <- cd$dens[[i]]
+        if (!any(is.finite(fi) & fi > 0)) {
+          stop(sprintf("Distribution '%s': at %s = %s nothing in the window is finite and positive.",
+                       id, pname, format(v[i])), call. = FALSE)
+        }
+      }
+      # the settings must actually differ on the page
+      spread <- max(vapply(seq_along(cd$dens)[-1L], function(i) {
+        a <- cd$dens[[1L]]; b2 <- cd$dens[[i]]
+        ok <- is.finite(a) & is.finite(b2)
+        if (!any(ok)) return(0)
+        max(abs(a[ok] - b2[ok]))
+      }, numeric(1)))
+      if (!is.finite(spread) || spread < 1e-6) {
+        stop(sprintf("Distribution '%s': the curves for '%s' are indistinguishable.",
+                     id, pname), call. = FALSE)
+      }
     }
   }
   invisible(TRUE)
