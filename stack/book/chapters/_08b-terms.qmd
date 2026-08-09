@@ -307,44 +307,73 @@ sd <- data.frame(x = sort(runif(500, 0, 10)))
 sd$y <- 0.3 * sd$x + 1.5 * pmax(sd$x - 5, 0) + 2 * (sd$x > 5) +
   rnorm(500, sd = 0.3)
 
-fit_jseg <- function(psi0, damp = 0.2, iters = 150) {
-  bs <- term_build(jseg(x, psi = psi0), sd)
-  b <- bs@blueprint$coef
+fit_jseg <- function(spec, iters = 200) {
+  cur <- term_build(spec, sd)
+  b <- cur@blueprint$coef
   for (it in seq_len(iters)) {
-    X <- term_matrix(term_refresh(bs, b))
-    nb <- solve(crossprod(X) + 1e-10 * diag(ncol(X)), crossprod(X, sd$y))
-    b <- as.numeric(b + damp * (nb - b))
+    cur <- term_refresh(cur, b)
+    if (seg_converged(cur)) break
+    b <- as.numeric(qr.coef(qr(term_matrix(cur)), sd$y))
   }
-  c(psi = seg_psi(bs, b), slope = b[1], change = b[2], jump = b[3])
+  c(psi = seg_psi(cur, b), slope = b[1], change = b[2], jump = b[3])
 }
-round(rbind(`from 4` = fit_jseg(4), `from 2` = fit_jseg(2)), 3)
+round(rbind(`from 2`    = fit_jseg(jseg(x, psi = 2)),
+            `from the grid` = fit_jseg(seg_start(jseg(x), sd, sd$y))), 3)
 ```
 
-Two features of the discontinuous block are consequences of the identity
-rather than choices. The weight grows without bound as $x$ approaches
-$\psi$, and since $Z - \psi W$ is the step itself, $Z$ is $\psi W$ plus a
-quantity of order one: letting $W$ grow makes the two columns
-numerically collinear and drowns the signal the fit reads. The
-denominator is held at or above a fraction `band` of the covariate's
-range, which is a bandwidth and not a guard, the step being replaced by
-a ramp within it and the fixed point being that of a slightly smoothed
-problem. Separately, a break-point outside the data is not
-ill-conditioned but exactly singular, the indicator being constant
-there, so the position is confined to the interval between the fifth and
-the ninety-fifth percentile of the covariate.
+The weight grows without bound as $x$ approaches $\psi$, and since
+$Z - \psi W$ is the step itself, $Z$ is $\psi W$ plus a quantity of order
+one: letting $W$ grow makes the two columns numerically collinear and
+drowns the signal the fit reads. @fasola2018 answer this by moving the
+observations rather than by capping the weight. With a scaling factor
+$c$ the two intervals on either side of the break-point are shrunk
+towards the ends of the range,
 
-The two runs above differ only in where they begin, and the second
-returns the lower limit: the objective has local optima in the
-break-point, and the iteration converges from within a basin around the
-true position rather than from anywhere. Damping the step widens that
-basin and is needed for its own sake -- taken undamped the joint
-construction overshoots even from a good start -- but it does not
-replace a start in the right place, which is why the segmented
-literature restarts from several positions and why
-`multistart()` belongs around this iteration. `by` gives an independent
-set of break-points per level of a factor, and a penalty on the changes
--- the slope changes for `seg()`, the jump sizes for `jump()` -- selects
-how many break-points are really there when it is the lasso.
+$$
+[x_{(1)}, \psi] \;\mapsto\; [x_{(1)},\, \psi - c(\psi - x_{(1)})],
+\qquad
+(\psi, x_{(n)}] \;\mapsto\; (\psi + c(x_{(n)} - \psi),\, x_{(n)}],
+$$
+
+which leaves a gap of relative width $c$ around $\psi$, bounds $W$, and
+changes no model: the working covariates are computed on the rescaled
+covariate while the contribution stays on the original one, exactly as
+the additional covariates of the paper's multiple-break-point model do.
+
+The factor is not a constant, and that is what makes the construction an
+algorithm rather than a formula. It governs how far the break-point may
+travel in one step, so a large value lets the estimate leave a spurious
+optimum and a small one is faithful to the step function; the factor is
+halved whenever the break-point reverses direction, the signal that the
+iteration has begun to circle an optimum instead of travelling towards
+one. A break-point outside the data is a separate matter and not merely
+ill-conditioned: the indicator is constant there, so the position is
+confined to the interval between the fifth and the ninety-fifth
+percentile of the covariate.
+
+The two runs above differ only in where they begin, and they end in
+different places: the objective has local optima in the break-point, and
+the schedule widens the basin the iteration converges from without
+removing them. The first run does not fail, it converges -- to a minimum
+of its own, on a plateau of the exact profile that is worse than the
+global one. Where a run begins therefore decides what it finds, and
+`seg_start()` decides it by scoring an equally spaced grid on the
+least-squares profile of the term's own columns and returning the
+specification with the best of them, which is the initialization
+@fasola2018 recommend. `by` gives an independent set of break-points per
+level of a factor, and a penalty on the changes -- the slope changes for
+`seg()`, the jump sizes for `jump()` -- selects how many break-points
+are really there when it is the lasso.
+
+A run is declared finished when no break-point moves by more than a
+hundredth of the distance between consecutive observations, below which
+the objective of a discontinuous term cannot change. The rule is one of
+resolution and tightens as the sample grows, while the precision at
+which the fixed point is reached does not, so a caller that can evaluate
+the objective is better served stopping on its relative change. That is
+also the rule for a continuous term, whose iteration can settle into a
+cycle of period two in the break-point long after the fit has stopped
+moving.
 
 ### Markov regimes
 
