@@ -4,9 +4,12 @@
 # not use: blocks against hand-built references, the penalized terms' penalty
 # against the penalties7 constructor called directly, the random block and
 # its Kronecker-replicated precision against assembled matrices, and the edf
-# trace against the eigenvalue form. Injection-checked when written: a block
-# construction transposed in the reference, a 5% inflation of the edf, and a
-# penalty compared at a different theta were each caught.
+# trace against the eigenvalue form, and the two break-point constructions
+# against the printed formulas transcribed by hand. Injection-checked when
+# written: a block construction transposed in the reference, a 5% inflation
+# of the edf, a penalty compared at a different theta, the sign of the
+# break-point column, the jump identity 2.5% wrong, a break-point 2% wrong
+# and psi read off the wrong combination were each caught.
 
 assert_terms_ok <- function() {
   set.seed(20260808)
@@ -82,7 +85,36 @@ assert_terms_ok <- function() {
     fail("the edf counting rules")
   }
 
-  # 5. the blueprint: a droplevels subset reproduces the rows
+  # 5. the two break-point constructions, transcribed by hand from the
+  #    printed formulas rather than read off the package
+  sx <- data.frame(x = seq(0.5, 9.5, length.out = 41))
+  bsg <- term_build(seg(x, psi = 4.7), sx)
+  cfs <- c(0.4, 1.7, 5.3)
+  Xs <- term_matrix(term_refresh(bsg, cfs))
+  jac <- cbind(sx$x, pmax(sx$x - cfs[3], 0),
+               -cfs[2] * (sx$x > cfs[3]))
+  if (!isTRUE(all.equal(unname(Xs), jac, tolerance = 1e-12,
+                        check.attributes = FALSE))) {
+    fail("the segmented Jacobian")
+  }
+
+  # the identity 1(x>psi) = 1/2 + (x-psi)/(2|x-psi|), away from the band
+  bjp <- term_build(jump(x, psi = 4, linear = FALSE), sx)
+  kap <- 2.5
+  psi <- 4
+  cfj <- c(kap, -kap * psi)
+  Xj <- term_matrix(term_refresh(bjp, cfj))
+  away <- abs(sx$x - psi) > 0.02 * diff(range(sx$x))
+  step <- 0.5 + (sx$x - psi) / (2 * abs(sx$x - psi))
+  if (!isTRUE(all.equal(as.numeric(Xj %*% cfj)[away],
+                        (kap * step)[away], tolerance = 1e-10))) {
+    fail("the jump identity")
+  }
+  if (abs(seg_psi(bjp, cfj) - psi) > 1e-12) {
+    fail("the break-point read off two coefficients")
+  }
+
+  # 6. the blueprint: a droplevels subset reproduces the rows
   idx <- which(dd$g != "e")
   sub <- droplevels(dd[idx, , drop = FALSE])
   if (!isTRUE(all.equal(unname(term_predict(lp, sub)),
