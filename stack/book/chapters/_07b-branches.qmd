@@ -123,6 +123,58 @@ deliberate: two independent implementations of one object can be compared
 componentwise with no tolerance to choose, and the certification below does
 exactly that at $\lambda = 1/\sigma^2$.
 
+The elastic net is the same construction over the family that is the
+product of those first two, `enet_distrib()` held at zero. Writing
+$a = \lambda\alpha$ and $c = \lambda(1-\alpha)$, its value is
+
+$$
+\rho(D\beta; \lambda, \alpha) =
+  \lambda\left\{\alpha\lVert D\beta\rVert_1
+  + \frac{1-\alpha}{2}\lVert D\beta\rVert_2^2\right\}
+  + p\log Z(\lambda, \alpha),
+\qquad
+Z = \frac{2M(a/\sqrt{c})}{\sqrt{c}},
+$$ {#eq-penalty-enet}
+
+with $M$ the Mills ratio. That the constant is available in closed form is
+what makes both hyperparameters estimable: a penalty written as a formula
+would have the same minimizer at fixed $(\lambda, \alpha)$ and nothing to
+say about which pair to choose, because a criterion that compares them
+compares normalized densities. The mixing weight lives in the open unit
+interval, the two ends being the lasso and ridge of the paragraph above,
+which remain penalties of their own.
+
+Two things follow from the mixture that do not from either part. The
+penalized objective is not differentiable, since the $\ell_1$ term carries
+its kink through whatever $\alpha$ multiplies it, so the elastic net is a
+non-smooth penalty at every admissible $\alpha$; and its proximal operator
+is the composition of the two elementary ones,
+
+$$
+\operatorname{prox}_{t\rho}(v) =
+  \frac{\mathcal{S}(v,\; t\lambda\alpha)}{1 + t\lambda(1-\alpha)},
+$$ {#eq-prox-enet}
+
+the soft threshold of the Laplace part followed by the shrinkage of the
+Gaussian one, which follows from the stationary condition
+$(\beta - v)/t + a\,\mathrm{sgn}(\beta) + c\beta = 0$ separating
+coordinatewise.
+
+```{r}
+#| label: enet-example
+pen <- elasticnet_penalty(n_coef = 4)
+beta <- c(0.5, 1.4, -0.3, 2.0)
+th <- list(lambda = 0.8, alpha = 0.6)
+
+# the value, less its constant, is the elastic net of the coefficients
+penalty_value(pen, beta, th) - penalty_value(pen, rep(0, 4), th)
+0.8 * (0.6 * sum(abs(beta)) + 0.4 * sum(beta^2) / 2)
+
+# and the operator is the threshold followed by the shrinkage
+penalty_prox(pen, beta, step = 0.5, th)
+```
+
+
 ```{r}
 #| label: separable-example
 # the fused lasso: Laplace increments through a difference map

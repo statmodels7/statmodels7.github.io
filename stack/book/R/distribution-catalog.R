@@ -133,6 +133,38 @@ DISTRIBS$laplace2 <- list(
   `laplace`."
 )
 
+DISTRIBS$enet <- list(
+  title = "Elastic net",
+  ctor = "enet_distrib()",
+  obj = function() enet_distrib(),
+  theta = list(mu = 0.3, lambda = 1.5, alpha = 0.6),
+  support = "y \\in \\mathbb{R}",
+  pdf_latex = "f(y) = \\frac{1}{Z}\\exp\\!\\left\\{-a|y-\\mu| - \\frac{c}{2}(y-\\mu)^{2}\\right\\}, \\qquad a = \\lambda\\alpha, \\quad c = \\lambda(1-\\alpha), \\quad Z = \\frac{2M(a/\\sqrt{c})}{\\sqrt{c}}",
+  moments = "\\mathbb{E}[Y] = \\mu, \\qquad \\operatorname{Var}(Y) = \\frac{1 + xG}{c}, \\qquad x = \\frac{a}{\\sqrt{c}}, \\quad G = \\frac{\\mathrm{d}\\log M}{\\mathrm{d}x}",
+  ld = function(y, th) {
+    a <- th$lambda * th$alpha
+    cc <- th$lambda * (1 - th$alpha)
+    x <- a / sqrt(cc)
+    # M is the Mills ratio Phi(-x)/phi(x), written here from pnorm and
+    # dnorm rather than through the package's own stable route
+    logM <- stats::pnorm(-x, log.p = TRUE) - stats::dnorm(x, log = TRUE)
+    logZ <- log(2) - log(cc) / 2 + logM
+    -a * abs(y - th$mu) - cc * (y - th$mu)^2 / 2 - logZ
+  },
+  grid = function(th) seq(-6, 7, length.out = 40),
+  note = "The product of a Laplace and a Gaussian at the same location,
+  normalized, and so the density whose negative logarithm is the
+  elastic-net penalty. $M$ is the Mills ratio $\\Phi(-x)/\\varphi(x)$, which
+  makes the constant closed and finite at both ends: $Z \\to 2/a$ as
+  $\\alpha \\to 1$, where the family is `laplace2`, and
+  $Z \\to \\sqrt{2\\pi/c}$ as $\\alpha \\to 0$, where it is the Gaussian. Both
+  of those remain families of their own and $\\alpha$ is confined to the
+  open interval. Every derivative in $a$ and $c$ is a polynomial in $x$
+  and $G$, with $G' = 1 + xG - G^{2}$, and the chain to
+  $(\\lambda, \\alpha)$ is bilinear, so the mixed second derivative picks up
+  the map's own cross term. The kink at $y = \\mu$ is the Laplace's."
+)
+
 DISTRIBS$pseudohuber <- list(
   title = "Pseudo-Huber",
   ctor = "pseudohuber_distrib()",
@@ -1177,7 +1209,7 @@ ALL_FAMILY_CTORS <- c(
   "gaussian1_distrib", "gaussian2_distrib", "gaussian3_distrib",
   "cauchy_distrib", "logistic_distrib", "student_t1_distrib",
   "student_t2_distrib", "laplace_distrib", "laplace2_distrib",
-  "pseudohuber_distrib",
+  "enet_distrib", "pseudohuber_distrib",
   "skewnormal1_distrib", "skewnormal2_distrib", "skewt_distrib",
   "gumbel_distrib", "gamma1_distrib", "gamma2_distrib",
   "invgauss1_distrib", "invgauss2_distrib", "lognormal1_distrib",
