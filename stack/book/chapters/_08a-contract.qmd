@@ -37,13 +37,26 @@ dim(term_predict(built, sub))
 
 A consumer reads a built term through a small set of generics:
 `term_matrix()` for the block, `term_npar()` and `term_coef_names()` for
-its size and labels, `term_penalty()` for the penalty object, and
-`term_predict()` for the block on new data. One flag deserves its own
-statement. `term_smooth()` says whether the term's contribution to the
-penalized objective is differentiable in the coefficients, and the answer
-is read from the penalty rather than declared by the term: an unpenalized
-term is smooth, and a penalized one is smooth exactly when its penalty's
-kink set (@sec-penalties7) is empty. The model layer uses this flag to
+its size and labels, `term_penalties()` for what the term declares it
+wants penalized, and `term_predict()` for the block on new data.
+
+`term_penalties()` returns one entry per penalty, each naming the
+parameters of the term it covers and the penalty over them, which is more
+than one penalty per term and less than the whole block for each. Both
+directions are used: a segmented term penalizes its changes and not its
+break-points, a joint one penalizes its slope changes and its jumps under
+hyperparameters of their own, and a filter on a panel penalizes the
+deviations of its groups while the population values stay free. Where a
+term carries a single penalty over the whole of itself, which is every
+parametric penalized block, the entry names all of it and
+`term_penalty()` returns that penalty directly.
+
+One flag deserves its own statement. `term_smooth()` says whether the
+term's contribution to the penalized objective is differentiable in the
+coefficients, and the answer is read from the penalties rather than
+declared by the term: an unpenalized term is smooth, and a penalized one
+is smooth exactly when no penalty it carries has a kink
+(@sec-penalties7). The model layer uses this flag to
 split the coefficient vector into the block the optimizers of
 @sec-optimizers7 handle on the unconstrained scale and the block that
 needs non-smooth strategies, and deriving it from the kink set means a

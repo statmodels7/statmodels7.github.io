@@ -179,12 +179,20 @@ no block at all. It adds a level $f_t$ to the linear predictor, driven
 by the score of the observation density at the previous times,
 
 $$
-f_t \;=\; \omega + \sum_{i=1}^{p} a_i\, s_{t-i}
-  + \sum_{j=1}^{q} b_j\, f_{t-j},
+f_t \;=\; \omega + \sum_{i=1}^{p} \alpha_i\, s_{t-i}
+  + \sum_{j=1}^{q} \beta_j\, f_{t-j},
 \qquad s_t = \frac{\partial \ell_t}{\partial \eta_t},
 $$
 
-the recursion of @creal2013 and @harvey2013. The predictor at one time
+the recursion of @creal2013 and @harvey2013, with the parameters written
+as the literature writes them and as the term names them: `omega`,
+`alpha1`, and, for the persistence, `beta1`. The last is the one name a
+coordinate does not carry. The stationary region of an autoregression is
+not a box, so no collection of scalar links covers it, and the term is
+parametrized by the partial autocorrelations instead, from which
+Levinson-Durbin recovers the coefficients; `term_readable()` is what
+carries them back, with the Jacobian a standard error for $\beta_j$
+needs. At $q = 1$ the two coincide, and above it they do not. The predictor at one time
 depends on the data at the previous ones, so the contribution cannot be
 written as columns and `term_filter()` runs the recursion instead. What
 drives it is the score of whatever distribution the model carries, which
@@ -201,6 +209,43 @@ convenience: the recursion is the only place the derivative can be
 computed, since each state depends on the previous one, and a model
 layer differencing the filter would pay a pass per parameter and inherit
 the error of the difference.
+
+That derivative is what estimating the term's own parameters needs, and
+it is not what estimating the coefficients of the same equation needs.
+Writing $\eta^{0}_t$ for the static predictor the filter is handed, the
+level $f_t$ depends on it at every earlier time, through the scores it
+was driven by, so $\partial \eta_t / \partial \beta$ carries a term the
+design block does not. Propagating it forward would cost one derivative
+array per coefficient. `term_adjoint()` runs the recursion in reverse
+instead, which costs one pass whatever their number: writing
+$\bar{f}_t$ and $\bar{s}_t$ for the derivatives of the objective in the
+level and in the score at time $t$, and taking $t$ downwards,
+
+$$
+\bar{e}_t = g_t + \bar{s}_t\, \ell''_t, \qquad
+\bar{f}_t \mathrel{+}= \bar{e}_t, \qquad
+\bar{f}_{t-j} \mathrel{+}= b_j \bar{f}_t, \qquad
+\bar{s}_{t-i} \mathrel{+}= a_i \bar{f}_t,
+$$
+
+with $g_t$ the derivative of the objective in the predictor at $t$ taken
+directly. The first of those is $\partial L/\partial \eta^{0}_t$.
+
+Two derivatives are returned rather than one, and the second is what
+keeps the contract between the term and the model minimal. The score a
+caller supplies depends on more than the predictor it is read at: in a
+model with several distribution parameters it depends on all of them.
+Reporting $\bar{s}_t$ lets the caller write
+
+$$
+\frac{\partial L}{\partial \theta}
+  = \left.\frac{\partial L}{\partial \theta}\right|_{\text{direct}}
+  + \sum_t \bar{s}_t \frac{\partial s_t}{\partial \theta},
+$$
+
+so the derivative in another equation's predictor is $\bar{s}_t$ times a
+mixed second derivative of the log-density, and the term never has to
+know how many equations there are.
 
 The persistence is carried by partial autocorrelations rather than by
 the coefficients $b_j$, for the reason @sec-parameters7 gives for an
@@ -220,8 +265,55 @@ term_params(gt)
 out <- term_filter(gt, eta = rep(0, 80), y = ts_dd$y,
                    score = function(e, i) ts_dd$y[i] - e,
                    curvature = function(e, i) -1,
-                   psi = list(omega = 0.1, a1 = 0.4, pacf1 = 0.6))
+                   psi = list(omega = 0.1, alpha1 = 0.4, pacf1 = 0.6))
 c(predictor = length(out$eta), jacobian = ncol(out$jacobian))
+```
+
+On a panel, `by` filters each group independently and `deviations` gives
+each group parameters of its own, written as a population value and a
+departure from it,
+
+$$
+\psi_{j,i} \;=\; g_j^{-1}\!\bigl(g_j(\psi_j) + \delta_{j,i}\bigr),
+$$
+
+with $g_j$ the link of @sec-links that carries the parameter to its
+unconstrained scale. The deviation acts there rather than on the
+parameter, so a persistence stays inside $(-1, 1)$ whatever the deviation
+is, and the deviation itself is unconstrained and carries the identity.
+The derivative in the population value is
+$(g_j^{-1})'(g_j(\psi_j) + \delta_{j,i})\, g_j'(\psi_j)$ and the one in
+the deviation is the same without the second factor, so at
+$\delta_{j,i} = 0$ the first is one, by the inverse function theorem, and
+a filter with unused deviations is the filter without them.
+
+The deviations are parameters of the term, and that is the whole point of
+writing the model this way. The same model as a penalty on the per-group
+values through a difference matrix is the generalized-lasso problem, whose
+proximal operator does not split by coordinate (@sec-penalties7); named as
+coordinates, a deviation is reached by a soft threshold and by a
+coordinate descent unchanged. Shrinking them towards zero is shrinking
+the panel towards homogeneity in that parameter, and with the lasso it
+sets the deviations of the groups that do not need one exactly to it.
+
+The penalty is also what identifies them. A parameter and its $m$
+deviations are $m+1$ numbers describing $m$ group values, so adding a
+constant to $g_j(\psi_j)$ and subtracting it from every $\delta_{j,i}$
+leaves the filter and its likelihood exactly unchanged, and the
+likelihood is flat along one direction per parameter carrying
+deviations. This is the parametrization of a random effect and is
+identified in the same way: there by a variance component, here by the
+penalty, which among the descriptions of the same panel selects the
+deviations of smallest size.
+
+```{r}
+#| label: terms-gas-panel
+panel <- data.frame(id = factor(rep(c("a", "b", "c"), each = 40)),
+                    t = rep(1:40, 3), y = rnorm(120))
+gp <- term_build(gas(p = 1, q = 1, by = id, time = t,
+                     deviations = "omega", penalty = "lasso"), panel)
+term_params(gp)
+lapply(term_penalties(gp), function(e) term_params(gp)[e$index])
 ```
 
 ### Nonlinear parametric terms
@@ -378,7 +470,11 @@ specification with the best of them, which is the initialization
 @fasola2018 recommend. `by` gives an independent set of break-points per
 level of a factor, and a penalty on the changes -- the slope changes for
 `seg()`, the jump sizes for `jump()` -- selects how many break-points
-are really there when it is the lasso.
+are really there when it is the lasso. The penalty names the
+coefficients it covers rather than selecting them from the block with a
+map, for the reason the panel filter above gives, and `jseg()` carries
+one on each kind of change: a change of slope and a change of level are
+not comparable quantities and cannot share a hyperparameter.
 
 A run is declared finished when no break-point moves by more than a
 hundredth of the distance between consecutive observations, below which
@@ -451,6 +547,45 @@ $K!$ identical maxima — a problem that is no harder to fit and whose
 answer cannot be reported. The transition matrix is the row-wise simplex
 chart of @sec-parameters7, so every row is a probability vector at every
 value of the free coordinates.
+
+Two quantities beside the likelihood make a regime term fittable, and they
+are the answers to two different questions. `term_posterior()` returns the
+smoothed probability of each regime at each observation, from the forward
+pass with a backward pass beside it. By Fisher's identity the derivative of
+the mixed likelihood in any predictor the model carries is the
+posterior-weighted derivative of the ordinary one,
+
+$$
+\frac{\partial L}{\partial \eta_{q,t}}
+  = \sum_k \gamma_t(k)\,
+    \frac{\partial \ell(y_t; \theta_t(k))}{\partial \eta_q},
+$$
+
+so a model layer differentiates its own log-density $K$ times, vectorized
+over observations, and weights the results.
+
+The second derivative does not follow from the same weighting, and the
+distinction matters for what a standard error means. Weighting the ordinary
+information by the smoothed probabilities gives the complete-data
+information, which is the matrix an expectation-maximization step inverts;
+it is the information that would be available if the states were observed,
+and the states are not. By the missing-information principle the observed
+information is smaller, the difference being the conditional variance of the
+complete-data score, so a standard error read off the complete-data matrix
+is too small. `term_hessian()` returns the observed one. It is obtained by
+propagating first and second derivatives through the same scaled forward
+recursion that computes the likelihood: writing $c_t$ for the normalizing
+constant of one step, $\log L = \sum_t \log c_t$ exactly, so
+
+$$
+\frac{\partial^2 \log c_t}{\partial u \partial u^\top}
+  = \frac{\ddot c_t}{c_t}
+    - \frac{\dot c_t}{c_t}\frac{\dot c_t^\top}{c_t},
+$$
+
+and the filtered distribution is renormalized at every step by the quotient
+rule applied twice. The cost is $O(nK^2m^2)$ in $n$ observations, $K$
+regimes and $m$ unknowns.
 
 ### The censored response
 
