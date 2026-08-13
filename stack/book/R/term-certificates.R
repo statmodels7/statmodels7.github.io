@@ -55,7 +55,11 @@ assert_terms_ok <- function() {
     Zref[i, (j - 1) * 2 + 1] <- 1
     Zref[i, (j - 1) * 2 + 2] <- dd$x1[i]
   }
-  if (!isTRUE(all.equal(unname(term_matrix(br)), Zref, tolerance = 1e-12,
+  # the block is built sparse -- a row belongs to one group, so the density is
+  # 1/m -- and what is asserted here is which column each observation lands
+  # in, which is a statement about the entries and not about the container
+  Zgot <- as.matrix(term_matrix(br))
+  if (!isTRUE(all.equal(unname(Zgot), Zref, tolerance = 1e-12,
                         check.attributes = FALSE))) {
     fail("the random-effect block")
   }
