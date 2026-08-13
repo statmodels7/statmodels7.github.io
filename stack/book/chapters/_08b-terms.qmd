@@ -269,49 +269,53 @@ out <- term_filter(gt, eta = rep(0, 80), y = ts_dd$y,
 c(predictor = length(out$eta), jacobian = ncol(out$jacobian))
 ```
 
-On a panel, `by` filters each group independently and `deviations` gives
-each group parameters of its own, written as a population value and a
-departure from it,
+Every parameter of the term takes a subformula: a two-sided formula whose
+left side names the parameter develops it as
 
 $$
-\psi_{j,i} \;=\; g_j^{-1}\!\bigl(g_j(\psi_j) + \delta_{j,i}\bigr),
+\psi_{j,t} \;=\; g_j^{-1}\!\bigl(z_t^\top \gamma_j\bigr),
 $$
 
 with $g_j$ the link of @sec-links that carries the parameter to its
-unconstrained scale. The deviation acts there rather than on the
-parameter, so a persistence stays inside $(-1, 1)$ whatever the deviation
-is, and the deviation itself is unconstrained and carries the identity.
-The derivative in the population value is
-$(g_j^{-1})'(g_j(\psi_j) + \delta_{j,i})\, g_j'(\psi_j)$ and the one in
-the deviation is the same without the second factor, so at
-$\delta_{j,i} = 0$ the first is one, by the inverse function theorem, and
-a filter with unused deviations is the filter without them.
+unconstrained scale and $Z$ the design of the right-hand side through the
+interpreter of @sec-terms-formula, so the subformula takes any additive
+term of the package. The development acts on the unconstrained scale,
+which is what keeps every per-observation value in the parameter's own
+set whatever the coefficients are: a loading on the log link is positive
+at every observation, and a persistence on the rhobit chart stays inside
+$(-1, 1)$ at every observation. The coefficients $\gamma_j$ are the
+term's parameters, unconstrained on the identity link, and a parameter
+that varies by observation changes the recursion itself,
+$f_t = \omega_t + \sum_i a_{i,t} s_{t-i} + \sum_j b_{j,t} f_{t-j}$, with
+$b_t$ from the Levinson-Durbin map of that observation's partial
+autocorrelations.
 
-The deviations are parameters of the term, and that is the whole point of
-writing the model this way. The same model as a penalty on the per-group
-values through a difference matrix is the generalized-lasso problem, whose
-proximal operator does not split by coordinate (@sec-penalties7); named as
-coordinates, a deviation is reached by a soft threshold and by a
-coordinate descent unchanged. Shrinking them towards zero is shrinking
-the panel towards homogeneity in that parameter, and with the lasso it
-sets the deviations of the groups that do not need one exactly to it.
+On a panel, `by` filters each group independently and
+`omega ~ random(~1 | id)` gives each group a level of its own: the
+intercept of the development is the population value and the indicator
+coefficients are unconstrained departures from it, shrunk by the random
+intercept's own ridge. The penalties the sub-terms carry are reported
+through `term_penalties()` under the key `parameter::subterm`, so a
+fitting layer estimates their hyperparameters as it does any other
+term's; `lasso(...)` in the subformula sets the departures of the groups
+that do not need one exactly to zero.
 
-The penalty is also what identifies them. A parameter and its $m$
-deviations are $m+1$ numbers describing $m$ group values, so adding a
-constant to $g_j(\psi_j)$ and subtracting it from every $\delta_{j,i}$
-leaves the filter and its likelihood exactly unchanged, and the
-likelihood is flat along one direction per parameter carrying
-deviations. This is the parametrization of a random effect and is
-identified in the same way: there by a variance component, here by the
-penalty, which among the descriptions of the same panel selects the
-deviations of smallest size.
+The penalty is also what identifies the departures. A population value
+and $m$ departures are $m+1$ numbers describing $m$ group values, so
+adding a constant to the intercept's coordinate and subtracting it from
+every departure leaves the filter and its likelihood exactly unchanged,
+and the likelihood is flat along one direction per developed parameter.
+This is the parametrization of a random effect and is identified in the
+same way: there by a variance component, here by the penalty, which
+among the descriptions of the same panel selects the departures of
+smallest size.
 
 ```{r}
 #| label: terms-gas-panel
 panel <- data.frame(id = factor(rep(c("a", "b", "c"), each = 40)),
                     t = rep(1:40, 3), y = rnorm(120))
-gp <- term_build(gas(p = 1, q = 1, by = id, time = t,
-                     deviations = "omega", penalty = "lasso"), panel)
+gp <- term_build(gas(p = 1, q = 1, omega ~ random(~1 | id),
+                     by = id, time = t), panel)
 term_params(gp)
 lapply(term_penalties(gp), function(e) term_params(gp)[e$index])
 ```
