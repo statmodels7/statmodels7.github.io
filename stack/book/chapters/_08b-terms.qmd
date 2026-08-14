@@ -369,29 +369,56 @@ says and a function does not.
 ### Break-points
 
 `seg()`, `jump()` and `jseg()` carry a covariate whose effect changes at
-positions estimated with everything else: a change of slope that keeps
-the relationship continuous, a jump in level that does not, and both at
-the same positions. They share the device of the previous section, and
-extend it to a case in which the contribution is not differentiable in
-the quantity being estimated.
-
-The continuous case is differentiable and needs nothing new. With
-contribution $\delta (x-\psi)_+$,
+$K$ positions estimated with everything else: a change of slope that
+keeps the relationship continuous, a change of level that does not, and
+both at the same positions. Written into the equation of any parameter of
+any distribution, with the rest of that equation supplying
+$z_i'\alpha$, the three contribute
 
 $$
-\frac{\partial}{\partial \delta}\,\delta (x-\psi)_+ = (x-\psi)_+,
+\begin{aligned}
+\texttt{seg}: \quad \eta_i &= z_i'\alpha + \beta x_i
+  + \sum_{k=1}^{K} \gamma_k (x_i - \psi_k)_+, \\
+\texttt{jump}: \quad \eta_i &= z_i'\alpha
+  + \sum_{k=1}^{K} \delta_k \mathbb{1}(x_i \geq \psi_k), \\
+\texttt{jseg}: \quad \eta_i &= z_i'\alpha + \beta x_i
+  + \sum_{k=1}^{K} \bigl[\delta_k \mathbb{1}(x_i \geq \psi_k)
+      + \gamma_k (x_i - \psi_k)_+\bigr],
+\end{aligned}
+$$
+
+with $(u)_+ = \max(0, u)$. $\beta$ is the slope before the first
+break-point and $\gamma_k$ the change of slope at $\psi_k$, so the slope
+over the $k$-th segment is $\beta + \gamma_1 + \cdots + \gamma_k$;
+$\delta_k$ is the change of level there. A step model has no linear
+effect at all, its relationship with the covariate being a step function
+whose level before the first break-point is the equation's intercept.
+The three share the device of the previous section and extend it to a
+case in which the contribution is not differentiable in the quantity
+being estimated.
+
+The continuous case is differentiable and needs nothing new. With
+contribution $\gamma (x-\psi)_+$,
+
+$$
+\frac{\partial}{\partial \gamma}\,\gamma (x-\psi)_+ = (x-\psi)_+,
 \qquad
-\frac{\partial}{\partial \psi}\,\delta (x-\psi)_+
-  = -\delta\,\mathbb{1}(x>\psi)
+\frac{\partial}{\partial \psi}\,\gamma (x-\psi)_+
+  = -\gamma\,\mathbb{1}(x>\psi)
 $$
 
 away from the break-point, so the block is the Jacobian in
-$(\delta, \psi)$ and $\psi$ is an ordinary coefficient updated by the
+$(\gamma, \psi)$ and $\psi$ is an ordinary coefficient updated by the
 Gauss-Newton increment. Those two columns are the working variables $U$
-and $V$ of @muggeo2003, and his update
-$\psi \leftarrow \psi + \gamma/\delta$ is that increment, so the term
+and $V$ of @muggeo2003, and his update is that increment, so the term
 reproduces his algorithm by supplying its block to the same
 `term_refresh()` loop that serves `nl()`.
+
+The term owns $\beta x_i$, which is what makes `y ~ seg(x)` the whole
+relationship rather than half of it. Writing the covariate again in the
+same equation is then the same column twice, so `interpret_formula()`
+removes it and says so; `seg(x, linear = FALSE)` is the way to keep the
+linear effect outside the term instead.
 
 A jump admits no such derivative, and yet needs no search over candidate
 positions either. The identity
@@ -403,9 +430,9 @@ $$
 
 is exact for $x \neq \psi$ and is linear in $\psi$ once the weight
 $W = 1/(2\lvert x - \psi^{0}\rvert)$ is held at the previous iterate:
-writing $Z = xW + 1/2$, a jump of size $\kappa$ at $\psi$ is
-$\kappa Z + g W$ with $g = -\kappa\psi$. A linear fit on $(Z, W)$
-therefore returns the break-point as $\psi = -g/\kappa$, and iterating
+writing $Z = xW + 1/2$, a change of level $\delta$ at $\psi$ is
+$\delta Z + g W$ with $g = -\delta\psi$. A linear fit on $(Z, W)$
+therefore returns the break-point as $\psi = -g/\delta$, and iterating
 the pair is the algorithm of @fasola2018. The break-point is not a
 coefficient in this construction but a quantity read off two of them,
 which is why `seg_psi()` exists as the function that reports it under
@@ -426,7 +453,7 @@ fit_jseg <- function(spec, iters = 200) {
     if (seg_converged(cur)) break
     b <- as.numeric(qr.coef(qr(term_matrix(cur)), sd$y))
   }
-  c(psi = seg_psi(cur, b), slope = b[1], change = b[2], jump = b[3])
+  c(psi = seg_psi(cur, b), beta = b[1], gamma = b[2], delta = b[3])
 }
 round(rbind(`from 2`    = fit_jseg(jseg(x, psi = 2)),
             `from the grid` = fit_jseg(seg_start(jseg(x), sd, sd$y))), 3)
@@ -471,14 +498,30 @@ global one. Where a run begins therefore decides what it finds, and
 `seg_start()` decides it by scoring an equally spaced grid on the
 least-squares profile of the term's own columns and returning the
 specification with the best of them, which is the initialization
-@fasola2018 recommend. `by` gives an independent set of break-points per
-level of a factor, and a penalty on the changes -- the slope changes for
-`seg()`, the jump sizes for `jump()` -- selects how many break-points
-are really there when it is the lasso. The penalty names the
-coefficients it covers rather than selecting them from the block with a
-map, for the reason the panel filter above gives, and `jseg()` carries
-one on each kind of change: a change of slope and a change of level are
+@fasola2018 recommend.
+
+Every coefficient of a break-point term is a parameter like any other and
+takes a development on covariates, through a two-sided formula naming it:
+`seg(x, psi ~ random(~1 | id))` is the random-changepoint model of
+@muggeo2014, and `by = ~0 + g` is the shorthand giving every coefficient
+an independent value per level of a factor. A penalty on the changes is
+the development on a penalized intercept, `seg(x, npsi = 4,
+gamma ~ 0 + lasso(~1))`, which selects how many break-points are really
+there; the entries of a subformula shared by every coefficient of a kind
+are pooled into one block under one hyperparameter, and a penalty names
+the coefficients it covers rather than selecting them from the block with
+a map, for the reason the panel filter above gives. A joint term takes one
+subformula per kind of change: a change of slope and a change of level are
 not comparable quantities and cannot share a hyperparameter.
+
+What the discontinuous constructions can carry is narrower, and the reason
+is the read-off rather than the model. The auxiliary coefficient is
+$g_k = -\delta_k\psi_k$, a product of two of the unknowns, so it stays
+linear in them only where one factor is a single number -- a developed
+break-point with a shared change of level, exact on any design -- or where
+the design has one column per group and each observation belongs to one,
+which collapses the product group by group. Anything else is rejected
+rather than approximated.
 
 A run is declared finished when no break-point moves by more than a
 hundredth of the distance between consecutive observations, below which

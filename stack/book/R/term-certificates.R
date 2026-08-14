@@ -103,7 +103,7 @@ assert_terms_ok <- function() {
   }
 
   # the identity 1(x>psi) = 1/2 + (x-psi)/(2|x-psi|), away from the band
-  bjp <- term_build(jump(x, psi = 4, linear = FALSE), sx)
+  bjp <- term_build(jump(x, psi = 4), sx)
   kap <- 2.5
   psi <- 4
   cfj <- c(kap, -kap * psi)
