@@ -25,19 +25,23 @@ avoid: what to do with the normalizing constant.
 
 `penalties7` keeps the constant. A proper penalty evaluates to exactly the
 negative logarithm of a normalized density, so that, for the ridge penalty
-with scale $\sigma$,
+with precision $\lambda$ -- the Gaussian prior $N(0, \lambda^{-1}I_q)$,
+written by the parameter that measures the shrinkage rather than by its
+scale, so that a larger value shrinks harder as it does in every other
+penalty here --
 
 $$
-\rho(\beta;\,\sigma)
-  \;=\; \frac{1}{2\sigma^2}\,\beta'\beta
-  \;+\; q\log\sigma \;+\; \frac{q}{2}\log 2\pi .
+\rho(\beta;\,\lambda)
+  \;=\; \frac{\lambda}{2}\,\beta'\beta
+  \;-\; \frac{q}{2}\log\lambda \;+\; \frac{q}{2}\log 2\pi .
 $$
 
 Penalized-likelihood software drops the two trailing terms, because at fixed
-$\sigma$ they do not move the coefficient estimate. They do, however,
-determine everything that treats $\sigma$ as unknown: joint maximization
-over $(\beta, \sigma)$ without the constant improves without bound as the
-prior degenerates, and the degrees of freedom $\nu$ of a heavy-tailed prior
+$\lambda$ they do not move the coefficient estimate. They do, however,
+determine everything that treats $\lambda$ as unknown: joint maximization
+over $(\beta, \lambda)$ without the constant improves without bound as the
+prior degenerates, $\lambda$ running to zero with nothing to hold it, and
+the degrees of freedom $\nu$ of a heavy-tailed prior
 appears only in its constant, so dropping it makes $\nu$ inestimable.
 Keeping the constant costs one closed expression per penalty and is what
 allows the hyperparameters to be estimated rather than tuned.
@@ -71,11 +75,11 @@ smooth.
 pen <- ridge_penalty(n_coef = 3)
 beta <- c(0.8, -0.4, 1.1)
 
-penalty_value(pen, beta, list(sigma = 1.5))
-penalty_gradient(pen, beta, list(sigma = 1.5))
+penalty_value(pen, beta, list(lambda = 0.44))
+penalty_gradient(pen, beta, list(lambda = 0.44))
 
-# the mixed block: how the beta-gradient moves when sigma does
-penalty_cross(pen, beta, list(sigma = 1.5))$sigma
+# the mixed block: how the beta-gradient moves when lambda does
+penalty_cross(pen, beta, list(lambda = 0.44))$lambda
 ```
 
 ```{r}

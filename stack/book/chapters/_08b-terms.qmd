@@ -55,28 +55,36 @@ groups and $d$ within-group columns the coefficients of one group occupy
 $d$ adjacent positions.
 
 The distribution of the effects is the penalty on those coefficients,
-which is the penalized-likelihood reading of a random effect. By default
-the effects are Gaussian with one covariance shared by every group,
-carried as a precision through the structured penalty of
-@sec-penalties7 on the block-replicated parameter
+which is the penalized-likelihood reading of a random effect. The term
+says two things and nothing else, the formula and that distribution,
+because everything else follows from it: the penalty of @sec-penalties7
+reads a `distributions7` density one block at a time,
 
 $$
-\Omega_{\mathrm{full}}(\eta) \;=\; I_m \otimes \Omega_d(\eta),
+\rho(b; \theta) \;=\; -\sum_{i=1}^{m} \log f(b_i; \theta),
 $$
 
-built by `parameters7::kron_identity()`: $m$ identical diagonal blocks
-sharing one free vector, with every contract quantity a linear lift of
-the per-group parameter's ($\partial_k \Omega_{\mathrm{full}} = I_m
-\otimes \partial_k \Omega_d$, $\log\lvert \Omega_{\mathrm{full}}
-\rvert = m \log\lvert \Omega_d \rvert$, blockwise solves). The per-group
-parameter is the unstructured `log_cholesky(d)` chart of
-@sec-parameters7 when `correlated = TRUE`, so intercepts and slopes may
-correlate, and `diagonal_matrix(d)` when `correlated = FALSE`; a
-`precision` argument replaces either with any `parameters7` matrix
-parameter of dimension $d$. With `distrib`, a univariate
-`distributions7` object holding its own location is applied
-coordinatewise instead, which gives joint-mode estimation of the effects;
-integrating them out is a different computation and is not provided here.
+so the chart the hyperparameters ride, their names and their number, and
+where the log-density has a kink are properties of $f$ rather than
+declarations of the term.
+
+A multivariate $f$ of dimension $d$ lets the effects of one group depend
+on each other, its matrix parameter carrying the dependence; a univariate
+one makes them independent, and with several within-group columns it is a
+template, one copy per column with its own hyperparameters, an intercept
+and a slope being quantities of different units. The default is Gaussian:
+`gaussian1_distrib` at one column, so the hyperparameter is the standard
+deviation of the effects, and the multivariate Gaussian on an unstructured
+covariance when there are several and `correlated = TRUE`. Whatever it is,
+$f$ is centered, a free mean in the effects being confounded with the
+intercept of the equation the term sits in.
+
+Using a distribution as a penalty gives joint-mode estimation of the
+effects. With Gaussian effects and a Gaussian response the Laplace
+approximation of @sec-penalty-marginal is exact, so the variance component a
+marginal criterion returns is the marginal estimate; with any other prior
+it is an approximation, and integrating the effects out is a different
+computation that is not provided here.
 
 ```{r}
 #| label: terms-random

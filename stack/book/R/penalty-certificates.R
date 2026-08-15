@@ -9,34 +9,35 @@
 .certify_penalty_definition <- function() {
   out <- character()
 
-  # the ridge value as printed: (1/2s^2) b'b + q log s + (q/2) log 2pi
+  # the ridge value as printed: (lam/2) b'b - (q/2) log lam + (q/2) log 2pi
   q <- 3
   beta <- c(0.8, -0.4, 1.1)
-  s <- 1.5
+  lam <- 0.44
   pen <- ridge_penalty(n_coef = q)
-  hand <- sum(beta^2) / (2 * s^2) + q * log(s) + q / 2 * log(2 * pi)
-  if (abs(penalty_value(pen, beta, list(sigma = s)) - hand) > 1e-12) {
+  hand <- lam * sum(beta^2) / 2 - q / 2 * log(lam) + q / 2 * log(2 * pi)
+  if (abs(penalty_value(pen, beta, list(lambda = lam)) - hand) > 1e-12) {
     out <- c(out, "the printed ridge value disagrees with the package")
   }
 
-  # properness: the value at two scales differs by the constant's difference
-  # plus the quadratic part's, both written out here
-  s2 <- 2.4
-  d_hand <- sum(beta^2) / 2 * (1 / s2^2 - 1 / s^2) + q * log(s2 / s)
-  d_pkg <- penalty_value(pen, beta, list(sigma = s2)) -
-    penalty_value(pen, beta, list(sigma = s))
+  # properness: the value at two precisions differs by the constant's
+  # difference plus the quadratic part's, both written out here
+  lam2 <- 0.17
+  d_hand <- sum(beta^2) / 2 * (lam2 - lam) - q / 2 * log(lam2 / lam)
+  d_pkg <- penalty_value(pen, beta, list(lambda = lam2)) -
+    penalty_value(pen, beta, list(lambda = lam))
   if (abs(d_pkg - d_hand) > 1e-12) {
     out <- c(out, "the normalizing constant does not move as the density's")
   }
 
   # gradient and mixed block against numDeriv, which shares no code
-  g <- penalty_gradient(pen, beta, list(sigma = s))
-  gn <- numDeriv::grad(function(b) penalty_value(pen, b, list(sigma = s)), beta)
+  g <- penalty_gradient(pen, beta, list(lambda = lam))
+  gn <- numDeriv::grad(function(b) penalty_value(pen, b, list(lambda = lam)),
+                       beta)
   if (max(abs(g - gn)) > 1e-8) out <- c(out, "ridge gradient off numDeriv")
-  cr <- penalty_cross(pen, beta, list(sigma = s))$sigma
+  cr <- penalty_cross(pen, beta, list(lambda = lam))$lambda
   crn <- as.numeric(numDeriv::jacobian(function(v) {
-    penalty_gradient(pen, beta, list(sigma = v))
-  }, s))
+    penalty_gradient(pen, beta, list(lambda = v))
+  }, lam))
   if (max(abs(cr - crn)) > 1e-7) out <- c(out, "ridge mixed block off numDeriv")
 
   out
@@ -62,12 +63,17 @@
   if (penalty_rank(pen) != r) out <- c(out, "the quadratic rank is not eigen's")
 
   # the ridge twin: quadratic at lambda = 1/sigma^2 vs the separable
-  # gaussian, componentwise, machine precision
+  # the twin the quadratic ridge is held to: the SEPARABLE Gaussian prior at
+  # zero, whose free hyperparameter is the scale, read at the matching
+  # precision. Two independent implementations of one object, componentwise,
+  # with no tolerance to choose.
   q <- 3
   b2 <- c(0.4, -1.1, 2.2)
   sg <- 1.7
-  a <- quadratic_penalty(diag(q))
-  b <- ridge_penalty(n_coef = q)
+  a <- ridge_penalty(n_coef = q)
+  b <- distrib_penalty(
+    distributions7::fixed(distributions7::gaussian1_distrib(), mu = 0),
+    n_coef = q)
   if (abs(penalty_value(a, b2, list(lambda = 1 / sg^2)) -
           penalty_value(b, b2, list(sigma = sg))) > 1e-12 ||
       max(abs(penalty_gradient(a, b2, list(lambda = 1 / sg^2)) -
@@ -123,9 +129,11 @@
   if (max(abs(M %*% nb)) > 1e-10 * max(abs(M))) {
     out <- c(out, "the null basis does not annihilate the matrix")
   }
-  # the refusal: a separable penalty must not answer the marginal pieces
+  # the refusal: a separable penalty must not answer the marginal pieces. The
+  # ridge is NOT one of those any more -- it is the quadratic construction at
+  # the identity -- so the lasso stands for the branch here
   ref <- tryCatch({
-    penalty_matrix(ridge_penalty(n_coef = 2), list(sigma = 1))
+    penalty_matrix(lasso_penalty(n_coef = 2), list(lambda = 1))
     FALSE
   }, error = function(e) TRUE)
   if (!ref) out <- c(out, "a separable penalty answered penalty_matrix")
@@ -160,7 +168,7 @@
 
   # the collapse: log-Cholesky at zero is the plain ridge at lambda = 1
   q <- 3
-  sc <- parameters7::log_cholesky(q)
+  sc <- parameters7::log_cholesky(q, role = "precision")
   penS <- structured_penalty(sc)
   th0 <- stats::setNames(as.list(rep(0, sc@n_free)), sc@free_names)
   penR <- quadratic_penalty(diag(q))

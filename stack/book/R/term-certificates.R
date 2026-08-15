@@ -77,11 +77,13 @@ assert_terms_ok <- function() {
   # 4. the printed edf trace against the eigenvalue form, computed apart
   brg <- term_build(ridge(~ x1 + x2), dd)
   H <- crossprod(term_matrix(brg))
-  sigma <- 1.4
+  # the ridge's hyperparameter IS the precision, so it enters the trace as it
+  # stands rather than as one over a square
+  lambda <- 1 / 1.4^2
   got <- edf(brg, coef = c(0.5, -1), hessian = H,
-             theta = list(sigma = sigma))
+             theta = list(lambda = lambda))
   d <- eigen(H, symmetric = TRUE, only.values = TRUE)$values
-  if (abs(got - sum(d / (d + 1 / sigma^2))) > 1e-10) {
+  if (abs(got - sum(d / (d + lambda))) > 1e-10) {
     fail("the edf trace")
   }
   if (edf(term_build(lasso(~x1), dd), coef = 0) != 0 ||
