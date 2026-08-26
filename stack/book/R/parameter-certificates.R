@@ -173,7 +173,8 @@
   cases <- list(
     list(s = parameters7::log_cholesky(3), eta = .cs_eta3),
     list(s = parameters7::diagonal_matrix(3), eta = c(0.2, -0.4, 0.1)),
-    list(s = parameters7::diagonal_matrix(2, link = linkfunctions7::sqrt_link()),
+    list(s = parameters7::diagonal_matrix(
+           2, link = linkfunctions7::softplus_link()),
          eta = c(1.3, 2.1))
   )
   for (cs in cases) {
@@ -198,7 +199,8 @@
 
 .certify_diag_family <- function() {
   out <- character()
-  for (lnk in list(linkfunctions7::log_link(), linkfunctions7::sqrt_link())) {
+  for (lnk in list(linkfunctions7::log_link(),
+                   linkfunctions7::softplus_link())) {
     s <- parameters7::diagonal_matrix(3, link = lnk)
     eta <- c(0.3, -0.7, 1.1)
     want <- diag(linkfunctions7::linkinv(lnk, eta))
