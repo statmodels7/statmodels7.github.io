@@ -97,6 +97,37 @@ matrix, so the structured prior collapses onto the plain ridge at
 $\lambda = 1$ -- one more pair of independent constructions of a single
 object, compared exactly.
 
+### What a hyperparameter is about {#sec-penalty-readable}
+
+The hyperparameters of that prior are the free vector of a matrix parameter:
+logarithms of the diagonal of a Cholesky factor, and the entries below it.
+Nobody reads those. What the prior is *about* is the standard deviations and
+the correlations of the effects it describes, and `penalty_readable()` is
+where a penalty says so, in the shape `parameters7::param_readable()` has for
+a matrix parameter and `distributions7::mv_derived()` for a fitted
+multivariate family.
+
+```{r}
+#| label: penalty-readable
+pen <- distrib_penalty(
+  distributions7::fixed(distributions7::mvgaussian_distrib(2),
+                        mu1 = 0, mu2 = 0), n_coef = 6)
+r <- penalty_readable(pen, list(sigma_log_L1 = 0.2, sigma_log_L2 = -0.1,
+                                sigma_L2.1 = 0.5))
+rbind(value = round(r$value, 4), scale = r$transform)
+```
+
+Two things come with the values. The Jacobian is what a delta-method
+standard error needs, the reported quantities having variance $JVJ'$ where
+$V$ is the variance of the hyperparameters; and `transform` says which scale
+each interval is built on and mapped back from, so that a standard deviation
+stays positive and a correlation stays inside $(-1, 1)$.
+
+For every other branch the answer is `NULL`, and that is the right answer
+rather than a missing method: a smoothing parameter, a rate and a shape are
+each already the quantity a reader wants, so a consumer reports them as they
+stand.
+
 ```{r}
 #| label: consistency-08c
 #| include: false

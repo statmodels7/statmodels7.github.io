@@ -8,7 +8,10 @@ source("R/penalty-certificates.R")
 ```
 
 Every penalty the package ships is one of four shapes, and the four cover
-the penalties regression practice actually uses.
+the penalties regression practice actually uses. A fifth object closes the
+section and is not a penalty at all: a smoother, which replaces the kink two
+of the four carry, and which the model terms of @sec-modelterms7 use for the
+same purpose on a break-point.
 
 ### The quadratic penalty {#sec-penalty-quadratic}
 
@@ -43,6 +46,42 @@ pen <- quadratic_penalty(P)
 penalty_rank(pen)
 is_proper(pen)
 ```
+
+#### One block, repeated {#sec-penalty-blocks}
+
+A smooth fitted once per level of a factor gives the same penalty $P$ on
+each of $m$ blocks, so the penalty of the whole is $I_m \otimes P$. Building
+that from the assembled matrix decomposes something $m$ times larger than it
+needs to be, and every quantity the constructor wants is available from $P$
+alone: the eigenvalues of $I_m \otimes P$ are $P$'s repeated $m$ times, so
+the rank is $mr$, the log pseudo-determinant is $m\log\operatorname{pdet}P$
+and the null space is $I_m \otimes N$.
+
+`quadratic_penalty(P, blocks = m)` takes that route, and the large matrix is
+never formed or decomposed.
+
+```{r}
+#| label: penalty-blocks
+P <- crossprod(diff(diag(6), differences = 2))
+pb <- quadratic_penalty(P, blocks = 4)
+pa <- quadratic_penalty(kronecker(diag(4), P))
+b <- seq(-1, 1, length.out = 24)
+
+c(rank_blocks = penalty_rank(pb), rank_assembled = penalty_rank(pa),
+  value_gap = abs(penalty_value(pb, b, list(lambda = 2)) -
+                  penalty_value(pa, b, list(lambda = 2))))
+```
+
+The branch keeps its sparse storage on purpose: `penalty_hessian()` and the
+other matrix-valued returns come back as `Matrix` objects rather than base
+ones, a construction built to avoid the assembled form having no reason to
+densify at its own boundary. A consumer writing such a Hessian into a block
+of its own information has to accept both classes, which is the one place
+the uniform contract of the other branches is relaxed.
+
+`blocks` does not combine with a map, and the constructor rejects the pair:
+a map mixes the blocks, so $D'(I_m \otimes P)D$ is not block diagonal with
+the structure `blocks` names.
 
 ### The sum of quadratics {#sec-penalty-additive}
 
@@ -191,6 +230,40 @@ penalty_gradient(pen, beta, list(lambda = 0.8))
 penalty_kinks(pen, list(lambda = 0.8))
 ```
 
+#### The operator as a table {#sec-penalty-prox-spec}
+
+A proximal step is applied once per coordinate per sweep, at a point that
+moves every time, so a coordinate descent that called back into R for each
+one would spend its gain on the calls. Every closed-form operator this
+branch produces is **piecewise linear** in the coordinate -- the soft
+threshold has two pieces, the elastic net two, MCP three and SCAD four -- so
+it can be handed over as a table instead of as a function.
+
+`penalty_prox_spec()` returns that table: one row per coefficient, and per
+row the cuts, the slopes and the intercepts of the pieces. A compiled loop
+then evaluates the operator by locating a cut and applying an affine map,
+naming no family at all.
+
+```{r}
+#| label: prox-spec
+sp <- penalty_prox_spec(lasso_penalty(n_coef = 3), list(lambda = 1.2),
+                        step = 0.5)
+rbind(cut = sp$cut[1, ], slope = sp$slope[1, ], icept = sp$icept[1, ])
+```
+
+The first piece is the interval the threshold sets to zero, of half-width
+$t\lambda = 0.6$, and the second is the shrinkage $v - 0.6$ beyond it. The
+table is read in the **magnitude** of the coordinate and the sign restored
+afterwards, every one of these operators being odd, which is also why one
+row of cuts describes both tails.
+
+The step enters the table rather than the lookup, so a table built at one
+step does not serve another; in a coordinate descent the step is
+$1/v_j$ and does not move while the working weights are held, which is what
+makes one table serve a whole sweep. The quadratic branch returns `NULL`
+here and is not a gap: its proximal operator is a linear solve rather than a
+piecewise map, and there is nothing to tabulate.
+
 ### The families defined by their derivative {#sec-penalty-scad}
 
 SCAD [@fan2001] and MCP [@zhang2010] are stated in the literature through
@@ -227,6 +300,55 @@ th <- list(lambda = 1, a = 3.7)
 # flat beyond the shoulder: no bias on large coefficients
 penalty_value(pen, 5, th) == penalty_value(pen, 50, th)
 ```
+
+### Smoothing an absolute value {#sec-penalty-smoother}
+
+A kink is what makes the last two constructions non-smooth, and what makes a
+break-point term's contribution non-differentiable in its position. Both can
+be removed the same way, by replacing $\lvert u\rvert$ with a smooth
+surrogate. An `abs_smoother()` is that surrogate as an object: a function
+$s(u)$ standing in for the absolute value, carrying its own derivatives to
+fifth order and a width that says over what scale the replacement acts.
+
+The derivatives are carried as **functions** rather than as expressions, and
+that is a decision the quintic forces: a piecewise smoother has branches
+`stats::deriv()` cannot read, and writing the derivatives out in the
+constructor makes those branches ordinary code. Only $s$ is contracted for;
+the sign, the step and the hinge follow by composition,
+$\operatorname{sign}(u) \approx s'(u)$, $\mathbb{1}(u>0) \approx (1+s'(u))/2$
+and $(u)_+ \approx (u + s(u))/2$.
+
+```{r}
+#| label: smoother
+sm <- smooth_probit()
+u <- c(-1, -0.3, 0, 0.3, 1)
+rbind(s = smoother_deriv(sm, u, width = 0.3), abs = abs(u))
+```
+
+Three widths out the surrogate and the absolute value agree to four
+decimals; at the corner $s(0) = 2h\varphi(0)$, which is the excess the
+smoothing buys and the scale on which the bias lives.
+
+Three are shipped. `smooth_probit()` has Gaussian tails, `smooth_hyperbolic()`
+is $\sqrt{u^2+c}$, and `smooth_quintic()` is exact outside $[-h,h]$ and $C^3$
+within it. The probit earns something the others do not: smoothing with width
+$h$ is exactly convolving with $N(0, h^2)$, so a random quantity smoothed this
+way has its scale inflated in a known way and the object declares the
+correction $\tau^2_{\text{true}} = \tau^2 - h^2$. That is a property of the
+mollifier and of no model, which is why it belongs on the smoother; the other
+two declare none and a consumer then reports the apparent scale alone.
+
+The width cannot be arbitrarily small, and the floor is derived rather than
+chosen. A Jacobian column carries $s''(0)/2 \sim 1/h$ against columns of the
+order of the covariate's range $D$, so holding the design's condition number
+below $\epsilon^{-1/2}$ requires $h \gtrsim \sqrt{\epsilon}\,D$. A consumer
+that resolves a width from the data checks it against that floor.
+
+`check_abs_smoother()` validates one the way `check_link()` validates a link,
+comparing each analytic order against one numerical differentiation of the
+order below. It earned itself immediately: the quintic's own third derivative
+was written with a denominator of 4 where the algebra gives 2, and the check
+reported a relative error of 0.5 at order three before anything shipped.
 
 ```{r}
 #| label: consistency-08b

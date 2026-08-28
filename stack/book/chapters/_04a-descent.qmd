@@ -235,7 +235,7 @@ knitr::kable(
 The last column summarizes the difference. A backtracking search spends almost
 exactly one gradient per iteration — the one it needs to form the next
 direction — because its rejected trials cost only function values. A Wolfe
-search spends about a third more, the surplus being the gradients evaluated at
+search spends a little more, the surplus being the gradients evaluated at
 trial points it then rejects.
 
 The comparison is not only a matter of cost. The Wolfe run needs noticeably fewer iterations, because a step length
@@ -244,3 +244,39 @@ gradient counts differ by less than the per-iteration figures suggest. The
 difference that remains pays for @thm-zoutendijk, which backtracking alone
 does not provide, and for the guarantee in @sec-bfgs that the curvature
 approximation never has to reject an update.
+
+### What the objective can resolve {#sec-descent-resolution}
+
+Both searches ask whether the objective decreased, and that question has an
+answer only where the objective can be evaluated more finely than the
+decrease being tested. An objective computed by a formula can; one computed
+by a **procedure** cannot. A criterion that refits a model at every
+evaluation returns slightly different values for the same argument,
+depending on where the refit started, and below that spread its values carry
+no information: a line search asked to verify a smaller decrease backtracks
+to exhaustion and ends where it began.
+
+The three line searches therefore take a `resolution`, the smallest
+difference in the objective that means anything, defaulting to zero so that
+nothing moves for a caller who sets none. Two things about how it is used
+are decisions rather than details.
+
+It is asked **once**, of the improvement the method's own linear model
+predicts over the full step, and never inside the backtracking loop. Inside
+the loop the two situations cannot be told apart: $x + \alpha d$ tends to $x$
+as the step shrinks, so the objective stops resolving the change whether the
+point is optimal or the *direction* is wrong. Asked there, a mis-stated
+gradient at a point nowhere near stationary is promoted to a converged run,
+which is a failure turned into a success and worse than the flag it was
+meant to repair. Asked once of the predicted decrease, the two separate: a
+bad direction predicts a large improvement and goes on failing, while a point
+whose own method predicts less than the objective can show has converged to
+the accuracy the objective has.
+
+And the quantity is the **predicted decrease** itself, not the sufficient-
+decrease demand $c_1 s_0 \lvert g'd
+vert$, which is four orders smaller and
+would fire while the method still had progress to make.
+
+A caller with an analytic objective leaves it at zero and nothing changes;
+the argument exists for @sec-statmodels7, whose criterion is a refit.

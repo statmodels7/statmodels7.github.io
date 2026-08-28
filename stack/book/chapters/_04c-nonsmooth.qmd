@@ -328,6 +328,52 @@ The last row shows the bundle method arriving, with a guarantee, in a seventh
 of the evaluations. It is the only method in the table that uses the available
 derivative information without requiring any single derivative to vanish.
 
+### Simulated annealing {#sec-annealing}
+
+Every method so far walks downhill, and on a surface with many local minima
+that is the wrong thing to do from the wrong starting point. A method
+allowed to walk uphill sometimes can leave one.
+
+Simulated annealing proposes a step, accepts it outright where it improves
+the objective, and otherwise accepts it with probability
+$\exp(-\Delta f / T)$ [@kirkpatrick1983], so that at a high temperature $T$
+almost anything is accepted and at a low one almost nothing is. The
+temperature falls on a schedule, and with it the proposal's own step sizes,
+which adapt so that about half the proposals are accepted in each
+coordinate [@corana1987].
+
+```{r}
+#| label: op-sa
+rastrigin <- function(p) sum(p^2) - 10 * sum(cos(2 * pi * p)) + 20
+rast_gr <- function(p) 2 * p + 20 * pi * sin(2 * pi * p)
+
+set.seed(5)
+runs <- list(sa = minimize(sa(), rastrigin, c(3.4, -2.7)),
+             bfgs = minimize(bfgs(), rastrigin, c(3.4, -2.7), gr = rast_gr))
+data.frame(value = sapply(runs, function(r) round(r@value, 4)),
+           par1 = sapply(runs, function(r) round(r@par[1], 4)),
+           par2 = sapply(runs, function(r) round(r@par[2], 4)))
+```
+
+The minimum is at the origin and is worth zero. The descent method stops at
+the nearest local minimum, which it reaches quickly and correctly; the
+annealing run crosses the ridges between the wells and ends inside the
+global one, close to the origin but not at it. That difference is the
+honest description of what the method is for. It locates a basin rather
+than a point, and a descent method started there finishes the job in a few
+iterations, which is why its place in this toolkit is a starting value
+rather than an answer. Neither is the better method in general, and the
+second is far the more expensive: what separates them is whether the
+surface has one basin or many.
+
+The stopping rule has two halves that must be read together: the value the
+walk ends each temperature level at has not moved over the last few levels,
+**and** it sits at the best point found. Reading the best-so-far alone stops
+the run far too early, since the best stops improving long before the walk
+settles.
+
+A global search over a model's coefficients is asked once, before the
+fitting begins, and @sec-statmod-start is where that is set out.
 ```{r}
 #| label: consistency-optimizers
 #| include: false
