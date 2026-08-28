@@ -35,6 +35,43 @@ c(lasso = term_smooth(bl),
   ridge = term_smooth(term_build(ridge(~ x1 + x2), dd)))
 ```
 
+Each hyperparameter's argument carries three meanings, read one
+hyperparameter at a time. Left `NULL`, its default, it is **estimated** by
+whatever criterion the fit runs. Given **one number** it is **held**, and
+`term_hyper()` reports it. Given **several** it is a grid the path visits as
+they stand, which `term_values()` reports and which is still an estimated
+hyperparameter, the caller having said where to look and left the answer to
+the fit. Which of the three applies is a property of the term because the
+term is where the penalty is named; a second place to say the same thing
+would be read by nobody whenever the two disagreed.
+
+```{r}
+#| label: terms-hyper
+c(free = length(term_hyper(lasso(~ x1))),
+  held = term_hyper(lasso(~ x1, lambda = 3))[[1]]$lambda)
+term_values(lasso(~ x1, lambda = c(0.1, 1, 10)))[[1]]
+term_hyper(enet(~ x1, alpha = 0.5))[[1]]
+```
+
+`standardize = TRUE` puts the block's columns on a common scale, which a
+penalty charging every coefficient the same amount needs whenever the
+columns are measured in different units. What is standardized is the
+**penalty** and not the design: the column spreads are computed at build,
+recorded in the blueprint and turned into a diagonal map the penalty is
+composed with. Nothing touches the block, so a sparse one stays sparse and
+the coefficients come back on the scale the data arrived in with nothing to
+map back.
+
+That the map goes on the penalty rather than the design is what keeps the
+hyperparameter one number. Substituting $s_j\beta_j$ into a penalty and
+asking what it does to the hyperparameters is only simple for a penalty
+homogeneous of a single degree: for the lasso and the elastic net it moves
+$\lambda$, and for SCAD and MCP it does not work at all, the slope near zero
+asking for $\lambda s$ while the first breakpoint asks for $\lambda/s$, so
+that only an overall factor reconciles them. Expressing the change of
+variable as a map lets the penalty state $\rho(s\beta)$ exactly, whatever
+its homogeneity.
+
 A formula input removes the intercept -- a penalized block does not
 penalize an intercept, which lives in the parametric block -- and keeps
 the blueprint discipline of @sec-terms-contract. A matrix input is used
@@ -541,6 +578,67 @@ also the rule for a continuous term, whose iteration can settle into a
 cycle of period two in the break-point long after the fit has stopped
 moving.
 
+#### Smoothing the corner {#sec-terms-smoothed}
+
+Everything above follows from the contribution not being differentiable in
+the position, which is what forces the working parametrization, the
+auxiliary coefficient and the scaling schedule. Replacing the absolute value
+by a smooth surrogate removes all three at once. A `penalties7`
+`abs_smoother()` is a function $s(u)$ standing in for $\lvert u\rvert$ and
+carrying its own derivatives, and the step and the hinge follow from it by
+composition,
+
+$$
+\mathbb{1}(u > 0) \;\approx\; \frac{1 + s'(u)}{2},
+\qquad
+(u)_+ \;\approx\; \frac{u + s(u)}{2},
+$$
+
+so a term given `smoothed = smooth_probit()` is an ordinary $C^\infty$
+model. Every break-point becomes a plain parameter, the block is the true
+Jacobian and the term is fitted by Gauss-Newton exactly as `nl()` is; `c0`
+no longer means anything and is ignored with a message. What that buys is
+the developments the read-off forbade: `psi ~ random(~1 | id)` and penalized
+developments become legal for every kind, including the discontinuous ones,
+because there is no longer a product of two unknowns to stay linear in.
+
+The width of the transition is resolved at build from the covariate's
+spacing -- the median gap between distinct values, taken *within groups*
+where a development of the break-point supplies a partition -- and is
+reported rather than hidden, being the scale over which the smoothing bias
+lives. The probit smoother earns one thing more: smoothing with width $h$ is
+exactly convolving the break-point with $N(0, h^2)$, so a random
+break-point's apparent scale composes as
+$\tau^2_{\text{true}} = \tau^2 - h^2$ and the smoother declares that
+correction for a consumer to apply. A smoother with no such identity
+declares none, and the apparent scale is what gets reported.
+
+Smoothing rounds the local optima and does not remove them, so the profile
+start and the restarts stay necessary: a smoothed fit from a bad start has
+been measured converging to an absurd optimum while reporting success.
+
+#### Break-points integrated out {#sec-terms-marginal}
+
+The alternative to estimating a position per group is to make it a latent
+variable and integrate it out. `marginal = TRUE` asks for that, and requires
+the subformula `psi ~ random(~1 | g)` naming the grouping; the result is no
+longer an additive term at all but a structural one of the likelihood shape,
+whose contribution is a likelihood averaged over the latent positions.
+
+Its parameters are numbered, one set per break-point: `m1` for the prior's
+location, `tau1` for its scale on a log chart, and `delta1` for the change of
+level, with `beta` and `gamma1` added by the continuous kinds. The prior is
+**part of the likelihood** here rather than a penalty, so nothing is declared
+penalized and no criterion of @sec-statmod-outer is put to it; `tau` is
+estimated by plain maximum likelihood beside everything else. A prior other
+than the Gaussian may be named through `random(distrib = )`, provided its
+location is fixed at zero, `m1` carrying the position.
+
+The cost is what @sec-statmod-marginal-bp describes: the step kind's exact
+forward recursion runs on the side chain at $nK2^K$ and stays cheap well past
+the eight break-points allowed, while the continuous kinds stay at one, a
+product quadrature over more being far dearer.
+
 ### Markov regimes
 
 `regime(k)` is the other dynamic term, and it is the complement of the
@@ -641,6 +739,34 @@ $$
 and the filtered distribution is renormalized at every step by the quotient
 rule applied twice. The cost is $O(nK^2m^2)$ in $n$ observations, $K$
 regimes and $m$ unknowns.
+
+### Drawing from a term with state
+
+Simulating from a model that carries state is not the reverse of fitting
+one, and what separates them is the direction the response moves in. A term
+whose contribution does not read the response can report that contribution
+and leave the drawing to the caller: a latent chain's levels are like that,
+and so is a break-point drawn from its prior. A score-driven term cannot. Its
+level at one time is driven by the score of the response at the time before,
+so the response has to be drawn **as** the recursion runs, and a caller that
+generated the whole predictor first and drew afterwards would be simulating
+a different model.
+
+One contract covers both cases. `term_simulate(term, psi, eta, draw)` is
+handed `draw`, a function of a predictor and a row index returning one
+response value, and returns the predictor it produced together with the
+responses where it drew them and whatever latent quantity it drew on the
+way. A term that did not draw returns `NULL` there and the caller draws at
+the predictor. The score-driven method needs no new recursion for this: the
+filter already evaluates its score callback once per observation, in time
+order, at the predictor it has just produced, so a callback that draws the
+response there, keeps it and returns the score of what it drew turns the
+filter into a generator.
+
+`term_continue()` is the same question asked past the end of the series. A
+score has zero conditional mean, so beyond the data the driving term sits at
+its expectation and the continuation is the deterministic recursion, with the
+loadings contributing only while they still reach an observed time.
 
 ### The censored response
 
