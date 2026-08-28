@@ -1,0 +1,154 @@
+## Reading and using a fit {#sec-statmod-reading}
+
+A fitted model holds three things: the specification, kept whole so the model
+can be read back and reapplied; the coefficients, hyperparameters and
+structural parameters the fit reached; and the record of how it got there.
+The accessors below read those, and each of them answers per distribution
+parameter rather than over one flat vector, because the coefficients of a
+mean and of a scale are different quantities on different scales.
+
+```{r}
+#| label: read-fit
+set.seed(13)
+n_rd <- 300
+d_rd <- data.frame(x = sort(runif(n_rd, -3, 3)),
+                   g = factor(rep(1:15, length.out = 300)))
+d_rd$y <- rnorm(n_rd, 1 + sin(1.2 * d_rd$x) + rnorm(15, sd = 0.5)[d_rd$g],
+                exp(-0.7 + 0.2 * d_rd$x))
+
+f_rd <- statmod(y ~ s(x, k = 8) + random(~ 1 | g) | sigma ~ x,
+                gaussian1_distrib(), d_rd)
+lapply(coef(f_rd), head, 3)
+```
+
+### The two variances {#sec-statmod-vcov}
+
+Writing $H$ for the information of the log-likelihood and $S$ for the second
+derivative of the penalty,
+
+$$
+V_\mathrm{b} = (H+S)^{-1}, \qquad
+V_\mathrm{f} = (H+S)^{-1} H (H+S)^{-1} .
+$$
+
+The first is the posterior variance under the prior the penalty is the
+negative logarithm of, and it is what an interval around a penalized term
+should be built from: it carries the smoothing bias as though it were
+variance, which is why such intervals cover at about their nominal rate. The
+second is the sampling variance of the penalized estimator at a fixed
+penalty, which is smaller and covers less. With nothing penalized $S = 0$ and
+the two coincide.
+
+`vcov()` gives the first by default, on the same information the fit itself
+inverted. A coefficient a kinked penalty has set to zero has no row at all:
+the penalty is not twice differentiable there, so no curvature can be read,
+and the entry is missing rather than zero. The coefficients such a penalty
+left alone do get a variance, and it is conditional on that selection.
+
+```{r}
+#| label: intervals
+head(confint(f_rd), 4)
+```
+
+Every interval is built on the scale that keeps its quantity in its own set
+and mapped back, exactly as @sec-fit-delta builds one for a single
+distribution, so a scale's interval cannot contain a negative number.
+
+### Which likelihood {#sec-statmod-loglik}
+
+`logLik()` answers with the **conditional** log-likelihood: the density at the
+fitted coefficients, a penalized coefficient among them, paired with the
+effective degrees of freedom of @sec-statmod-edf. A criterion built on that
+pair is the conditional AIC, and it asks how well the model describes the
+groups and curves actually observed.
+
+A mixed-model package reports the **marginal** likelihood instead, with the
+random effects integrated out and the count the number of estimated
+parameters. That asks about the population, and its AIC is a different
+number. Neither convention allows the halves to be mixed, a marginal
+likelihood against an effective count or a conditional one against a
+parameter count [@vaida2005].
+
+```{r}
+#| label: loglik-two
+c(conditional = as.numeric(logLik(f_rd)),
+  marginal    = as.numeric(logLik(f_rd, type = "marginal")))
+c(edf = attr(logLik(f_rd), "df"),
+  npar = attr(logLik(f_rd, type = "marginal"), "df"))
+```
+
+The marginal value is the one the outer criterion maximized, so it exists
+only where a marginal criterion actually ran. Where the hyperparameters were
+held or chosen along a path there is none, and asking for one signals an
+error rather than returning a number that would look like one.
+
+Measured on a random intercept over 120 groups, the two readings of one fit
+are $-4148.59$ on 115.72 effective degrees of freedom and $-4372.79$ on 4,
+against `lme4`'s marginal $-4371.71$ on 4: the marginal halves agree and the
+conditional pair is a different quantity.
+
+### Prediction {#sec-statmod-predict}
+
+`predict()` answers per parameter, on the parameter scale or the predictor's,
+and will give a moment of the family instead if asked for one. Each term's
+blueprint is reapplied rather than rebuilt, so the knots of a smooth and the
+levels of a factor are those the model was fitted with. The identity that
+pins it is that predicting on rows the model saw returns the fitted values
+there.
+
+```{r}
+#| label: predict-se
+nd <- data.frame(x = c(-1, 0, 1),
+                 g = factor(c(1, 2, 3), levels = levels(d_rd$g)))
+predict(f_rd, "mu", newdata = nd, se = TRUE)
+```
+
+A standard error is the delta method over the variance above, so it inherits
+which of the two was asked for. It is `NA` for an observation whose predictor
+reads a coefficient that has no variance, which is the truth about such a fit
+rather than a gap in the arithmetic.
+
+A term carrying state is continued past the end of its series by handing
+`predict()` time indices that were not observed. The continuation is
+deterministic: a score has zero conditional mean, so past the data the
+driving term sits at its expectation and the recursion runs on with the
+loadings contributing only while they still reach an observed time. No
+standard error is reported there, because the uncertainty of a forecast is
+mostly the uncertainty of the future scores and not of the parameters, and
+reporting the second under the name of the first would understate it.
+
+### Simulating from a model {#sec-statmod-rstatmod}
+
+`rstatmod()` draws from a model at coefficients the caller supplies, which is
+what a simulation study needs. The truth comes back beside the data rather
+than attached to it: a list holding the data, the coefficients, the
+per-observation parameters and whatever a term with state drew.
+
+```{r}
+#| label: simulate
+sim <- rstatmod(y ~ x | sigma ~ x, gaussian1_distrib(),
+                data.frame(x = runif(200, -2, 2)),
+                par = list(mu = c(1, 0.8), sigma = c(-0.7, 0.2)))
+names(sim)
+round(coef(statmod(y ~ x | sigma ~ x, gaussian1_distrib(), sim$data))$mu, 3)
+```
+
+The predictor is assembled as a fit assembles it, so a term whose block moves
+with its coefficients contributes what the term computes and not its block
+times them; the two differ by the whole nonlinearity.
+
+Two choices in it decide what a study measures. Passing `data` holds the
+covariates fixed, so what is measured is the estimator's behavior
+*conditional* on that design; passing `covariates`, one function per column,
+draws them afresh at every replicate and measures over the design as well.
+Neither is more correct and a study should say which it ran. And with several
+replicates the truth is drawn **once** and shared, since a study over
+replicates measures the variability of an estimator at a set of parameters,
+so the replicates differ in what is random rather than in what is being
+estimated.
+
+```{r}
+#| label: consistency-statmod
+#| include: false
+assert_statmod_ok()
+```

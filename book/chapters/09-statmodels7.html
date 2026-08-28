@@ -308,6 +308,21 @@ window.Quarto = {
   <li><a href="#sec-statmod-moving" id="toc-sec-statmod-moving" class="nav-link" data-scroll-target="#sec-statmod-moving"><span class="header-section-number">9.2.4</span> Blocks that move with their coefficients</a></li>
   <li><a href="#sec-statmod-stop" id="toc-sec-statmod-stop" class="nav-link" data-scroll-target="#sec-statmod-stop"><span class="header-section-number">9.2.5</span> When the loop stops</a></li>
   </ul></li>
+  <li><a href="#sec-statmod-outer" id="toc-sec-statmod-outer" class="nav-link" data-scroll-target="#sec-statmod-outer"><span class="header-section-number">9.3</span> Choosing the hyperparameters</a>
+  <ul>
+  <li><a href="#sec-statmod-marginal" id="toc-sec-statmod-marginal" class="nav-link" data-scroll-target="#sec-statmod-marginal"><span class="header-section-number">9.3.1</span> The marginal criterion</a></li>
+  <li><a href="#sec-statmod-outer-gradient" id="toc-sec-statmod-outer-gradient" class="nav-link" data-scroll-target="#sec-statmod-outer-gradient"><span class="header-section-number">9.3.2</span> The exact gradient</a></li>
+  <li><a href="#sec-statmod-pe" id="toc-sec-statmod-pe" class="nav-link" data-scroll-target="#sec-statmod-pe"><span class="header-section-number">9.3.3</span> Prediction error</a></li>
+  <li><a href="#sec-statmod-path" id="toc-sec-statmod-path" class="nav-link" data-scroll-target="#sec-statmod-path"><span class="header-section-number">9.3.4</span> A penalty with a kink is swept, not solved</a></li>
+  <li><a href="#sec-statmod-edf" id="toc-sec-statmod-edf" class="nav-link" data-scroll-target="#sec-statmod-edf"><span class="header-section-number">9.3.5</span> What the count leaves out</a></li>
+  </ul></li>
+  <li><a href="#sec-statmod-reading" id="toc-sec-statmod-reading" class="nav-link" data-scroll-target="#sec-statmod-reading"><span class="header-section-number">9.4</span> Reading and using a fit</a>
+  <ul>
+  <li><a href="#sec-statmod-vcov" id="toc-sec-statmod-vcov" class="nav-link" data-scroll-target="#sec-statmod-vcov"><span class="header-section-number">9.4.1</span> The two variances</a></li>
+  <li><a href="#sec-statmod-loglik" id="toc-sec-statmod-loglik" class="nav-link" data-scroll-target="#sec-statmod-loglik"><span class="header-section-number">9.4.2</span> Which likelihood</a></li>
+  <li><a href="#sec-statmod-predict" id="toc-sec-statmod-predict" class="nav-link" data-scroll-target="#sec-statmod-predict"><span class="header-section-number">9.4.3</span> Prediction</a></li>
+  <li><a href="#sec-statmod-rstatmod" id="toc-sec-statmod-rstatmod" class="nav-link" data-scroll-target="#sec-statmod-rstatmod"><span class="header-section-number">9.4.4</span> Simulating from a model</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -335,7 +350,7 @@ window.Quarto = {
 
 <p>The chapters so far built the parts a regression model is made of: the links of <a href="02-linkfunctions7.html" class="quarto-xref"><span>Chapter 2</span></a>, the distributions of <a href="03-distributions7.html" class="quarto-xref"><span>Chapter 3</span></a>, the optimizers of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a>, the constrained parameters of <a href="05-parameters7.html" class="quarto-xref"><span>Chapter 5</span></a>, the bases of <a href="06-basis7.html" class="quarto-xref"><span>Chapter 6</span></a>, the penalties of <a href="07-penalties7.html" class="quarto-xref"><span>Chapter 7</span></a> and the model terms of <a href="08-modelterms7.html" class="quarto-xref"><span>Chapter 8</span></a>. <code>statmodels7</code> is the layer that fits a model out of them.</p>
 <p>What it fits is a distributional regression. An ordinary regression writes a linear predictor for the mean and holds the rest of the distribution constant across observations; here every parameter of the response distribution carries an equation of its own, so a scale, a shape or a zero-inflation probability is modeled by the same machinery and with the same terms as a mean. One formula carries all of those equations, the terms they name are assembled into a penalized likelihood, and the smoothing parameters and prior scales the terms leave free are estimated from the data.</p>
-<p><a href="#sec-statmod-model" class="quarto-xref"><span>Section 9.1</span></a> presents the model: the formula with its equations separated by bars, the scale each equation is written on, the specification built from it, and what a fit keeps. <a href="#sec-statmod-inner" class="quarto-xref"><span>Section 9.2</span></a> presents the penalized fit: the objective, the scoring step and the augmented decomposition it is solved through, the blocks that move with their own coefficients, the blocks whose penalty has a kink and are fitted apart, and the rule that ends the loop.</p>
+<p><a href="#sec-statmod-model" class="quarto-xref"><span>Section 9.1</span></a> presents the model: the formula with its equations separated by bars, the scale each equation is written on, the specification built from it, and what a fit keeps. <a href="#sec-statmod-inner" class="quarto-xref"><span>Section 9.2</span></a> presents the penalized fit: the objective, the scoring step and the augmented decomposition it is solved through, the blocks that move with their own coefficients, the blocks whose penalty has a kink and are fitted apart, and the rule that ends the loop. <a href="#sec-statmod-outer" class="quarto-xref"><span>Section 9.3</span></a> presents the second estimation problem sitting outside the first, the hyperparameters the terms leave free: the marginal criteria and their exact derivatives, the prediction-error criteria, the path a penalty with a kink is swept along, and the effective degrees of freedom a criterion is charged against. <a href="#sec-statmod-reading" class="quarto-xref"><span>Section 9.4</span></a> presents what a fit answers when it is read: the two variances and the intervals built on them, which likelihood is reported, prediction at new data, and simulation from the model.</p>
 <section id="sec-statmod-model" class="level2" data-number="9.1">
 <h2 data-number="9.1" class="anchored" data-anchor-id="sec-statmod-model"><span class="header-section-number">9.1</span> The model</h2>
 <p>A response distribution with <span class="math inline">\(K\)</span> parameters is written here with an equation for each of them. Observation <span class="math inline">\(i\)</span> has its own parameter vector <span class="math inline">\(\theta_i = (\theta_{i1}, \ldots, \theta_{iK})\)</span>, and each coordinate is carried onto the whole real line by that parameter’s own link, exactly as <a href="03-distributions7.html#sec-link-scale" class="quarto-xref"><span>Section 3.1.4</span></a> carries it for a single distribution:</p>
@@ -495,6 +510,190 @@ A \;=\; \begin{bmatrix} R \\ C \end{bmatrix}, \qquad A'A \;=\; Z'\Omega Z + S ,
 \]</span></p>
 <p>read per equation and maximized over them. The score of a location equation carries the units <span class="math inline">\(1/y\)</span> and its curvature <span class="math inline">\(1/y^2\)</span>, so the ratio survives any rescaling of the response, which the absolute rule alone does not. This reading can relabel a run that stalled at the optimum as converged and can never stop one that is still moving; driving the loop with it was tried and fails at large <span class="math inline">\(y\)</span>, where the guard on a stalled objective fires before a rule <span class="math inline">\(1/s_p\)</span> stricter can.</p>
 <p>A term whose block is a frozen working linearization answers the question for itself. The gradient the layer computes there belongs to the working model, and the profile objective of a discontinuous break-point term is a step function in the position with no gradient to vanish, so what ends that fit is the term’s own report that its construction has reached a fixed point.</p>
+</section>
+</section>
+<section id="sec-statmod-outer" class="level2" data-number="9.3">
+<h2 data-number="9.3" class="anchored" data-anchor-id="sec-statmod-outer"><span class="header-section-number">9.3</span> Choosing the hyperparameters</h2>
+<p>A penalty carries hyperparameters: a smoothing parameter, the scale of a prior, the <span class="math inline">\(\lambda\)</span> and <span class="math inline">\(\alpha\)</span> of an elastic net. A term holds any of them it was given a value for, and every one left free is estimated from the same data the coefficients are. That is a second estimation problem sitting outside the first, and the model is refitted at every value it visits.</p>
+<p>Two families of criterion answer it, and they ask different questions. A marginal criterion integrates the coefficients out and asks which hyperparameter makes the data most likely; a prediction-error criterion asks which one predicts best. For a smooth penalty either applies. For a penalty with a kink only the second does, and the reason is the subject of the last part of this section.</p>
+<section id="sec-statmod-marginal" class="level3" data-number="9.3.1">
+<h3 data-number="9.3.1" class="anchored" data-anchor-id="sec-statmod-marginal"><span class="header-section-number">9.3.1</span> The marginal criterion</h3>
+<p>The coefficients are integrated out by a Laplace approximation at the penalized mode. Writing <span class="math inline">\(\hat\beta(\theta)\)</span> for that mode, <span class="math inline">\(H\)</span> for the information of the log-likelihood, <span class="math inline">\(S\)</span> for the penalty’s second derivative in the coefficients and <span class="math inline">\(A\)</span> for an orthonormal basis of the subspace integrated over,</p>
+<p><span class="math display">\[
+\log L(\theta) \;=\; \ell(\hat\beta) - \rho(\hat\beta; \theta)
+  + \frac{q}{2}\log 2\pi - \frac12 \log\bigl\lvert A'(H+S)A \bigr\rvert ,
+\]</span></p>
+<p>with <span class="math inline">\(q\)</span> the dimension of that subspace. Nothing is added to <span class="math inline">\(\rho\)</span> to make this work. A <code>penalties7</code> penalty keeps its normalizing constant, as <a href="07-penalties7.html#sec-penalty-definition" class="quarto-xref"><span>Section 7.1</span></a> sets out, so <span class="math inline">\(\rho\)</span> is exactly minus a log prior density, and for a quadratic penalty that constant carries the <span class="math inline">\(-\frac{r}{2}\log\lambda\)</span> and the log pseudo-determinant of <a href="07-penalties7.html#sec-penalty-marginal" class="quarto-xref"><span>Section 7.3</span></a> that a marginal criterion needs. Written out, the expression reproduces the REML criterion of <span class="citation" data-cites="wood2011">Wood (<a href="A2-references.html#ref-wood2011" role="doc-biblioref">2011</a>)</span> term for term.</p>
+<p>The two members differ in what they integrate. <code>reml()</code> takes <span class="math inline">\(A = I\)</span>: every coefficient is integrated, the unpenalized ones under the flat prior their absence of a penalty amounts to. <code>ml()</code> takes <span class="math inline">\(A\)</span> spanning the range of the penalty, so an unpenalized direction is profiled instead — an ordinary covariate is one, and so is the linear column of a Demmler-Reinsch smooth, which that smooth’s penalty leaves alone. This is the distinction between REML and ML for a variance component, and <code>reml()</code> is the default for the same reason: profiling a fixed effect leaves the variance estimate biased downwards.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>n_out <span class="ot">&lt;-</span> <span class="dv">250</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>d_out <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">z =</span> <span class="fu">sort</span>(<span class="fu">runif</span>(n_out, <span class="sc">-</span><span class="dv">3</span>, <span class="dv">3</span>)))</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>d_out<span class="sc">$</span>y <span class="ot">&lt;-</span> <span class="fu">sin</span>(<span class="fl">1.4</span> <span class="sc">*</span> d_out<span class="sc">$</span>z) <span class="sc">+</span> <span class="fu">rnorm</span>(n_out, <span class="at">sd =</span> <span class="fl">0.4</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>f_reml <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> <span class="fu">s</span>(z, <span class="at">k =</span> <span class="dv">8</span>), <span class="fu">gaussian1_distrib</span>(), d_out)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>f_ml   <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> <span class="fu">s</span>(z, <span class="at">k =</span> <span class="dv">8</span>), <span class="fu">gaussian1_distrib</span>(), d_out,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>                  <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">reml =</span> <span class="fu">hyper</span>(f_reml)<span class="sc">$</span>estimate, <span class="at">ml =</span> <span class="fu">hyper</span>(f_ml)<span class="sc">$</span>estimate)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     reml       ml </span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.262835 1.261774</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">reml =</span> <span class="fu">sum</span>(f_reml<span class="sc">@</span>edf<span class="sc">$</span>edf), <span class="at">ml =</span> <span class="fu">sum</span>(f_ml<span class="sc">@</span>edf<span class="sc">$</span>edf))</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     reml       ml </span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8.043889 8.044375</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The unpenalized directions here are the two intercepts and the smooth’s linear column, three of the model’s nine coefficients, the Demmler-Reinsch penalty being <span class="math inline">\(\operatorname{diag}(0, 1, \ldots, 1)\)</span> and leaving that column alone. <code>ml()</code> profiles them rather than integrating them, so it shrinks slightly less, and the gap widens with the number of such directions.</p>
+</section>
+<section id="sec-statmod-outer-gradient" class="level3" data-number="9.3.2">
+<h3 data-number="9.3.2" class="anchored" data-anchor-id="sec-statmod-outer-gradient"><span class="header-section-number">9.3.2</span> The exact gradient</h3>
+<p>The criterion is differentiable in the hyperparameters, and its derivative is available in closed form rather than by differencing. Every piece comes from the implicit function theorem at the penalized mode: differentiating the mode’s own condition <span class="math inline">\(\partial(-\ell + \rho)/\partial\beta = 0\)</span> in a hyperparameter gives</p>
+<p><span class="math display">\[
+(H + S)\,\frac{\partial\hat\beta}{\partial\theta_k}
+  \;=\; -\frac{\partial^2\rho}{\partial\beta\,\partial\theta_k} ,
+\]</span></p>
+<p>and the determinant’s derivative follows from the same solve. What the gradient needs of the model is that the information be the observed one and that each penalty’s Hessian be linear in its hyperparameters, which covers <code>s()</code>, <code>te()</code> and any quadratic penalty. Where it exists it is handed to the search and <code>lbfgs()</code> becomes the default optimizer; where it does not, the search compares values.</p>
+<p>Measured in evaluations of the criterion, each of them a whole refit of the coefficients, against a derivative-free search: 40 against 32 with one smoothing parameter, 40 against 135 with two, 41 against 269 with three, and 12 against 283 with three and a modeled scale. It does not pay in one dimension and pays from two on, a simplex needing a vertex per dimension where a quasi-Newton method does not.</p>
+</section>
+<section id="sec-statmod-pe" class="level3" data-number="9.3.3">
+<h3 data-number="9.3.3" class="anchored" data-anchor-id="sec-statmod-pe"><span class="header-section-number">9.3.3</span> Prediction error</h3>
+<p>The other family scores an estimate of how well the fit would predict:</p>
+<p><span class="math display">\[
+C(\theta) \;=\; -2\,\ell(\hat\beta(\theta)) + \kappa\,\tau(\theta),
+\qquad \tau(\theta) = \operatorname{tr}\bigl[(H+S)^{-1}H\bigr] ,
+\]</span></p>
+<p>minimized, with <span class="math inline">\(\kappa\)</span> the price of one degree of freedom: <code>aic()</code> charges 2 and <code>bic()</code> charges <span class="math inline">\(\log n\)</span>. <code>cv()</code> scores the deviance on held-out folds instead, refitting on each.</p>
+<p>These are differentiated exactly as well, and out of the same pieces, but one thing separates the two families. The envelope theorem does not apply here: <span class="math inline">\(\ell\)</span> alone is not stationary at the penalized mode, only the penalized objective is, so <span class="math inline">\(\mathrm{d}\ell/\mathrm{d}\theta\)</span> carries <span class="math inline">\(\mathrm{d}\hat\beta/\mathrm{d}\theta\)</span> from the first order. What makes that computable is the mode’s own condition again, <span class="math inline">\(\partial\ell/\partial\beta = \partial\rho/\partial\beta\)</span>.</p>
+<p>Generalized cross-validation is not among them. The classical form divides a residual sum of squares by <span class="math inline">\((n - \tau)^2\)</span>, which estimates an unknown scale; here every distribution parameter carries its own equation and nothing is profiled, so there is no unknown scale for that ratio to estimate and the criterion degenerates to <code>aic()</code>.</p>
+</section>
+<section id="sec-statmod-path" class="level3" data-number="9.3.4">
+<h3 data-number="9.3.4" class="anchored" data-anchor-id="sec-statmod-path"><span class="header-section-number">9.3.4</span> A penalty with a kink is swept, not solved</h3>
+<p>A marginal criterion expands around the penalized mode. For a lasso that mode sits <em>at</em> the kink for every coefficient the penalty sets to zero, and the second derivative the expansion wants does not exist there. Such a hyperparameter is therefore not estimated by <code>reml()</code> or <code>ml()</code> at all; it is swept along a path of its own values and scored by a prediction-error criterion, <code>bic()</code> by default.</p>
+<p>The path is geometric in the <strong>size of the kink</strong> rather than in the hyperparameter, since the two need not be the same quantity: the size is read from the penalty by probing its subdifferential, which covers an elastic net’s <span class="math inline">\(\lambda\alpha\)</span> and a Laplace prior written by its scale, whose kink narrows as the hyperparameter grows. It starts at the value that empties the block and descends to a fraction of it, and that top depends on the data and on the rest of the model, being found at the coefficients in hand rather than at a refitted null.</p>
+<p>The reason for a path rather than a search is the shape of the problem. The penalized mode is only piecewise smooth in such a hyperparameter, turning a corner whenever a coefficient joins the active set or leaves it, so the criterion inherits the corners and a gradient search would read a slope that is about to change.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">12</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>n_l <span class="ot">&lt;-</span> <span class="dv">200</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n_l <span class="sc">*</span> <span class="dv">12</span>), n_l, <span class="dv">12</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>d_lasso <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">y =</span> X <span class="sc">%*%</span> <span class="fu">c</span>(<span class="fl">1.4</span>, <span class="sc">-</span><span class="fl">0.9</span>, <span class="fl">0.7</span>, <span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">9</span>)) <span class="sc">+</span> <span class="fu">rnorm</span>(n_l, <span class="at">sd =</span> <span class="dv">1</span>))</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>d_lasso<span class="sc">$</span>X <span class="ot">&lt;-</span> X</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>f_lasso <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> <span class="fu">lasso</span>(X), <span class="fu">gaussian1_distrib</span>(), d_lasso)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="fu">hyper</span>(f_lasso)[, <span class="fu">c</span>(<span class="st">"name"</span>, <span class="st">"estimate"</span>, <span class="st">"held"</span>, <span class="st">"source"</span>)]</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     name estimate  held source</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 lambda 27.91254 FALSE    bic</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(<span class="fu">coef</span>(f_lasso)<span class="sc">$</span>mu <span class="sc">!=</span> <span class="dv">0</span>)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Of the twelve columns offered, the chosen point keeps the three that carry signal and the unpenalized intercept beside them.</p>
+<p>Where the penalty has a kink, <span class="math inline">\(\tau\)</span> is restricted to the coordinates away from it, so for a lasso it is the number of surviving coefficients, which is the unbiased count of <span class="citation" data-cites="zou2007">Zou, Hastie, and Tibshirani (<a href="A2-references.html#ref-zou2007" role="doc-biblioref">2007</a>)</span>. No special case is written for it: the penalty is linear away from the kink, so its second derivative vanishes there and the trace reduces to that number on its own.</p>
+</section>
+<section id="sec-statmod-edf" class="level3" data-number="9.3.5">
+<h3 data-number="9.3.5" class="anchored" data-anchor-id="sec-statmod-edf"><span class="header-section-number">9.3.5</span> What the count leaves out</h3>
+<p><span class="math inline">\(\tau = \operatorname{tr}[(H+S)^{-1}H]\)</span> reads the smoothing parameters as though they were known, and they were not: they were chosen from the same data, so a criterion built on the count is too generous. Propagating their uncertainty into the coefficients gives the corrected variance and count</p>
+<p><span class="math display">\[
+V' \;=\; V_\beta + J V_\theta J', \qquad
+J = \frac{\partial\hat\beta}{\partial\theta}, \qquad
+\tau' = \operatorname{tr}(V' H),
+\]</span></p>
+<p>with <span class="math inline">\(J\)</span> the solve above and <span class="math inline">\(V_\theta\)</span> the inverse of the negated Hessian of the outer criterion, everything on the hyperparameter’s link scale, which is where that criterion optimizes and therefore the only scale on which its Hessian is a variance. This is the first of the two terms <span class="citation" data-cites="woodpya2016">Wood, Pya, and Säfken (<a href="A2-references.html#ref-woodpya2016" role="doc-biblioref">2016</a>)</span> sum into their corrected count; the second exists there because a Gaussian scale is profiled out of the fit and its uncertainty has to be added back, and here that scale carries an equation and coefficients of its own, so its uncertainty is already inside <span class="math inline">\(H\)</span>.</p>
+<p>For a kinked penalty the correction is exactly zero, and that is a refusal rather than an approximation: the map from the hyperparameter to the penalized mode turns a corner whenever the active set changes, and a delta method needs a derivative that is not there.</p>
+<p>The same distinction governs what a hyperparameter’s own uncertainty can be. One a marginal criterion maximized is the root of a derivative, so the curvature of that criterion is a variance and <code>summary()</code> prints a standard error and an interval, built on the free scale and mapped back. One chosen along a path is the argument of a minimum over a grid, and no standard error follows from it. <code>hyper()</code>’s <code>source</code> column is what tells the two apart.</p>
+</section>
+</section>
+<section id="sec-statmod-reading" class="level2" data-number="9.4">
+<h2 data-number="9.4" class="anchored" data-anchor-id="sec-statmod-reading"><span class="header-section-number">9.4</span> Reading and using a fit</h2>
+<p>A fitted model holds three things: the specification, kept whole so the model can be read back and reapplied; the coefficients, hyperparameters and structural parameters the fit reached; and the record of how it got there. The accessors below read those, and each of them answers per distribution parameter rather than over one flat vector, because the coefficients of a mean and of a scale are different quantities on different scales.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">13</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>n_rd <span class="ot">&lt;-</span> <span class="dv">300</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>d_rd <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">sort</span>(<span class="fu">runif</span>(n_rd, <span class="sc">-</span><span class="dv">3</span>, <span class="dv">3</span>)),</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">g =</span> <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">15</span>, <span class="at">length.out =</span> <span class="dv">300</span>)))</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>d_rd<span class="sc">$</span>y <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n_rd, <span class="dv">1</span> <span class="sc">+</span> <span class="fu">sin</span>(<span class="fl">1.2</span> <span class="sc">*</span> d_rd<span class="sc">$</span>x) <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="dv">15</span>, <span class="at">sd =</span> <span class="fl">0.5</span>)[d_rd<span class="sc">$</span>g],</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>                <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">0.7</span> <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> d_rd<span class="sc">$</span>x))</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>f_rd <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> <span class="fu">s</span>(x, <span class="at">k =</span> <span class="dv">8</span>) <span class="sc">+</span> <span class="fu">random</span>(<span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> g) <span class="sc">|</span> sigma <span class="sc">~</span> x,</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>                <span class="fu">gaussian1_distrib</span>(), d_rd)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="fu">lapply</span>(<span class="fu">coef</span>(f_rd), head, <span class="dv">3</span>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $mu</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)    s(x).lin     s(x).z1 </span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  0.99875537  0.34905480  0.01674798 </span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $sigma</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)           x </span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  -0.6630730   0.1878211</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<section id="sec-statmod-vcov" class="level3" data-number="9.4.1">
+<h3 data-number="9.4.1" class="anchored" data-anchor-id="sec-statmod-vcov"><span class="header-section-number">9.4.1</span> The two variances</h3>
+<p>Writing <span class="math inline">\(H\)</span> for the information of the log-likelihood and <span class="math inline">\(S\)</span> for the second derivative of the penalty,</p>
+<p><span class="math display">\[
+V_\mathrm{b} = (H+S)^{-1}, \qquad
+V_\mathrm{f} = (H+S)^{-1} H (H+S)^{-1} .
+\]</span></p>
+<p>The first is the posterior variance under the prior the penalty is the negative logarithm of, and it is what an interval around a penalized term should be built from: it carries the smoothing bias as though it were variance, which is why such intervals cover at about their nominal rate. The second is the sampling variance of the penalized estimator at a fixed penalty, which is smaller and covers less. With nothing penalized <span class="math inline">\(S = 0\)</span> and the two coincide.</p>
+<p><code>vcov()</code> gives the first by default, on the same information the fit itself inverted. A coefficient a kinked penalty has set to zero has no row at all: the penalty is not twice differentiable there, so no curvature can be read, and the entry is missing rather than zero. The coefficients such a penalty left alone do get a variance, and it is conditional on that selection.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">confint</span>(f_rd), <span class="dv">4</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                parameter        term coefficient   estimate         se      lower</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:(Intercept)        mu      linpar (Intercept) 0.99875537 0.18004947  0.6458649</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:s(x).lin           mu s(x, k = 8)    s(x).lin 0.34905480 0.03520918  0.2800461</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:s(x).z1            mu s(x, k = 8)     s(x).z1 0.01674798 0.03690852 -0.0555914</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:s(x).z2            mu s(x, k = 8)     s(x).z2 1.97092072 0.10364270  1.7677848</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                     upper</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:(Intercept) 1.35164583</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:s(x).lin    0.41806352</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:s(x).z1     0.08908736</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:s(x).z2     2.17405669</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Every interval is built on the scale that keeps its quantity in its own set and mapped back, exactly as <a href="03-distributions7.html#sec-fit-delta" class="quarto-xref"><span>Section 3.3.4</span></a> builds one for a single distribution, so a scale’s interval cannot contain a negative number.</p>
+</section>
+<section id="sec-statmod-loglik" class="level3" data-number="9.4.2">
+<h3 data-number="9.4.2" class="anchored" data-anchor-id="sec-statmod-loglik"><span class="header-section-number">9.4.2</span> Which likelihood</h3>
+<p><code>logLik()</code> answers with the <strong>conditional</strong> log-likelihood: the density at the fitted coefficients, a penalized coefficient among them, paired with the effective degrees of freedom of <a href="#sec-statmod-edf" class="quarto-xref"><span>Section 9.3.5</span></a>. A criterion built on that pair is the conditional AIC, and it asks how well the model describes the groups and curves actually observed.</p>
+<p>A mixed-model package reports the <strong>marginal</strong> likelihood instead, with the random effects integrated out and the count the number of estimated parameters. That asks about the population, and its AIC is a different number. Neither convention allows the halves to be mixed, a marginal likelihood against an effective count or a conditional one against a parameter count <span class="citation" data-cites="vaida2005">(<a href="A2-references.html#ref-vaida2005" role="doc-biblioref">Vaida and Blanchard 2005</a>)</span>.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">conditional =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f_rd)),</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">marginal    =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f_rd, <span class="at">type =</span> <span class="st">"marginal"</span>)))</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional    marginal </span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   -223.9782   -279.3186</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">edf =</span> <span class="fu">attr</span>(<span class="fu">logLik</span>(f_rd), <span class="st">"df"</span>),</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">npar =</span> <span class="fu">attr</span>(<span class="fu">logLik</span>(f_rd, <span class="at">type =</span> <span class="st">"marginal"</span>), <span class="st">"df"</span>))</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      edf     npar </span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 22.40404  5.00000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The marginal value is the one the outer criterion maximized, so it exists only where a marginal criterion actually ran. Where the hyperparameters were held or chosen along a path there is none, and asking for one signals an error rather than returning a number that would look like one.</p>
+<p>Measured on a random intercept over 120 groups, the two readings of one fit are <span class="math inline">\(-4148.59\)</span> on 115.72 effective degrees of freedom and <span class="math inline">\(-4372.79\)</span> on 4, against <code>lme4</code>’s marginal <span class="math inline">\(-4371.71\)</span> on 4: the marginal halves agree and the conditional pair is a different quantity.</p>
+</section>
+<section id="sec-statmod-predict" class="level3" data-number="9.4.3">
+<h3 data-number="9.4.3" class="anchored" data-anchor-id="sec-statmod-predict"><span class="header-section-number">9.4.3</span> Prediction</h3>
+<p><code>predict()</code> answers per parameter, on the parameter scale or the predictor’s, and will give a moment of the family instead if asked for one. Each term’s blueprint is reapplied rather than rebuilt, so the knots of a smooth and the levels of a factor are those the model was fitted with. The identity that pins it is that predicting on rows the model saw returns the fitted values there.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>nd <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>),</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">g =</span> <span class="fu">factor</span>(<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>), <span class="at">levels =</span> <span class="fu">levels</span>(d_rd<span class="sc">$</span>g)))</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(f_rd, <span class="st">"mu"</span>, <span class="at">newdata =</span> nd, <span class="at">se =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         fit        se     lower     upper</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 -1.480255 0.1104639 -1.696760 -1.263749</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2  1.838281 0.1140318  1.614783  2.061779</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3  1.472762 0.1210629  1.235483  1.710041</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A standard error is the delta method over the variance above, so it inherits which of the two was asked for. It is <code>NA</code> for an observation whose predictor reads a coefficient that has no variance, which is the truth about such a fit rather than a gap in the arithmetic.</p>
+<p>A term carrying state is continued past the end of its series by handing <code>predict()</code> time indices that were not observed. The continuation is deterministic: a score has zero conditional mean, so past the data the driving term sits at its expectation and the recursion runs on with the loadings contributing only while they still reach an observed time. No standard error is reported there, because the uncertainty of a forecast is mostly the uncertainty of the future scores and not of the parameters, and reporting the second under the name of the first would understate it.</p>
+</section>
+<section id="sec-statmod-rstatmod" class="level3" data-number="9.4.4">
+<h3 data-number="9.4.4" class="anchored" data-anchor-id="sec-statmod-rstatmod"><span class="header-section-number">9.4.4</span> Simulating from a model</h3>
+<p><code>rstatmod()</code> draws from a model at coefficients the caller supplies, which is what a simulation study needs. The truth comes back beside the data rather than attached to it: a list holding the data, the coefficients, the per-observation parameters and whatever a term with state drew.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>sim <span class="ot">&lt;-</span> <span class="fu">rstatmod</span>(y <span class="sc">~</span> x <span class="sc">|</span> sigma <span class="sc">~</span> x, <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>                <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">runif</span>(<span class="dv">200</span>, <span class="sc">-</span><span class="dv">2</span>, <span class="dv">2</span>)),</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>                <span class="at">par =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">0.8</span>), <span class="at">sigma =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.7</span>, <span class="fl">0.2</span>)))</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(sim)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "data"       "par"        "theta"      "latent"     "structural" "n_sim"     </span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [7] "call"</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">coef</span>(<span class="fu">statmod</span>(y <span class="sc">~</span> x <span class="sc">|</span> sigma <span class="sc">~</span> x, <span class="fu">gaussian1_distrib</span>(), sim<span class="sc">$</span>data))<span class="sc">$</span>mu, <span class="dv">3</span>)</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)           x </span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       1.022       0.811</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The predictor is assembled as a fit assembles it, so a term whose block moves with its coefficients contributes what the term computes and not its block times them; the two differ by the whole nonlinearity.</p>
+<p>Two choices in it decide what a study measures. Passing <code>data</code> holds the covariates fixed, so what is measured is the estimator’s behavior <em>conditional</em> on that design; passing <code>covariates</code>, one function per column, draws them afresh at every replicate and measures over the design as well. Neither is more correct and a study should say which it ran. And with several replicates the truth is drawn <strong>once</strong> and shared, since a study over replicates measures the variability of an estimator at a set of parameters, so the replicates differ in what is random rather than in what is being estimated.</p>
 
 
 <div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
@@ -503,6 +702,18 @@ Fasola, Salvatore, Vito M. R. Muggeo, and Helmut Küchenhoff. 2018. <span>“A H
 </div>
 <div id="ref-rigby2005" class="csl-entry" role="listitem">
 Rigby, Robert A., and D. Mikis Stasinopoulos. 2005. <span>“Generalized Additive Models for Location, Scale and Shape.”</span> <em>Journal of the Royal Statistical Society, Series C</em> 54 (3): 507–54.
+</div>
+<div id="ref-vaida2005" class="csl-entry" role="listitem">
+Vaida, Florin, and Suzette Blanchard. 2005. <span>“Conditional <span>A</span>kaike Information for Mixed-Effects Models.”</span> <em>Biometrika</em> 92 (2): 351–70.
+</div>
+<div id="ref-wood2011" class="csl-entry" role="listitem">
+Wood, Simon N. 2011. <span>“Fast Stable Restricted Maximum Likelihood and Marginal Likelihood Estimation of Semiparametric Generalized Linear Models.”</span> <em>Journal of the Royal Statistical Society: Series B</em> 73 (1): 3–36.
+</div>
+<div id="ref-woodpya2016" class="csl-entry" role="listitem">
+Wood, Simon N., Natalya Pya, and Benjamin Säfken. 2016. <span>“Smoothing Parameter and Model Selection for General Smooth Models.”</span> <em>Journal of the American Statistical Association</em> 111 (516): 1548–63.
+</div>
+<div id="ref-zou2007" class="csl-entry" role="listitem">
+Zou, Hui, Trevor Hastie, and Robert Tibshirani. 2007. <span>“On the <span>‘Degrees of Freedom’</span> of the Lasso.”</span> <em>The Annals of Statistics</em> 35 (5): 2173–92.
 </div>
 </div>
 </section>

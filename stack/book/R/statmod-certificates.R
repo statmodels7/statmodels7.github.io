@@ -5,7 +5,7 @@
 # stops if any of them disagrees. Nothing in this file is visible to the
 # reader.
 #
-# Two claims are checked, one per section written so far.
+# Four claims are checked.
 #
 #   1. the penalized mode of a fit whose objective is quadratic agrees with
 #      the closed form. With the scale held the objective is
@@ -15,24 +15,45 @@
 #      would prove nothing about the assembly. The scoring loop reaches the
 #      same point through an augmented QR, which shares no arithmetic with a
 #      solve of the normal equations;
-#   2. prediction reapplies a term's blueprint rather than rebuilding it,
+#   2. the exact gradient of the marginal criterion agrees with a central
+#      difference of that criterion, the mode refitted at every probe, read
+#      AWAY from the optimum where the gradient is not nearly zero;
+#   3. the effective degrees of freedom agree with tr[(H+S)^-1 H] assembled
+#      here out of the family's expected information and a penalty Hessian
+#      taken straight from penalties7;
+#   4. prediction reapplies a term's blueprint rather than rebuilding it,
 #      pinned by the identity that predicting on rows the model was fitted to
 #      returns the fitted values there. The subset matters: a rebuilt basis
 #      agrees with the fitted values on the WHOLE data whatever its knots
 #      are, so a check on all the rows passes for a defect it exists to
 #      catch.
 #
-# Injection-checked when written, against a tolerance of 1e-8, each caught
-# and the gate clean again with the injection removed:
+# Injection-checked when written, each caught and the gate clean again with
+# the injection removed. The agreements asserted, against the tolerance each
+# is held to:
 #
-#   the closed form computed at 2*lambda                        2.294e-02
-#   the penalty applied to the intercept as well as the block   3.785e-02
-#   the prediction read at rows shifted by one                  2.066e-01
-#   the smooth's block rebuilt on the subset, not reapplied     2.895e+00
+#   1  the penalized mode                6.661e-16   (1e-8)
+#      its stationarity residual         4.263e-14
+#   2  the criterion's exact gradient    7.877e-07   (1e-4, relative)
+#   3  the effective degrees of freedom  1.776e-15   (1e-8)
+#   4  prediction on fitted rows         0.000e+00   (1e-8)
 #
-# against the agreements the gate asserts, which are 6.661e-16 on the mode
-# and exactly 0 on the prediction. The last line is the defect check 2
-# exists for, measured on the block itself rather than on the fit.
+# and the injections:
+#
+#   1a the closed form computed at 2*lambda                     2.294e-02
+#   1b the penalty applied to the intercept as well             3.785e-02
+#   2a the gradient read on the parameter scale, not the free   1.000e+00
+#   2b the gradient read at the optimum instead of at lambda0   1.000e+00
+#   2c the mode taken at the wrong lambda                       2.264e-02
+#   3a the observed information in place of the expected        3.338e-04
+#   3b the penalty omitted, S = 0                               9.702e-01
+#   3c lambda doubled in the penalty Hessian                    4.230e-01
+#   4a the prediction read at rows shifted by one               2.066e-01
+#   4b the smooth's block rebuilt on the subset, not reapplied  2.895e+00
+#
+# 4b is the defect check 4 exists for, measured on the block itself rather
+# than on the fit. 3a is not a defect but a different quantity, and it is
+# what says the count is read on the information the fit inverted.
 
 assert_statmod_ok <- function() {
 
@@ -74,7 +95,70 @@ assert_statmod_ok <- function() {
     fail("the stationarity of the reported mode")
   }
 
-  # --- 2. prediction reapplies the blueprint -------------------------------
+  # --- 2. the exact gradient of the marginal criterion, and the edf --------
+
+  set.seed(20260830)
+  nb <- 250
+  dc <- data.frame(z = sort(stats::runif(nb, -3, 3)))
+  dc$y <- sin(1.4 * dc$z) + stats::rnorm(nb, sd = 0.4)
+  gau <- distributions7::gaussian1_distrib()
+
+  fb <- statmod(y ~ s(z, k = 8), gau, dc)
+  sp <- fb@spec
+  de <- statmod_design(sp)
+  key <- "s(z, k = 8)"
+  idx <- statmodels7:::outer_hyper_index(
+    sp, statmodels7:::statmod_blocks(sp, de))
+
+  # The criterion at any smoothing parameter: the mode there, then the
+  # Laplace value read at it. The base point is deliberately away from the
+  # optimum -- at the optimum the gradient is zero and a relative comparison
+  # would be between two nearly-zero numbers, which is the trap the fitting
+  # gate of chapter 3 records.
+  hy_at <- function(lam) {
+    h <- fb@hyper
+    h[["mu"]][[key]][["lambda"]] <- lam
+    h
+  }
+  mode_at <- function(lam) {
+    statmod(stats::as.formula(
+      sprintf("y ~ s(z, k = 8, lambda = %.17g)", lam)), gau, dc)@coefficients
+  }
+  crit_at <- function(lam) {
+    v <- statmodels7:::statmod_marginal(sp, de, mode_at(lam), hy_at(lam),
+                                        reml())
+    if (is.null(v)) NA_real_ else v$value
+  }
+
+  lam0 <- 0.5
+  g_exact <- statmodels7:::statmod_marginal_grad(
+    sp, de, mode_at(lam0), hy_at(lam0), reml(), idx)
+  h <- 3e-3
+  e0 <- log(lam0)
+  g_fd <- (crit_at(exp(e0 + h)) - crit_at(exp(e0 - h))) / (2 * h)
+  if (!is.finite(g_exact) || !is.finite(g_fd) ||
+      abs(g_fd - g_exact) / max(1, abs(g_exact)) > 1e-4) {
+    fail("the exact gradient of the marginal criterion")
+  }
+
+  # The effective degrees of freedom, against the trace assembled here from
+  # the family's information and a penalty Hessian built straight from
+  # penalties7. The information is the EXPECTED one, which is what the fit
+  # inverted; reading the observed one instead moves the count by 3.3e-04,
+  # which is a different quantity rather than a worse one.
+  H <- -hessian(fb, expected = TRUE)
+  cols <- de$mu$blocks[[key]]
+  ptot <- sum(vapply(de, function(e) e$npar, integer(1)))
+  S <- matrix(0, ptot, ptot)
+  S[cols, cols] <- as.matrix(penalties7::penalty_hessian(
+    modelterms7::term_penalty(sp@terms$mu[[key]]),
+    fb@coefficients$mu[cols],
+    list(lambda = fb@hyper$mu[[key]][["lambda"]])))
+  if (abs(sum(diag(solve(H + S, H))) - sum(fb@edf$edf)) > 1e-8) {
+    fail("the effective degrees of freedom")
+  }
+
+  # --- 3. prediction reapplies the blueprint -------------------------------
 
   set.seed(20260829)
   m <- 200

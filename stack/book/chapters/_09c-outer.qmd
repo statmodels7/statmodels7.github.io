@@ -1,0 +1,200 @@
+## Choosing the hyperparameters {#sec-statmod-outer}
+
+A penalty carries hyperparameters: a smoothing parameter, the scale of a
+prior, the $\lambda$ and $\alpha$ of an elastic net. A term holds any of them
+it was given a value for, and every one left free is estimated from the same
+data the coefficients are. That is a second estimation problem sitting
+outside the first, and the model is refitted at every value it visits.
+
+Two families of criterion answer it, and they ask different questions. A
+marginal criterion integrates the coefficients out and asks which
+hyperparameter makes the data most likely; a prediction-error criterion asks
+which one predicts best. For a smooth penalty either applies. For a penalty
+with a kink only the second does, and the reason is the subject of the last
+part of this section.
+
+### The marginal criterion {#sec-statmod-marginal}
+
+The coefficients are integrated out by a Laplace approximation at the
+penalized mode. Writing $\hat\beta(\theta)$ for that mode, $H$ for the
+information of the log-likelihood, $S$ for the penalty's second derivative in
+the coefficients and $A$ for an orthonormal basis of the subspace integrated
+over,
+
+$$
+\log L(\theta) \;=\; \ell(\hat\beta) - \rho(\hat\beta; \theta)
+  + \frac{q}{2}\log 2\pi - \frac12 \log\bigl\lvert A'(H+S)A \bigr\rvert ,
+$$
+
+with $q$ the dimension of that subspace. Nothing is added to $\rho$ to make
+this work. A `penalties7` penalty keeps its normalizing constant, as
+@sec-penalty-definition sets out, so $\rho$ is exactly minus a log prior
+density, and for a quadratic penalty that constant carries the
+$-\frac{r}{2}\log\lambda$ and the log pseudo-determinant of
+@sec-penalty-marginal that a marginal criterion needs. Written out, the
+expression reproduces the REML criterion of @wood2011 term for term.
+
+The two members differ in what they integrate. `reml()` takes $A = I$: every
+coefficient is integrated, the unpenalized ones under the flat prior their
+absence of a penalty amounts to. `ml()` takes $A$ spanning the range of the
+penalty, so an unpenalized direction is profiled instead — an ordinary
+covariate is one, and so is the linear column of a Demmler-Reinsch smooth,
+which that smooth's penalty leaves alone. This is the distinction between
+REML and ML for a variance component, and `reml()` is the default for the
+same reason: profiling a fixed effect leaves the variance estimate biased
+downwards.
+
+```{r}
+#| label: reml-ml
+set.seed(11)
+n_out <- 250
+d_out <- data.frame(z = sort(runif(n_out, -3, 3)))
+d_out$y <- sin(1.4 * d_out$z) + rnorm(n_out, sd = 0.4)
+
+f_reml <- statmod(y ~ s(z, k = 8), gaussian1_distrib(), d_out)
+f_ml   <- statmod(y ~ s(z, k = 8), gaussian1_distrib(), d_out,
+                  outer_criterion = ml())
+
+c(reml = hyper(f_reml)$estimate, ml = hyper(f_ml)$estimate)
+c(reml = sum(f_reml@edf$edf), ml = sum(f_ml@edf$edf))
+```
+
+The unpenalized directions here are the two intercepts and the smooth's
+linear column, three of the model's nine coefficients, the Demmler-Reinsch
+penalty being $\operatorname{diag}(0, 1, \ldots, 1)$ and leaving that column
+alone. `ml()` profiles them rather than integrating them, so it shrinks
+slightly less, and the gap widens with the number of such directions.
+
+### The exact gradient {#sec-statmod-outer-gradient}
+
+The criterion is differentiable in the hyperparameters, and its derivative is
+available in closed form rather than by differencing. Every piece comes from
+the implicit function theorem at the penalized mode: differentiating the
+mode's own condition $\partial(-\ell + \rho)/\partial\beta = 0$ in a
+hyperparameter gives
+
+$$
+(H + S)\,\frac{\partial\hat\beta}{\partial\theta_k}
+  \;=\; -\frac{\partial^2\rho}{\partial\beta\,\partial\theta_k} ,
+$$
+
+and the determinant's derivative follows from the same solve. What the
+gradient needs of the model is that the information be the observed one and
+that each penalty's Hessian be linear in its hyperparameters, which covers
+`s()`, `te()` and any quadratic penalty. Where it exists it is handed to the
+search and `lbfgs()` becomes the default optimizer; where it does not, the
+search compares values.
+
+Measured in evaluations of the criterion, each of them a whole refit of the
+coefficients, against a derivative-free search: 40 against 32 with one
+smoothing parameter, 40 against 135 with two, 41 against 269 with three, and
+12 against 283 with three and a modeled scale. It does not pay in one
+dimension and pays from two on, a simplex needing a vertex per dimension
+where a quasi-Newton method does not.
+
+### Prediction error {#sec-statmod-pe}
+
+The other family scores an estimate of how well the fit would predict:
+
+$$
+C(\theta) \;=\; -2\,\ell(\hat\beta(\theta)) + \kappa\,\tau(\theta),
+\qquad \tau(\theta) = \operatorname{tr}\bigl[(H+S)^{-1}H\bigr] ,
+$$
+
+minimized, with $\kappa$ the price of one degree of freedom: `aic()` charges
+2 and `bic()` charges $\log n$. `cv()` scores the deviance on held-out folds
+instead, refitting on each.
+
+These are differentiated exactly as well, and out of the same pieces, but one
+thing separates the two families. The envelope theorem does not apply here:
+$\ell$ alone is not stationary at the penalized mode, only the penalized
+objective is, so $\mathrm{d}\ell/\mathrm{d}\theta$ carries
+$\mathrm{d}\hat\beta/\mathrm{d}\theta$ from the first order. What makes that
+computable is the mode's own condition again,
+$\partial\ell/\partial\beta = \partial\rho/\partial\beta$.
+
+Generalized cross-validation is not among them. The classical form divides a
+residual sum of squares by $(n - \tau)^2$, which estimates an unknown scale;
+here every distribution parameter carries its own equation and nothing is
+profiled, so there is no unknown scale for that ratio to estimate and the
+criterion degenerates to `aic()`.
+
+### A penalty with a kink is swept, not solved {#sec-statmod-path}
+
+A marginal criterion expands around the penalized mode. For a lasso that mode
+sits *at* the kink for every coefficient the penalty sets to zero, and the
+second derivative the expansion wants does not exist there. Such a
+hyperparameter is therefore not estimated by `reml()` or `ml()` at all; it is
+swept along a path of its own values and scored by a prediction-error
+criterion, `bic()` by default.
+
+The path is geometric in the **size of the kink** rather than in the
+hyperparameter, since the two need not be the same quantity: the size is read
+from the penalty by probing its subdifferential, which covers an elastic
+net's $\lambda\alpha$ and a Laplace prior written by its scale, whose kink
+narrows as the hyperparameter grows. It starts at the value that empties the
+block and descends to a fraction of it, and that top depends on the data and
+on the rest of the model, being found at the coefficients in hand rather than
+at a refitted null.
+
+The reason for a path rather than a search is the shape of the problem. The
+penalized mode is only piecewise smooth in such a hyperparameter, turning a
+corner whenever a coefficient joins the active set or leaves it, so the
+criterion inherits the corners and a gradient search would read a slope that
+is about to change.
+
+```{r}
+#| label: lasso-path
+set.seed(12)
+n_l <- 200
+X <- matrix(rnorm(n_l * 12), n_l, 12)
+d_lasso <- data.frame(y = X %*% c(1.4, -0.9, 0.7, rep(0, 9)) + rnorm(n_l, sd = 1))
+d_lasso$X <- X
+
+f_lasso <- statmod(y ~ lasso(X), gaussian1_distrib(), d_lasso)
+hyper(f_lasso)[, c("name", "estimate", "held", "source")]
+sum(coef(f_lasso)$mu != 0)
+```
+
+Of the twelve columns offered, the chosen point keeps the three that carry
+signal and the unpenalized intercept beside them.
+
+Where the penalty has a kink, $\tau$ is restricted to the coordinates away
+from it, so for a lasso it is the number of surviving coefficients, which is
+the unbiased count of @zou2007. No special case is written for it: the
+penalty is linear away from the kink, so its second derivative vanishes there
+and the trace reduces to that number on its own.
+
+### What the count leaves out {#sec-statmod-edf}
+
+$\tau = \operatorname{tr}[(H+S)^{-1}H]$ reads the smoothing parameters as
+though they were known, and they were not: they were chosen from the same
+data, so a criterion built on the count is too generous. Propagating their
+uncertainty into the coefficients gives the corrected variance and count
+
+$$
+V' \;=\; V_\beta + J V_\theta J', \qquad
+J = \frac{\partial\hat\beta}{\partial\theta}, \qquad
+\tau' = \operatorname{tr}(V' H),
+$$
+
+with $J$ the solve above and $V_\theta$ the inverse of the negated Hessian of
+the outer criterion, everything on the hyperparameter's link scale, which is
+where that criterion optimizes and therefore the only scale on which its
+Hessian is a variance. This is the first of the two terms @woodpya2016 sum
+into their corrected count; the second exists there because a Gaussian scale
+is profiled out of the fit and its uncertainty has to be added back, and here
+that scale carries an equation and coefficients of its own, so its
+uncertainty is already inside $H$.
+
+For a kinked penalty the correction is exactly zero, and that is a refusal
+rather than an approximation: the map from the hyperparameter to the
+penalized mode turns a corner whenever the active set changes, and a delta
+method needs a derivative that is not there.
+
+The same distinction governs what a hyperparameter's own uncertainty can be.
+One a marginal criterion maximized is the root of a derivative, so the
+curvature of that criterion is a variance and `summary()` prints a standard
+error and an interval, built on the free scale and mapped back. One chosen
+along a path is the argument of a minimum over a grid, and no standard error
+follows from it. `hyper()`'s `source` column is what tells the two apart.
