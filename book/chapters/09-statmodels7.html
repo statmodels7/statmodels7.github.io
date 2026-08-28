@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>9&nbsp; The statmodels7 package – The statmodels7 Framework</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/10-numericals7.html" rel="next">
+<link href="../chapters/08-modelterms7.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e986b704c747e817427b29ebc19a759e.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a2ce0b05719297c8ab99eac5b5b92eaa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/09-statmodels7.html"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">The statmodels7 package</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="../index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">The statmodels7 Framework</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-linkfunctions7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">The linkfunctions7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-distributions7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">The distributions7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-optimizers7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">The optimizers7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-parameters7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">The parameters7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/06-basis7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">The basis7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/07-penalties7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">The penalties7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/08-modelterms7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">The modelterms7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/09-statmodels7.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">The statmodels7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/10-numericals7.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">The numericals7 package</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A1-notation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Notation</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A2-references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-statmod-model" id="toc-sec-statmod-model" class="nav-link active" data-scroll-target="#sec-statmod-model"><span class="header-section-number">9.1</span> The model</a>
+  <ul>
+  <li><a href="#sec-statmod-formula" id="toc-sec-statmod-formula" class="nav-link" data-scroll-target="#sec-statmod-formula"><span class="header-section-number">9.1.1</span> The formula</a></li>
+  <li><a href="#sec-statmod-spec" id="toc-sec-statmod-spec" class="nav-link" data-scroll-target="#sec-statmod-spec"><span class="header-section-number">9.1.2</span> The specification</a></li>
+  <li><a href="#sec-statmod-intercept" id="toc-sec-statmod-intercept" class="nav-link" data-scroll-target="#sec-statmod-intercept"><span class="header-section-number">9.1.3</span> The intercept and a structural level</a></li>
+  </ul></li>
+  <li><a href="#sec-statmod-inner" id="toc-sec-statmod-inner" class="nav-link" data-scroll-target="#sec-statmod-inner"><span class="header-section-number">9.2</span> The penalized fit</a>
+  <ul>
+  <li><a href="#sec-statmod-split" id="toc-sec-statmod-split" class="nav-link" data-scroll-target="#sec-statmod-split"><span class="header-section-number">9.2.1</span> Two kinds of block</a></li>
+  <li><a href="#sec-statmod-scoring" id="toc-sec-statmod-scoring" class="nav-link" data-scroll-target="#sec-statmod-scoring"><span class="header-section-number">9.2.2</span> The scoring step</a></li>
+  <li><a href="#sec-statmod-rank" id="toc-sec-statmod-rank" class="nav-link" data-scroll-target="#sec-statmod-rank"><span class="header-section-number">9.2.3</span> The rank of the augmented matrix</a></li>
+  <li><a href="#sec-statmod-moving" id="toc-sec-statmod-moving" class="nav-link" data-scroll-target="#sec-statmod-moving"><span class="header-section-number">9.2.4</span> Blocks that move with their coefficients</a></li>
+  <li><a href="#sec-statmod-stop" id="toc-sec-statmod-stop" class="nav-link" data-scroll-target="#sec-statmod-stop"><span class="header-section-number">9.2.5</span> When the loop stops</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span id="sec-statmodels7" class="quarto-section-identifier"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">The statmodels7 package</span></span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>The chapters so far built the parts a regression model is made of: the links of <a href="02-linkfunctions7.html" class="quarto-xref"><span>Chapter 2</span></a>, the distributions of <a href="03-distributions7.html" class="quarto-xref"><span>Chapter 3</span></a>, the optimizers of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a>, the constrained parameters of <a href="05-parameters7.html" class="quarto-xref"><span>Chapter 5</span></a>, the bases of <a href="06-basis7.html" class="quarto-xref"><span>Chapter 6</span></a>, the penalties of <a href="07-penalties7.html" class="quarto-xref"><span>Chapter 7</span></a> and the model terms of <a href="08-modelterms7.html" class="quarto-xref"><span>Chapter 8</span></a>. <code>statmodels7</code> is the layer that fits a model out of them.</p>
+<p>What it fits is a distributional regression. An ordinary regression writes a linear predictor for the mean and holds the rest of the distribution constant across observations; here every parameter of the response distribution carries an equation of its own, so a scale, a shape or a zero-inflation probability is modeled by the same machinery and with the same terms as a mean. One formula carries all of those equations, the terms they name are assembled into a penalized likelihood, and the smoothing parameters and prior scales the terms leave free are estimated from the data.</p>
+<p><a href="#sec-statmod-model" class="quarto-xref"><span>Section 9.1</span></a> presents the model: the formula with its equations separated by bars, the scale each equation is written on, the specification built from it, and what a fit keeps. <a href="#sec-statmod-inner" class="quarto-xref"><span>Section 9.2</span></a> presents the penalized fit: the objective, the scoring step and the augmented decomposition it is solved through, the blocks that move with their own coefficients, the blocks whose penalty has a kink and are fitted apart, and the rule that ends the loop.</p>
+<section id="sec-statmod-model" class="level2" data-number="9.1">
+<h2 data-number="9.1" class="anchored" data-anchor-id="sec-statmod-model"><span class="header-section-number">9.1</span> The model</h2>
+<p>A response distribution with <span class="math inline">\(K\)</span> parameters is written here with an equation for each of them. Observation <span class="math inline">\(i\)</span> has its own parameter vector <span class="math inline">\(\theta_i = (\theta_{i1}, \ldots, \theta_{iK})\)</span>, and each coordinate is carried onto the whole real line by that parameter’s own link, exactly as <a href="03-distributions7.html#sec-link-scale" class="quarto-xref"><span>Section 3.1.4</span></a> carries it for a single distribution:</p>
+<p><span class="math display">\[
+g_k(\theta_{ik}) \;=\; \eta_{ik} \;=\; o_{ik} + x_{ik}'\beta_k ,
+\qquad k = 1, \ldots, K .
+\]</span></p>
+<p>Here <span class="math inline">\(x_{ik}'\)</span> is the <span class="math inline">\(i\)</span>th row of the <span class="math inline">\(k\)</span>th equation’s design <span class="math inline">\(X_k\)</span>, which is the blocks of the terms that equation names set side by side, and <span class="math inline">\(\beta_k\)</span> the coefficients they carry; <span class="math inline">\(o_{ik}\)</span> is an offset, a column of the predictor whose coefficient is known to be one. The log-likelihood is the weighted sum of the family’s own,</p>
+<p><span class="math display">\[
+\ell(\beta) \;=\; \sum_{i=1}^{n} w_i \, \log f\!\left(y_i; \theta_i(\beta)\right),
+\]</span></p>
+<p>with the prior weights <span class="math inline">\(w_i\)</span> taken as given and never normalized. Dividing by their sum would turn the log-likelihood into a mean, which shrinks every standard error by <span class="math inline">\(\sqrt{n}\)</span> and makes an information criterion incomparable with the unweighted fit of the same model.</p>
+<p>Writing an equation for every parameter rather than for the mean alone is the distributional regression of <span class="citation" data-cites="rigby2005">Rigby and Stasinopoulos (<a href="A2-references.html#ref-rigby2005" role="doc-biblioref">2005</a>)</span>; what differs here is that the terms those equations may name are the whole of <a href="08-modelterms7.html" class="quarto-xref"><span>Chapter 8</span></a> rather than a fixed catalog, and that the parameters they are written for are whatever the family of <a href="03-distributions7.html" class="quarto-xref"><span>Chapter 3</span></a> declares.</p>
+<section id="sec-statmod-formula" class="level3" data-number="9.1.1">
+<h3 data-number="9.1.1" class="anchored" data-anchor-id="sec-statmod-formula"><span class="header-section-number">9.1.1</span> The formula</h3>
+<p>The equations are separated by a bar, the first carrying the response:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>y <span class="sc">~</span> x1 <span class="sc">+</span> <span class="fu">s</span>(x2) <span class="sc">+</span> <span class="fu">ridge</span>(R)  <span class="sc">|</span>  sigma <span class="sc">~</span> z  <span class="sc">|</span>  nu <span class="sc">~</span> <span class="dv">1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The first equation belongs to the family’s first parameter and each bar introduces the next. The parameters may be named in any order, and one with no equation of its own is given <code>~ 1</code>, an intercept, so a formula with no bar at all fits an ordinary regression with every other parameter constant.</p>
+<p>Recovering those equations is not a matter of splitting the right-hand side. R’s <code>~</code> binds looser than <code>|</code> and associates to the left, so</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>y <span class="sc">~</span> a <span class="sc">|</span> sigma <span class="sc">~</span> b <span class="sc">|</span> nu <span class="sc">~</span> c</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>parses as <code>((y ~ (a | sigma)) ~ (b | nu)) ~ c</code>, whose right-hand side is <code>c</code> alone: splitting it on <code>|</code> returns one piece and drops two equations without an error. What the associativity calls for is a walk down the left spine of the nested <code>~</code> calls, collecting each level’s right-hand side and reversing at the end, with the innermost left operand as the response. The walk descends through <code>~</code> and through a <code>|</code> at the top of a collected piece, and through nothing else, so a bar written inside a call is left alone and <code>random(1 | id)</code> reaches its constructor whole.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>eq <span class="ot">&lt;-</span> <span class="fu">statmod_equations</span>(y <span class="sc">~</span> a <span class="sc">|</span> sigma <span class="sc">~</span> b <span class="sc">|</span> nu <span class="sc">~</span> cc,</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                        <span class="fu">c</span>(<span class="st">"mu"</span>, <span class="st">"sigma"</span>, <span class="st">"nu"</span>))</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">deparse</span>(eq<span class="sc">$</span>response)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "y"</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(eq<span class="sc">$</span>equations, <span class="cf">function</span>(q) <span class="fu">deparse</span>(q[[<span class="dv">2</span>]]), <span class="fu">character</span>(<span class="dv">1</span>))</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    mu sigma    nu </span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   "a"   "b"  "cc"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The same call on a formula that names one parameter fills the others in:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(<span class="fu">statmod_equations</span>(y <span class="sc">~</span> x, <span class="fu">c</span>(<span class="st">"mu"</span>, <span class="st">"sigma"</span>, <span class="st">"nu"</span>))<span class="sc">$</span>equations,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>       <span class="cf">function</span>(q) <span class="fu">deparse</span>(q[[<span class="dv">2</span>]]), <span class="fu">character</span>(<span class="dv">1</span>))</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    mu sigma    nu </span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   "x"   "1"   "1"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Each equation is then read by <code>modelterms7</code>’s interpreter, whose recognition rule is the one of <a href="08-modelterms7.html#sec-terms-formula" class="quarto-xref"><span>Section 8.3</span></a>: a call whose value inherits from the term class is a term, and everything else is a covariate, so the bare covariates of an equation collapse into a single parametric block. The interpretation happens in an environment where the term constructors sit in front of the search path, which is what makes <code>s()</code> this toolkit’s smooth even in a session with <code>mgcv</code> attached.</p>
+<p>An <code>offset()</code> written among an equation’s terms is taken out before the interpreter sees the rest, and its expression is kept rather than its value, which is what lets an offset survive prediction at new data. One written inside a term’s own formula is rejected rather than moved: in a penalized term’s formula it would be a contribution to the equation’s predictor, and in a subformula a contribution to that parameter’s own chart, and choosing one reading would fit the wrong model in half the cases.</p>
+</section>
+<section id="sec-statmod-spec" class="level3" data-number="9.1.2">
+<h3 data-number="9.1.2" class="anchored" data-anchor-id="sec-statmod-spec"><span class="header-section-number">9.1.2</span> The specification</h3>
+<p><code>statmod_spec()</code> performs everything above and stops short of fitting: it splits the formula, interprets each equation, and builds the terms against the data, giving one object that carries the equations, the built terms, the response, the weights and the offsets.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">9</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>dd <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">runif</span>(<span class="dv">120</span>, <span class="sc">-</span><span class="dv">2</span>, <span class="dv">2</span>), <span class="at">z =</span> <span class="fu">runif</span>(<span class="dv">120</span>, <span class="sc">-</span><span class="dv">2</span>, <span class="dv">2</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>dd<span class="sc">$</span>y <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">120</span>, <span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> dd<span class="sc">$</span>x, <span class="fu">exp</span>(<span class="sc">-</span><span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> dd<span class="sc">$</span>z))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>spec <span class="ot">&lt;-</span> <span class="fu">statmod_spec</span>(y <span class="sc">~</span> x <span class="sc">+</span> <span class="fu">s</span>(z, <span class="at">k =</span> <span class="dv">6</span>) <span class="sc">|</span> sigma <span class="sc">~</span> z,</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">gaussian1_distrib</span>(), dd)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(spec<span class="sc">@</span>equations)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu"    "sigma"</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(spec<span class="sc">@</span>terms, <span class="cf">function</span>(tm) <span class="fu">paste</span>(<span class="fu">names</span>(tm), <span class="at">collapse =</span> <span class="st">", "</span>),</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>       <span class="fu">character</span>(<span class="dv">1</span>))</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                    mu                 sigma </span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; "linpar, s(z, k = 6)"              "linpar"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>statmod_design()</code> assembles from it, per parameter, the terms’ blocks side by side, together with the names of the coefficients they carry and the range of columns each term occupies:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>des <span class="ot">&lt;-</span> <span class="fu">statmod_design</span>(spec)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">vapply</span>(des, <span class="cf">function</span>(e) e<span class="sc">$</span>npar, <span class="fu">integer</span>(<span class="dv">1</span>))</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    mu sigma </span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     7     2</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>des<span class="sc">$</span>mu<span class="sc">$</span>coef_names</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "(Intercept)" "x"           "s(z).lin"    "s(z).z1"     "s(z).z2"    </span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [6] "s(z).z3"     "s(z).z4"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The mean’s equation carries an intercept and a slope from its parametric block, and from the smooth a linear column together with the reparametrized basis of <a href="06-basis7.html#sec-transform-dr" class="quarto-xref"><span>Section 6.4.4</span></a>, one column fewer than the basis dimension it was given; the scale’s equation carries an intercept and a slope. The block a term contributes is sparse whenever the term builds it that way – a grouping indicator has density <span class="math inline">\(1/m\)</span> over <span class="math inline">\(m\)</span> groups – and an equation’s design is sparse when any one of its blocks is, sparsity being a property of the assembled matrix and never of its pieces.</p>
+<p>A fitted model keeps this specification rather than the data. That is what makes prediction at new data a matter of reapplying each term’s blueprint, with the knots of a smooth and the levels of a factor the ones the model was fitted with, instead of rebuilding a basis against rows the fit never saw.</p>
+</section>
+<section id="sec-statmod-intercept" class="level3" data-number="9.1.3">
+<h3 data-number="9.1.3" class="anchored" data-anchor-id="sec-statmod-intercept"><span class="header-section-number">9.1.3</span> The intercept and a structural level</h3>
+<p>Most terms add columns to a predictor. A structural term of <a href="08-modelterms7.html#sec-terms-catalog" class="quarto-xref"><span>Section 8.2</span></a> rewrites the likelihood instead, and one of them, the score-driven filter, contributes a level that evolves with the data:</p>
+<p><span class="math display">\[
+f_t \;=\; \omega + \sum_{r=1}^{p} a_r\, s_{t-r} + \sum_{j=1}^{q} b_j\, f_{t-j} ,
+\]</span></p>
+<p>added to whatever the equation’s design already produces. A constant in that same equation and the level’s own <span class="math inline">\(\omega\)</span> are then exactly confounded. Replacing the intercept by <span class="math inline">\(\alpha + c\)</span> and <span class="math inline">\(\omega\)</span> by <span class="math inline">\(\omega - c\,(1 - \sum_j b_j)\)</span> leaves the recursion’s stationary level lower by exactly <span class="math inline">\(c\)</span> and every predictor unchanged, because the recursion is affine in the level given the score path and the score path depends on the predictor alone. A fit written that way is not identified: moving along that direction changes neither a predictor nor the likelihood.</p>
+<p>Where an equation’s design spans the constant and it also carries a structural term, the intercept keeps the level and the term’s own parameter is held at zero. What is given up by holding <span class="math inline">\(\omega\)</span> is a quantity the intercept already reports, while the loadings and the persistence, which a constant cannot express, stay free. The question is asked of the span of the equation’s design rather than of a column called <code>(Intercept)</code>, since a factor coded without one still sums to the constant.</p>
+</section>
+</section>
+<section id="sec-statmod-inner" class="level2" data-number="9.2">
+<h2 data-number="9.2" class="anchored" data-anchor-id="sec-statmod-inner"><span class="header-section-number">9.2</span> The penalized fit</h2>
+<p>With the hyperparameters held, what is minimized is the negative log-likelihood plus the penalties the terms declare:</p>
+<p><span class="math display">\[
+\mathcal{O}(\beta; \vartheta) \;=\; -\sum_{i=1}^{n} w_i \,
+\log f\!\left(y_i; \theta_i(\beta)\right) \;+\; \sum_{k} \rho_k(\beta; \vartheta_k) .
+\]</span></p>
+<p>Neither part is averaged. A penalty is a negative log-prior, as <a href="07-penalties7.html#sec-penalty-definition" class="quarto-xref"><span>Section 7.1</span></a> sets it out, and a posterior adds a log-likelihood and a log-prior at full size; dividing one of them by <span class="math inline">\(n\)</span> would leave <span class="math inline">\(\vartheta\)</span> meaning something that depends on the sample size, so that the same prior scale would describe different beliefs at <span class="math inline">\(n = 10^2\)</span> and at <span class="math inline">\(n = 10^5\)</span>. What is scaled instead is the rule that stops the loop. The fit of a single distribution in <a href="03-distributions7.html#sec-fitting" class="quarto-xref"><span>Section 3.3</span></a> divides the objective by <span class="math inline">\(n\)</span> and compares an unscaled threshold against it; here the objective is left alone and the threshold reads a quantity that carries no sample size, and in both places the thing being arranged is that a tolerance mean the same at <span class="math inline">\(n = 10\)</span> and at <span class="math inline">\(n = 10^7\)</span>.</p>
+<section id="sec-statmod-split" class="level3" data-number="9.2.1">
+<h3 data-number="9.2.1" class="anchored" data-anchor-id="sec-statmod-split"><span class="header-section-number">9.2.1</span> Two kinds of block</h3>
+<p>The terms divide by a property each of them already reports. A penalty whose kink set, in the sense of <a href="07-penalties7.html#sec-penalty-branches" class="quarto-xref"><span>Section 7.2</span></a>, is empty is twice differentiable in the coefficients, so its block has a curvature and can enter a system solved with one. Everything of that kind goes into a single system and is estimated all at once: an unpenalized block, a ridge, a spline, a random effect, a structured or additive penalty. Their joint curvature exists, and using it is what closes a fit in a handful of iterations.</p>
+<p>A penalty with a kink – a lasso, a SCAD, an MCP – has no second derivative at the point its own mode sits on, and its block is estimated by a method of its own with everything else held fixed, through the proximal operator of <a href="07-penalties7.html#sec-penalty-branches" class="quarto-xref"><span>Section 7.2</span></a>. The fit alternates between the two until the objective and every block stop moving.</p>
+<p>The split is a question put to the penalty and not a list of term names, so a term whose penalty is replaced by a smooth approximation moves into the first group with nothing here to change.</p>
+</section>
+<section id="sec-statmod-scoring" class="level3" data-number="9.2.2">
+<h3 data-number="9.2.2" class="anchored" data-anchor-id="sec-statmod-scoring"><span class="header-section-number">9.2.2</span> The scoring step</h3>
+<p>Write <span class="math inline">\(\Omega_i\)</span> for the <span class="math inline">\(K \times K\)</span> information of observation <span class="math inline">\(i\)</span> with respect to its own <span class="math inline">\(K\)</span> predictors, multiplied by that observation’s weight, and <span class="math inline">\(Z\)</span> for the design that stacks the equations’ blocks. The step solves</p>
+<p><span class="math display">\[
+\left(Z' \Omega Z + S(\vartheta)\right) \delta \;=\; Z'g - S(\vartheta)\beta ,
+\]</span></p>
+<p>with <span class="math inline">\(g\)</span> the score with respect to the predictors and <span class="math inline">\(S\)</span> the penalties’ Hessian. Taking <span class="math inline">\(\Omega_i\)</span> to be the expected information makes this Fisher scoring, and the blocks are then positive definite wherever the family is regular, so a step is usable from a poor starting point. Taking the observed Hessian makes it Newton, which converges faster near the optimum and is the curvature an exact gradient of the marginal criterion is written against.</p>
+<p>The two matrices are never assembled. Each <span class="math inline">\(\Omega_i\)</span> has a Cholesky factor <span class="math inline">\(L_i L_i' = \Omega_i\)</span>, computed by writing the recursion out over the <span class="math inline">\(K\)</span> indices and evaluating each entry over all <span class="math inline">\(n\)</span> observations at once, so no loop runs over the sample; stacking those factors against the design gives <span class="math inline">\(R\)</span> with <span class="math inline">\(R'R = Z'\Omega Z\)</span>. The penalty has a factor <span class="math inline">\(C\)</span> with <span class="math inline">\(C'C = S\)</span>, taken from an eigendecomposition with the non-positive directions dropped, which is what a penalty of deficient rank requires: a spline’s is deficient by exactly the dimension of its null space, and a Cholesky has nothing to return there. The step is then a decomposition of</p>
+<p><span class="math display">\[
+A \;=\; \begin{bmatrix} R \\ C \end{bmatrix}, \qquad A'A \;=\; Z'\Omega Z + S ,
+\]</span></p>
+<p>and neither cross-product is formed. A design whose condition number is <span class="math inline">\(\kappa\)</span> is decomposed at <span class="math inline">\(\kappa\)</span>, where forming the normal equations would present the decomposition with <span class="math inline">\(\kappa^2\)</span>. That matters most where the design is worst conditioned by construction: the working design of a break-point term is bounded only to <span class="math inline">\(\epsilon^{-1/2}\)</span>, so squaring it exhausts double precision.</p>
+<p>A diagonal penalty is factored by taking the square root of its diagonal, which is the same answer the eigendecomposition gives, the eigenvalues of a diagonal matrix being its diagonal entries. The case is worth detecting for how often it arises: a ridge is diagonal, a random effect is diagonal, and the Demmler-Reinsch penalty of <a href="08-modelterms7.html#sec-terms-catalog" class="quarto-xref"><span>Section 8.2</span></a> is <span class="math inline">\(\operatorname{diag}(0, 1, \ldots, 1)\)</span> exactly, as is any block-diagonal assembly of them.</p>
+<p>Where the objective is quadratic in <span class="math inline">\(\beta\)</span> the whole loop is one solve, and the answer is available in closed form to compare against. Holding the scale of a Gaussian family fixed does exactly that:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">20260828</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>n_ridge <span class="ot">&lt;-</span> <span class="dv">80</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>d_ridge <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">runif</span>(n_ridge, <span class="sc">-</span><span class="dv">2</span>, <span class="dv">2</span>))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>d_ridge<span class="sc">$</span>R <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n_ridge <span class="sc">*</span> <span class="dv">3</span>), n_ridge, <span class="dv">3</span>)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>d_ridge<span class="sc">$</span>y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> d_ridge<span class="sc">$</span>x <span class="sc">+</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.numeric</span>(d_ridge<span class="sc">$</span>R <span class="sc">%*%</span> <span class="fu">c</span>(<span class="fl">0.6</span>, <span class="sc">-</span><span class="fl">0.4</span>, <span class="dv">0</span>)) <span class="sc">+</span> <span class="fu">rnorm</span>(n_ridge, <span class="at">sd =</span> <span class="fl">0.7</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>lam <span class="ot">&lt;-</span> <span class="fl">2.5</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>ridge_fit <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> x <span class="sc">+</span> <span class="fu">ridge</span>(R, <span class="at">lambda =</span> lam),</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">fixed</span>(<span class="fu">gaussian1_distrib</span>(), <span class="at">sigma =</span> <span class="dv">1</span>), d_ridge)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>Zr <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="dv">1</span>, d_ridge<span class="sc">$</span>x, d_ridge<span class="sc">$</span>R)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>Sr <span class="ot">&lt;-</span> <span class="fu">diag</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="fu">rep</span>(lam, <span class="dv">3</span>)))</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>closed <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">solve</span>(<span class="fu">crossprod</span>(Zr) <span class="sc">+</span> Sr, <span class="fu">crossprod</span>(Zr, d_ridge<span class="sc">$</span>y)))</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(<span class="at">fitted =</span> <span class="fu">unname</span>(<span class="fu">coef</span>(ridge_fit)<span class="sc">$</span>mu), <span class="at">closed =</span> closed)</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           fitted      closed</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1,]  1.18344424  1.18344424</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [2,]  0.81881562  0.81881562</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [3,]  0.64930384  0.64930384</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [4,] -0.42362693 -0.42362693</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [5,]  0.03162356  0.03162356</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The ridge’s hyperparameter is a precision, so it enters that solve as it stands rather than as one over a square, and the intercept and the slope are unpenalized, which is why the penalty matrix carries two zeros.</p>
+</section>
+<section id="sec-statmod-rank" class="level3" data-number="9.2.3">
+<h3 data-number="9.2.3" class="anchored" data-anchor-id="sec-statmod-rank"><span class="header-section-number">9.2.3</span> The rank of the augmented matrix</h3>
+<p>A decomposition has to say whether the matrix it was handed is of full rank, and the test reads the diagonal of the triangular factor divided by each column’s norm. Since <span class="math inline">\(A'A = R'R\)</span>, scaling the columns of <span class="math inline">\(A\)</span> scales that diagonal by the same factors, so the ratio is the diagonal of a decomposition whose columns have unit norm.</p>
+<p>Reading the raw diagonal instead reports a matrix as near-singular whenever its columns differ in size, which is what a large smoothing parameter does to the penalty rows of its own block standing beside an unpenalized one. Those matrices are not near-singular; per-column scaling forgives a separation of scale from any source, while an exact collinearity stays exactly singular under it. The distinction is worth a measurement: on a model with a random intercept, the raw test rejected 87 of 127 solves that the dense route finds at full rank, and the equilibrated ratio over the same solves stayed between 0.445 and 1.</p>
+<p>Sparsity survives the whole construction. A grouping indicator has density <span class="math inline">\(1/m\)</span> over <span class="math inline">\(m\)</span> groups, the square-root design built from it is sparse, and the augmented matrix is decomposed by a sparse QR, which is a QR and keeps the conditioning property the augmented form was chosen for. A sparse Cholesky of the normal equations would be faster still and would give that property up.</p>
+</section>
+<section id="sec-statmod-moving" class="level3" data-number="9.2.4">
+<h3 data-number="9.2.4" class="anchored" data-anchor-id="sec-statmod-moving"><span class="header-section-number">9.2.4</span> Blocks that move with their coefficients</h3>
+<p>A design block is usually a function of the data alone. The nonlinear term and the break-point terms of <a href="08-modelterms7.html#sec-terms-catalog" class="quarto-xref"><span>Section 8.2</span></a> are not: their block is the Jacobian of the contribution at the current coefficients, so it moves as the fit moves. Writing <span class="math inline">\(f(\beta)\)</span> for what such a term contributes and <span class="math inline">\(X(\beta)\)</span> for its block, the difference</p>
+<p><span class="math display">\[
+\mathrm{adj} \;=\; f(\beta) - X(\beta)\,\beta
+\]</span></p>
+<p>is added to the predictor as a per-observation adjustment. Every cross-product in the step then reads the block as it stands, and the increment the step returns is the Gauss-Newton one for that term. The arrangement covers both constructions with no branch. For a continuous break-point the adjustment is not zero and the iteration is Gauss-Newton; for a discontinuous one the columns satisfy <span class="math inline">\(X\beta = f\)</span> exactly, by the identity that writes an indicator as <span class="math inline">\(\tfrac12 + (x - \psi)/(2\lvert x - \psi\rvert)\)</span>, so the adjustment vanishes and the same step is the working fit of <span class="citation" data-cites="fasola2018">Fasola, Muggeo, and Küchenhoff (<a href="A2-references.html#ref-fasola2018" role="doc-biblioref">2018</a>)</span>.</p>
+<p>Such a block is refreshed once per sweep rather than once per trial point. A discontinuous term’s rescaling factor halves whenever its break-point reverses direction, which is a fact about the path and not about the point: refreshing it inside a line search would advance that schedule at every trial the search rejects, and refreshing it from the specification would freeze it at its starting value and solve a permanently smoothed problem instead.</p>
+</section>
+<section id="sec-statmod-stop" class="level3" data-number="9.2.5">
+<h3 data-number="9.2.5" class="anchored" data-anchor-id="sec-statmod-stop"><span class="header-section-number">9.2.5</span> When the loop stops</h3>
+<p>The rule that drives the loop compares the score per observation, <span class="math inline">\(\max_j \lvert g_j \rvert / n\)</span>, against a tolerance, so that the threshold means the same at <span class="math inline">\(n = 10\)</span> and at <span class="math inline">\(n = 10^7\)</span>. Any criterion object of <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a> may drive it instead, and since the state’s gradient is that same per-observation score, <code>crit_grad(t)</code> is exactly the tolerance <span class="math inline">\(t\)</span>.</p>
+<p>The verdict a fit reports is arbitrated by a second reading, dimensionless in the response’s units. Writing <span class="math inline">\(\mathcal{J}_p\)</span> for the coordinates equation <span class="math inline">\(p\)</span> owns and <span class="math inline">\(H\)</span> for the information’s diagonal, it is</p>
+<p><span class="math display">\[
+\max_{j \in \mathcal{J}_p} \frac{\lvert g_j \rvert}{n\, s_p},
+\qquad s_p = \sqrt{\operatorname{median}_{j \in \mathcal{J}_p} H_{jj} / n} ,
+\]</span></p>
+<p>read per equation and maximized over them. The score of a location equation carries the units <span class="math inline">\(1/y\)</span> and its curvature <span class="math inline">\(1/y^2\)</span>, so the ratio survives any rescaling of the response, which the absolute rule alone does not. This reading can relabel a run that stalled at the optimum as converged and can never stop one that is still moving; driving the loop with it was tried and fails at large <span class="math inline">\(y\)</span>, where the guard on a stalled objective fires before a rule <span class="math inline">\(1/s_p\)</span> stricter can.</p>
+<p>A term whose block is a frozen working linearization answers the question for itself. The gradient the layer computes there belongs to the working model, and the profile objective of a discontinuous break-point term is a step function in the position with no gradient to vanish, so what ends that fit is the term’s own report that its construction has reached a fixed point.</p>
+
+
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-fasola2018" class="csl-entry" role="listitem">
+Fasola, Salvatore, Vito M. R. Muggeo, and Helmut Küchenhoff. 2018. <span>“A Heuristic, Iterative Algorithm for Change-Point Detection in Abrupt Change Models.”</span> <em>Computational Statistics</em> 33 (2): 997–1015.
+</div>
+<div id="ref-rigby2005" class="csl-entry" role="listitem">
+Rigby, Robert A., and D. Mikis Stasinopoulos. 2005. <span>“Generalized Additive Models for Location, Scale and Shape.”</span> <em>Journal of the Royal Statistical Society, Series C</em> 54 (3): 507–54.
+</div>
+</div>
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/08-modelterms7.html" class="pagination-link" aria-label="The modelterms7 package">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">The modelterms7 package</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/10-numericals7.html" class="pagination-link" aria-label="The numericals7 package">
+        <span class="nav-page-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">The numericals7 package</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>The statmodels7 Framework</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

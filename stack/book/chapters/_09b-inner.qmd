@@ -1,0 +1,205 @@
+## The penalized fit {#sec-statmod-inner}
+
+With the hyperparameters held, what is minimized is the negative
+log-likelihood plus the penalties the terms declare:
+
+$$
+\mathcal{O}(\beta; \vartheta) \;=\; -\sum_{i=1}^{n} w_i \,
+\log f\!\left(y_i; \theta_i(\beta)\right) \;+\; \sum_{k} \rho_k(\beta; \vartheta_k) .
+$$
+
+Neither part is averaged. A penalty is a negative log-prior, as
+@sec-penalty-definition sets it out, and a posterior adds a log-likelihood
+and a log-prior at full size; dividing one of them by $n$ would leave
+$\vartheta$ meaning something that depends on the sample size, so that the
+same prior scale would describe different beliefs at $n = 10^2$ and at
+$n = 10^5$. What is scaled instead is the rule that stops the loop. The fit
+of a single distribution in @sec-fitting divides the objective by $n$ and
+compares an unscaled threshold against it; here the objective is left alone
+and the threshold reads a quantity that carries no sample size, and in both
+places the thing being arranged is that a tolerance mean the same at
+$n = 10$ and at $n = 10^7$.
+
+### Two kinds of block {#sec-statmod-split}
+
+The terms divide by a property each of them already reports. A penalty whose
+kink set, in the sense of @sec-penalty-branches, is empty is twice
+differentiable in the coefficients, so its block has a curvature and can
+enter a system solved with one. Everything of that kind goes into a single
+system and is estimated all at once: an unpenalized block, a ridge, a spline,
+a random effect, a structured or additive penalty. Their joint curvature
+exists, and using it is what closes a fit in a handful of iterations.
+
+A penalty with a kink -- a lasso, a SCAD, an MCP -- has no second derivative
+at the point its own mode sits on, and its block is estimated by a method of
+its own with everything else held fixed, through the proximal operator of
+@sec-penalty-branches. The fit alternates between the two until the objective
+and every block stop moving.
+
+The split is a question put to the penalty and not a list of term names, so a
+term whose penalty is replaced by a smooth approximation moves into the first
+group with nothing here to change.
+
+### The scoring step {#sec-statmod-scoring}
+
+Write $\Omega_i$ for the $K \times K$ information of observation $i$ with
+respect to its own $K$ predictors, multiplied by that observation's weight,
+and $Z$ for the design that stacks the equations' blocks. The step solves
+
+$$
+\left(Z' \Omega Z + S(\vartheta)\right) \delta \;=\; Z'g - S(\vartheta)\beta ,
+$$
+
+with $g$ the score with respect to the predictors and $S$ the penalties'
+Hessian. Taking $\Omega_i$ to be the expected information makes this Fisher
+scoring, and the blocks are then positive definite wherever the family is
+regular, so a step is usable from a poor starting point. Taking the observed
+Hessian makes it Newton, which converges faster near the optimum and is the
+curvature an exact gradient of the marginal criterion is written against.
+
+The two matrices are never assembled. Each $\Omega_i$ has a Cholesky factor
+$L_i L_i' = \Omega_i$, computed by writing the recursion out over the $K$
+indices and evaluating each entry over all $n$ observations at once, so no
+loop runs over the sample; stacking those factors against the design gives
+$R$ with $R'R = Z'\Omega Z$. The penalty has a factor $C$ with $C'C = S$,
+taken from an eigendecomposition with the non-positive directions dropped,
+which is what a penalty of deficient rank requires: a spline's is deficient
+by exactly the dimension of its null space, and a Cholesky has nothing to
+return there. The step is then a decomposition of
+
+$$
+A \;=\; \begin{bmatrix} R \\ C \end{bmatrix}, \qquad A'A \;=\; Z'\Omega Z + S ,
+$$
+
+and neither cross-product is formed. A design whose condition number is
+$\kappa$ is decomposed at $\kappa$, where forming the normal equations would
+present the decomposition with $\kappa^2$. That matters most where the design
+is worst conditioned by construction: the working design of a break-point
+term is bounded only to $\epsilon^{-1/2}$, so squaring it exhausts double
+precision.
+
+A diagonal penalty is factored by taking the square root of its diagonal,
+which is the same answer the eigendecomposition gives, the eigenvalues of a
+diagonal matrix being its diagonal entries. The case is worth detecting for
+how often it arises: a ridge is diagonal, a random effect is diagonal, and
+the Demmler-Reinsch penalty of @sec-terms-catalog is
+$\operatorname{diag}(0, 1, \ldots, 1)$ exactly, as is any block-diagonal
+assembly of them.
+
+Where the objective is quadratic in $\beta$ the whole loop is one solve, and
+the answer is available in closed form to compare against. Holding the scale
+of a Gaussian family fixed does exactly that:
+
+```{r}
+#| label: closed-ridge
+set.seed(20260828)
+n_ridge <- 80
+d_ridge <- data.frame(x = runif(n_ridge, -2, 2))
+d_ridge$R <- matrix(rnorm(n_ridge * 3), n_ridge, 3)
+d_ridge$y <- 1 + 0.8 * d_ridge$x +
+  as.numeric(d_ridge$R %*% c(0.6, -0.4, 0)) + rnorm(n_ridge, sd = 0.7)
+
+lam <- 2.5
+ridge_fit <- statmod(y ~ x + ridge(R, lambda = lam),
+                     fixed(gaussian1_distrib(), sigma = 1), d_ridge)
+
+Zr <- cbind(1, d_ridge$x, d_ridge$R)
+Sr <- diag(c(0, 0, rep(lam, 3)))
+closed <- as.numeric(solve(crossprod(Zr) + Sr, crossprod(Zr, d_ridge$y)))
+
+cbind(fitted = unname(coef(ridge_fit)$mu), closed = closed)
+```
+
+The ridge's hyperparameter is a precision, so it enters that solve as it
+stands rather than as one over a square, and the intercept and the slope are
+unpenalized, which is why the penalty matrix carries two zeros.
+
+### The rank of the augmented matrix {#sec-statmod-rank}
+
+A decomposition has to say whether the matrix it was handed is of full rank,
+and the test reads the diagonal of the triangular factor divided by each
+column's norm. Since $A'A = R'R$, scaling the columns of $A$ scales that
+diagonal by the same factors, so the ratio is the diagonal of a decomposition
+whose columns have unit norm.
+
+Reading the raw diagonal instead reports a matrix as near-singular whenever
+its columns differ in size, which is what a large smoothing parameter does to
+the penalty rows of its own block standing beside an unpenalized one. Those
+matrices are not near-singular; per-column scaling forgives a separation of
+scale from any source, while an exact collinearity stays exactly singular
+under it. The distinction is worth a measurement: on a model with a random
+intercept, the raw test rejected 87 of 127 solves that the dense route finds
+at full rank, and the equilibrated ratio over the same solves stayed between
+0.445 and 1.
+
+Sparsity survives the whole construction. A grouping indicator has density
+$1/m$ over $m$ groups, the square-root design built from it is sparse, and the
+augmented matrix is decomposed by a sparse QR, which is a QR and keeps the
+conditioning property the augmented form was chosen for. A sparse Cholesky of
+the normal equations would be faster still and would give that property up.
+
+### Blocks that move with their coefficients {#sec-statmod-moving}
+
+A design block is usually a function of the data alone. The nonlinear term
+and the break-point terms of @sec-terms-catalog are not: their block is the
+Jacobian of the contribution at the current coefficients, so it moves as the
+fit moves. Writing $f(\beta)$ for what such a term contributes and $X(\beta)$
+for its block, the difference
+
+$$
+\mathrm{adj} \;=\; f(\beta) - X(\beta)\,\beta
+$$
+
+is added to the predictor as a per-observation adjustment. Every
+cross-product in the step then reads the block as it stands, and the
+increment the step returns is the Gauss-Newton one for that term. The
+arrangement covers both constructions with no branch. For a continuous
+break-point the adjustment is not zero and the iteration is Gauss-Newton; for
+a discontinuous one the columns satisfy $X\beta = f$ exactly, by the identity
+that writes an indicator as $\tfrac12 + (x - \psi)/(2\lvert x - \psi\rvert)$,
+so the adjustment vanishes and the same step is the working fit of
+@fasola2018.
+
+Such a block is refreshed once per sweep rather than once per trial point. A
+discontinuous term's rescaling factor halves whenever its break-point
+reverses direction, which is a fact about the path and not about the point:
+refreshing it inside a line search would advance that schedule at every trial
+the search rejects, and refreshing it from the specification would freeze it
+at its starting value and solve a permanently smoothed problem instead.
+
+### When the loop stops {#sec-statmod-stop}
+
+The rule that drives the loop compares the score per observation,
+$\max_j \lvert g_j \rvert / n$, against a tolerance, so that the threshold
+means the same at $n = 10$ and at $n = 10^7$. Any criterion object of
+@sec-optimizers7 may drive it instead, and since the state's gradient is that
+same per-observation score, `crit_grad(t)` is exactly the tolerance $t$.
+
+The verdict a fit reports is arbitrated by a second reading, dimensionless in
+the response's units. Writing $\mathcal{J}_p$ for the coordinates equation
+$p$ owns and $H$ for the information's diagonal, it is
+
+$$
+\max_{j \in \mathcal{J}_p} \frac{\lvert g_j \rvert}{n\, s_p},
+\qquad s_p = \sqrt{\operatorname{median}_{j \in \mathcal{J}_p} H_{jj} / n} ,
+$$
+
+read per equation and maximized over them. The score of a location equation
+carries the units $1/y$ and its curvature $1/y^2$, so the ratio survives any
+rescaling of the response, which the absolute rule alone does not. This
+reading can relabel a run that stalled at the optimum as converged and can
+never stop one that is still moving; driving the loop with it was tried and
+fails at large $y$, where the guard on a stalled objective fires before a
+rule $1/s_p$ stricter can.
+
+A term whose block is a frozen working linearization answers the question for
+itself. The gradient the layer computes there belongs to the working model,
+and the profile objective of a discontinuous break-point term is a step
+function in the position with no gradient to vanish, so what ends that fit is
+the term's own report that its construction has reached a fixed point.
+
+```{r}
+#| label: consistency-statmod
+#| include: false
+assert_statmod_ok()
+```

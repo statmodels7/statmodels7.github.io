@@ -26,7 +26,7 @@ markdown table breaks the cell, and kable escapes it to `&#124;`, which MathJax
 prints verbatim. Use `\lvert ... \rvert` for absolute values everywhere.
 
 The packages are loaded **from source** with `pkgload`, from the sibling
-directories (`../numericals7` through `../penalties7`), so the book always
+directories, `../numericals7` through `../statmodels7`, so the book always
 documents the working tree rather than an installed snapshot. Nothing needs to
 be installed first.
 
@@ -45,12 +45,14 @@ book/
   chapters/
     01-introduction.qmd        what the toolkit is for
     02-linkfunctions7.qmd      the inverse function theorem, 16 links
-    03-distributions7.qmd      distributions; includes _03a to _03e
-    04-optimizers7.qmd         optimization; includes _04a to _04e
-    05-parameters7.qmd         constrained parameters; includes _05a to _05c
-    06-basis7.qmd              bases; includes _06a to _06e
-    07-penalties7.qmd          penalties; includes _07a to _07c
-    08-numericals7.qmd         the numerical layer; includes _08b to _08d
+    03-distributions7.qmd      distributions; includes _03a to _03f
+    04-optimizers7.qmd         optimization; includes _04a to _04f
+    05-parameters7.qmd         constrained parameters; includes _05a to _05d
+    06-basis7.qmd              bases; includes _06a to _06f
+    07-penalties7.qmd          penalties; includes _07a to _07d
+    08-modelterms7.qmd         model terms; includes _08a to _08e
+    09-statmodels7.qmd         the modeling layer; includes _09a to _09b
+    10-numericals7.qmd         the numerical layer; includes _10a to _10d
     A1-notation.qmd            notation, session info
     A2-references.qmd          the bibliography
   R/                   one certificate file per chapter, plus the shared

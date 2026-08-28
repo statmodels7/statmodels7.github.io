@@ -1,0 +1,173 @@
+## The model {#sec-statmod-model}
+
+```{r}
+#| label: setup-09
+#| include: false
+source("R/_setup.R")
+source("R/statmod-certificates.R")
+```
+
+A response distribution with $K$ parameters is written here with an equation
+for each of them. Observation $i$ has its own parameter vector
+$\theta_i = (\theta_{i1}, \ldots, \theta_{iK})$, and each coordinate is
+carried onto the whole real line by that parameter's own link, exactly as
+@sec-link-scale carries it for a single distribution:
+
+$$
+g_k(\theta_{ik}) \;=\; \eta_{ik} \;=\; o_{ik} + x_{ik}'\beta_k ,
+\qquad k = 1, \ldots, K .
+$$
+
+Here $x_{ik}'$ is the $i$th row of the $k$th equation's design $X_k$, which
+is the blocks of the terms that equation names set side by side, and
+$\beta_k$ the coefficients they carry; $o_{ik}$ is an offset, a column of the
+predictor whose coefficient is known to be one. The log-likelihood is the
+weighted sum of the family's own,
+
+$$
+\ell(\beta) \;=\; \sum_{i=1}^{n} w_i \, \log f\!\left(y_i; \theta_i(\beta)\right),
+$$
+
+with the prior weights $w_i$ taken as given and never normalized. Dividing by
+their sum would turn the log-likelihood into a mean, which shrinks every
+standard error by $\sqrt{n}$ and makes an information criterion incomparable
+with the unweighted fit of the same model.
+
+Writing an equation for every parameter rather than for the mean alone is the
+distributional regression of @rigby2005; what differs here is that the terms
+those equations may name are the whole of @sec-modelterms7 rather than a fixed
+catalog, and that the parameters they are written for are whatever the family
+of @sec-distributions7 declares.
+
+### The formula {#sec-statmod-formula}
+
+The equations are separated by a bar, the first carrying the response:
+
+``` r
+y ~ x1 + s(x2) + ridge(R)  |  sigma ~ z  |  nu ~ 1
+```
+
+The first equation belongs to the family's first parameter and each bar
+introduces the next. The parameters may be named in any order, and one with
+no equation of its own is given `~ 1`, an intercept, so a formula with no bar
+at all fits an ordinary regression with every other parameter constant.
+
+Recovering those equations is not a matter of splitting the right-hand side.
+R's `~` binds looser than `|` and associates to the left, so
+
+``` r
+y ~ a | sigma ~ b | nu ~ c
+```
+
+parses as `((y ~ (a | sigma)) ~ (b | nu)) ~ c`, whose right-hand side is `c`
+alone: splitting it on `|` returns one piece and drops two equations without
+an error. What the associativity calls for is a walk down the left spine of
+the nested `~` calls, collecting each level's right-hand side and reversing
+at the end, with the innermost left operand as the response. The walk
+descends through `~` and through a `|` at the top of a collected piece, and
+through nothing else, so a bar written inside a call is left alone and
+`random(1 | id)` reaches its constructor whole.
+
+```{r}
+#| label: equations
+eq <- statmod_equations(y ~ a | sigma ~ b | nu ~ cc,
+                        c("mu", "sigma", "nu"))
+deparse(eq$response)
+vapply(eq$equations, function(q) deparse(q[[2]]), character(1))
+```
+
+The same call on a formula that names one parameter fills the others in:
+
+```{r}
+#| label: equations-filled
+vapply(statmod_equations(y ~ x, c("mu", "sigma", "nu"))$equations,
+       function(q) deparse(q[[2]]), character(1))
+```
+
+Each equation is then read by `modelterms7`'s interpreter, whose recognition
+rule is the one of @sec-terms-formula: a call whose value inherits from the
+term class is a term, and everything else is a covariate, so the bare
+covariates of an equation collapse into a single parametric block. The
+interpretation happens in an environment where the term constructors sit in
+front of the search path, which is what makes `s()` this toolkit's smooth
+even in a session with `mgcv` attached.
+
+An `offset()` written among an equation's terms is taken out before the
+interpreter sees the rest, and its expression is kept rather than its value,
+which is what lets an offset survive prediction at new data. One written
+inside a term's own formula is rejected rather than moved: in a penalized
+term's formula it would be a contribution to the equation's predictor, and in
+a subformula a contribution to that parameter's own chart, and choosing one
+reading would fit the wrong model in half the cases.
+
+### The specification {#sec-statmod-spec}
+
+`statmod_spec()` performs everything above and stops short of fitting: it
+splits the formula, interprets each equation, and builds the terms against
+the data, giving one object that carries the equations, the built terms, the
+response, the weights and the offsets.
+
+```{r}
+#| label: spec
+set.seed(9)
+dd <- data.frame(x = runif(120, -2, 2), z = runif(120, -2, 2))
+dd$y <- rnorm(120, 1 + 0.8 * dd$x, exp(-0.5 + 0.3 * dd$z))
+
+spec <- statmod_spec(y ~ x + s(z, k = 6) | sigma ~ z,
+                     gaussian1_distrib(), dd)
+names(spec@equations)
+vapply(spec@terms, function(tm) paste(names(tm), collapse = ", "),
+       character(1))
+```
+
+`statmod_design()` assembles from it, per parameter, the terms' blocks side
+by side, together with the names of the coefficients they carry and the range
+of columns each term occupies:
+
+```{r}
+#| label: design
+des <- statmod_design(spec)
+vapply(des, function(e) e$npar, integer(1))
+des$mu$coef_names
+```
+
+The mean's equation carries an intercept and a slope from its parametric
+block, and from the smooth a linear column together with the reparametrized
+basis of @sec-transform-dr, one column fewer than the basis dimension it was
+given; the scale's equation carries an intercept and a slope. The block a
+term contributes is sparse whenever the term builds it
+that way -- a grouping indicator has density $1/m$ over $m$ groups -- and an
+equation's design is sparse when any one of its blocks is, sparsity being a
+property of the assembled matrix and never of its pieces.
+
+A fitted model keeps this specification rather than the data. That is what
+makes prediction at new data a matter of reapplying each term's blueprint,
+with the knots of a smooth and the levels of a factor the ones the model was
+fitted with, instead of rebuilding a basis against rows the fit never saw.
+
+### The intercept and a structural level {#sec-statmod-intercept}
+
+Most terms add columns to a predictor. A structural term of
+@sec-terms-catalog rewrites the likelihood instead, and one of them, the
+score-driven filter, contributes a level that evolves with the data:
+
+$$
+f_t \;=\; \omega + \sum_{r=1}^{p} a_r\, s_{t-r} + \sum_{j=1}^{q} b_j\, f_{t-j} ,
+$$
+
+added to whatever the equation's design already produces. A constant in that
+same equation and the level's own $\omega$ are then exactly confounded.
+Replacing the intercept by $\alpha + c$ and $\omega$ by
+$\omega - c\,(1 - \sum_j b_j)$ leaves the recursion's stationary level lower
+by exactly $c$ and every predictor unchanged, because the recursion is affine
+in the level given the score path and the score path depends on the predictor
+alone. A fit written that way is not identified: moving along that
+direction changes neither a predictor nor the likelihood.
+
+Where an equation's design spans the constant and it also carries a
+structural term, the intercept keeps the level and the term's own parameter
+is held at zero. What is given up by holding $\omega$ is a quantity the
+intercept already reports, while the loadings and the persistence, which a
+constant cannot express, stay free. The question is asked of the span of the
+equation's design rather than of a column called `(Intercept)`, since a
+factor coded without one still sums to the constant.
