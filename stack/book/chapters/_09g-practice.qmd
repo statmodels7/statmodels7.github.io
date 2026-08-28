@@ -1,0 +1,97 @@
+## In practice {#sec-statmod-practice}
+
+Two models fitted and read from end to end. The first is the one the
+framework exists for, an equation on every parameter of the response; the
+second carries a term whose design block moves with its own coefficients.
+
+### A distributional model {#sec-statmod-practice-dist}
+
+Four hundred observations in twenty groups. The mean is a smooth function of
+a covariate plus a group effect; the log scale is linear in the same
+covariate, which is a fact the model is not told.
+
+```{r}
+#| label: practice-data
+set.seed(31)
+n_p <- 400
+u_grp <- rnorm(20, sd = 0.5)
+dp <- data.frame(x = sort(runif(n_p, -3, 3)),
+                 g = factor(rep(1:20, length.out = n_p)))
+truth_mu <- 1 + sin(1.2 * dp$x) + u_grp[dp$g]
+truth_sd <- exp(-0.7 + 0.25 * dp$x)
+dp$y <- rnorm(n_p, truth_mu, truth_sd)
+
+fp <- statmod(y ~ s(x, k = 8) + random(~ 1 | g) | sigma ~ s(x, k = 5),
+              gaussian1_distrib(), dp)
+```
+
+The whole fit is read by one call:
+
+```{r}
+#| label: practice-summary
+summary(fp)
+```
+
+Four things in that report answer questions the earlier sections raised. The
+hyperparameters stand at the head of the block they govern rather than after
+the coefficients they shrink, since a table opening with a hundred selected
+coefficients buries the one number that produced the selection. The
+log-likelihood is the conditional one and the degrees of freedom beside it
+are effective, so the information criteria built from that pair are the
+conditional ones. Every interval is on the scale that keeps its quantity in
+its own set. And the last line is the certificate.
+
+```{r}
+#| label: practice-hyper
+hyper(fp)[, c("parameter", "term", "name", "estimate", "source")]
+statmod_certificate(fp)$state
+```
+
+The random effect's prior scale is estimated near the 0.5 the groups were
+drawn at. The scale equation's smoothing parameter runs to the edge, for the
+reason @sec-statmod-certificate gives: the truth there is a straight line, the
+smooth is being pushed onto its own null space, and the criterion is flat.
+That is a `boundary` fit, which is a certified state.
+
+What the model recovers is best seen against the truth it was drawn from:
+
+```{r}
+#| label: practice-recovery
+c(cor_mean  = cor(predict(fp, "mu"), truth_mu),
+  cor_scale = cor(predict(fp, "sigma"), truth_sd),
+  rmse_mean = sqrt(mean((predict(fp, "mu") - truth_mu)^2)))
+```
+
+### A model with a break-point {#sec-statmod-practice-seg}
+
+The second carries a `seg()` term, whose block is the Jacobian of a
+continuous broken line at the current coefficients and therefore moves as the
+fit moves, in the sense of @sec-statmod-moving.
+
+```{r}
+#| label: practice-seg
+set.seed(23)
+n_s <- 300
+xs <- sort(runif(n_s, 0, 10))
+ds <- data.frame(x = xs,
+                 y = 1 + 0.4 * xs + 1.6 * pmax(xs - 6, 0) + rnorm(n_s, sd = 0.5))
+
+fs <- statmod(y ~ seg(x), gaussian1_distrib(), ds)
+round(coef(fs)$mu, 4)
+```
+
+against an intercept of 1, a slope of 0.4, a change of slope of 1.6 and a
+break-point at 6. The position is an ordinary coefficient here, which is what
+the continuous construction buys: `seg()`'s block is a genuine Jacobian, so
+the scoring step's increment is the Gauss-Newton one and $\psi$ is estimated
+beside everything else rather than read off a pair of coefficients.
+
+```{r}
+#| label: practice-seg-cert
+c(state = statmod_certificate(fs)$state,
+  mode_error = signif(statmod_certificate(fs)$mode_error, 3))
+```
+
+The model carries no penalty, so there is no hyperparameter for an outer
+gradient to be about and the certificate rests on the mode error alone, which
+is the case @sec-statmod-certificate describes.

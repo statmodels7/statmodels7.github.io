@@ -1,0 +1,118 @@
+## Where a fit begins and ends {#sec-statmod-verdict}
+
+Two questions bracket the fitting of @sec-statmod-inner and are not part of
+it: where the iteration starts, and whether the point it stops at is the one
+the model asks for.
+
+### Where it begins {#sec-statmod-start}
+
+The default is the maximum likelihood estimate of the model with every
+covariate removed. The model with no covariates is the model with every slope
+set to zero, so its estimate is exactly where the model with covariates
+should begin, and it costs one small fit on an intercept-only design. Every
+other coefficient starts at zero, which for a penalized block is where its
+penalty is smallest.
+
+Two adjustments make that usable where a naive intercept would not be, and
+both were found by a fit that did not converge rather than by reasoning. An
+offset is subtracted before the value is written, since without it a model
+whose offset averages 6.74 begins at $e^{0.897 + 6.74} = 2080$ against a
+sample mean of 2.45 — measured on a count model over person-years, 4.9
+seconds and nine scoring iterations with the correction against more than
+twenty-five minutes without. And the value is written to a **parametric**
+intercept and to nothing else: a nonlinear term names the intercept of each
+of its own parameters `(Intercept)` too, and those live on that parameter's
+own chart rather than on the predictor's, so a predictor-scale value written
+onto a parameter riding a log link became $e^{23.9} = 2.5 \times 10^{10}$.
+
+A term with parameters of its own says where they start, since only the term
+knows what zero means on its charts: a score-driven term's loadings begin at
+a small positive value through their link rather than at zero, which for it
+is the model without the term.
+
+Where the likelihood is multimodal none of that is enough, and a global
+search can be run once, before the fit. Three properties of it are worth
+stating, because each is a decision rather than a detail. It runs **once**,
+before the alternation between the coefficients and the hyperparameters
+begins, and not inside the inner optimizer, where it would rerun at every
+hyperparameter the outer search tries and return the same answer each time.
+It runs on the **likelihood with the penalties off**, because what a starting
+value has to get right is the basin, and at a probe value representing
+nobody's choice a penalty would explore a different model. And it searches
+only the **non-convex** coordinates, which the toolkit can name: a structural
+term's parameters, the coefficients of a term that recomputes its own block,
+and each equation's intercept. A smooth or a random effect is convex and the
+scoring step reaches its optimum from anywhere; a penalized coordinate is
+excluded wherever it sits, including inside a non-convex term, since on the
+likelihood alone nothing identifies a deviation whose penalty is what
+identifies it.
+
+The hyperparameters cannot be searched from there at all. The objective is
+the likelihood with the penalties off, in which a hyperparameter does not
+appear, so no proposal could change one; a global search over them is a
+search over the criterion of @sec-statmod-outer, where each proposal costs a
+whole refit.
+
+### Where it ends {#sec-statmod-certificate}
+
+An optimizer's convergence flag says whether a search stopped on its own
+rule, which is a statement about the search. What a reader wants is a
+property of the point, and the two are not the same: measured on one model,
+the default reported success at a criterion of $-1783.47$ while the same data
+under a different optimizer reached $-1664.43$ and reported failure.
+
+The certificate takes three readings at the reported point, independent of
+the path taken to it: the outer criterion's gradient, how far the
+coefficients sit above their own penalized mode, and which hyperparameters
+have run to a boundary. It refits nothing.
+
+The state comes from the gradient, and the mode error is reported beside it
+rather than folded into it. That division is measured rather than chosen.
+Across shapes the outer gradient separates by five orders of magnitude —
+4.7e-07, 7.8e-07, 5.8e-05, 7.7e-05 and 3.0e-04 on fits that are right,
+against 28.8 on one that is not — while the mode error does not: it reads
+between 1.8e-16 and 6.1e-12 on four of them, 22.8 on the failing one, and
+0.114 on a random-changepoint fit whose answer is right to a correlation of
+0.9932. A number that does not separate cannot decide a state, and one that
+says how far from the mode is worth more than a boolean hiding it.
+
+```{r}
+#| label: certificate
+set.seed(24)
+n_ce <- 400
+d_ce <- data.frame(x = sort(runif(n_ce, -3, 3)),
+                   g = factor(rep(1:20, length.out = n_ce)))
+d_ce$y <- rnorm(n_ce, 1 + sin(1.2 * d_ce$x) + rnorm(20, sd = 0.5)[d_ce$g],
+                exp(-0.7 + 0.25 * d_ce$x))
+
+f_ce <- statmod(y ~ s(x, k = 8) + random(~ 1 | g) | sigma ~ s(x, k = 5),
+                gaussian1_distrib(), d_ce)
+ce <- statmod_certificate(f_ce)
+c(state = ce$state, gradient = signif(ce$gradient, 3),
+  mode_error = signif(ce$mode_error, 3), boundary = ce$boundary)
+```
+
+`boundary` is a certified state and not a complaint. A hyperparameter may run
+to an edge and belong there, and here one has: the data were generated with
+$\log\sigma$ linear in $x$, the scale's smooth is therefore being driven onto
+its own null space, and its smoothing parameter reaches $3.2\times 10^{10}$.
+The criterion is genuinely flat out there, so calling the fit unconverged
+would be wrong.
+
+A coordinate is reported as sitting at a boundary when its free value exceeds
+a threshold **and** its own gradient component has already met the tolerance.
+Because of that second condition the threshold cannot change the verdict: a
+coordinate it moves out of the interior had already passed the test, so what
+the threshold decides is how the point is described and never whether it is
+certified. The default separates the measured cases with room on both sides,
+coordinates that ran to an edge sitting at 9.3, 10.5 and 20.6 on the free
+scale against 0.13, 0.30 and 2.01 for those that did not — and 24.2 for the
+one above.
+
+Two kinds of model have no outer gradient and are answered differently. One
+with **no penalty** at all has no hyperparameter for a gradient to be about,
+so the only question left is whether the inner fit reached its mode and the
+mode error answers it. One whose only hyperparameters are **kinked** gets
+neither reading and is reported as unknown: at a coefficient the penalty has
+set to zero the score does not vanish but lies in the subdifferential, so the
+mode error there is not a statement about being at a mode at all.

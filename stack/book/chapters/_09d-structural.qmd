@@ -1,0 +1,160 @@
+## Structural terms in the fit {#sec-statmod-structural}
+
+Most terms of @sec-modelterms7 add columns to a design. A structural term
+rewrites the likelihood instead, and two shapes of it are fitted here. A
+**filter** produces a level of its own, evolving with the data, which is
+added to the predictor of the equation it sits in. A term of the **mixture**
+shape reports no predictor at all: its contribution is a likelihood averaged
+over latent states, and the model's log-likelihood comes from the term rather
+than from the density at any single point.
+
+At most one such term is allowed in a formula, whatever equations they would
+sit in. Two filters in one equation are two levels adding up, which is one
+level written twice; in two equations each would be driven by a score that
+depends on the other's state, which is one recursion written as two and
+implemented by neither.
+
+### A filter inside the system {#sec-statmod-filter}
+
+The level of @sec-statmod-intercept,
+$f_t = \omega + \sum_r a_r s_{t-r} + \sum_j b_j f_{t-j}$, is driven by scores
+read at the predictors the coefficients also enter. So the derivative of the
+log-likelihood in a coefficient is not the design column times the score: the
+level at time $t$ carries the coefficient through every earlier step of the
+recursion.
+
+Propagating that forward would cost one derivative array per coefficient. It
+is taken backwards instead, in one pass, and what the term returns is two
+things: the derivative of the objective in the static predictor, and the
+derivative in the **score sequence**. The second is what keeps the contract
+small. The term knows its recursion and the model knows its likelihood, so
+multiplying the second by a mixed second derivative of the log-density gives
+the derivative in another equation's predictor without the term ever
+learning that there are several.
+
+The curvature is a separate matter and was for a while the weaker half. The
+matrix a scoring step inverts is assembled as though the level were an
+offset, which is a legitimate matrix to take a step with and is not the
+information. Writing $u$ for the coefficients followed by the term's own
+parameters, $V_{q,t}$ for the derivative of equation $q$'s predictor in $u$,
+and $E_t$ for the second derivative of the level,
+
+$$
+-\frac{\partial^2 \ell}{\partial u\, \partial u'}
+  \;=\; -\sum_t w_t \sum_{q,r} \ell_{qr,t}\, V_{q,t}'\,V_{r,t}
+     \;-\; \sum_t w_t\, \ell_{p,t}\, E_t .
+$$
+
+Only the equation carrying the filter has a $V$ that is not simply its own
+design; there it is the forward Jacobian of the recursion, returned beside
+the contracted $E$. The third derivatives the second sum needs are the
+family's, in closed form for every one of them, so the exact curvature of a
+score-driven model rests on the third-order surface of @sec-higher-orders.
+`vcov()` inverts that joint matrix and returns the coefficient block, which
+is why a standard error here is not the one a fit with the level frozen
+would report.
+
+```{r}
+#| label: gas-fit
+set.seed(21)
+n_gas <- 600
+om <- 0.3; a1 <- 0.4; b1 <- 0.7
+lev <- numeric(n_gas); yg <- numeric(n_gas); lev[1] <- om / (1 - b1)
+for (t in seq_len(n_gas)) {
+  yg[t] <- rnorm(1, lev[t], 1)
+  if (t < n_gas) lev[t + 1] <- om + a1 * (yg[t] - lev[t]) + b1 * lev[t]
+}
+
+f_gas <- statmod(y ~ gas(p = 1, q = 1) - 1, gaussian1_distrib(),
+                 data.frame(y = yg))
+round(f_gas@structural[[1]]$parameter, 4)
+```
+
+against $\omega = 0.3$, $a_1 = 0.4$ and $b_1 = 0.7$. The persistence is
+reported here as `pacf1` because that is the coordinate the fit runs on: the
+stationary region of an autoregression is not a box, so the persistence rides
+a partial autocorrelation chart and no collection of scalar links would keep
+it inside. At $q = 1$ the coordinate and the coefficient coincide; above it
+they do not, and the term reports the coefficients under the literature's
+names separately.
+
+The `- 1` is not decoration. Written with an intercept the equation would
+carry a constant and a level that are exactly confounded, and
+@sec-statmod-intercept is where that is set out; the fit would hold the
+term's $\omega$ at zero and let the intercept carry it.
+
+### A likelihood mixed over states {#sec-statmod-regime}
+
+A latent Markov term gives each observation a level drawn from one of $K$
+regimes, the regime following a chain of its own. What the model maximizes is
+the mixed likelihood, computed by a normalized forward recursion, and every
+derivative follows from **Fisher's identity**: the derivative of that mixed
+likelihood in any predictor the model carries is the posterior-weighted
+derivative of the ordinary one. So the layer differentiates its own
+log-density once per state, vectorized over the sample, and weights by the
+smoothed state probabilities. No second recursion is needed for the gradient,
+and the predictor reported for the equation is the posterior-weighted one,
+which is what a fitted value means here.
+
+The observed information is not Louis's identity. That route writes the
+observed information as the complete-data one minus the variance of the
+complete-data score, and the second term involves every pair of times, which
+the smoothed marginals do not give. What is used instead is second-order
+propagation through the recursion that already computes the likelihood:
+$\log L = \sum_t \log c_t$ exactly, so differentiating that arithmetic twice
+gives the observed Hessian with no identity invoked and no pairwise smoothed
+probabilities. Louis's relation becomes the check rather than the method, the
+missing-information principle requiring the complete-data information to
+dominate the observed one, with the gap going to zero as the regimes
+separate and the states become effectively observed.
+
+The distinction is not academic. The complete-data matrix is what a scoring
+step inverts, and it is positive definite and legitimate for that; used as a
+variance it understates a standard error by up to 30 per cent, and by most in
+the middle of the range, where the states are neither well separated nor
+hopelessly overlapped.
+
+```{r}
+#| label: regime-fit
+set.seed(22)
+n_reg <- 400
+state <- numeric(n_reg); state[1] <- 1
+for (t in 2:n_reg) {
+  state[t] <- if (runif(1) < 0.05) 3 - state[t - 1] else state[t - 1]
+}
+d_reg <- data.frame(y = rnorm(n_reg, c(-1.5, 1.5)[state], 0.6))
+
+f_reg <- statmod(y ~ regime(k = 2) - 1, gaussian1_distrib(), d_reg)
+round(f_reg@structural[[1]]$parameter, 4)
+```
+
+The levels are parametrized as a first level and a positive gap, so they come
+out ordered, and that is a requirement rather than a convenience: $K$
+exchangeable regimes give $K!$ identical maxima, and an unordered
+parametrization would let a search wander between them. The chain's own
+transition probabilities are carried on the simplex charts of
+@sec-parameter-simplex, one per row.
+
+### Break-points integrated out {#sec-statmod-marginal-bp}
+
+A break-point that varies by group can be given a distribution rather than a
+coefficient, and integrated out. The obvious cost is prohibitive: with $K$
+break-points and $n$ observations the positions partition the sample in
+$(n+1)^K$ ways.
+
+The structure removes the exponent in $n$. The latent positions are
+independent, and the indicator $\mathbf{1}(x \ge \psi_k)$ is monotone in the
+sorted covariate, so the process of *which break-points are already passed*
+is itself a hidden Markov chain on the $2^K$ side patterns, whose transitions
+factorize over the coordinates. The exact forward recursion then costs
+$nK2^K$ rather than $(n+1)^K$, and everything the term reports — the
+likelihood, the Jacobian, the posteriors and the observed Hessian —
+propagates through that one recursion. What remains exponential is $K$ alone,
+which is bounded at eight and in practice small.
+
+Such a term is of the mixture shape, so it reaches the fit through the same
+branch `regime()` does, with the component levels read per observation rather
+than per state. The prior's own parameters are estimated by plain maximum
+likelihood alongside everything else: the prior is part of the likelihood
+here, not a penalty, so no hyperparameter of it is declared and no criterion
+of @sec-statmod-outer is put to it.

@@ -5,7 +5,7 @@
 # stops if any of them disagrees. Nothing in this file is visible to the
 # reader.
 #
-# Four claims are checked.
+# Five claims are checked.
 #
 #   1. the penalized mode of a fit whose objective is quadratic agrees with
 #      the closed form. With the scale held the objective is
@@ -21,7 +21,11 @@
 #   3. the effective degrees of freedom agree with tr[(H+S)^-1 H] assembled
 #      here out of the family's expected information and a penalty Hessian
 #      taken straight from penalties7;
-#   4. prediction reapplies a term's blueprint rather than rebuilding it,
+#   4. a structural level and a linear intercept in the same equation are
+#      exactly confounded, so holding the level costs nothing: the two
+#      parametrizations reach the same maximum and the held fit's intercept
+#      is the free fit's stationary level omega/(1 - sum b);
+#   5. prediction reapplies a term's blueprint rather than rebuilding it,
 #      pinned by the identity that predicting on rows the model was fitted to
 #      returns the fitted values there. The subset matters: a rebuilt basis
 #      agrees with the fitted values on the WHOLE data whatever its knots
@@ -36,7 +40,10 @@
 #      its stationarity residual         4.263e-14
 #   2  the criterion's exact gradient    7.877e-07   (1e-4, relative)
 #   3  the effective degrees of freedom  1.776e-15   (1e-8)
-#   4  prediction on fitted rows         0.000e+00   (1e-8)
+#   4  the two parametrizations' maxima  0.000e+00   (1e-3)
+#      the intercept against omega/(1-b) 3.573e-12   (1e-2, relative)
+#      the held level                    0.000e+00
+#   5  prediction on fitted rows         0.000e+00   (1e-8)
 #
 # and the injections:
 #
@@ -48,12 +55,20 @@
 #   3a the observed information in place of the expected        3.338e-04
 #   3b the penalty omitted, S = 0                               9.702e-01
 #   3c lambda doubled in the penalty Hessian                    4.230e-01
-#   4a the prediction read at rows shifted by one               2.066e-01
-#   4b the smooth's block rebuilt on the subset, not reapplied  2.895e+00
+#   4a the stationary level read as omega alone                 4.650e-01
+#   4b the stationary level read as omega/(1+b)                 5.812e-01
+#   4c the FREE fit's omega compared against zero               3.098e-01
+#   5a the prediction read at rows shifted by one               2.066e-01
+#   5b the smooth's block rebuilt on the subset, not reapplied  2.895e+00
 #
-# 4b is the defect check 4 exists for, measured on the block itself rather
+# 5b is the defect check 5 exists for, measured on the block itself rather
 # than on the fit. 3a is not a defect but a different quantity, and it is
 # what says the count is read on the information the fit inverted.
+#
+# The gate makes eight statmod() calls and takes 3.4 s from cold, 0.9 s with
+# the caches warm. That was worth checking rather than assuming: the warm
+# reading is faster than the four-check version's cold one, which looks like
+# a check that stopped running, and counting the fits is what said otherwise.
 
 assert_statmod_ok <- function() {
 
@@ -158,7 +173,42 @@ assert_statmod_ok <- function() {
     fail("the effective degrees of freedom")
   }
 
-  # --- 3. prediction reapplies the blueprint -------------------------------
+  # --- 3. a structural level and an intercept are the same model -----------
+
+  # The chapter claims the two are exactly confounded and that holding the
+  # term's own level costs nothing. The check is end to end and uses only
+  # public calls: the two parametrizations must reach the same maximum, and
+  # the intercept the held fit reports must BE the free fit's stationary
+  # level omega/(1 - sum b), which is a different arithmetic route to the
+  # same number.
+  set.seed(20260831)
+  ng <- 400
+  om <- 0.3; a1 <- 0.4; b1 <- 0.6
+  lev <- numeric(ng); yg <- numeric(ng); lev[1] <- om / (1 - b1)
+  for (t in seq_len(ng)) {
+    yg[t] <- stats::rnorm(1, lev[t], 1)
+    if (t < ng) lev[t + 1] <- om + a1 * (yg[t] - lev[t]) + b1 * lev[t]
+  }
+  dg <- data.frame(y = yg)
+
+  held <- statmod(y ~ gas(p = 1, q = 1), gau, dg)
+  free <- statmod(y ~ gas(p = 1, q = 1) - 1, gau, dg)
+
+  if (abs(as.numeric(logLik(held)) - as.numeric(logLik(free))) > 1e-3) {
+    fail("the two parametrizations of a structural level")
+  }
+  pr <- free@structural[[1]]$parameter
+  stationary <- pr[["omega"]] / (1 - pr[["pacf1"]])
+  if (abs(unname(coef(held)$mu[["(Intercept)"]]) - stationary) >
+      1e-2 * max(1, abs(stationary))) {
+    fail("the held intercept against the free fit's stationary level")
+  }
+  # and the term's own level really is held at zero where the intercept won
+  if (abs(held@structural[[1]]$parameter[["omega"]]) > 1e-12) {
+    fail("the level held at zero beside an intercept")
+  }
+
+  # --- 4. prediction reapplies the blueprint -------------------------------
 
   set.seed(20260829)
   m <- 200
