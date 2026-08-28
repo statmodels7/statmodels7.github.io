@@ -373,6 +373,60 @@ c(param_logdet(m, eta), sum(eta[1:3]))
 max(abs(param_solve(m, eta) - solve(param_value(m, eta))))
 ```
 
+### Compositions {#sec-parameter-compositions}
+
+Four constructions take parameters already defined and return another. They
+are cheap in a way worth naming: in three of the four the free values of one
+part do not enter another, so most components are exactly zero before any
+arithmetic is done, and nothing is re-derived.
+
+`kron_identity(structure, m)` gives $m$ identical blocks sharing one free
+vector, which is the covariance of a random effect repeated over $m$ groups.
+Every quantity the contract asks for is a linear lift of the block's:
+the matrix is $I_m \otimes A$, each derivative $I_m \otimes A_k$, the log
+determinant $m\log\lvert A\rvert$, and a solve runs blockwise.
+
+`block_diag()` gives distinct blocks with their free vectors concatenated.
+Every component whose indices span two blocks is exactly zero, at every
+order and for the log determinant as well, so the composition derives
+nothing.
+
+`dr_prod()` writes a covariance as $D R D$, so that the coordinates are the
+standard deviations and the correlations rather than entries of a factor.
+Each derivative factorizes into a scale part and a correlation part, and the
+scale part is supported on the rows and columns its indices name.
+
+It rejects a rank-deficient correlation, and the reason is structural rather
+than defensive: the null space of $D R D$ is $D^{-1}\ker R$, which *moves*
+with the free vector, while the class records the rank and the null basis as
+properties of the family. There is no honest fixed answer to record, so the
+constructor refuses instead of recording a wrong one.
+
+`sum_struct()` is the one that needed real algebra, a non-negative
+combination $M(\theta) = \sum_k \theta_k P_k$ of fixed matrices, which is
+the variance-components covariance. Its log determinant is not separable,
+and its derivatives are the cyclic trace expansion
+
+$$
+\partial^n \log\lvert M\rvert \;=\; (-1)^{n-1} \sum_{s}
+  \operatorname{tr}\left(M^{-1}P_{s_1}\cdots M^{-1}P_{s_n}\right),
+$$
+
+the sum running over the $(n-1)!$ cyclic orderings of the indices and
+chained onto the free scale by a diagonal Jacobian.
+
+Those orderings are counted **with multiplicity**, and that is the part a
+reader is likeliest to get wrong. Where an index repeats, orderings that
+coincide still count once each: a check that deduplicated them was short by
+exactly the factorial of the repeat count, reporting relative gaps of $1/2$
+and $5/6$, which are $1 - 1/2!$ and $1 - 1/3!$.
+
+Its rank comes from the components **stacked and individually normalized**,
+never from the assembled matrix, for the reason @sec-parameter-rank gives:
+the null space of a sum of positive semidefinite matrices is the
+intersection of theirs and does not move with the weights, while a count
+taken from the assembled sum falls as they spread apart.
+
 ### Third and fourth derivatives {#sec-parameter-higher}
 
 Every family above carries its derivatives to fourth order in closed form:

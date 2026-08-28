@@ -247,6 +247,7 @@ window.Quarto = {
   <li><a href="#matrix-parameters" id="toc-matrix-parameters" class="nav-link" data-scroll-target="#matrix-parameters">Matrix parameters</a></li>
   <li><a href="#numerical-layer" id="toc-numerical-layer" class="nav-link" data-scroll-target="#numerical-layer">Numerical layer</a></li>
   <li><a href="#penalties" id="toc-penalties" class="nav-link" data-scroll-target="#penalties">Penalties</a></li>
+  <li><a href="#the-modeling-layer" id="toc-the-modeling-layer" class="nav-link" data-scroll-target="#the-modeling-layer">The modeling layer</a></li>
   <li><a href="#session" id="toc-session" class="nav-link" data-scroll-target="#session">Session</a></li>
   </ul>
 </nav>
@@ -784,6 +785,68 @@ window.Quarto = {
 <p><span class="math inline">\(B\)</span> is a curvature model in <a href="04-optimizers7.html" class="quarto-xref"><span>Chapter 4</span></a> and a design matrix in <a href="06-basis7.html" class="quarto-xref"><span>Chapter 6</span></a>. The two never appear together, and both are the letter their own literature uses. For the same reason the interval of a basis is written <span class="math inline">\([a, b]\)</span> rather than with the <span class="math inline">\(\ell\)</span> that would collide with the log-likelihood.</p>
 <p><span class="math inline">\(m\)</span> is the degree of a spline in <a href="06-basis7.html" class="quarto-xref"><span>Chapter 6</span></a>, while it is a truncated expectation in <a href="03-distributions7.html#sec-truncation" class="quarto-xref"><span>Section 3.2.5</span></a> and a moment estimate in <a href="04-optimizers7.html#sec-adam" class="quarto-xref"><span>Section 4.4.2</span></a>. Each carries the index its own section gives it.</p>
 <p><span class="math inline">\(P\)</span> is a penalty matrix in both <a href="06-basis7.html" class="quarto-xref"><span>Chapter 6</span></a> and <a href="05-parameters7.html" class="quarto-xref"><span>Chapter 5</span></a>, which is the same object, and <span class="math inline">\(\lambda\)</span> is its scale in <a href="05-parameters7.html" class="quarto-xref"><span>Chapter 5</span></a> while it is a Demmler-Reinsch eigenvalue in <a href="06-basis7.html#sec-basis-transforms" class="quarto-xref"><span>Section 6.4</span></a>. <span class="math inline">\(\eta\)</span> is a linear predictor in <a href="02-linkfunctions7.html" class="quarto-xref"><span>Chapter 2</span></a> and the free vector of a structure in <a href="05-parameters7.html" class="quarto-xref"><span>Chapter 5</span></a>; both are the unconstrained coordinate an optimizer works on, which is why the same letter is right for both.</p>
+</section>
+<section id="the-modeling-layer" class="level2 unnumbered">
+<h2 class="unnumbered anchored" data-anchor-id="the-modeling-layer">The modeling layer</h2>
+<table class="table-striped caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symbol</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\(K\)</span></td>
+<td>the number of parameters of the response distribution</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(\eta_{ik}\)</span>, <span class="math inline">\(\theta_{ik}\)</span></td>
+<td>observation <span class="math inline">\(i\)</span>’s predictor and parameter, for the <span class="math inline">\(k\)</span>th equation</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(X_k\)</span>, <span class="math inline">\(\beta_k\)</span>, <span class="math inline">\(o_{ik}\)</span></td>
+<td>the <span class="math inline">\(k\)</span>th equation’s design, coefficients and offset</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(Z\)</span></td>
+<td>the design stacking every equation’s block</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\Omega_i\)</span></td>
+<td>observation <span class="math inline">\(i\)</span>’s information with respect to its own <span class="math inline">\(K\)</span> predictors</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(S(\vartheta)\)</span></td>
+<td>the penalties’ second derivative in the coefficients</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\vartheta\)</span></td>
+<td>the hyperparameters, the quantities an outer criterion chooses</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(A\)</span></td>
+<td>an orthonormal basis of the subspace a marginal criterion integrates</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\tau\)</span></td>
+<td>the effective degrees of freedom, <span class="math inline">\(\operatorname{tr}[(H+S)^{-1}H]\)</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(V_{q,t}\)</span>, <span class="math inline">\(E_t\)</span></td>
+<td>a filtered predictor’s first and second derivatives in the unknowns</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\mathcal{J}_p\)</span>, <span class="math inline">\(s_p\)</span></td>
+<td>the coordinates equation <span class="math inline">\(p\)</span> owns, and its information’s scale</td>
+</tr>
+</tbody>
+</table>
+<p>Four of these are reused and the reuse is deliberate in each case. <span class="math inline">\(H\)</span> and <span class="math inline">\(S\)</span> are the likelihood’s information and the penalty’s Hessian in <a href="07-penalties7.html" class="quarto-xref"><span>Chapter 7</span></a>, <a href="08-modelterms7.html" class="quarto-xref"><span>Chapter 8</span></a> and <a href="09-statmodels7.html" class="quarto-xref"><span>Chapter 9</span></a> alike, which is one object seen from three places. <span class="math inline">\(A\)</span> is a matrix parameter’s derivative <span class="math inline">\(A_k\)</span> in <a href="05-parameters7.html" class="quarto-xref"><span>Chapter 5</span></a> and an integrated basis here; the two never appear together, and the second is always written without an index. <span class="math inline">\(\tau\)</span> is the effective degrees of freedom here and the scale of a random break-point in <a href="08-modelterms7.html#sec-terms-catalog" class="quarto-xref"><span>Section 8.2</span></a>, where it is always subscripted or named as a prior’s scale. And <span class="math inline">\(\vartheta\)</span> rather than <span class="math inline">\(\theta\)</span> carries the hyperparameters in <a href="09-statmodels7.html" class="quarto-xref"><span>Chapter 9</span></a>, because <span class="math inline">\(\theta\)</span> is already the distribution’s own parameter in every chapter before it and a model here has both at once.</p>
 </section>
 <section id="session" class="level2 unnumbered">
 <h2 class="unnumbered anchored" data-anchor-id="session">Session</h2>

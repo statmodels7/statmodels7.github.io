@@ -235,6 +235,45 @@ and which summarizes the contribution of the discarded planes. Deleting old
 planes outright would lose that information and can stall the method; keeping
 the aggregate is what makes a bounded bundle safe.
 
+### The proximal gradient {#sec-prox-grad}
+
+The bundle method needs nothing of the objective but a value and one
+subgradient. Where more is known the work can be divided instead. Many
+objectives in this toolkit split as
+
+$$F(x) = f(x) + \rho(x),$$
+
+with $f$ smooth and $\rho$ the part carrying the kink -- a penalized
+likelihood is exactly that. A proximal gradient method takes a gradient
+step on $f$ and then applies the **proximal operator** of $\rho$,
+
+$$\operatorname{prox}_{t\rho}(v) \;=\;
+  \arg\min_u \left\{ \rho(u) + \frac{1}{2t}\lVert u - v\rVert^2 \right\},$$
+
+which for the penalties of @sec-penalty-branches is available in closed
+form: the soft threshold for the lasso, a threshold followed by a shrinkage
+for the elastic net, and the piecewise operators of SCAD and MCP over their
+convex regions. The kink is never differentiated; it is solved exactly, once
+per step.
+
+`prox_grad()` runs that iteration, accelerated and with an adaptive restart.
+Two measured facts decide how it is used. Acceleration is for
+ill-conditioned problems: at a condition number of 3 the plain iteration
+wins narrowly, at 55 it is 4153 iterations against 126, and at 480 the plain
+one does not converge in fifty thousand while the accelerated one takes 334.
+And the stationarity measure must be read at the **iterate** and not at the
+extrapolated point, which under acceleration is a different place: read at
+the wrong one the mapping never vanishes and a run circles the answer
+reporting failure, while read at the iterate it agrees with the
+Karush-Kuhn-Tucker violation to the digit.
+
+One thing this method does not take is a box. Its constraint belongs inside
+the operator, where it composes with the term already there, so bounds
+beside the objective would be a second and conflicting route to the same
+thing; `optimizer_bounded()` reports that, and the validator of
+@sec-optim-check-practice consults it instead of testing bounds on every
+method alike.
+
 ### Direct search methods {#sec-direct-search}
 
 A second way of handling a non-smooth objective is to use no derivatives at

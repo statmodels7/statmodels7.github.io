@@ -315,8 +315,9 @@ window.Quarto = {
   <li><a href="#sec-cutting" id="toc-sec-cutting" class="nav-link" data-scroll-target="#sec-cutting"><span class="header-section-number">4.3.2</span> The cutting-plane model</a></li>
   <li><a href="#sec-bundle-dual" id="toc-sec-bundle-dual" class="nav-link" data-scroll-target="#sec-bundle-dual"><span class="header-section-number">4.3.3</span> The dual of the bundle subproblem</a></li>
   <li><a href="#sec-bundle-steps" id="toc-sec-bundle-steps" class="nav-link" data-scroll-target="#sec-bundle-steps"><span class="header-section-number">4.3.4</span> Serious steps, null steps and aggregation</a></li>
-  <li><a href="#sec-direct-search" id="toc-sec-direct-search" class="nav-link" data-scroll-target="#sec-direct-search"><span class="header-section-number">4.3.5</span> Direct search methods</a></li>
-  <li><a href="#sec-annealing" id="toc-sec-annealing" class="nav-link" data-scroll-target="#sec-annealing"><span class="header-section-number">4.3.6</span> Simulated annealing</a></li>
+  <li><a href="#sec-prox-grad" id="toc-sec-prox-grad" class="nav-link" data-scroll-target="#sec-prox-grad"><span class="header-section-number">4.3.5</span> The proximal gradient</a></li>
+  <li><a href="#sec-direct-search" id="toc-sec-direct-search" class="nav-link" data-scroll-target="#sec-direct-search"><span class="header-section-number">4.3.6</span> Direct search methods</a></li>
+  <li><a href="#sec-annealing" id="toc-sec-annealing" class="nav-link" data-scroll-target="#sec-annealing"><span class="header-section-number">4.3.7</span> Simulated annealing</a></li>
   </ul></li>
   <li><a href="#sec-constraints" id="toc-sec-constraints" class="nav-link" data-scroll-target="#sec-constraints"><span class="header-section-number">4.4</span> Box constraints and stochastic gradients</a>
   <ul>
@@ -805,8 +806,19 @@ f(x)\}\)</span>; at a kink it contains many.</p>
 <p><span class="math display">\[\ell_{\text{agg}}(x) = f(\hat{x}) - \bar\alpha + \bar{v}^\top (x - \hat{x}),\]</span></p>
 <p>which lies below <span class="math inline">\(f\)</span> because it is a convex combination of functions that do, and which summarizes the contribution of the discarded planes. Deleting old planes outright would lose that information and can stall the method; keeping the aggregate is what makes a bounded bundle safe.</p>
 </section>
-<section id="sec-direct-search" class="level3" data-number="4.3.5">
-<h3 data-number="4.3.5" class="anchored" data-anchor-id="sec-direct-search"><span class="header-section-number">4.3.5</span> Direct search methods</h3>
+<section id="sec-prox-grad" class="level3" data-number="4.3.5">
+<h3 data-number="4.3.5" class="anchored" data-anchor-id="sec-prox-grad"><span class="header-section-number">4.3.5</span> The proximal gradient</h3>
+<p>The bundle method needs nothing of the objective but a value and one subgradient. Where more is known the work can be divided instead. Many objectives in this toolkit split as</p>
+<p><span class="math display">\[F(x) = f(x) + \rho(x),\]</span></p>
+<p>with <span class="math inline">\(f\)</span> smooth and <span class="math inline">\(\rho\)</span> the part carrying the kink – a penalized likelihood is exactly that. A proximal gradient method takes a gradient step on <span class="math inline">\(f\)</span> and then applies the <strong>proximal operator</strong> of <span class="math inline">\(\rho\)</span>,</p>
+<p><span class="math display">\[\operatorname{prox}_{t\rho}(v) \;=\;
+  \arg\min_u \left\{ \rho(u) + \frac{1}{2t}\lVert u - v\rVert^2 \right\},\]</span></p>
+<p>which for the penalties of <a href="07-penalties7.html#sec-penalty-branches" class="quarto-xref"><span>Section 7.2</span></a> is available in closed form: the soft threshold for the lasso, a threshold followed by a shrinkage for the elastic net, and the piecewise operators of SCAD and MCP over their convex regions. The kink is never differentiated; it is solved exactly, once per step.</p>
+<p><code>prox_grad()</code> runs that iteration, accelerated and with an adaptive restart. Two measured facts decide how it is used. Acceleration is for ill-conditioned problems: at a condition number of 3 the plain iteration wins narrowly, at 55 it is 4153 iterations against 126, and at 480 the plain one does not converge in fifty thousand while the accelerated one takes 334. And the stationarity measure must be read at the <strong>iterate</strong> and not at the extrapolated point, which under acceleration is a different place: read at the wrong one the mapping never vanishes and a run circles the answer reporting failure, while read at the iterate it agrees with the Karush-Kuhn-Tucker violation to the digit.</p>
+<p>One thing this method does not take is a box. Its constraint belongs inside the operator, where it composes with the term already there, so bounds beside the objective would be a second and conflicting route to the same thing; <code>optimizer_bounded()</code> reports that, and the validator of <a href="#sec-optim-check-practice" class="quarto-xref"><span>Section 4.6.2</span></a> consults it instead of testing bounds on every method alike.</p>
+</section>
+<section id="sec-direct-search" class="level3" data-number="4.3.6">
+<h3 data-number="4.3.6" class="anchored" data-anchor-id="sec-direct-search"><span class="header-section-number">4.3.6</span> Direct search methods</h3>
 <p>A second way of handling a non-smooth objective is to use no derivatives at all. This costs many more evaluations and yields a weaker guarantee, but it requires nothing of the objective beyond a value, which is sometimes all that is available.</p>
 <p>The concept that carries the theory is the <strong>positive spanning set</strong>; the theory is collected in <span class="citation" data-cites="conn2009">Conn, Scheinberg, and Vicente (<a href="A2-references.html#ref-conn2009" role="doc-biblioref">2009</a>)</span> and surveyed in <span class="citation" data-cites="kolda2003">Kolda, Lewis, and Torczon (<a href="A2-references.html#ref-kolda2003" role="doc-biblioref">2003</a>)</span>.</p>
 <div id="def-spanning" class="theorem definition">
@@ -855,8 +867,8 @@ f(x)\}\)</span>; at a kink it contains many.</p>
 <p>The third row shows Nelder–Mead solving the problem to machine precision, better than either poll and better than the bundle method. The reason is that a simplex is not a poll: it has no fixed center and no fixed set of offsets, it deforms, and on a problem whose descent direction lies along a ridge it deforms into a long thin simplex aligned with that ridge. This adaptivity is exactly what a fixed pattern lacks. What Nelder–Mead lacks in exchange is a guarantee: the positive-spanning argument does not apply to it, the counterexample of <span class="citation" data-cites="mckinnon1998">McKinnon (<a href="A2-references.html#ref-mckinnon1998" role="doc-biblioref">1998</a>)</span> shows that it can converge to a point that is not a minimizer, and the positive results of <span class="citation" data-cites="lagarias1998">Lagarias et al. (<a href="A2-references.html#ref-lagarias1998" role="doc-biblioref">1998</a>)</span> cover only one and two dimensions. It also needs 343 evaluations here.</p>
 <p>The last row shows the bundle method arriving, with a guarantee, in a seventh of the evaluations. It is the only method in the table that uses the available derivative information without requiring any single derivative to vanish.</p>
 </section>
-<section id="sec-annealing" class="level3" data-number="4.3.6">
-<h3 data-number="4.3.6" class="anchored" data-anchor-id="sec-annealing"><span class="header-section-number">4.3.6</span> Simulated annealing</h3>
+<section id="sec-annealing" class="level3" data-number="4.3.7">
+<h3 data-number="4.3.7" class="anchored" data-anchor-id="sec-annealing"><span class="header-section-number">4.3.7</span> Simulated annealing</h3>
 <p>Every method so far walks downhill, and on a surface with many local minima that is the wrong thing to do from the wrong starting point. A method allowed to walk uphill sometimes can leave one.</p>
 <p>Simulated annealing proposes a step, accepts it outright where it improves the objective, and otherwise accepts it with probability <span class="math inline">\(\exp(-\Delta f / T)\)</span> <span class="citation" data-cites="kirkpatrick1983">(<a href="A2-references.html#ref-kirkpatrick1983" role="doc-biblioref">Kirkpatrick, Gelatt, and Vecchi 1983</a>)</span>, so that at a high temperature <span class="math inline">\(T\)</span> almost anything is accepted and at a low one almost nothing is. The temperature falls on a schedule, and with it the proposal’s own step sizes, which adapt so that about half the proposals are accepted in each coordinate <span class="citation" data-cites="corana1987">(<a href="A2-references.html#ref-corana1987" role="doc-biblioref">Corana et al. 1987</a>)</span>.</p>
 <div class="cell" data-layout-align="center">

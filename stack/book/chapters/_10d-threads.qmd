@@ -1,0 +1,70 @@
+## The thread policy {#sec-numerical-threads}
+
+The compiled kernels of the toolkit can run in parallel, and how many
+threads they may use is a decision the caller makes once and the whole fit
+obeys. That decision lives here, at the root, and the reason is the
+dependency graph: the kernels sit in packages the modeling layer cannot be
+imported by without a cycle, so a setting stored in one of them could not be
+read by another. `n_threads(threads, workers)` builds the policy as an
+object, and it is **passed as an argument** from the fit down to the
+kernels rather than read from anywhere global.
+
+There are two counts because there are two kinds of independent work.
+`threads` lets the per-observation kernels of a family and the dense
+assembly products run in parallel within one fit. `workers` fans genuinely
+separate fits -- the folds of a cross-validation, the points of a product
+grid -- out over separate R processes.
+
+### The count does not change the answer {#sec-numerical-bitwise}
+
+The guarantee is that a kernel returns the same bits at any count, and it is
+a design constraint on anything added later rather than an observation about
+what is there now.
+
+It rests on one rule and two properties of the drivers. The rule is that
+every parallel region decomposes its work over the **elements of its
+output**, so each accumulated value is summed in full by one thread and no
+reduction is ever split. Of the two properties, neither belongs to the
+kernels themselves: a worker installs the calling thread's floating-point
+environment before running its chunk, without which some of the platform's
+own math routines return per-thread last bits -- `psigamma` at higher
+orders, `bessel_k`, and `pgamma` and `pbeta` on the log scale were each
+measured doing so -- and the sequential branch runs through the same
+compiled function the parallel one does, so that a compiler cannot optimize
+the two apart.
+
+One qualification is worth stating precisely, because it is the only place
+the guarantee is narrower than it sounds. In the dense assembly products of
+the modeling layer, raising the count first *engages* a threaded kernel
+where a BLAS call stood. That kernel is a second implementation of the same
+sum: bit-exact against the reference BLAS R ships, and within the rounding
+of one dot product against an optimized BLAS, whose accumulation order is
+its own.
+
+### What a count does not buy {#sec-numerical-threshold}
+
+At `threads = 1` nothing parallel is entered and no process-level setting is
+touched: the sequential code is taken, rather than a parallel path running
+on one thread. Each kernel also carries an internal threshold, measured
+where the cost of opening a region overtakes its gain, and stays sequential
+below it whatever the count says.
+
+The two levels do not nest. A fit inside a worker process is sequential by
+construction, so four workers open four processes each fitting on one
+thread and never $4 \times \texttt{threads}$ of them. A worker is a separate
+R session loading the installed packages, which is what makes it safe for
+the S7 objects a fold's fit carries, and starting one costs on the order of
+a second -- so `workers` pays on a cross-validated path and is not worth
+asking for on a fit shorter than that.
+
+```{r}
+#| label: threads
+n_threads()
+n_threads(threads = 4, workers = 2)
+c(threads = thread_count(n_threads(4, 2)),
+  workers = worker_count(n_threads(4, 2)))
+```
+
+The default prints as sequential and says so. `local_threads()` sets the
+process-level count for the duration of a calling frame and restores it on
+exit, so a fit never leaves it moved for the code that runs after it.
