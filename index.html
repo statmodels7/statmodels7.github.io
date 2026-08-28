@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>statmodels7 — an S7 toolkit for statistical modeling</title>
-<meta name="description" content="Distributions, link functions, optimizers, bases, constrained parameters and penalties as reusable S7 objects. The components every R modeling package rewrites internally, written once.">
+<meta name="description" content="Distributions, link functions, optimizers, bases, constrained parameters, penalties and model terms as reusable S7 objects, and the layer that fits a model with them. The components every R modeling package rewrites internally, written once.">
 <link rel="icon" href="logo/statmodels7.svg" type="image/svg+xml">
 <style>
   :root {
@@ -59,13 +59,6 @@
   .card h3 span { color: var(--accent); }
   .card h3 { font-family: "JetBrains Mono", ui-monospace, "Courier New", monospace; }
   .card p { margin: 0; color: var(--muted); font-size: 0.97rem; }
-  .card.planned { opacity: 0.62; border-style: dashed; pointer-events: none; }
-  .tag {
-    display: inline-block; font-size: 0.72rem; letter-spacing: 1px;
-    text-transform: uppercase; color: var(--muted);
-    border: 1px solid var(--rule); border-radius: 20px; padding: 1px 9px;
-    margin-left: 8px; vertical-align: 2px;
-  }
 
   pre {
     background: var(--ink); color: var(--chalk); padding: 18px 20px;
@@ -136,10 +129,11 @@
        functions and their derivatives to fourth order, the likelihood theory
        and the Bartlett identities, the operations that build new
        distributions from existing ones, the optimization methods from the
-       Wolfe conditions to the bundle method, the basis expansions and their
-       exact inner products, the charts on the positive definite cone, the
-       numerical layer, and the penalties with their normalizing
-       constants.</p>
+       Wolfe conditions to the bundle method, the charts on the positive
+       definite cone, the basis expansions and their exact inner products,
+       the penalties with their normalizing constants, the model terms and
+       the block each one contributes to a design, and the numerical layer
+       underneath all of it.</p>
   </section>
 
   <section>
@@ -172,14 +166,15 @@ library(statmodels7)
            extreme arguments.</p>
       </a>
 
-      <a class="card" href="https://statmodels7.github.io/linkfunctions7">
+      <a class="card" href="https://statmodels7.github.io/linkfunctions7/">
         <h3>linkfunctions<span>7</span></h3>
-        <p>Sixteen link classes, each carrying exact derivatives to fourth
-           order in both directions, with numerical fallbacks for user-defined
-           links and a diagnostic that verifies every order.</p>
+        <p>Fourteen constructors producing sixteen link classes, each carrying
+           exact derivatives to fourth order in both directions, with
+           numerical fallbacks for user-defined links and a diagnostic that
+           verifies every order.</p>
       </a>
 
-      <a class="card" href="https://statmodels7.github.io/distributions7">
+      <a class="card" href="https://statmodels7.github.io/distributions7/">
         <h3>distributions<span>7</span></h3>
         <p>Forty-two univariate distributions and four multivariate ones
            — one name per parametrization where a family has several —
@@ -188,11 +183,13 @@ library(statmodels7)
            unconstrained scale.</p>
       </a>
 
-      <a class="card" href="https://statmodels7.github.io/optimizers7">
+      <a class="card" href="https://statmodels7.github.io/optimizers7/">
         <h3>optimizers<span>7</span></h3>
-        <p>Eleven algorithms as objects, with the stopping rule an object as
-           well, chosen and combined by the caller instead of buried in the
-           loop. Box constraints are removed by reparametrization rather than
+        <p>Twelve algorithms as objects, from Newton and L-BFGS to simulated
+           annealing and a proximal method for an objective with a kink, with
+           two further objects that compose them and with the stopping rule an
+           object as well, chosen by the caller instead of buried in the loop.
+           Box constraints are removed by reparametrization rather than
            enforced.</p>
       </a>
 
@@ -218,13 +215,15 @@ library(statmodels7)
         <h3>modelterms<span>7</span></h3>
         <p>Terms that go into a model formula, each an object carrying its
            design block, its penalty and its blueprint for new data: the
-           parametric block, ridge, lasso, SCAD and MCP, grouped random
-           intercepts and slopes, penalized smooths of one and several
-           covariates, a nonlinear parametric term whose block is a
-           Jacobian, effects that change at estimated break-points,
-           score-driven dynamics and latent Markov regimes, and a censored
-           response on the left-hand side. The interpreter recognizes a term
-           by what it returns, so user-defined terms need no
+           parametric block, ridge, lasso, elastic net, SCAD and MCP, grouped
+           random intercepts and slopes, penalized smooths of one and several
+           covariates, a nonlinear parametric term whose block is a Jacobian,
+           effects that change at estimated break-points, score-driven
+           dynamics and latent Markov regimes, and a censored response on the
+           left-hand side. A term's own parameters take formulas of their own,
+           so a break-point or a persistence can be developed over covariates
+           or carry a random effect by group. The interpreter recognizes a
+           term by what it returns, so user-defined terms need no
            registration.</p>
       </a>
 
@@ -238,15 +237,42 @@ library(statmodels7)
            prior held at zero, with their normalizing constants kept.</p>
       </a>
 
-      <a class="card" href="https://statmodels7.github.io/statmodels7">
+      <a class="card" href="https://statmodels7.github.io/statmodels7/">
         <h3>statmodels<span>7</span></h3>
-        <p>The toolkit in one package: installing it installs the others and
-           attaching it attaches them. The modeling layer it will grow into
-           is still to come, with every parameter modeled rather than just
-           the mean.</p>
+        <p>The modeling layer, and the toolkit in one package.
+           <code>statmod()</code> reads a formula carrying one equation per
+           parameter of the distribution and fits it, with every term of
+           <code>modelterms7</code> admitted and their hyperparameters
+           estimated alongside the coefficients.
+           <code>rstatmod()</code> simulates from a model written the same
+           way. Installing this package installs the other eight and
+           attaching it attaches them.</p>
       </a>
 
     </div>
+  </section>
+
+  <section>
+    <h2>The modeling layer</h2>
+    <p>The packages above are the components of a model in which every
+       parameter of the distribution has an equation of its own, not only the
+       mean. One formula carries them all, the equations separated by a bar,
+       and each equation is built from the terms of
+       <code>modelterms7</code>: a smooth, a random effect, a penalized
+       block, a break-point, a score-driven level.</p>
+<pre>fit &lt;- statmod(y ~ s(x) + random(~ 1 | id) | sigma ~ s(x),
+               gaussian1_distrib(), dat)
+
+summary(fit)                    <span class="c"># coefficients and hyperparameters</span>
+statmod_certificate(fit)$state  <span class="c"># "converged"</span>
+predict(fit, "mu", newdata, se = TRUE)</pre>
+    <p>The hyperparameters of the smooth penalties are estimated by a marginal
+       likelihood whose gradient and Hessian are exact, or by an estimate of
+       prediction error; the hyperparameter of a penalty with a kink is chosen
+       along a path of its own values. A fit also carries a certificate
+       computed at the point it reached, which reports how far above its own
+       mode the inner fit stopped and whether the hyperparameters are
+       stationary there.</p>
   </section>
 
   <section>
@@ -257,8 +283,9 @@ library(statmodels7)
        orders are almost never available in existing packages, so they are
        approximated by differencing, or the method that needs them is not
        written at all.</p>
-    <p>Here they are computed in closed form, in C++, for every distribution,
-       with respect to the parameters, to the response, and to the
+    <p>Here they are computed in closed form for every distribution, in
+       compiled kernels wherever the arithmetic is heavy enough to pay for
+       one, with respect to the parameters, to the response, and to the
        <em>unconstrained</em> parameters behind each link, which is the scale
        an optimizer works on. Where a closed form does not exist, a documented
        numerical approximation takes its place.</p>
@@ -358,13 +385,19 @@ sum(distrib_pdf(d, mv_support(d, theta), theta))
        sampler and every derivative then follow from numerical fallbacks, and
        each closed form derived later takes over as soon as it is registered
        as a method.</p>
-    <p>The same holds for link functions, and will hold for model terms, bases
-       and penalties as those arrive. A user-written component works with
-       everything already here, and everything already here works with it.</p>
-    <p><code>check_distrib()</code> and <code>check_link()</code> exist for
-       that reason: they put a user-written component through the same
-       numerical validation the shipped ones face, so a wrong derivative is
-       caught before it reaches a model.</p>
+    <p>The same holds for link functions, bases, constrained parameters,
+       penalties and model terms. A user-written component works with
+       everything already here, and everything already here works with it: the
+       formula interpreter recognizes a term by what its call returns, so a
+       term somebody writes goes into a formula like any other, with nothing
+       to register anywhere.</p>
+    <p>Every kind carries a validator for that reason —
+       <code>check_distrib()</code>, <code>check_link()</code>,
+       <code>check_basis()</code>, <code>check_parameter()</code>,
+       <code>check_penalty()</code>, <code>check_term()</code> and
+       <code>check_optimizer()</code>. Each puts a user-written component
+       through the same numerical validation the shipped ones face, so a wrong
+       derivative is caught before it reaches a model.</p>
   </section>
 
   <section>

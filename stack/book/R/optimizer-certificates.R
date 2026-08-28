@@ -48,9 +48,17 @@
   # condition can be checked directly: |g'd| <= c2 |g0'd| at the accepted point.
   # Checked here through its consequence, that the search costs about one
   # gradient per iteration more than Armijo and still converges.
+  # The gradient rule is named rather than left to the default, because what
+  # this checks is how close the METHOD gets. Since optimizers7 0.6.0 the
+  # default is a disjunction -- gradient, objective, step -- and on Rosenbrock
+  # the step rule fires one iteration before the gradient rule does, leaving
+  # |g| = 8.1e-06 and |x - x*| = 1.1e-06 where crit_grad() reaches 4.4e-10 and
+  # 6.7e-11. A tolerance asserted on the point cannot be tighter than the rule
+  # that stopped the run.
   rw <- optimizers7::minimize(
-    optimizers7::bfgs(line_search = optimizers7::wolfe()), f, c(-1.2, 1),
-    gr = gr)
+    optimizers7::bfgs(line_search = optimizers7::wolfe(),
+                      criterion = optimizers7::crit_grad()),
+    f, c(-1.2, 1), gr = gr)
   if (!rw@converged || max(abs(rw@par - c(1, 1))) > 1e-6) {
     out <- c(out, "wolfe: did not reach the known minimum of rosenbrock")
   }
