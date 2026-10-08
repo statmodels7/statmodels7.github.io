@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>statmodels7 — an S7 toolkit for statistical modeling</title>
-<meta name="description" content="Distributions, link functions, optimizers, bases, constrained parameters, penalties and model terms as reusable S7 objects, and the layer that fits a model with them. The components every R modeling package rewrites internally, written once.">
+<meta name="description" content="Distributional regression with exact derivatives: every family carries its derivatives to the fifth order in closed form, any parameter can have smooth, random, penalized, break-point, score-driven or regime-switching terms, and every fit reports whether it converged.">
 <link rel="icon" href="logo/statmodels7.svg" type="image/svg+xml">
 <style>
   :root {
@@ -86,9 +86,12 @@
     <img src="logo/statmodels7.svg" alt="statmodels7">
     <div>
       <h1>statmodels7</h1>
-      <p>The components every statistical modeling package rewrites
-         internally, written once as reusable objects that carry every
-         derivative up to fourth order, exactly.</p>
+      <p><b>Distributional regression with exact derivatives</b></p>
+      <p style="margin-top: 10px; font-size: 1rem;">Every family in the toolkit
+         carries its derivatives to the fifth order in closed form. Any
+         parameter can have smooth, random, penalized, break-point,
+         score-driven or regime-switching terms, and every fit reports
+         whether it converged.</p>
     </div>
   </div>
 </header>
@@ -96,318 +99,112 @@
 <main class="wrap">
 
   <section>
-    <h2>The problem</h2>
-    <p>Almost every R package that fits statistical models contains its own
-       private copy of the same components: a handful of distributions and a
-       handful of link functions. They are written not as objects but as
-       internal helper functions, a <code>switch</code> on a character string,
-       a list of closures private to the package that owns them.</p>
-    <p>Written that way, they cannot be reused. A link function cannot be
-       handed to another package, a distribution cannot be asked for its third
-       derivative, and adding a new one means editing somebody else's source.
-       Because each package writes only what it needs, what is available is
-       almost always the density and the score, sometimes the Hessian, and
-       nothing beyond.</p>
-    <p>A Gamma is a fixed mathematical object. It can be written once,
-       correctly, with everything a modeling routine could want already
-       computed, and every package can then build on the same implementation.
-       That is what this toolkit provides.</p>
-    <p>The same argument applies to the optimizer. Almost every package that
-       fits a model carries its own, written inside the function that needs it:
-       a loop, a <code>while (!converged)</code>, a tolerance compared against
-       whatever quantity the author had to hand. The stopping rule, which
-       decides what the whole procedure means by <em>finished</em>, ends up as
-       a number that nothing outside the package can read or change.</p>
-  </section>
+    <h2>Example</h2>
+    <p>The number of calls of barn owl nestlings in 27 nests
+       (<code>Owls</code>, from <code>glmmTMB</code>). The counts are negative
+       binomial. The mean has a smooth effect of the arrival time of the
+       parent and a random effect of the nest, and the dispersion
+       <code>theta</code> has an equation of its own.</p>
+<pre>data(Owls, package = "glmmTMB")
+fit &lt;- statmod(SiblingNegotiation ~ FoodTreatment * SexParent +
+                 offset(logBroodSize) +
+                 s(ArrivalTime, smoother = bspline_smooth(k = 10)) +
+                 random(~ 1 | Nest) |
+                 theta ~ FoodTreatment + random(~ 1 | Nest),
+               distrib = negbin2_distrib(), data = Owls)
+statmod_certificate(fit)$state
+<span class="c">#&gt; [1] "converged"</span>
 
-  <section>
-    <h2>The book</h2>
-    <p>The book
-       <a href="https://statmodels7.github.io/book/"><b>statmodels7:
-       Statistical models built from reusable parts</b></a> is generated from
-       the same source tree as the packages. Its first part fits linear,
-       generalized linear, additive and mixed models with
-       <code>statmod()</code>, with an equation for every parameter of the
-       distribution. The second part covers penalized terms, break-points,
-       nonlinear terms and time series, and the third covers the choice among
-       models. The fourth part shows how to write a distribution, a link, a
-       model term and an optimizer, and how <code>statmod()</code> then uses
-       them like the parts of the toolkit.</p>
+summary(fit)
+<span class="c">#&gt; Distribution: negbin2     Observations: 599</span>
+<span class="c">#&gt;</span>
+<span class="c">#&gt; === mu   [log link]</span>
+<span class="c">#&gt;</span>
+<span class="c">#&gt; Parametric terms</span>
+<span class="c">#&gt;                                        estimate      se       z         p   lower  upper</span>
+<span class="c">#&gt;   (Intercept)                            0.6176 0.08492   7.273 3.513e-13  0.4512 0.7841</span>
+<span class="c">#&gt;   FoodTreatmentSatiated                 -0.5041  0.1562  -3.228  0.001248 -0.8103 -0.198</span>
+<span class="c">#&gt;   SexParentMale                        0.008775 0.09152 0.09588  0.923616 -0.1706 0.1881</span>
+<span class="c">#&gt;   FoodTreatmentSatiated:SexParentMale    0.1602  0.2005  0.7991  0.424205 -0.2327 0.5531</span>
+<span class="c">#&gt;</span>
+<span class="c">#&gt; s(ArrivalTime, smoother = bspline_smooth(k = 10))   [9 coefficients, edf 6.03]</span>
+<span class="c">#&gt;                  estimate     se      z         p   lower   upper</span>
+<span class="c">#&gt;   lambda [reml]     1.808  1.489                   0.3599   9.085</span>
+<span class="c">#&gt;   lin             -0.2424 0.0376 -6.448 1.133e-10 -0.3161 -0.1688</span>
+<span class="c">#&gt;</span>
+<span class="c">#&gt; random(~1 | Nest)   [27 coefficients, edf 11.51]</span>
+<span class="c">#&gt;                 estimate      se  lower  upper</span>
+<span class="c">#&gt;   sigma [reml]    0.2041 0.06698 0.1073 0.3883</span>
+<span class="c">#&gt;   predicted effects (27 levels of Nest)</span>
+<span class="c">#&gt;                     Min.  1st Qu.   Median Mean 3rd Qu.   Max.</span>
+<span class="c">#&gt;     (Intercept)  -0.2419 -0.06836 -0.01951    0 0.06315 0.3228</span>
+<span class="c">#&gt;</span>
+<span class="c">#&gt; === theta   [log link]</span>
+<span class="c">#&gt;</span>
+<span class="c">#&gt; Parametric terms</span>
+<span class="c">#&gt;                          estimate     se      z         p  lower  upper</span>
+<span class="c">#&gt;   (Intercept)              0.7624 0.2148   3.55 0.0003858 0.3414  1.183</span>
+<span class="c">#&gt;   FoodTreatmentSatiated    -1.837 0.1846 -9.953   &lt; 1e-16 -2.199 -1.475</span>
+<span class="c">#&gt;</span>
+<span class="c">#&gt; random(~1 | Nest)   [27 coefficients, edf 20.29]</span>
+<span class="c">#&gt;                 estimate     se  lower upper</span>
+<span class="c">#&gt;   sigma [reml]    0.8611 0.1686 0.5866 1.264</span>
+<span class="c">#&gt;   predicted effects (27 levels of Nest)</span>
+<span class="c">#&gt;                    Min. 1st Qu.   Median    Mean 3rd Qu.  Max.</span>
+<span class="c">#&gt;     (Intercept)  -1.226  -0.663 -0.08498 0.03875  0.6987 1.272</span>
+<span class="c">#&gt;</span>
+<span class="c">#&gt; 95% intervals, bayesian variance</span>
+<span class="c">#&gt; conditional log-likelihood -1610.043711    effective df 43.83</span>
+<span class="c">#&gt; cAIC 3307.756    cBIC 3500.420</span>
+<span class="c">#&gt; fitted in 2.29 s</span>
+<span class="c">#&gt; inner   max |grad|/se 8.6e-15   min eigen 0.09</span>
+<span class="c">#&gt; outer   max |grad|/se 1e-08   min eigen 0.5</span></pre>
   </section>
 
   <section>
     <h2>Installation</h2>
-    <p>The toolkit is not on CRAN. One command installs every package of it,
-       and one attaches them all.</p>
 <pre><span class="c"># install.packages("pak")</span>
 pak::pak("statmodels7/statmodels7")
 
 library(statmodels7)
-<span class="c">#&gt; -- Attaching the statmodels7 toolkit</span>
-<span class="c">#&gt; v numericals7      v basis7</span>
-<span class="c">#&gt; v linkfunctions7   v parameters7</span>
-<span class="c">#&gt; v distributions7   v penalties7</span>
-<span class="c">#&gt; v optimizers7      v modelterms7</span></pre>
-    <p>Each package installs on its own too, with
-       <code>pak::pak("statmodels7/&lt;package&gt;")</code>.</p>
+<span class="c">#&gt; -- Attaching the statmodels7 toolkit 0.198.2</span>
+<span class="c">#&gt; v basis7         0.14.0   v numericals7    0.21.0</span>
+<span class="c">#&gt; v distributions7 0.75.1   v optimizers7    0.13.0</span>
+<span class="c">#&gt; v linkfunctions7 0.5.0    v parameters7    0.22.0</span>
+<span class="c">#&gt; v modelterms7    0.95.1   v penalties7     0.30.0</span></pre>
   </section>
 
   <section>
-    <h2>The packages</h2>
-    <div class="cards">
-
-      <a class="card" href="https://statmodels7.github.io/numericals7/">
-        <h3>numericals<span>7</span></h3>
-        <p>The numerical layer everything above consumes: one
-           finite-difference stencil library, quadrature and series summation
-           vectorized over the parameters, the combinatorial enumerations
-           behind the chain rules, and special functions that stay finite at
-           extreme arguments.</p>
-      </a>
-
-      <a class="card" href="https://statmodels7.github.io/linkfunctions7/">
-        <h3>linkfunctions<span>7</span></h3>
-        <p>Fourteen constructors producing sixteen link classes, each carrying
-           exact derivatives to fourth order in both directions, with
-           numerical fallbacks for user-defined links and a diagnostic that
-           verifies every order.</p>
-      </a>
-
-      <a class="card" href="https://statmodels7.github.io/distributions7/">
-        <h3>distributions<span>7</span></h3>
-        <p>Forty-two univariate distributions and four multivariate ones
-           — one name per parametrization where a family has several —
-           carrying closed-form score, information and third and fourth
-           derivatives — with respect to the parameters, the response, and the
-           unconstrained scale.</p>
-      </a>
-
-      <a class="card" href="https://statmodels7.github.io/optimizers7/">
-        <h3>optimizers<span>7</span></h3>
-        <p>Twelve algorithms as objects, from Newton and L-BFGS to simulated
-           annealing and a proximal method for an objective with a kink, with
-           two further objects that compose them and with the stopping rule an
-           object as well, chosen by the caller instead of buried in the loop.
-           Box constraints are removed by reparametrization rather than
-           enforced.</p>
-      </a>
-
-      <a class="card" href="https://statmodels7.github.io/basis7/">
-        <h3>basis<span>7</span></h3>
-        <p>Bases that can be evaluated, differentiated to any order,
-           integrated, and asked for their inner products: the Gram matrix a
-           roughness penalty integrates, exact rather than approximated on a
-           grid.</p>
-      </a>
-
-      <a class="card" href="https://statmodels7.github.io/parameters7/">
-        <h3>parameters<span>7</span></h3>
-        <p>Constrained parameters as objects: covariance and precision
-           matrices, probability vectors on the simplex, transition matrices
-           &mdash; each a map from an unconstrained vector, with exact
-           derivatives to fourth order, log-determinants and solves.
-           Rank-deficient matrices are admitted, which is what a smoothing
-           penalty requires.</p>
-      </a>
-
-      <a class="card" href="https://statmodels7.github.io/modelterms7/">
-        <h3>modelterms<span>7</span></h3>
-        <p>Terms that go into a model formula, each an object carrying its
-           design block, its penalty and its blueprint for new data: the
-           parametric block, ridge, lasso, elastic net, SCAD and MCP, grouped
-           random intercepts and slopes, penalized smooths of one and several
-           covariates, a nonlinear parametric term whose block is a Jacobian,
-           effects that change at estimated break-points, score-driven
-           dynamics and latent Markov regimes, and a censored response on the
-           left-hand side. A term's own parameters take formulas of their own,
-           so a break-point or a persistence can be developed over covariates
-           or carry a random effect by group. The interpreter recognizes a
-           term by what it returns, so user-defined terms need no
-           registration.</p>
-      </a>
-
-      <a class="card" href="https://statmodels7.github.io/penalties7/">
-        <h3>penalties<span>7</span></h3>
-        <p>Penalties as objects a fitting routine can interrogate: the value
-           with its normalizing constant, exact derivatives in the
-           coefficients and the hyperparameters, the mixed block, and the
-           rank, null space and log pseudo-determinant a marginal criterion
-           consumes. The ridge and the lasso are the Gaussian and the Laplace
-           prior held at zero, with their normalizing constants kept.</p>
-      </a>
-
-      <a class="card" href="https://statmodels7.github.io/statmodels7/">
-        <h3>statmodels<span>7</span></h3>
-        <p>The modeling layer, and the toolkit in one package.
-           <code>statmod()</code> reads a formula carrying one equation per
-           parameter of the distribution and fits it, with every term of
-           <code>modelterms7</code> admitted and their hyperparameters
-           estimated alongside the coefficients.
-           <code>rstatmod()</code> simulates from a model written the same
-           way. Installing this package installs the other eight and
-           attaching it attaches them.</p>
-      </a>
-
-    </div>
+    <h2>The book</h2>
+    <p><a href="https://statmodels7.github.io/book/"><b>statmodels7:
+       Statistical models built from reusable parts</b></a> covers linear,
+       generalized linear, additive, mixed, penalized, break-point, nonlinear
+       and time-series models fitted with <code>statmod()</code>, and how to
+       write a new distribution, link, model term and optimizer.</p>
   </section>
 
   <section>
-    <h2>The modeling layer</h2>
-    <p>The packages above are the components of a model in which every
-       parameter of the distribution has an equation of its own, not only the
-       mean. One formula carries them all, the equations separated by a bar,
-       and each equation is built from the terms of
-       <code>modelterms7</code>: a smooth, a random effect, a penalized
-       block, a break-point, a score-driven level.</p>
-<pre>fit &lt;- statmod(y ~ s(x) + random(~ 1 | id) | sigma ~ s(x),
-               gaussian1_distrib(), dat)
-
-summary(fit)                    <span class="c"># coefficients and hyperparameters</span>
-statmod_certificate(fit)$state  <span class="c"># "converged"</span>
-predict(fit, "mu", newdata, se = TRUE)</pre>
-    <p>The hyperparameters of the smooth penalties are estimated by a marginal
-       likelihood whose gradient and Hessian are exact, or by an estimate of
-       prediction error; the hyperparameter of a penalty with a kink is chosen
-       along a path of its own values. A fit also carries a certificate
-       computed at the point it reached, which reports how far above its own
-       mode the inner fit stopped and whether the hyperparameters are
-       stationary there.</p>
-  </section>
-
-  <section>
-    <h2>The derivatives</h2>
-    <p>A modeling routine needs the score to take a step, the information for
-       standard errors, and the third and fourth derivatives for higher-order
-       corrections, bias adjustment or saddlepoint approximations. The higher
-       orders are almost never available in existing packages, so they are
-       approximated by differencing, or the method that needs them is not
-       written at all.</p>
-    <p>Here they are computed in closed form for every distribution, in
-       compiled kernels wherever the arithmetic is heavy enough to pay for
-       one, with respect to the parameters, to the response, and to the
-       <em>unconstrained</em> parameters behind each link, which is the scale
-       an optimizer works on. Where a closed form does not exist, a documented
-       numerical approximation takes its place.</p>
-<pre><span class="c"># everything below is exact, none of it is a finite difference</span>
-d &lt;- gamma2_distrib()
-distrib_gradient(d, y, theta)                   <span class="c"># score</span>
-distrib_expected_hessian(d, y, theta)           <span class="c"># information</span>
-distrib_deriv4(d, y, theta)                     <span class="c"># fourth order</span>
-distrib_gradient(d, y, theta, scale = "link")   <span class="c"># w.r.t. eta</span></pre>
-  </section>
-
-  <section>
-    <h2>Matrix parameters</h2>
-    <p>A parameter is not always a number. A covariance matrix must be positive
-       definite, a correlation matrix has ones on its diagonal, a spline
-       penalty is positive semidefinite and singular by construction. A link
-       function cannot express any of these, because it acts on one number at a
-       time and produces a diagonal Jacobian, while changing one free value of
-       a matrix parametrization changes an entire row and column.</p>
-    <p><code>parameters7</code> supplies the missing object: a map from an
-       unconstrained vector to a constrained matrix, exact to fourth order,
-       together with the log-determinant and the solves a likelihood asks for.
-       Its consumers are the multivariate distributions below and
-       <code>penalties7</code>.</p>
-<pre><span class="c"># a covariance, with every free value ranging over R</span>
-s &lt;- log_cholesky(3)
-param_value(s, eta)            <span class="c"># the matrix</span>
-param_d1(s, eta)               <span class="c"># dM/deta, one per free value</span>
-param_logdet(s, eta)           <span class="c"># log|M|, linear in eta here</span>
-
-<span class="c"># a second-difference penalty: singular, and that is the point</span>
-d &lt;- diff(diag(10), differences = 2)
-p &lt;- scaled_matrix(crossprod(d))
-p@rank                         <span class="c"># 8 of 10</span>
-param_dlogdet(p, eta)          <span class="c"># the rank, at any scale</span></pre>
-  </section>
-
-  <section>
-    <h2>Vectors, not just numbers</h2>
-    <p>A multivariate distribution is the same object with a matrix parameter.
-       Its mean contributes one scalar per coordinate and the covariance
-       contributes the free values of whatever structure parametrizes it, so
-       the parameter vector stays a list of numbers and every generic in the
-       package indexes it as it always did — including the derivatives, the
-       validator and the fitting routine.</p>
-<pre>d &lt;- mvgaussian_distrib(3)
-d@params                 <span class="c"># the mean, then the structure</span>
-
-fit &lt;- fit_distrib(d, y) <span class="c"># the same fit_distrib()</span>
-plot(fit)                <span class="c"># contours against the data</span>
-
-<span class="c"># heavy-tailed: nu is estimated with everything else</span>
-mvstudent_t_distrib(3)</pre>
-    <p>Where a fit begins is part of the model, not of the implementation, so a
-       family is asked for its own starting value. A family with an estimator
-       of its own returns it: a multivariate gaussian starts at the sample mean and
-       covariance, which for an unstructured matrix is the answer, and the fit
-       confirms it in a single iteration.</p>
-    <p>A gaussian may be parametrized by its precision instead of its
-       covariance, which is a different model whenever the structure is not
-       closed under inversion, and the constructor takes either side; the
-       parameter names say which of the two, so a printed table is never
-       ambiguous. The Student <em>t</em> keeps its scale matrix and its
-       covariance apart, so it can be described and fitted at degrees of
-       freedom where the second moment does not exist.</p>
-    <p>Not every multivariate family is elliptical, and the two that are not
-       are what show which parts of the construction depended on that. The
-       Dirichlet lives on the simplex, so its covariance is singular and its
-       marginals are beta rather than Dirichlet; the multinomial is discrete,
-       and being discrete it can hand back its own support, so its
-       normalization and its expected information are exact sums rather than
-       samples. Both take their mean from a simplex parameter, and nothing in
-       the derivative machinery had to be told.</p>
-<pre>d &lt;- multinomial_distrib(3, size = 5)
-sum(distrib_pdf(d, mv_support(d, theta), theta))
-<span class="c">#&gt; [1] 1</span></pre>
-    <p>A Cholesky coordinate is not something anyone reads, and it is not what
-       a fit prints. What it prints is the quantities that are read: standard
-       deviations and correlations, each with a standard error carried across
-       by the delta method and an interval built on a scale it cannot escape
-       from — the log scale for a standard deviation, Fisher's <em>z</em> for a
-       correlation. A precision parametrization adds the conditional variances
-       and partial correlations, which are what it describes directly.</p>
-<pre>mv_summary(fit)
-<span class="c">#            Estimate  Std. Error     2.5%    97.5%</span>
-<span class="c"># sd_v1        1.0687      0.0182   1.0337   1.1048</span>
-<span class="c"># sd_v2        0.8956      0.0156   0.8655   0.9268</span>
-<span class="c"># cor_v1_v2    0.4254      0.0197   0.3860   0.4634</span></pre>
-  </section>
-
-  <section>
-    <h2>Built to be extended</h2>
-    <p>A toolkit that only worked for the forty-six distributions it ships
-       with would have solved nothing. Everything dispatches on S7 generics, so a
-       user-defined distribution is a subclass with one method, <b>the
-       density</b>. The distribution function, the quantile function, the
-       sampler and every derivative then follow from numerical fallbacks, and
-       each closed form derived later takes over as soon as it is registered
-       as a method.</p>
-    <p>The same holds for link functions, bases, constrained parameters,
-       penalties and model terms. A user-written component works with
-       everything already here, and everything already here works with it: the
-       formula interpreter recognizes a term by what its call returns, so a
-       term somebody writes goes into a formula like any other, with nothing
-       to register anywhere.</p>
-    <p>Every kind carries a validator for that reason —
-       <code>check_distrib()</code>, <code>check_link()</code>,
-       <code>check_basis()</code>, <code>check_parameter()</code>,
-       <code>check_penalty()</code>, <code>check_term()</code> and
-       <code>check_optimizer()</code>. Each puts a user-written component
-       through the same numerical validation the shipped ones face, so a wrong
-       derivative is caught before it reaches a model.</p>
-  </section>
-
-  <section>
-    <h2>Conventions</h2>
+    <h2>Packages</h2>
     <ul class="plain">
-      <li>Every package name ends in <b>7</b> — the S7 object system
-          everything is built on.</li>
-      <li>Derivatives are exact and analytical wherever a closed form exists,
-          and numerically validated where one does not.</li>
-      <li>Nothing is private. What the packages use internally is exported
-          and documented.</li>
+      <li><a href="https://statmodels7.github.io/statmodels7/"><code>statmodels7</code></a>:
+          <code>statmod()</code>, the criteria for the hyperparameters,
+          inference and simulation</li>
+      <li><a href="https://statmodels7.github.io/modelterms7/"><code>modelterms7</code></a>:
+          model terms and the formula interpreter</li>
+      <li><a href="https://statmodels7.github.io/distributions7/"><code>distributions7</code></a>:
+          distributions with derivatives to the fifth order</li>
+      <li><a href="https://statmodels7.github.io/linkfunctions7/"><code>linkfunctions7</code></a>:
+          link functions</li>
+      <li><a href="https://statmodels7.github.io/optimizers7/"><code>optimizers7</code></a>:
+          optimizers and stopping rules</li>
+      <li><a href="https://statmodels7.github.io/penalties7/"><code>penalties7</code></a>:
+          penalties</li>
+      <li><a href="https://statmodels7.github.io/basis7/"><code>basis7</code></a>:
+          bases and smoothers</li>
+      <li><a href="https://statmodels7.github.io/parameters7/"><code>parameters7</code></a>:
+          constrained parameters</li>
+      <li><a href="https://statmodels7.github.io/numericals7/"><code>numericals7</code></a>:
+          numerical routines</li>
     </ul>
   </section>
 
