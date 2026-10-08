@@ -118,10 +118,10 @@ assert_statmod_ok <- function() {
   dc$y <- sin(1.4 * dc$z) + stats::rnorm(nb, sd = 0.4)
   gau <- distributions7::gaussian1_distrib()
 
-  fb <- statmod(y ~ s(z, k = 8), gau, dc)
+  fb <- statmod(y ~ s(z, bspline_smooth(k = 8)), gau, dc)
   sp <- fb@spec
   de <- statmod_design(sp)
-  key <- "s(z, k = 8)"
+  key <- "s(z, bspline_smooth(k = 8))"
   idx <- statmodels7:::outer_hyper_index(
     sp, statmodels7:::statmod_blocks(sp, de))
 
@@ -137,7 +137,7 @@ assert_statmod_ok <- function() {
   }
   mode_at <- function(lam) {
     statmod(stats::as.formula(
-      sprintf("y ~ s(z, k = 8, lambda = %.17g)", lam)), gau, dc)@coefficients
+      sprintf("y ~ s(z, bspline_smooth(k = 8), hyper = c(lambda = %.17g))", lam)), gau, dc)@coefficients
   }
   crit_at <- function(lam) {
     v <- statmodels7:::statmod_marginal(sp, de, mode_at(lam), hy_at(lam),
@@ -218,7 +218,7 @@ assert_statmod_ok <- function() {
   # The smoothing parameter is held. What is being checked is the blueprint,
   # not the search over it, and holding it keeps the check independent of
   # where a criterion happens to stop.
-  sf <- statmod(y ~ s(z, k = 8, lambda = 2),
+  sf <- statmod(y ~ s(z, bspline_smooth(k = 8), hyper = c(lambda = 2)),
                 distributions7::gaussian1_distrib(), db)
 
   # A subset over which a rebuilt basis would put its knots somewhere else.

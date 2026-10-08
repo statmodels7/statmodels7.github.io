@@ -191,7 +191,7 @@ assert_terms_ok <- function() {
 
   # 10. the smoothed construction is a Jacobian block, and away from the
   #     break-point its step agrees with the sharp one
-  sm <- penalties7::smooth_probit()
+  sm <- numericals7::smooth_probit()
   bsm <- term_build(seg(x, psi = 4.7, smoothed = sm), sx)
   if (!term_jacobian_block(bsm) || term_jacobian_block(term_build(jump(x), sx))) {
     fail("which constructions report a Jacobian block")
@@ -201,7 +201,7 @@ assert_terms_ok <- function() {
   hw <- bsm@blueprint$smooth$width
   uu <- c(-40, -20, 20, 40) * hw
   sharp <- as.numeric(uu > 0)
-  smoothstep <- (1 + penalties7::smoother_deriv(sm, uu, hw, 1L)) / 2
+  smoothstep <- (1 + numericals7::smoother_deriv(sm, uu, hw, 1L)) / 2
   if (max(abs(smoothstep - sharp)) > 1e-6) {
     fail("the smoothed step against the sharp one away from the corner")
   }

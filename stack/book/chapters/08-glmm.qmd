@@ -1,0 +1,721 @@
+# Generalized linear mixed models {#sec-glmm}
+
+```{r}
+#| label: setup-08
+#| include: false
+source("R/_setup.R")
+source("R/glmm-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+```
+
+A generalized linear mixed model adds random effects to the linear predictor
+of a generalized linear model [@breslow1993]. Given the random effects $b_i$
+of group $i$, the observations of the group are independent, with
+$$
+y_{ij} \mid b_i \sim F\{\, h^{-1}(\eta_{ij})\,\}, \qquad
+\eta_{ij} = x_{ij}^\top\beta + z_{ij}^\top b_i, \qquad
+b_i \sim \mathrm{N}(0, \Sigma_b),
+$$
+where $F$ is a Poisson, Bernoulli, negative binomial or any other
+distribution, and $h$ is the link of its parameter. The likelihood of the
+fixed effects and of $\Sigma_b$ is an integral over the random effects of
+each group:
+$$
+L(\beta, \Sigma_b) = \prod_i \int \prod_j f\{y_{ij} \mid
+  h^{-1}(x_{ij}^\top\beta + z_{ij}^\top b)\}\, \phi(b; 0, \Sigma_b)\, db .
+$$
+For a gaussian response with the identity link this integral has a closed
+form, which is why the models of @sec-lmm are exact. For any other
+distribution it has none. `statmodels7` replaces it with the Laplace
+approximation [@tierney1986]: the integrand is approximated by a gaussian
+density centred at its mode $\hat b_i$, and
+$$
+\log \int e^{g(b)}\, db \approx g(\hat b) - \tfrac12 \log\det\{-g''(\hat b)\}
++ \tfrac{d}{2}\log(2\pi),
+$$
+where $g$ is the logarithm of the integrand and $d$ the dimension of $b$.
+In `statmodels7` the random effects are coefficients with a penalty, so
+$\hat b$ is the mode of the penalized likelihood, and the REML criterion
+applies the same approximation to the fixed effects of the mean as well
+(@sec-beyond-outer). The packages `glmmTMB` [@brooks2017] and `lme4`
+[@bates2015] use the same approximation by default, and we compare with them
+throughout the chapter.
+
+The other parameters of the distribution can have random effects too: we
+give random effects to the dispersion $\theta$ of a negative binomial and to
+the probability of an extra zero in a zero-inflated model. The last section
+shows what a link that is not the identity does to the predictions for a new
+group.
+
+## Counts with a random intercept {#sec-glmm-poisson}
+
+We return to the `epil` data of @sec-beyond-random: the number of epileptic
+seizures of 59 patients in four periods of two weeks, in a trial of the drug
+progabide [@thall1990]. The covariates are the treatment `trt`, the centered
+logarithm of the baseline count `lbase`, the centered logarithm of the age
+`lage` and the indicator `V4` of the fourth period. Each patient has a random
+intercept on the log scale [@breslow1993]:
+$$
+y_{ij} \mid b_i \sim \mathrm{Poisson}(\mu_{ij}), \qquad
+\log\mu_{ij} = x_{ij}^\top\beta + b_i, \qquad b_i \sim \mathrm{N}(0, \tau).
+$$
+
+```{r}
+#| label: fit-epil
+data(epil, package = "MASS")
+epil$subject <- factor(epil$subject)
+fit_ep <- statmod(y ~ lbase * trt + lage + V4 + random(~ 1 | subject),
+                  distrib = poisson_distrib(), data = epil)
+summary(fit_ep)
+```
+
+A coefficient is a log rate ratio for one patient: given $b_i$, the fourth
+period has $\exp(\hat\beta_{V4}) = `r fmt(exp(coef(fit_ep)$mu[["V4"]]), 3)`$
+times the seizures of the other three. The standard deviation of the random
+intercepts is $\hat\tau = `r fmt(hyper(fit_ep)$estimate, 3)`$, so two patients
+with the same covariates can differ in their rate by a factor of
+$\exp(2 \times 1.96\,\hat\tau) = `r fmt(exp(2 * 1.96 * hyper(fit_ep)$estimate), 1)`$.
+
+With `REML = TRUE`, `glmmTMB()` integrates the fixed effects as well, and it
+gives the same fit:
+
+```{r}
+#| label: tmb-epil
+tmb_ep <- glmmTMB::glmmTMB(y ~ lbase * trt + lage + V4 + (1 | subject),
+                           family = poisson, data = epil, REML = TRUE)
+glmmTMB::fixef(tmb_ep)$cond
+glmmTMB::VarCorr(tmb_ep)
+logLik(tmb_ep)
+logLik(fit_ep, type = "marginal")
+```
+
+### Maximum likelihood
+
+The functions `glmer()` and `glmmTMB()` estimate by maximum likelihood by
+default. With `ml()` the fixed effects of the mean are held at the joint mode
+of the fixed and random effects, and the criterion integrates the random
+effects alone (@sec-beyond-outer). With `ml(marginal = "all")` the fixed
+effects are also chosen to maximize the Laplace approximation of
+$L(\beta, \tau)$, which is what `glmer()` does:
+
+```{r}
+#| label: ml-epil
+fit_ep_ml <- statmod(y ~ lbase * trt + lage + V4 + random(~ 1 | subject),
+                     distrib = poisson_distrib(), data = epil,
+                     outer_criterion = ml())
+fit_ep_all <- statmod(y ~ lbase * trt + lage + V4 + random(~ 1 | subject),
+                      distrib = poisson_distrib(), data = epil,
+                      outer_criterion = ml(marginal = "all"))
+glmer_ep <- lme4::glmer(y ~ lbase * trt + lage + V4 + (1 | subject),
+                        family = poisson, data = epil)
+data.frame(
+  fit = c("ml()", "ml(marginal = \"all\")", "glmer"),
+  tau = c(hyper(fit_ep_ml)$estimate, hyper(fit_ep_all)$estimate,
+          attr(lme4::VarCorr(glmer_ep)$subject, "stddev")),
+  trt = c(coef(fit_ep_ml)$mu[["trtprogabide"]],
+          coef(fit_ep_all)$mu[["trtprogabide"]],
+          lme4::fixef(glmer_ep)[["trtprogabide"]]),
+  logLik = c(logLik(fit_ep_ml, type = "marginal"),
+             logLik(fit_ep_all, type = "marginal"), logLik(glmer_ep)))
+```
+
+The second row, `ml(marginal = "all")`, agrees with `glmer()` in the third
+row to four digits. The first row differs from both slightly: for a gaussian
+response the joint mode and the maximum of $L$ give the same fixed effects, but for a Poisson response the determinant in the Laplace
+approximation depends on $\beta$, so the two differ.
+
+## Binary responses {#sec-glmm-bernoulli}
+
+The data frame `bacteria` of the `MASS` package records the presence of the
+bacterium *H. influenzae* in 50 children with otitis media, at weeks 0, 2,
+4, 6 and 11 [@venables2002, sec. 10.4]. The children received a placebo, a
+drug, or the drug with encouragement to take it (`drug+`). We code the
+response as 0 and 1 and compare the visits after week 2 with the first two:
+$$
+y_{ij} \mid b_i \sim \mathrm{Bernoulli}(p_{ij}), \qquad
+\mathrm{logit}\, p_{ij} = x_{ij}^\top\beta + b_i, \qquad
+b_i \sim \mathrm{N}(0, \tau).
+$$
+
+```{r}
+#| label: fit-bacteria
+data(bacteria, package = "MASS")
+bacteria$y <- as.integer(bacteria$y == "y")
+bacteria$late <- as.integer(bacteria$week > 2)
+fit_bc <- statmod(y ~ trt + late + random(~ 1 | ID),
+                  distrib = bernoulli_distrib(), data = bacteria)
+summary(fit_bc)
+```
+
+The coefficients are log odds ratios for one child. The coefficients of both
+treatments are negative, and after week 2 the odds are
+$\exp(\hat\beta_{\mathrm{late}}) = `r fmt(exp(coef(fit_bc)$mu[["late"]]), 3)`$
+times those of the first two visits. The children differ a lot: the
+standard deviation of the random intercepts is
+$\hat\tau = `r fmt(hyper(fit_bc)$estimate, 3)`$ on the logit scale.
+
+`glmer()` maximizes the Laplace approximation of the likelihood, and the fit
+of `ml(marginal = "all")` is the same:
+
+```{r}
+#| label: glmer-bacteria
+fit_bc_all <- statmod(y ~ trt + late + random(~ 1 | ID),
+                      distrib = bernoulli_distrib(), data = bacteria,
+                      outer_criterion = ml(marginal = "all"))
+glmer_bc <- lme4::glmer(y ~ trt + late + (1 | ID), family = binomial,
+                        data = bacteria)
+coef(fit_bc_all)$mu[1:4]
+lme4::fixef(glmer_bc)
+c(statmod = hyper(fit_bc_all)$estimate,
+  glmer = attr(lme4::VarCorr(glmer_bc)$ID, "stddev"))
+logLik(fit_bc_all, type = "marginal")
+logLik(glmer_bc)
+```
+
+### The accuracy of the Laplace approximation
+
+Each child has at most five binary observations, and with so little
+information on each $b_i$ the integrand of a group is far from gaussian. The
+Laplace approximation then underestimates the variance of the random effects
+[@breslow1995]. The function `glmer()` can compute the integral of each
+group with adaptive Gauss-Hermite quadrature, which is exact as the number of
+nodes grows. With 25 nodes:
+
+```{r}
+#| label: agq-bacteria
+glmer_25 <- lme4::glmer(y ~ trt + late + (1 | ID), family = binomial,
+                        data = bacteria, nAGQ = 25)
+lme4::fixef(glmer_25)
+attr(lme4::VarCorr(glmer_25)$ID, "stddev")
+logLik(glmer_25)
+```
+
+The standard deviation from the quadrature is
+`r fmt(attr(lme4::VarCorr(glmer_25)$ID, "stddev"), 3)`, against
+`r fmt(hyper(fit_bc_all)$estimate, 3)` from the Laplace approximation, and the
+fixed effects move by less than their standard errors. The conclusions do not
+change here, but with fewer observations per group the difference grows. The
+Laplace approximation is what `statmodels7` computes; the comparison with
+`glmer(nAGQ = )` is a way to check it on a model with one random intercept.
+
+## Negative binomial counts {#sec-glmm-negbin}
+
+The data frame `Owls` of the `glmmTMB` package records the begging of barn
+owl nestlings in 27 nests [@roulin2007; @zuur2009]. The response
+`SiblingNegotiation` is the number of calls the nestlings made in the 30
+seconds before a parent arrived at the nest. The covariates are the food
+treatment of the nest (`Deprived` or `Satiated`), the sex of the parent that
+arrived, and the number of nestlings, which we enter as an offset so that
+the model describes the calls per nestling. The counts vary much more than a
+Poisson distribution allows, so we use the negative binomial distribution of
+@sec-glm-overdispersion, with $\mathrm{Var}(y) = \mu + \mu^2/\theta$, and a
+random intercept for each nest:
+$$
+\log\mu_{ij} = \log n_{ij} + x_{ij}^\top\beta + b_i, \qquad
+b_i \sim \mathrm{N}(0, \tau).
+$$
+
+```{r}
+#| label: fit-owls
+data(Owls, package = "glmmTMB")
+fit_ow1 <- statmod(SiblingNegotiation ~ FoodTreatment * SexParent +
+                     offset(logBroodSize) + random(~ 1 | Nest),
+                   distrib = negbin2_distrib(), data = Owls)
+summary(fit_ow1)
+```
+
+`glmmTMB()` with the family `nbinom2` has the same parametrization:
+
+```{r}
+#| label: tmb-owls
+tmb_ow1 <- glmmTMB::glmmTMB(SiblingNegotiation ~ FoodTreatment * SexParent +
+                              offset(logBroodSize) + (1 | Nest),
+                            family = glmmTMB::nbinom2, data = Owls,
+                            REML = TRUE)
+glmmTMB::fixef(tmb_ow1)$cond
+glmmTMB::sigma(tmb_ow1)
+exp(coef(fit_ow1)$theta[[1]])
+logLik(tmb_ow1)
+logLik(fit_ow1, type = "marginal")
+```
+
+The function `sigma()` of `glmmTMB` returns $\hat\theta$ for this family.
+
+### Random effects on the dispersion
+
+The equation of $\theta$ can have covariates and random effects of its own.
+We let the dispersion depend on the food treatment and on the nest:
+$$
+\log\theta_{ij} = \gamma_0 + \gamma_1 s_{ij} + c_i, \qquad
+c_i \sim \mathrm{N}(0, \kappa),
+$$
+where $s_{ij}$ is 1 for a satiated nest and $c_i$ is independent of $b_i$.
+
+```{r}
+#| label: fit-owls-theta
+fit_owf <- statmod(SiblingNegotiation ~ FoodTreatment * SexParent +
+                     offset(logBroodSize) + random(~ 1 | Nest) |
+                     theta ~ FoodTreatment,
+                   distrib = negbin2_distrib(), data = Owls)
+fit_ow2 <- statmod(SiblingNegotiation ~ FoodTreatment * SexParent +
+                     offset(logBroodSize) + random(~ 1 | Nest) |
+                     theta ~ FoodTreatment + random(~ 1 | Nest),
+                   distrib = negbin2_distrib(), data = Owls)
+summary(fit_ow2)
+```
+
+In `glmmTMB()` the equation of $\theta$ is the argument `dispformula`:
+
+```{r}
+#| label: tmb-owls-theta
+tmb_ow2 <- glmmTMB::glmmTMB(SiblingNegotiation ~ FoodTreatment * SexParent +
+                              offset(logBroodSize) + (1 | Nest),
+                            dispformula = ~ FoodTreatment + (1 | Nest),
+                            family = glmmTMB::nbinom2, data = Owls,
+                            REML = TRUE)
+glmmTMB::fixef(tmb_ow2)
+glmmTMB::VarCorr(tmb_ow2)
+logLik(tmb_ow2)
+logLik(fit_ow2, type = "marginal")
+```
+
+The three models have the same fixed effects in the mean, so we compare them
+with their restricted log-likelihoods:
+
+```{r}
+#| label: lr-owls
+l1 <- as.numeric(logLik(fit_ow1, type = "marginal"))
+lf <- as.numeric(logLik(fit_owf, type = "marginal"))
+l2 <- as.numeric(logLik(fit_ow2, type = "marginal"))
+lr_food <- 2 * (lf - l1)
+lr_nest <- 2 * (l2 - lf)
+c(lr_food = lr_food, lr_nest = lr_nest)
+pchisq(lr_food, df = 1, lower.tail = FALSE)
+```
+
+The food treatment changes the dispersion: in a satiated nest
+$\hat\theta$ is $\exp(\hat\gamma_1) = `r fmt(exp(coef(fit_ow2)$theta[["FoodTreatmentSatiated"]]), 3)`$
+times that of a deprived nest, so the counts vary more. The nests differ in
+their dispersion too. Under the smaller model the variance $\kappa^2$ is
+zero, on the boundary of its range, so `lr_nest` does not have the $\chi^2_1$
+distribution [@self1987]; its p-value is at most that of $\chi^2_1$, which is
+`r format(signif(pchisq(lr_nest, df = 1, lower.tail = FALSE), 2))`. With the
+random effects on $\theta$ the standard deviation of the nests' effects on
+the mean falls from `r fmt(hyper(fit_ow1)$estimate, 3)` to
+`r fmt(hyper(fit_ow2)$estimate[1], 3)`: part of what looked like a difference
+in the mean calls of the nests is a difference in how much their calls vary.
+
+## Zero inflation {#sec-glmm-zi}
+
+The data frame `Salamanders` of the `glmmTMB` package gives the number of
+salamanders found in 23 streams of the Appalachian mountains, some of them
+affected by coal mining [@price2016]. Each stream was sampled four times, and
+the counts are given for seven species and life stages (`spp`). Many counts
+are zero, and some zeros come from a species that is absent from a stream.
+The zero-inflated distribution of @sec-distribs-zeros describes this: with
+probability $\pi$ the count is a structural zero, and otherwise it is a
+Poisson count with mean $\mu$,
+$$
+P(y = 0) = \pi + (1 - \pi)e^{-\mu}, \qquad
+P(y = k) = (1 - \pi)\frac{\mu^k e^{-\mu}}{k!}, \quad k \ge 1
+$$
+[@lambert1992]. We give each stream a random effect in $\log\mu$ and one in
+$\mathrm{logit}\,\pi$:
+$$
+\log\mu_{ij} = x_{ij}^\top\beta + b_i, \qquad
+\mathrm{logit}\,\pi_{ij} = w_{ij}^\top\alpha + c_i ,
+$$
+with $b_i \sim \mathrm{N}(0, \tau)$ and $c_i \sim \mathrm{N}(0, \kappa)$.
+
+```{r}
+#| label: fit-salamanders
+data(Salamanders, package = "glmmTMB")
+Salamanders$site <- factor(as.character(Salamanders$site))
+fit_zi <- statmod(count ~ spp + mined + random(~ 1 | site) |
+                    zi ~ mined + random(~ 1 | site),
+                  distrib = zero_inflated(poisson_distrib()), data = Salamanders)
+summary(fit_zi)
+```
+
+In a stream affected by mining (`mined` is `yes`, the reference level) the
+probability of a structural zero for a typical stream is
+$\mathrm{logit}^{-1}(\hat\alpha_0) = `r fmt(plogis(coef(fit_zi)$zi[[1]]), 3)`$,
+and in an unaffected stream it is
+$\mathrm{logit}^{-1}(\hat\alpha_0 + \hat\alpha_1) =
+`r fmt(plogis(sum(coef(fit_zi)$zi)), 3)`$. Where the species are present,
+the unaffected streams also have
+$\exp(\hat\beta_{\mathrm{minedno}}) = `r fmt(exp(coef(fit_zi)$mu[["minedno"]]), 2)`$
+times the salamanders. In `glmmTMB()` the equation of $\pi$ is the argument
+`ziformula`:
+
+```{r}
+#| label: tmb-salamanders
+tmb_zi <- glmmTMB::glmmTMB(count ~ spp + mined + (1 | site),
+                           ziformula = ~ mined + (1 | site),
+                           family = poisson, data = Salamanders, REML = TRUE)
+glmmTMB::fixef(tmb_zi)
+glmmTMB::VarCorr(tmb_zi)
+logLik(tmb_zi)
+logLik(fit_zi, type = "marginal")
+```
+
+### A negative binomial count
+
+The Poisson part may be too narrow. We replace it with a negative binomial and
+keep the random effect on $\mu$. The equation of $\pi$ keeps the mining
+covariate, but we drop its random effect; the next subsection shows why. To
+compare the two distributions of the count, we also fit the Poisson model
+with the same equation for $\pi$:
+
+```{r}
+#| label: fit-zinb
+fit_zinb <- statmod(count ~ spp + mined + random(~ 1 | site) | zi ~ mined,
+                    distrib = zero_inflated(negbin2_distrib()), data = Salamanders)
+summary(fit_zinb)
+tmb_zinb <- glmmTMB::glmmTMB(count ~ spp + mined + (1 | site),
+                             ziformula = ~ mined, family = glmmTMB::nbinom2,
+                             data = Salamanders, REML = TRUE)
+logLik(tmb_zinb)
+logLik(fit_zinb, type = "marginal")
+fit_zip2 <- statmod(count ~ spp + mined + random(~ 1 | site) | zi ~ mined,
+                    distrib = zero_inflated(poisson_distrib()), data = Salamanders)
+c(zip = AIC(fit_zip2), zinb = AIC(fit_zinb))
+```
+
+The two models in the last line have the same equation for $\pi$, so the
+comparison concerns only the distribution of the count. The negative binomial
+has the smaller conditional AIC. With it, the
+probability of a structural zero in an unaffected stream goes to zero:
+$\hat\alpha_0 + \hat\alpha_1 = `r fmt(sum(coef(fit_zinb)$zi), 2)`$, a
+probability of `r fmt(plogis(sum(coef(fit_zinb)$zi)), 4)`, with a standard
+error of `r fmt(sqrt(diag(vcov(fit_zinb)))[["zi:minedno"]], 1)` for
+$\hat\alpha_1$. On the logit scale the probability approaches zero only as
+the coefficient goes to $-\infty$, so the likelihood is flat in that
+direction and the standard error is large. `glmmTMB()` gives the same
+estimate. The negative binomial explains the zeros of the unaffected streams
+by its larger variance, and the extra zeros are needed only in the affected
+streams.
+
+### A random effect on the zero inflation
+
+In the Poisson model the probability $\pi$ had a random effect on the stream.
+We can ask for the same random effect in the negative binomial model. The fit
+takes more than a minute, and during it the sparse Cholesky factorization
+reports many times that a matrix is not positive definite; we hide these
+warnings here:
+
+```{r}
+#| label: fit-zinb-re
+#| warning: false
+fit_zinb_re <- statmod(count ~ spp + mined + random(~ 1 | site) |
+                         zi ~ mined + random(~ 1 | site),
+                       distrib = zero_inflated(negbin2_distrib()),
+                       data = Salamanders)
+summary(fit_zinb_re)
+statmod_certificate(fit_zinb_re)$state
+```
+
+The certificate is `unknown`. The curvature of the REML criterion at the
+reported point is not negative definite (the `min eigen` of the `outer` line
+of the summary is negative), so the fit cannot confirm that the two standard
+deviations sit at a maximum of the criterion, and the summary gives them no
+standard error. `glmmTMB()` has
+the same difficulty with this model:
+
+```{r}
+#| label: tmb-zinb-re
+tmb_zinb_re <- glmmTMB::glmmTMB(count ~ spp + mined + (1 | site),
+                                ziformula = ~ mined + (1 | site),
+                                family = glmmTMB::nbinom2,
+                                data = Salamanders, REML = TRUE)
+glmmTMB::fixef(tmb_zinb_re)$zi
+glmmTMB::VarCorr(tmb_zinb_re)
+logLik(tmb_zinb_re)
+```
+
+It reports a Hessian that is not positive definite and a false convergence,
+and it returns no log-likelihood. The two packages reach similar estimates of
+the standard deviation of the random effect on $\pi$
+(`r fmt(hyper(fit_zinb_re)$estimate[2], 3)` against
+`r fmt(attr(glmmTMB::VarCorr(tmb_zinb_re)$zi[[1]], "stddev"), 3)`), but
+different estimates of the intercept $\hat\alpha_0$
+(`r fmt(coef(fit_zinb_re)$zi[[1]], 2)` against
+`r fmt(glmmTMB::fixef(tmb_zinb_re)$zi[[1]], 2)`) and of the slope
+$\hat\alpha_1$ (`r fmt(coef(fit_zinb_re)$zi[[2]], 2)` against
+`r fmt(glmmTMB::fixef(tmb_zinb_re)$zi[[2]], 2)`). Neither package can
+confirm its estimates. The cause is the one of the previous subsection. In the unaffected
+streams $\pi$ is already close to zero, $\hat\alpha_1$ moves towards
+$-\infty$, and the likelihood is flat in that direction. A random effect on
+$\mathrm{logit}\,\pi$ adds a second direction that the data do not determine
+well. For this reason we keep the negative binomial model without it.
+
+## Predictions for a new group {#sec-glmm-predict}
+
+@sec-lmm-predict introduced the arguments `random`, `interval` and
+`predictive` of `predict()`. With a link that is not the identity two things
+change: the typical group and the average group have different predictions,
+and the intervals are not symmetric around the prediction. We write $h$ for
+the link of the parameter, $\eta_0 = x^\top\hat\beta$ for the linear
+predictor of a typical group, $\mathrm{se}_0$ for its standard error, and
+$v = z^\top\Sigma_b z$ for the variance that the random effects of a new
+group add to the predictor.
+
+**Two predictions of a parameter.** With $u = z^\top b \sim \mathrm{N}(0, \sqrt{v})$:
+
+| `random` | prediction | log link | logit link |
+|---|---|---|---|
+| `"zero"` | $h^{-1}(\eta_0)$, the group with $b = 0$ | $e^{\eta_0}$ | $\mathrm{logit}^{-1}(\eta_0)$ |
+| `"marginal"` | $\bar\theta = \mathbb{E}_u\{h^{-1}(\eta_0 + u)\}$, the average over the groups | $e^{\eta_0 + v/2}$ | Gauss-Hermite quadrature |
+
+The log column is the moment generating function of $u$ at $t = 1$, as for
+$\sigma$ in @sec-lmm-predict. For the logit link the integral has no closed
+form. A useful approximation comes from approximating the logistic
+distribution function with a normal one [@zeger1988]:
+$$
+\bar p \approx \mathrm{logit}^{-1}\!\left(\frac{\eta_0}{\sqrt{1 + c^2 v}}\right),
+\qquad c = \frac{16\sqrt3}{15\pi} .
+$$
+The average probability is therefore closer to one half than the probability
+of the typical group.
+
+**Three intervals.** The predictor of a new group is
+$\eta^* = \eta_0 + e + u$, where $e \sim \mathrm{N}(0, \mathrm{se}_0)$ is
+the estimation error of $\eta_0$. Its variance is $s^2 = \mathrm{se}_0^2 + v$.
+
+| `interval` | the interval covers | ends | `se` |
+|---|---|---|---|
+| `"confidence"` | $h^{-1}(x^\top\beta)$, the parameter of a typical group | $h^{-1}(\eta_0 \pm 1.96\,\mathrm{se}_0)$ | delta method |
+| `"group"` | $\theta^* = h^{-1}(\eta^*)$, the parameter of a new group | $h^{-1}(\eta_0 \pm 1.96\, s)$ | $\mathrm{sd}(\theta^*)$ |
+| `"prediction"` | one new observation $y$ of a new group | quantiles of $G$, below | $\mathrm{sd}(y)$ |
+
+The inverse link is monotone, so the quantiles of $\eta^*$ carried through it
+are the quantiles of $\theta^*$, and the group interval is exact. Its
+standard error is the standard deviation of $\theta^*$. For the log link
+$\theta^*$ is lognormal, and
+$$
+\mathrm{sd}(\theta^*) = e^{\eta_0 + s^2/2}\sqrt{e^{s^2} - 1} ;
+$$
+for any other link `predict()` computes the two moments of $\theta^*$ with
+Gauss-Hermite quadrature. The prediction `fit` is $h^{-1}(\eta_0)$ under
+`random = "zero"`, which is the median of $\theta^*$, and $\bar\theta$ under
+`random = "marginal"`.
+
+**One new observation.** Given the predictors, $y$ has the distribution $F$
+of the family, so its distribution function averages $F$ over the
+predictors:
+$$
+G(y) = \int F\{y \mid h^{-1}(\eta)\}\, \phi(\eta; \eta_0, s^2)\, d\eta .
+$$
+With random effects in several equations the integral is over all their
+predictors. For a count the ends are integers:
+
+| quantity | value |
+|---|---|
+| lower end | the smallest $y$ with $G(y) \ge 0.025$ |
+| prediction | the smallest $y$ with $G(y) \ge 0.5$ |
+| upper end | the smallest $y$ with $G(y) \ge 0.975$ |
+
+so the probability that the interval holds a new count is at least 95%. For
+a binary response $y$ is Bernoulli with $P(y = 1) = \bar p$, and the
+interval is always $[0, 1]$.
+
+**The typical child and the average child.** We predict a child of each
+treatment group of the `bacteria` data after week 2, and compute
+$\bar p$ with `integrate()` and with the approximation:
+
+```{r}
+#| label: predict-bacteria
+new_child <- data.frame(trt = factor(levels(bacteria$trt), levels(bacteria$trt)),
+                        late = 1, ID = "new")
+p_zero <- predict(fit_bc, what = "mu", newdata = new_child, random = "zero")
+p_marg <- predict(fit_bc, what = "mu", newdata = new_child,
+                  random = "marginal")
+eta0 <- predict(fit_bc, what = "link:mu", newdata = new_child,
+                random = "zero")
+tau_bc <- hyper(fit_bc)$estimate
+p_int <- vapply(eta0, function(e) {
+  integrate(function(u) plogis(e + u) * dnorm(u, sd = tau_bc),
+            lower = -Inf, upper = Inf)$value
+}, numeric(1))
+c16 <- 16 * sqrt(3) / (15 * pi)
+p_zeger <- plogis(eta0 / sqrt(1 + c16^2 * tau_bc^2))
+data.frame(trt = levels(bacteria$trt), zero = p_zero, marginal = p_marg,
+           integrate = p_int, approximation = p_zeger)
+```
+
+The column `marginal` agrees with `integrate()`, and the approximation is
+within `r fmt(max(abs(p_zeger - p_int)), 3)` of both.
+
+**The log odds ratio of the average child.** The coefficient
+$\hat\beta_{\mathrm{drug}} = `r fmt(coef(fit_bc)$mu[["trtdrug"]], 3)`$ is the
+log odds ratio of the drug for one child. The log odds ratio between the
+average probabilities of the two groups is smaller, by about the factor
+$1/\sqrt{1 + c^2 v}$:
+
+```{r}
+#| label: attenuation
+lor_cond <- coef(fit_bc)$mu[["trtdrug"]]
+lor_marg <- qlogis(p_marg[2]) - qlogis(p_marg[1])
+c(conditional = lor_cond, marginal = lor_marg, ratio = lor_marg / lor_cond,
+  approximation = 1 / sqrt(1 + c16^2 * tau_bc^2))
+```
+
+| log odds ratio | compares | estimated by |
+|---|---|---|
+| conditional | the same child with and without the drug | the mixed model |
+| marginal | the proportion of children with the bacterium in a treated and in an untreated population | a model without random effects [@zeger1988] |
+
+@fig-attenuation shows the two curves.
+
+```{r}
+#| label: fig-attenuation
+#| fig-cap: "Probability of the bacterium against the linear predictor of a typical child, for the typical child and averaged over the children. The points are the three treatment groups after week 2."
+#| echo: false
+#| fig-height: 3.8
+eg <- seq(from = -4, to = 6, length.out = 101)
+pm_curve <- vapply(eg, function(e) integrate(function(u)
+  plogis(e + u) * dnorm(u, sd = tau_bc), lower = -Inf, upper = Inf)$value, 0)
+att_lev <- c("typical child", "average over children",
+             "treatment groups, typical", "treatment groups, average")
+att_lines <- data.frame(
+  eta = rep(eg, times = 2), p = c(plogis(eg), pm_curve),
+  curve = factor(rep(att_lev[1:2], each = length(eg)), levels = att_lev))
+att_points <- data.frame(
+  eta = rep(eta0, times = 2), p = c(p_zero, p_marg),
+  curve = factor(rep(att_lev[3:4], each = length(eta0)), levels = att_lev))
+ggplot(att_lines, aes(x = eta, y = p, colour = curve)) +
+  geom_line(aes(linetype = curve), linewidth = 0.9) +
+  geom_point(data = att_points, aes(shape = curve), size = 2.2) +
+  scale_colour_manual(values = c(chalk, rust, chalk, rust), limits = att_lev) +
+  scale_linetype_manual(values = c("solid", "dashed", "blank", "blank"),
+                        limits = att_lev) +
+  scale_shape_manual(values = c(NA, NA, 16, 17), limits = att_lev) +
+  scale_y_continuous(limits = c(0, 1)) +
+  guides(colour = guide_legend(nrow = 2), linetype = guide_legend(nrow = 2),
+         shape = guide_legend(nrow = 2)) +
+  labs(x = expression("linear predictor " * eta[0]),
+       y = "probability of the bacterium")
+```
+
+**The dispersion of a new nest.** We predict $\theta$ of a new nest of the
+`Owls` data, deprived and satiated, with a male parent and four nestlings,
+and compute the ends and the standard deviation of the group interval from
+the formulas above. On the log scale the standard error is $s$:
+
+```{r}
+#| label: predict-owls-group
+new_nest <- data.frame(
+  FoodTreatment = factor(c("Deprived", "Satiated"),
+                         levels(Owls$FoodTreatment)),
+  SexParent = factor("Male", levels(Owls$SexParent)),
+  logBroodSize = log(4), Nest = "new")
+g_theta <- predict(fit_ow2, what = "theta", newdata = new_nest,
+                   random = "zero", interval = "group")
+g_theta
+g_link <- predict(fit_ow2, what = "link:theta", newdata = new_nest,
+                  random = "zero", interval = "group")
+g_link
+s_th <- g_link$se
+cbind(lower = exp(g_link$fit - qnorm(0.975) * s_th),
+      upper = exp(g_link$fit + qnorm(0.975) * s_th),
+      sd = exp(g_link$fit + s_th^2 / 2) * sqrt(exp(s_th^2) - 1))
+```
+
+The interval is wide, because $\hat\kappa = `r fmt(hyper(fit_ow2)$estimate[2], 2)`$:
+the dispersion of one new nest can be
+`r fmt(exp(qnorm(0.975) * s_th[1]), 1)` times larger or smaller than that of
+the typical nest. The standard deviation of $\theta^*$ is larger than the
+fit, because the lognormal distribution has a long right tail. A first-order
+approximation, $e^{\eta_0}\,s$, would give
+`r fmt(exp(g_link$fit[1]) * s_th[1], 2)` for the deprived nest, against
+`r fmt(g_theta$se[1], 2)`.
+
+**One new count of a new nest.** We check the prediction interval by
+simulation: a million new nests, each with its two random effects, and one
+count from each. The estimates are held at their values
+(`predictive = "plugin"`), so that the simulation and `predict()` describe
+the same distribution:
+
+```{r}
+#| label: predict-owls-response
+p_calls <- predict(fit_ow2, what = "response", newdata = new_nest, se = TRUE,
+                   random = "zero", interval = "prediction",
+                   predictive = "plugin")
+p_calls
+eta_mu <- predict(fit_ow2, what = "link:mu", newdata = new_nest,
+                  random = "zero")
+eta_th <- predict(fit_ow2, what = "link:theta", newdata = new_nest,
+                  random = "zero")
+tau_ow <- hyper(fit_ow2)$estimate[1]
+kappa_ow <- hyper(fit_ow2)$estimate[2]
+set.seed(1)
+n_sim <- 1e6
+b_sim <- rnorm(n_sim, mean = 0, sd = tau_ow)
+c_sim <- rnorm(n_sim, mean = 0, sd = kappa_ow)
+y_sim <- rnbinom(n_sim, mu = exp(eta_mu[1] + b_sim),
+                 size = exp(eta_th[1] + c_sim))
+quantile(y_sim, probs = c(0.025, 0.5, 0.975), type = 1)
+c(G_below_upper = mean(y_sim <= p_calls$upper[1] - 1),
+  G_at_upper = mean(y_sim <= p_calls$upper[1]))
+sd(y_sim)
+```
+
+The quantiles of the simulated counts are the ends of the interval for the
+deprived nest, and the empirical distribution function crosses 0.975 at the
+upper end. The standard deviation agrees to within half a per cent, which is
+the Monte Carlo error of a count with such a long tail.
+
+**A new stream of the salamanders.** In the zero-inflated Poisson model the
+probability of a zero and the counts of a new stream depend on its two
+random effects. We predict a new stream affected by mining and one that is
+not, for the species `GP`, and check the unaffected one by simulation:
+
+```{r}
+#| label: predict-salamanders
+new_site <- data.frame(spp = factor("GP", levels(Salamanders$spp)),
+                       mined = factor(c("yes", "no"), levels(Salamanders$mined)),
+                       site = "new")
+p_sal <- predict(fit_zi, what = "response", newdata = new_site, se = TRUE,
+                 random = "zero", interval = "prediction",
+                 predictive = "plugin")
+p_sal
+eta_mu_s <- predict(fit_zi, what = "link:mu", newdata = new_site,
+                    random = "zero")
+eta_zi_s <- predict(fit_zi, what = "link:zi", newdata = new_site,
+                    random = "zero")
+tau_s <- hyper(fit_zi)$estimate[1]
+kappa_s <- hyper(fit_zi)$estimate[2]
+set.seed(2)
+zero_sim <- runif(n_sim) < plogis(eta_zi_s[2] + rnorm(n_sim, sd = kappa_s))
+y_sal <- ifelse(zero_sim, 0,
+                rpois(n_sim, exp(eta_mu_s[2] + rnorm(n_sim, sd = tau_s))))
+quantile(y_sal, probs = c(0.025, 0.5, 0.975), type = 1)
+mean(y_sal == 0)
+predict(fit_zi, what = "mean", newdata = new_site, random = "marginal")
+mean(y_sal)
+```
+
+For an unaffected stream the probability of no salamanders of this species
+in one sample is `r fmt(mean(y_sal == 0), 2)`, and the mean count over new
+streams is the value of `random = "marginal"` for `what = "mean"`.
+
+```{r}
+#| label: gate-08
+#| include: false
+assert_glmm_ok(
+  fits = list(ep = fit_ep, ep_ml = fit_ep_ml, ep_all = fit_ep_all,
+              bc = fit_bc, bc_all = fit_bc_all, ow1 = fit_ow1, owf = fit_owf,
+              ow2 = fit_ow2, zi = fit_zi, zinb = fit_zinb, zip2 = fit_zip2),
+  ref = list(ep = tmb_ep, ep_glmer = glmer_ep, bc = glmer_bc,
+             bc_25 = glmer_25, ow1 = tmb_ow1, ow2 = tmb_ow2, zi = tmb_zi,
+             zinb = tmb_zinb),
+  data = list(epil = epil, bacteria = bacteria, Owls = Owls, Salamanders = Salamanders),
+  claims = list(p_zero = p_zero, p_marg = p_marg, p_int = p_int,
+                p_zeger = p_zeger, lor_cond = lor_cond, lor_marg = lor_marg,
+                lr_food = lr_food, lr_nest = lr_nest, g_theta = g_theta,
+                g_link = g_link, p_calls = p_calls, p_sal = p_sal,
+                new_child = new_child, new_nest = new_nest,
+                new_site = new_site, zinb_re = fit_zinb_re,
+                tmb_zinb_re = tmb_zinb_re))
+```

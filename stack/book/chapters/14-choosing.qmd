@@ -1,0 +1,911 @@
+# Choosing {#sec-choosing}
+
+```{r}
+#| label: setup-14
+#| include: false
+source("R/_setup.R")
+source("R/choosing-certificates.R")
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
+sci <- function(x, d = 1) {
+  e <- floor(log10(abs(x)))
+  sprintf("%.*f \\times 10^{%d}", d, x / 10^e, e)
+}
+data(species, package = "gamlss.data")
+data(rent, package = "gamlss.data")
+data(abdom, package = "gamlss.data")
+data(film90, package = "gamlss.data")
+data(mcycle, package = "MASS")
+data(GAGurine, package = "MASS")
+```
+
+In the previous chapters we fitted each model with a distribution, a
+criterion for the hyperparameters and an optimizer that we chose for it.
+This chapter explains how we make these choices. Each section works through
+a data set of its own: we choose a distribution for counts and for positive
+measurements, we compare the criteria that estimate the hyperparameters,
+we read the certificate of a fit and decide what to do when it does not
+converge, and we close with the models that `statmodels7` cannot fit. Most
+of the data sets come from the `gamlss.data` package, which accompanies the
+book of @stasinopoulos2017 on distributional regression.
+
+## The distribution {#sec-choosing-distribution}
+
+The type of the response narrows the choice of the distribution: a count
+needs a distribution on the integers, a positive measurement a distribution
+on the positive half-line, a proportion a distribution on the unit interval.
+Within one type, the families differ mainly in how the variance and the
+shape depend on the mean. We compare them in three ways. The quantile
+residuals of @dunn1996 are standard normal when the distribution is right,
+so their quantile plot shows a wrong family directly. The Pearson ratio,
+the sum of the squared Pearson residuals divided by the residual degrees of
+freedom, is close to one when the variance function is right. The AIC
+compares the families on the scale of the likelihood.
+
+### Counts
+
+The data frame `species` gives the number of fish species `fish` in 70
+lakes and the area of each lake [@stasinopoulos2017]. The number of species
+grows with the logarithm of the area, and we fit four count distributions
+with the same equation for the mean: the Poisson distribution, the two
+negative binomial distributions of @sec-glm-overdispersion, and the
+Poisson-inverse gaussian distribution with the dispersion $\sigma$
+(`pig1_distrib()`).
+
+```{r}
+#| label: fit-species
+species$log_lake <- log(species$lake)
+sp_pois <- statmod(fish ~ log_lake, distrib = poisson_distrib(), data = species,
+                   outer_criterion = ml())
+sp_nb2 <- statmod(fish ~ log_lake, distrib = negbin2_distrib(), data = species,
+                  outer_criterion = ml())
+sp_nb1 <- statmod(fish ~ log_lake, distrib = negbin1_distrib(), data = species,
+                  outer_criterion = ml())
+sp_pig <- statmod(fish ~ log_lake, distrib = pig1_distrib(), data = species,
+                  outer_criterion = ml())
+summary(sp_nb2)
+```
+
+The criterion is `ml()` in all four fits. With the default `reml()`,
+`statmod()` estimates the coefficient of a dispersion, here the intercept of
+$\log\theta$, by maximizing the restricted likelihood, as `lm()` estimates
+the residual variance with $n - p$ in the denominator. The AIC needs the
+maximum likelihood estimate:
+
+```{r}
+#| label: species-default
+sp_nb2_reml <- statmod(fish ~ log_lake, distrib = negbin2_distrib(),
+                       data = species)
+c(reml = exp(coef(sp_nb2_reml)$theta[[1]]), ml = exp(coef(sp_nb2)$theta[[1]]),
+  glm.nb = MASS::glm.nb(fish ~ log_lake, data = species)$theta)
+```
+
+The fit with `ml()` gives the estimate of `glm.nb()` of the `MASS` package
+[@venables2002]. We compute the Pearson ratio and the AIC of the four
+families:
+
+```{r}
+#| label: species-table
+pearson_ratio <- function(fit) {
+  r <- residuals(fit, type = "pearson")
+  sum(r^2) / (nobs(fit) - sum(fit@edf$edf))
+}
+sp_table <- data.frame(
+  family = c("poisson", "negbin2", "negbin1", "pig1"),
+  logLik = c(logLik(sp_pois), logLik(sp_nb2), logLik(sp_nb1), logLik(sp_pig)),
+  AIC = c(AIC(sp_pois), AIC(sp_nb2), AIC(sp_nb1), AIC(sp_pig)),
+  pearson = c(pearson_ratio(sp_pois), pearson_ratio(sp_nb2),
+              pearson_ratio(sp_nb1), pearson_ratio(sp_pig)))
+sp_table
+```
+
+The Pearson ratio of the Poisson model is
+`r fmt(sp_table$pearson[1], 1)`: the counts vary far more than a Poisson
+distribution allows. The three distributions with a dispersion bring the
+ratio close to one. The AIC orders them, and the Poisson-inverse gaussian
+distribution has the smallest. The package `gamlss` [@rigby2005] fits the
+same distributions under the names `NBI` and `PIG`:
+
+```{r}
+#| label: species-gamlss
+gl_nbi <- gamlss::gamlss(fish ~ log_lake, family = gamlss.dist::NBI(),
+                         data = species, trace = FALSE)
+gl_pig <- gamlss::gamlss(fish ~ log_lake, family = gamlss.dist::PIG(),
+                         data = species, trace = FALSE)
+rbind(negbin2 = c(statmod = logLik(sp_nb2), gamlss = logLik(gl_nbi)),
+      pig1 = c(statmod = logLik(sp_pig), gamlss = logLik(gl_pig)))
+```
+
+The quantile residuals show the difference between the Poisson model and
+the others (@fig-species-resid). We draw them with a fixed seed, because
+the quantile residual of a count is randomized within the jump of the
+distribution function:
+
+```{r}
+#| label: fig-species-resid
+#| fig-cap: "Quantile residuals of the `species` models against gaussian quantiles. Left: Poisson. Right: negative binomial with variance $\\mu + \\mu^2/\\theta$. The line is the identity."
+#| fig-height: 3.6
+qr_pois <- residuals(sp_pois, seed = 1)
+qr_nb2 <- residuals(sp_nb2, seed = 1)
+qq <- data.frame(residual = c(qr_pois, qr_nb2),
+                 model = rep(c("poisson", "negbin2"), each = nrow(species)))
+qq$model <- factor(qq$model, levels = c("poisson", "negbin2"))
+ggplot(qq, aes(sample = residual)) +
+  stat_qq(colour = book_grey, size = 0.9) +
+  geom_abline(intercept = 0, slope = 1, colour = book_palette[1]) +
+  facet_wrap(facets = vars(model), scales = "free_y") +
+  labs(x = "gaussian quantile", y = "quantile residual")
+```
+
+The residuals of the negative binomial model lie on the identity line, and
+their standard deviation is `r fmt(sd(qr_nb2), 3)`. Those of the Poisson
+model have a standard deviation of `r fmt(sd(qr_pois), 2)`.
+
+A distributional model can also give the dispersion an equation. The
+dispersion of the negative binomial model may change with the size of the
+lake:
+
+```{r}
+#| label: species-theta
+sp_nb2_th <- statmod(fish ~ log_lake | theta ~ log_lake,
+                     distrib = negbin2_distrib(), data = species,
+                     outer_criterion = ml())
+coef(sp_nb2_th)$theta
+c(constant = AIC(sp_nb2), modelled = AIC(sp_nb2_th))
+```
+
+The AIC falls by `r fmt(AIC(sp_nb2) - AIC(sp_nb2_th), 2)`, more than the
+AIC of the Poisson-inverse gaussian model falls below that of the negative
+binomial one. Choosing a distribution and choosing its equations are one
+choice, and we compare all the candidates on the same AIC.
+
+### Positive measurements
+
+The data frame `rent` gives the monthly net rent `R`, in German marks, of
+`r nrow(rent)` flats in Munich in 1993, with the floor space `Fl` in square
+metres, the year of construction `A` and the location `loc`, in three
+classes [@rigby2005]. The rent grows with the floor space and with the year
+in two curves, which we model with smooth terms. We fit four distributions
+for positive responses: the gamma, the lognormal, the inverse gaussian and
+the generalized gamma, which has a third parameter for the shape.
+
+```{r}
+#| label: fit-rent
+rent_gamma <- statmod(R ~ s(Fl) + s(A) + loc, distrib = gamma1_distrib(),
+                      data = rent)
+rent_lnorm <- statmod(R ~ s(Fl) + s(A) + loc, distrib = lognormal1_distrib(),
+                      data = rent)
+rent_ig <- statmod(R ~ s(Fl) + s(A) + loc, distrib = invgauss1_distrib(),
+                   data = rent)
+rent_gg <- statmod(R ~ s(Fl) + s(A) + loc, distrib = gengamma1_distrib(),
+                   data = rent)
+summary(rent_gamma)
+```
+
+The models have smooth terms, so we compare them with the conditional AIC
+of @sec-beyond-likelihood, which `summary()` prints:
+
+```{r}
+#| label: rent-table
+caic <- function(fit) summary(fit)@aic
+rent_table <- data.frame(
+  family = c("gamma", "lognormal", "inverse gaussian", "generalized gamma"),
+  logLik = c(logLik(rent_gamma), logLik(rent_lnorm), logLik(rent_ig),
+             logLik(rent_gg)),
+  cAIC = c(caic(rent_gamma), caic(rent_lnorm), caic(rent_ig), caic(rent_gg)))
+rent_table
+```
+
+The gamma and the generalized gamma distributions have nearly the same
+cAIC, `r fmt(rent_table$cAIC[1], 1)` and `r fmt(rent_table$cAIC[4], 1)`,
+and the lognormal and the inverse gaussian distributions are worse by
+`r fmt(rent_table$cAIC[2] - rent_table$cAIC[1], 0)` and
+`r fmt(rent_table$cAIC[3] - rent_table$cAIC[1], 0)`. The quantile residuals
+show why (@fig-rent-resid): the lognormal and the inverse gaussian
+distributions are skewed to the right more than the rents are, so the
+residuals of the largest rents fall below the identity line.
+
+```{r}
+#| label: fig-rent-resid
+#| fig-cap: "Quantile residuals of the four `rent` models against gaussian quantiles. The line is the identity."
+#| fig-height: 5
+rq <- data.frame(
+  residual = c(residuals(rent_gamma), residuals(rent_lnorm),
+               residuals(rent_ig), residuals(rent_gg)),
+  model = rep(rent_table$family, each = nrow(rent)))
+rq$model <- factor(rq$model, levels = rent_table$family)
+ggplot(rq, aes(sample = residual)) +
+  stat_qq(colour = book_grey, size = 0.5) +
+  geom_abline(intercept = 0, slope = 1, colour = book_palette[1]) +
+  facet_wrap(facets = vars(model), ncol = 2) +
+  labs(x = "gaussian quantile", y = "quantile residual")
+```
+
+The gamma model with the log link is also a generalized additive model, and
+`mgcv` fits it with the same REML criterion [@wood2017]:
+
+```{r}
+#| label: rent-mgcv
+g_rent <- mgcv::gam(R ~ s(Fl) + s(A) + loc, family = Gamma(link = "log"),
+                    data = rent, method = "REML")
+c(statmod = as.numeric(logLik(rent_gamma)), mgcv = as.numeric(logLik(g_rent)))
+```
+
+The two log-likelihoods agree to `r fmt(abs(as.numeric(logLik(rent_gamma)) - as.numeric(logLik(g_rent))), 2)`;
+the bases of the smooth terms of the two packages differ, so the fitted
+curves are not identical. The dispersion $\phi$ of the gamma distribution
+can have an equation as well. We let it depend on the floor space and the
+location:
+
+```{r}
+#| label: rent-phi
+rent_phi <- statmod(R ~ s(Fl) + s(A) + loc | phi ~ s(Fl) + loc,
+                    distrib = gamma1_distrib(), data = rent)
+c(constant = caic(rent_gamma), modelled = caic(rent_phi))
+```
+
+The cAIC falls by `r fmt(caic(rent_gamma) - caic(rent_phi), 1)`, much more
+than it separates the gamma from the generalized gamma distribution. For
+these data the equation of the dispersion matters more than the family.
+
+## The hyperparameters {#sec-choosing-hyper}
+
+A penalty has hyperparameters, for example the smoothing parameter
+$\lambda$ of a smooth term or the variance of a random effect.
+`statmodels7` estimates each one in one of two ways, according to the
+penalty.
+
+A penalty with derivatives of every order, such as the penalty of a smooth
+term, a ridge or a random effect, has its hyperparameters estimated by
+maximizing a criterion. The argument `outer_criterion` of `statmod()`
+selects it: `reml()`, the default, `ml()`, or the prediction criteria
+`aic()` and `bic()`. The first two are the marginal likelihoods of
+@sec-beyond-likelihood. The prediction criteria compute
+$-2\ell + \kappa\tau$ with $\kappa = 2$ for AIC and $\kappa = \log n$ for
+BIC, where $\ell$ is the conditional log-likelihood and $\tau$ is the
+effective number of parameters.
+
+A penalty with a kink at zero, such as the lasso, the elastic net, SCAD and
+MCP, has no second derivative at zero, and the marginal criteria need it.
+For these penalties `statmod()` fits the model along a decreasing sequence
+of values of $\lambda$ and keeps the value with the smallest prediction
+criterion. We select this criterion with the argument `sparse_criterion`:
+`bic()`, the default, `aic()` or `cv()`.
+
+### Four criteria for two smooth terms
+
+The data frame `abdom` gives the abdominal circumference `y`, in
+millimetres, of `r nrow(abdom)` fetuses and their gestational age `x`, in
+weeks [@stasinopoulos2017]. Both the mean and the spread of the
+circumference grow with the age. We give both parameters of a gaussian
+distribution a smooth term and estimate the two smoothing parameters with
+each of the four criteria:
+
+```{r}
+#| label: fit-abdom
+f_ab <- y ~ s(x) | sigma ~ s(x)
+ab_reml <- statmod(f_ab, distrib = gaussian1_distrib(), data = abdom)
+ab_ml <- statmod(f_ab, distrib = gaussian1_distrib(), data = abdom,
+                 outer_criterion = ml())
+ab_aic <- statmod(f_ab, distrib = gaussian1_distrib(), data = abdom,
+                  outer_criterion = aic())
+ab_bic <- statmod(f_ab, distrib = gaussian1_distrib(), data = abdom,
+                  outer_criterion = bic())
+summary(ab_reml)
+```
+
+```{r}
+#| label: abdom-table
+ab_lambda <- function(fit) hyper(fit)$estimate
+ab_table <- rbind(
+  reml = c(ab_lambda(ab_reml), edf = sum(ab_reml@edf$edf), logLik = logLik(ab_reml)),
+  ml = c(ab_lambda(ab_ml), edf = sum(ab_ml@edf$edf), logLik = logLik(ab_ml)),
+  aic = c(ab_lambda(ab_aic), edf = sum(ab_aic@edf$edf), logLik = logLik(ab_aic)),
+  bic = c(ab_lambda(ab_bic), edf = sum(ab_bic@edf$edf), logLik = logLik(ab_bic)))
+colnames(ab_table)[1:2] <- c("lambda_mu", "lambda_sigma")
+ab_table
+```
+
+The four criteria agree on the spread: the smoothing parameter of $\sigma$
+is above $`r sci(min(ab_table[, "lambda_sigma"]))`$ in all of them, so the
+smooth term of $\sigma$ reduces to its straight line, and the standard
+deviation grows exponentially with the age. They differ on the mean. REML,
+ML and AIC give the curve of the mean about
+`r fmt(ab_table["reml", "edf"] - 4, 1)` effective degrees of freedom beyond
+its straight line, and BIC, whose penalty grows with $\log n$, gives it
+`r fmt(ab_table["bic", "edf"] - 4, 1)`. @fig-abdom shows the two curves with
+the bands of two standard deviations.
+
+```{r}
+#| label: fig-abdom
+#| fig-cap: "Abdominal circumference against gestational age. The lines are the fitted mean and the mean plus and minus two standard deviations, with the smoothing parameters estimated by REML and by BIC."
+#| fig-height: 4
+xg <- data.frame(x = seq(from = min(abdom$x), to = max(abdom$x), length.out = 200))
+band <- function(fit, label) {
+  m <- predict(fit, what = "mu", newdata = xg)
+  s <- predict(fit, what = "sigma", newdata = xg)
+  data.frame(x = xg$x, mean = m, lower = m - 2 * s, upper = m + 2 * s,
+             criterion = label)
+}
+bands_ab <- rbind(band(ab_reml, "REML"), band(ab_bic, "BIC"))
+ggplot(abdom, aes(x = x, y = y)) +
+  geom_point(colour = book_grey, size = 0.6, alpha = 0.6) +
+  geom_line(data = bands_ab, aes(y = mean, colour = criterion, linetype = criterion)) +
+  geom_line(data = bands_ab, aes(y = lower, colour = criterion, linetype = criterion)) +
+  geom_line(data = bands_ab, aes(y = upper, colour = criterion, linetype = criterion)) +
+  labs(x = "gestational age (weeks)", y = "abdominal circumference (mm)")
+```
+
+The package `mgcv` fits the same model with its family `gaulss()`, by REML:
+
+```{r}
+#| label: abdom-mgcv
+g_ab <- mgcv::gam(list(y ~ s(x), ~ s(x)), family = mgcv::gaulss(),
+                  data = abdom, method = "REML")
+c(statmod = as.numeric(logLik(ab_reml)), mgcv = as.numeric(logLik(g_ab)))
+```
+
+The effective number of parameters $\tau$ treats the hyperparameters as
+known, although the fit estimated them from the same data. @greven2010
+showed that the conditional AIC of @vaida2005, computed with this $\tau$,
+favors the larger of two models. @woodpya2016 proposed to add the
+uncertainty of the smoothing parameters to $\tau$, through the
+unconditional variance $V_u$ of @sec-beyond-variances:
+$$
+\tau_u = \operatorname{tr}(V_u H) = \tau + \operatorname{tr}\{(V_u - V_b) H\} .
+$$
+`summary(fit, correct = TRUE)` computes the cAIC with $\tau_u$:
+
+```{r}
+#| label: abdom-correct
+s_naive <- summary(ab_reml)
+s_corr <- summary(ab_reml, correct = TRUE)
+c(naive = s_naive@df, corrected = s_corr@df)
+c(naive = s_naive@aic, corrected = s_corr@aic)
+```
+
+The correction adds `r fmt(s_corr@df - s_naive@df, 2)` to the effective
+number of parameters. We measure what it does to a choice between two models
+with a simulation. We draw 100 data sets with 20 groups of 5 observations
+from $y_{ij} = 1 + 0.5 x_{ij} + \varepsilon_{ij}$, which has no group
+effect, fit the model with and without a random intercept, and count how
+often each version of the cAIC is smaller for the model with the random
+intercept. We repeat the simulation with a group effect of standard
+deviation 0.3.
+
+```{r}
+#| label: sim-greven
+caic_of <- function(fit, correct) summary(fit, correct = correct)@aic
+pick <- function(sd_group, seed) {
+  set.seed(seed)
+  t(replicate(100, {
+    d <- data.frame(g = factor(rep(1:20, each = 5)), x = rnorm(100))
+    d$y <- 1 + 0.5 * d$x + rnorm(20, 0, sd_group)[d$g] + rnorm(100)
+    a <- statmod(y ~ x, distrib = gaussian1_distrib(), data = d)
+    b <- statmod(y ~ x + random(~ 1 | g), distrib = gaussian1_distrib(),
+                 data = d)
+    c(naive = caic_of(b, FALSE) < caic_of(a, FALSE),
+      corrected = caic_of(b, TRUE) < caic_of(a, TRUE))
+  }))
+}
+none <- colMeans(pick(0, 11))
+some <- colMeans(pick(0.3, 12))
+rbind(`no group effect` = none, `group sd 0.3` = some)
+```
+
+Without a group effect, the naive cAIC is smaller for the model with the
+random intercept in `r pct(none[["naive"]], 0)` of the data sets, and the
+corrected cAIC in `r pct(none[["corrected"]], 0)`. The correction has a
+cost: with a group effect the naive cAIC is smaller for the right model in
+`r pct(some[["naive"]], 0)` of the data sets and the corrected one in
+`r pct(some[["corrected"]], 0)`.
+
+### A lasso chosen by BIC and by cross-validation
+
+The flats of `rent` have three binary attributes: a bathroom of their own
+(`B`), central heating (`H`) and a full kitchen (`L`). We put these and the
+location under a lasso, beside the two smooth terms, and choose the
+$\lambda$ of the lasso by BIC and by ten-fold cross-validation. The
+smoothing parameters are estimated by REML at each point of the sequence of
+$\lambda$, as @sec-penalized-hyper describes.
+
+```{r}
+#| label: fit-rent-lasso
+rent_bic <- statmod(R ~ s(Fl) + s(A) + lasso(~ B + H + L + loc),
+                    distrib = gamma1_distrib(), data = rent)
+set.seed(4)
+rent_cv <- statmod(R ~ s(Fl) + s(A) + lasso(~ B + H + L + loc),
+                   distrib = gamma1_distrib(), data = rent,
+                   sparse_criterion = cv())
+hyper(rent_bic)
+hyper(rent_cv)
+```
+
+```{r}
+#| label: rent-lasso-coef
+lasso_coef <- function(fit) {
+  cf <- coef(fit)$mu
+  cf[startsWith(names(cf), "lasso.")]
+}
+rbind(bic = lasso_coef(rent_bic), cv = lasso_coef(rent_cv))
+```
+
+```{r}
+#| label: rent-lasso-numbers
+#| include: false
+lam_bic <- hyper(rent_bic)$estimate[3]
+lam_cv <- hyper(rent_cv)$estimate[3]
+```
+
+BIC chooses $\lambda = `r fmt(lam_bic, 3)`$ and cross-validation
+$\lambda = `r fmt(lam_cv, 3)`$. The two values differ by a factor of
+`r fmt(lam_cv / lam_bic, 0)`, and the coefficients hardly differ: with
+`r nrow(rent)` flats the penalty of either value is small against the
+log-likelihood, and the lasso sets none of the attributes to zero. The
+column `B1` has no estimate. The lasso codes all the levels of the first
+factor of its formula, the two columns of `B` add up to the intercept, and
+the fit reports the second column as not identified. @sec-penalized-choose
+compares the three criteria of a lasso on the crime data. Cross-validation refits the model on each fold, so it
+costs about ten times as much as BIC.
+
+### The Student t and its information
+
+The data frame `film90` gives, for `r nrow(film90)` American films of
+1990, the logarithm of the box office revenue `lborev1` against the
+logarithm of the number of screens in the opening week `lboopen`
+[@stasinopoulos2017]. The revenue has outliers in both directions, and we
+compare a gaussian and a Student $t$ distribution, each with smooth terms
+in the location and in the scale:
+
+```{r}
+#| label: fit-film
+f_film <- lborev1 ~ s(lboopen) | sigma ~ s(lboopen)
+film_g <- statmod(f_film, distrib = gaussian1_distrib(), data = film90)
+film_t <- statmod(f_film, distrib = student_t1_distrib(), data = film90)
+summary(film_t)
+c(gaussian = caic(film_g), t = caic(film_t))
+```
+
+The $t$ distribution has $\hat\nu = `r fmt(exp(coef(film_t)$nu[[1]]), 1)`$
+degrees of freedom and a cAIC lower by
+`r fmt(caic(film_g) - caic(film_t), 0)`. The REML criterion of these fits
+uses the observed information in its determinant. The argument `hessian`
+of `reml()` and `ml()` replaces it with the expected information, which for
+a $t$ distribution is positive definite at every point, while the observed
+information of the location is not positive at an observation far in the
+tails:
+
+```{r}
+#| label: fit-film-expected
+film_te <- statmod(f_film, distrib = student_t1_distrib(), data = film90,
+                   outer_criterion = reml(hessian = "expected"))
+c(observed = exp(coef(film_t)$nu[[1]]), expected = exp(coef(film_te)$nu[[1]]))
+c(observed = as.numeric(logLik(film_t)), expected = as.numeric(logLik(film_te)))
+```
+
+The two informations give the same fit here. The two criteria are not the
+same function, so their values differ, and we compare the fits by their
+estimates and their log-likelihoods. @fig-film shows the fitted median and
+the 5% and 95% quantiles of the $t$ model against those of the gaussian
+model.
+
+```{r}
+#| label: fig-film
+#| fig-cap: "Logarithm of the box office revenue against the logarithm of the opening screens. The lines are the fitted median and the 5% and 95% quantiles of the Student t model and of the gaussian model."
+#| fig-height: 4
+og <- data.frame(lboopen = seq(from = min(film90$lboopen),
+                               to = max(film90$lboopen), length.out = 200))
+quant <- function(fit, dist, label) {
+  th <- list(mu = predict(fit, what = "mu", newdata = og),
+             sigma = predict(fit, what = "sigma", newdata = og))
+  if (label == "t") th$nu <- predict(fit, what = "nu", newdata = og)
+  rbind(data.frame(lboopen = og$lboopen, quantile = "5%", model = label,
+                   value = distrib_quantile(dist, p = 0.05, theta = th)),
+        data.frame(lboopen = og$lboopen, quantile = "50%", model = label,
+                   value = distrib_quantile(dist, p = 0.5, theta = th)),
+        data.frame(lboopen = og$lboopen, quantile = "95%", model = label,
+                   value = distrib_quantile(dist, p = 0.95, theta = th)))
+}
+qf <- rbind(quant(film_t, student_t1_distrib(), "t"),
+            quant(film_g, gaussian1_distrib(), "gaussian"))
+qf$group <- paste(qf$model, qf$quantile)
+ggplot(film90, aes(x = lboopen, y = lborev1)) +
+  geom_point(colour = book_grey, size = 0.4, alpha = 0.4) +
+  geom_line(data = qf, aes(y = value, colour = model, linetype = model,
+                           group = group)) +
+  labs(x = "log opening screens", y = "log box office revenue")
+```
+
+## When a fit does not converge {#sec-choosing-convergence}
+
+An optimizer reports whether its own stopping rule was met. This is a
+statement about the search, and it does not tell us whether the returned
+point is the maximum that the model defines. The function
+`statmod_certificate()` of @sec-model-certificate checks this from two
+readings at the returned point. The first is about the coefficients: with
+$g$ the gradient of the penalized log-likelihood and $K$ its curvature, the
+quantity $\tfrac{1}{2} g^\top K^{-1} g$ is the increase that one Newton step
+would still give, in log-likelihood units. The second is the same quantity
+for the criterion of the hyperparameters. The certificate returns one of
+four states: `converged` when the second reading is below its tolerance,
+`boundary` when it is below the tolerance with at least one hyperparameter
+at the edge of its range, `not converged` when the criterion would still
+increase, and `unknown` when there is no criterion with derivatives to
+check.
+
+### The four states
+
+We fit five models that end in the four states. The first is the
+motorcycle model of @sec-model with a smooth standard deviation. In the
+second the response is pure noise. The third and the fourth have a lasso,
+on the ships of @sec-glm-counts and on the crime data of
+@sec-penalized-choose. The fifth is the fourth with the intercept of
+$\log\sigma$ estimated by the REML criterion.
+
+```{r}
+#| label: fit-states
+fit1 <- statmod(accel ~ s(times, bspline_smooth(k = 20)) |
+                  sigma ~ s(times, bspline_smooth(k = 10)),
+                distrib = gaussian1_distrib(), data = mcycle)
+set.seed(3)
+noise <- data.frame(x = runif(200), y = rnorm(200))
+fit_n <- statmod(y ~ s(x), distrib = gaussian1_distrib(), data = noise)
+data(ships, package = "MASS")
+ships <- ships[ships$service > 0, ]
+ships$year <- factor(ships$year)
+ships$period <- factor(ships$period)
+fit_s <- statmod(incidents ~ offset(log(service)) + lasso(~ type + year + period),
+                 distrib = poisson_distrib(), data = ships)
+data(UScrime, package = "MASS")
+UScrime$lrate <- log(UScrime$y)
+f_crime <- lrate ~ lasso(~ M + So + Ed + Po1 + Po2 + LF + M.F + Pop + NW + U1 +
+                           U2 + GDP + Ineq + Prob + Time, standardize = TRUE)
+fit_l <- statmod(f_crime, distrib = gaussian1_distrib(), data = UScrime)
+fit_l2 <- statmod(f_crime, distrib = gaussian1_distrib(), data = UScrime,
+                  outer_criterion = reml(marginal = "sigma"))
+statmod_certificate(fit1)$state
+statmod_certificate(fit_n)$state
+statmod_certificate(fit_s)$state
+statmod_certificate(fit_l)$state
+statmod_certificate(fit_l2)$state
+```
+
+```{r}
+#| label: states-numbers
+#| include: false
+cert1 <- statmod_certificate(fit1)
+lam_n <- hyper(fit_n)$estimate[1]
+```
+
+The motorcycle model is `converged`: the increase that remains is
+$`r sci(cert1$decrement)`$ for the REML criterion and
+$`r sci(cert1$mode_error)`$ for the penalized log-likelihood. With a
+response of pure noise the best smooth function is a straight line, REML
+takes the smoothing parameter to $`r sci(lam_n)`$, where the criterion is
+flat, and the state is `boundary`. The two models with a lasso have one
+hyperparameter with a kink, chosen along a sequence of values, so there is
+no criterion with derivatives and the state is `unknown`. When we name
+`sigma` in the argument `marginal` of `reml()`, the criterion estimates the
+intercept of $\log\sigma$ at the value of $\lambda$ that the sequence
+chose, the criterion has a gradient in that estimate, and the state is
+`converged`.
+
+### A kink in the log-density
+
+The Laplace distribution has the log-density
+$-\log(2\sigma) - \lvert y - \mu\rvert/\sigma$, which has no derivative in
+$\mu$ at $\mu = y$, and its maximum likelihood estimate of $\mu$ is the
+least absolute deviations fit. We fit it to the `stackloss` data of
+@brownlee1965 and compare the result with the exact fit of the `quantreg`
+package [@koenker2005]:
+
+```{r}
+#| label: fit-lad
+lad <- statmod(stack.loss ~ Air.Flow + Water.Temp + Acid.Conc.,
+               distrib = laplace_distrib(), data = stackloss)
+rq_fit <- quantreg::rq(stack.loss ~ Air.Flow + Water.Temp + Acid.Conc.,
+                       data = stackloss)
+rbind(statmodels7 = coef(lad)$mu, quantreg = coef(rq_fit))
+statmod_certificate(lad)$state
+```
+
+```{r}
+#| label: lad-numbers
+#| include: false
+gap_lad <- max(abs(coef(lad)$mu - coef(rq_fit)))
+obj_lad <- sum(abs(stackloss$stack.loss - predict(lad, what = "mu", newdata = stackloss)))
+obj_rq <- sum(abs(stats::resid(rq_fit)))
+```
+
+The two sets of coefficients differ by at most `r fmt(gap_lad, 3)`, and the
+sums of absolute residuals are `r fmt(obj_lad, 4)` for `statmodels7` and
+`r fmt(obj_rq, 4)` for the exact fit. The inner fit stops when the gradient
+of the log-likelihood is small, and at a kink the gradient does not become
+small, so the fit stops close to the minimum but not at it. It reports
+`converged = `r lad@converged``, and the certificate cannot read a
+curvature at the kink, so its state is `unknown`. For such a distribution
+the coefficients of `quantreg` are the reference.
+
+### A search that needs other arguments
+
+The Student $t$ model of @sec-distribs-heavy with an equation for the
+degrees of freedom is a harder problem:
+
+```{r}
+#| label: gag-formula
+f_nu <- GAG ~ Age | sigma ~ Age | nu ~ Age
+```
+
+With the default arguments the outer search does not converge on these
+data: it runs for about a minute and a half and stops at a point where the
+gradient of the criterion cannot be computed. We show the same kind of
+failure in a fraction of the time by giving Newton's method, which the
+search uses with the observed information, a budget of three iterations:
+
+```{r}
+#| label: fit-gag-budget
+gag_b <- statmod(f_nu, distrib = student_t1_distrib(), data = GAGurine,
+                 outer_optimizer = optimizers7::newton(maxit = 3))
+cert_b <- statmod_certificate(gag_b)
+cert_b$state
+cert_b$reason
+```
+
+The certificate says that the criterion is still rising. The first thing to
+change is the information in the criterion. The expected information of the
+$t$ distribution is positive definite everywhere:
+
+```{r}
+#| label: fit-gag-expected
+gag_e <- statmod(f_nu, distrib = student_t1_distrib(), data = GAGurine,
+                 outer_criterion = reml(hessian = "expected"))
+statmod_certificate(gag_e)$state
+c(criterion = gag_e@criterion, logLik = as.numeric(logLik(gag_e)))
+coef(gag_e)$nu
+```
+
+This fit is certified, and the degrees of freedom fall with the age. A
+certified point is a maximum of the criterion, but not necessarily the
+highest one. We check this by starting the search from another point: the
+fit with the hyperparameters held at their starting values
+(`outer_criterion = NULL`), which estimates every coefficient at the joint
+mode, gives a start through `start_from()`:
+
+```{r}
+#| label: fit-gag-joint
+gag_0 <- statmod(f_nu, distrib = student_t1_distrib(), data = GAGurine,
+                 outer_criterion = NULL)
+gag_je <- statmod(f_nu, distrib = student_t1_distrib(), data = GAGurine,
+                  outer_criterion = reml(hessian = "expected"),
+                  start = start_from(gag_0))
+gag_jo <- statmod(f_nu, distrib = student_t1_distrib(), data = GAGurine,
+                  start = start_from(gag_0))
+statmod_certificate(gag_je)$state
+statmod_certificate(gag_jo)$state
+c(expected = gag_je@criterion, observed = gag_jo@criterion)
+coef(gag_je)$nu
+```
+
+```{r}
+#| label: gag-numbers
+#| include: false
+gap_gag <- gag_je@criterion - gag_e@criterion
+```
+
+From this start the search with the expected information reaches a
+criterion higher by `r fmt(gap_gag, 2)` than the first fit, and the search
+with the observed information converges as well, with the default
+arguments. The two maxima describe different models (@fig-gag-nu): at the
+first the degrees of freedom fall from about
+`r fmt(exp(sum(coef(gag_e)$nu * c(1, 0))), 0)` at birth, at the second they
+rise with the age from below one. The criterion prefers the second. The
+general lesson is that a certificate is local: when a model is hard, we fit
+it from more than one start, compare the criteria of fits that use the same
+information, and keep the highest.
+
+```{r}
+#| label: fig-gag-nu
+#| fig-cap: "Degrees of freedom of the Student t against age, at the two maxima of the REML criterion with the expected information."
+#| fig-height: 3.6
+ag <- data.frame(Age = seq(from = 0, to = 17, length.out = 100))
+nu_df <- rbind(
+  data.frame(Age = ag$Age, nu = predict(gag_e, what = "nu", newdata = ag),
+             maximum = "default start"),
+  data.frame(Age = ag$Age, nu = predict(gag_je, what = "nu", newdata = ag),
+             maximum = "start from the joint mode"))
+ggplot(nu_df, aes(x = Age, y = nu, colour = maximum, linetype = maximum)) +
+  geom_line() +
+  scale_y_log10() +
+  labs(x = "age (years)", y = expression(nu))
+```
+
+## What statmodels7 does not do {#sec-choosing-limits}
+
+Some models cannot be fitted with `statmodels7` at present, and for each of
+them `statmod()` stops with a message that names the cause.
+
+A response with several components, such as a pair of measurements on the
+same subject, needs a multivariate distribution. `distributions7` has four
+multivariate families, and `distributions7::fit_distrib()` fits them with
+constant parameters, but `statmod()` does not let their parameters depend
+on covariates:
+
+```{r}
+#| label: limit-mv
+#| error: true
+set.seed(3)
+d_mv <- data.frame(x = runif(50))
+d_mv$Y <- cbind(rnorm(50), rnorm(50))
+statmod(Y ~ x, distrib = mvgaussian1_distrib(2), data = d_mv)
+```
+
+A censored response, in which some values are known only to lie above or
+below a limit, is marked by `cens()`, but `statmod()` has no censored
+likelihood:
+
+```{r}
+#| label: limit-cens
+#| error: true
+statmod(cens(accel, accel < -100) ~ times, distrib = gaussian1_distrib(),
+        data = mcycle)
+```
+
+A model can contain at most one structural term, that is one `gas()`, one
+`regime()` or one marginal break-point term. Two score-driven terms, one in
+the mean and one in the scale, would form one joint recursion, which
+`statmodels7` does not implement:
+
+```{r}
+#| label: limit-structural
+#| error: true
+data(EuStockMarkets)
+dax <- data.frame(r = 100 * diff(log(EuStockMarkets[, "DAX"])))
+statmod(r ~ gas(p = 1, q = 1) | sigma ~ gas(p = 1, q = 1),
+        distrib = gaussian1_distrib(), data = dax)
+```
+
+The hidden Markov model of `regime()` has one more restriction: its
+transition probabilities are constant, so covariates can shift the mean of
+every state, as in `waiting ~ duration + regime(k = 2)`, but they cannot
+change the probability of moving from one state to another.
+
+A distribution with a kink in a parameter, such as the Laplace distribution
+above, cannot be combined with a smooth term or a random effect in that
+parameter, because the REML criterion reads the second derivative of the
+log-density:
+
+```{r}
+#| label: limit-laplace
+#| error: true
+statmod(accel ~ s(times), distrib = laplace_distrib(), data = mcycle)
+```
+
+A discontinuous break-point term cannot develop its break-point with a
+random effect, because its coefficients are the development multiplied by
+the change of level, and the penalty would act on that product. The
+smoothed constructions of @sec-breakpoints-smooth do not have this
+restriction:
+
+```{r}
+#| label: limit-jump
+#| error: true
+set.seed(5)
+d_j <- data.frame(id = factor(rep(1:12, each = 25)),
+                  x = rep(seq(from = 0, to = 10, length.out = 25), 12))
+d_j$y <- 1 + 2 * (d_j$x > 5) + rnorm(300, sd = 0.3)
+statmod(y ~ jump(x, psi ~ random(~ 1 | id)), distrib = gaussian1_distrib(),
+        data = d_j)
+```
+
+The wrapper `fixed()` holds a parameter at one value, and a value for each
+observation is not accepted:
+
+```{r}
+#| label: limit-fixed
+#| error: true
+fixed(gaussian1_distrib(), sigma = runif(10) + 1)
+```
+
+A term `nl()` written as an R function cannot give its parameters equations
+of their own, because only a formula says where a parameter enters the
+model:
+
+```{r}
+#| label: limit-nl
+#| error: true
+statmod(rate ~ 0 + nl(function(conc, Vm, K) Vm * conc / (K + conc), K ~ state,
+                      params = c("Vm", "K"), start = list(Vm = 200, K = 0.1)),
+        distrib = gaussian1_distrib(), data = Puromycin)
+```
+
+A moment of the distribution, such as the mean of a gamma response with a
+dispersion, has a prediction but no standard error:
+
+```{r}
+#| label: limit-moment
+#| error: true
+gag_gamma <- statmod(GAG ~ Age, distrib = gamma1_distrib(), data = GAGurine)
+predict(gag_gamma, what = "mean", newdata = data.frame(Age = 5), se = TRUE)
+```
+
+Cross-validation chooses only the hyperparameter of a penalty with a kink.
+For a smooth term the criteria of the first part of
+@sec-choosing-hyper estimate the smoothing parameter without refitting:
+
+```{r}
+#| label: limit-cv
+#| error: true
+statmod(accel ~ s(times), distrib = gaussian1_distrib(), data = mcycle,
+        outer_criterion = cv())
+```
+
+Finally, the intervals of `confint()` and `predict()` use the gaussian
+limit of the estimators, with the quantile 1.96 for a 95% interval. With a
+few observations these intervals are too narrow. We measure this for the
+half-saturation concentration $K$ of the Michaelis–Menten model of
+@sec-beyond-tests, with `r nrow(Puromycin[Puromycin$state == "treated", ])`
+observations. We draw 200 data sets from the fitted model and count how
+often the 95% Wald interval of `statmodels7` and the interval of
+`confint()` for `nls()`, which uses the $t$ distribution, contain the true
+$K$.
+
+```{r}
+#| label: sim-puro
+puro <- Puromycin[Puromycin$state == "treated", ]
+fit_p <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc)),
+                 distrib = gaussian1_distrib(), data = puro)
+th_p <- coef(fit_p)$mu
+s_p <- exp(coef(fit_p)$sigma[[1]])
+set.seed(13)
+cover_p <- t(replicate(200, {
+  d <- puro
+  d$rate <- th_p[["nl.Vm"]] * d$conc / (th_p[["nl.K"]] + d$conc) +
+    rnorm(nrow(d), 0, s_p)
+  f <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc)),
+               distrib = gaussian1_distrib(), data = d)
+  ci <- confint(f, readable = FALSE)
+  k <- ci[ci$coefficient == "nl.K", ]
+  n <- suppressMessages(confint(nls(rate ~ Vm * conc / (K + conc), data = d,
+                                    start = list(Vm = 200, K = 0.05))))["K", ]
+  c(wald = k$lower <= th_p[["nl.K"]] && th_p[["nl.K"]] <= k$upper,
+    nls = n[[1]] <= th_p[["nl.K"]] && th_p[["nl.K"]] <= n[[2]])
+}))
+colMeans(cover_p)
+```
+
+```{r}
+#| label: puro-numbers
+#| include: false
+cv_p <- colMeans(cover_p)
+```
+
+The Wald intervals contain the true $K$ in `r pct(cv_p[["wald"]])` of the
+data sets and the intervals of `nls()` in `r pct(cv_p[["nls"]])`, against a
+nominal 95%. With 200 data sets the standard error of each proportion is
+about 1.5%. For small samples we can use the parametric bootstrap of
+@sec-breakpoints-bootstrap instead of the gaussian limit.
+
+```{r}
+#| label: gate-14
+#| include: false
+assert_choosing_ok(
+  fits = list(sp_pois = sp_pois, sp_nb2 = sp_nb2, sp_nb1 = sp_nb1, sp_pig = sp_pig,
+              sp_nb2_reml = sp_nb2_reml, sp_nb2_th = sp_nb2_th,
+              rent_gamma = rent_gamma, rent_lnorm = rent_lnorm, rent_ig = rent_ig,
+              rent_gg = rent_gg, rent_phi = rent_phi,
+              ab_reml = ab_reml, ab_ml = ab_ml, ab_aic = ab_aic, ab_bic = ab_bic,
+              rent_bic = rent_bic, rent_cv = rent_cv,
+              film_g = film_g, film_t = film_t, film_te = film_te,
+              fit1 = fit1, fit_n = fit_n, fit_s = fit_s, fit_l = fit_l,
+              fit_l2 = fit_l2, lad = lad, gag_b = gag_b, gag_e = gag_e,
+              gag_je = gag_je, gag_jo = gag_jo, fit_p = fit_p),
+  ref = list(gl_nbi = gl_nbi, gl_pig = gl_pig, g_rent = g_rent, g_ab = g_ab,
+             rq_fit = rq_fit),
+  data = list(species = species, rent = rent, stackloss = stackloss),
+  claims = list(sp_table = sp_table, rent_table = rent_table, ab_table = ab_table,
+                s_naive = s_naive, s_corr = s_corr, none = none, some = some,
+                lam_bic = lam_bic, lam_cv = lam_cv, qr_pois = qr_pois,
+                qr_nb2 = qr_nb2, gap_lad = gap_lad, obj_lad = obj_lad,
+                obj_rq = obj_rq, cert_b = cert_b, gap_gag = gap_gag,
+                cv_p = cv_p))
+```

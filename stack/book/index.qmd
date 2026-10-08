@@ -1,183 +1,26 @@
 # Preface {.unnumbered}
 
-```{r}
-#| label: setup-preface
-#| include: false
-source("R/_setup.R")
-source("R/distribution-catalog.R")
-```
+Most R packages that fit a statistical model contain their own code for
+probability distributions, link functions and optimization. This code is
+usually written as internal helper functions, and it serves only the model
+that the package fits. For example, a package may contain a Gamma density
+with its score, a logit link with its derivative, and a Newton iteration
+with its own stopping rule. The next package writes all of this again.
+Each author usually writes the derivatives up to the order that their own model
+needs, and no further. Because the code is internal, other packages
+cannot reuse it or extend it.
 
-This book is the mathematical companion to the `statmodels7` toolkit. Its purpose is to collect in one place the mathematics that the packages
-implement. That covers the link functions with their derivatives to fourth
-order, the probability distributions with their scores and information
-matrices, the operations that build new distributions out of existing ones,
-and the optimization methods that fit them.
+`statmodels7` is a toolkit in which each of these pieces is written only
+once. A distribution is an object that contains its density and all the
+derivatives that a fitting routine may need, up to the fourth order and
+with respect to the unconstrained parameters. A link function contains its
+derivatives in both directions. An optimizer is an object with an explicit
+stopping rule. Model terms, penalties and bases are objects too. The
+function `statmod()` builds a model from these pieces. A user can write a
+new piece, and `statmod()` accepts it in the same way as a piece that comes
+with the toolkit.
 
-It is written to be taught from as much as to be consulted, and that has settled
-two questions of style. The first is what to show. Every formula the toolkit
-actually evaluates appears on the page, in the form the code uses, together with
-enough of the reasoning to make it intelligible: where a quantity comes from,
-what it means, and which condition it depends on. What does not appear is the
-formal proof. A reader who wants the argument in full is pointed to the paper or the
-textbook where it is given properly, and the appendix collects those
-references. The space this saves is spent on explaining the results and the
-places where the implementation had to make a choice. The second question is
-how to say it. The mathematics here is elementary throughout — calculus, a
-little probability, the occasional exchange of derivative and integral — and the
-prose aims to be continuous and unhurried rather than clipped, so that the
-chapters can be read straight through.
-
-The mathematics is not new. What is particular to this book is that the
-formulas shown are the formulas the packages run; the claim concerns the
-software rather than the mathematics.
-
-The book is generated with Quarto directly from the source code of the packages,
-which are loaded from the working tree each time it is rendered. The numerical
-examples scattered through the chapters are therefore executed by the very code
-they illustrate, and the output shown is the output produced at build time.
-
-## How the book is organized {.unnumbered}
-
-After the introduction there is **one chapter per package**, so that the book
-grows the way the toolkit does.
-
-@sec-introduction explains what the toolkit is for and why it is built the way
-it is. It contains no mathematics and can be read on its own.
-
-@sec-links is `linkfunctions7`: what a link is required to satisfy, how the
-derivatives of a link and of its inverse determine one another, and why they are
-carried to fourth order. It ends with a catalog of the sixteen link classes,
-each with its formulas written out in full.
-
-@sec-distributions7 is `distributions7`, and divides into five.
-@sec-distributions develops the likelihood theory the toolkit rests on —
-score, observed and expected information, the Bartlett identities,
-derivatives on the unconstrained scale via Faà di Bruno's formula,
-derivatives of the distribution function — and presents the univariate
-families, `r length(ALL_FAMILY_CTORS)` of them, under the numbering convention that gives a
-family with several parametrizations one name per parametrization.
-Particular care is taken where the parametrization differs from the
-one used by base R. @sec-transformations treats the
-operations that turn one distribution into another, and is the most demanding
-part of the book, since the wrappers compose with any parent and their formulas
-are therefore stated once, in general, at every order the toolkit supports.
-@sec-fitting fits a distribution to a sample by maximum likelihood, which is the
-smallest problem that exercises all of the preceding machinery at once.
-@sec-fallbacks describes what a distribution receives when it implements nothing
-but its density. @sec-multivariate treats families whose observations are
-vectors, where the likelihood theory is unchanged and only the parametrization
-of the matrix has to be arranged.
-
-@sec-optimizers7 is `optimizers7`, and divides into five as well.
-@sec-descent defines descent directions and the conditions a line search
-must guarantee. @sec-curvature takes the methods in order of how much
-curvature they store, from the exact Hessian down to a single number.
-@sec-nonsmooth deals with objectives that have a kink, where the gradient
-does not become small at the solution and a gradient-based method reaches the
-answer and reports failure. @sec-constraints covers box constraints, removed
-by a change of variable, and Adam, whose steps are not descent steps. Finally
-@sec-starting covers the choice of the starting point, which reuses the same
-change of variable, and the question of how many runs to make.
-
-@sec-parameters7 is `parameters7`, and divides into three.
-@sec-parameter-contract sets out what a constrained parameter is and why it is
-not a link. @sec-parameter-families presents the families: the two charts on
-the positive definite cone, the diagonal families that reuse the link
-functions of @sec-links, the fixed matrix carried by a single scale, the
-correlation matrix and the structured covariances, and the sets that are not
-matrices at all. @sec-parameter-rank treats matrices that are not of full
-rank, which is what a penalty is, and the pseudo-determinant and rank
-determination they require.
-
-@sec-basis7 is `basis7`, and divides into five. @sec-basis-expansions defines
-a basis expansion and the four quantities the package computes from it.
-@sec-basis-families presents B-splines, the Fourier basis and the Legendre
-polynomials, each generated by a recurrence that also produces its derivatives
-and its integral. @sec-basis-gram treats the matrix of inner products, the matrix of a
-roughness penalty, which is computed exactly and not on a grid. @sec-basis-transforms derives the three linear
-transformations of a basis — orthonormalization, a linear constraint, and the
-Demmler-Reinsch construction — from the property each is asked to produce.
-@sec-basis-tensor builds a basis of several variables from marginal ones.
-
-@sec-penalties7 is `penalties7`, penalties as objects. @sec-penalty-definition
-gives the definition -- a linear map, a scalar function, hyperparameters --
-with the Bayesian reading as the organizing one and the reason the
-normalizing constant is kept. @sec-penalty-branches presents the four
-constructions: the quadratic penalty, the sum of quadratics, the separable
-penalty built from a `distributions7` density, and the families defined by
-their derivative, and closes with the smoother that removes the kink the
-last two carry.
-@sec-penalty-marginal presents the pieces a marginal-likelihood criterion
-consumes and the structured prior whose precision is a `parameters7` matrix
-parameter.
-
-@sec-modelterms7 is `modelterms7`, the layer that lets a formula name the
-parts. @sec-terms-contract sets out what a term is, as a specification and
-as a built block with the blueprint that reapplies it to new data.
-@sec-terms-catalog presents the terms the package ships, from the
-parametric block to the ones that rewrite the likelihood rather than adding
-to it. @sec-terms-formula presents the interpreter, whose recognition rule
-is what makes a user-defined term work without registration, and
-@sec-terms-edf the effective degrees of freedom and the displays a fitted
-term offers.
-
-@sec-statmodels7 is `statmodels7`, the layer that fits a model out of the
-parts the earlier chapters built. @sec-statmod-model presents the model: one
-equation per parameter of the response distribution, the single formula that
-carries them all, and the specification a fit keeps in place of the data.
-@sec-statmod-inner presents the penalized fit: the objective and the scale it
-is written on, the scoring step and the augmented decomposition it is solved
-through, the blocks that move with their own coefficients, and the rule that
-ends the loop. @sec-statmod-outer treats the hyperparameters the terms leave
-free, the marginal and prediction-error criteria that choose them and the
-effective degrees of freedom they are charged against.
-@sec-statmod-structural treats the terms that rewrite the likelihood rather
-than adding to it, and @sec-statmod-verdict the two questions that bracket a
-fit, where it begins and whether the point it reports is the one the model
-asks for. @sec-statmod-reading treats what a fit answers when it is read, and
-@sec-statmod-practice fits and reads two models from end to end.
-
-@sec-numericals7 is `numericals7`, the numerical layer at the bottom of the
-toolkit, and divides into four. @sec-numerical-stencils presents the single
-finite-difference stencil library. @sec-numerical-quadrature presents
-quadrature and series summation vectorized over the parameters, one matrix
-evaluation for many parameter values. @sec-numerical-special presents the
-special functions the distributions are written in, each evaluated so that it
-remains finite over the argument ranges statistical work reaches.
-@sec-numerical-threads presents the thread policy of the whole toolkit and
-the guarantee that a count never changes an answer.
-
-@sec-notation collects the notation used throughout, and the references follow
-it.
-
-## Building the book {.unnumbered}
-
-From the `book/` directory of the toolkit:
-
-``` bash
-quarto render
-```
-
-```{r}
-#| label: provenance
-#| echo: false
-prov <- data.frame(
-  item = c("numericals7", "linkfunctions7", "distributions7", "optimizers7",
-           "basis7", "parameters7", "penalties7", "modelterms7",
-           "statmodels7", "R", "built"),
-  value = c(
-    as.character(utils::packageVersion("numericals7")),
-    as.character(utils::packageVersion("linkfunctions7")),
-    as.character(utils::packageVersion("distributions7")),
-    as.character(utils::packageVersion("optimizers7")),
-    as.character(utils::packageVersion("basis7")),
-    as.character(utils::packageVersion("parameters7")),
-    as.character(utils::packageVersion("penalties7")),
-    as.character(utils::packageVersion("modelterms7")),
-    as.character(utils::packageVersion("statmodels7")),
-    paste(R.version$major, R.version$minor, sep = "."),
-    format(Sys.time(), "%Y-%m-%d")
-  )
-)
-knitr::kable(prov, col.names = c("", ""), caption = "This build")
-```
+This book is written first for readers who want to fit models with the
+toolkit, and then for readers who want to extend it. In the first chapter
+we fit one model to real data and read its output from the first line to
+the last.

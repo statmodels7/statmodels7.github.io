@@ -1082,7 +1082,7 @@ assert_distributions_ok <- function() {
   #     return zero.
   lap <- laplace_distrib()
   th <- list(mu = 0, sigma = 2)
-  shipped <- vapply(c("bartlett", "integrate", "mc"), function(a) {
+  shipped <- vapply(c("opg", "bartlett", "integrate", "mc"), function(a) {
     distrib_expected_hessian(lap, 0, th, approx = a)$mu_mu
   }, numeric(1))
   if (max(abs(shipped + 0.25)) > 1e-12) {
@@ -1113,10 +1113,24 @@ assert_distributions_ok <- function() {
   )
   set.seed(1)
   strat <- c(
+    opg       = distrib_expected_hessian(bare, 0, th, approx = "opg")$mu_mu,
     bartlett  = distrib_expected_hessian(bare, 0, th, approx = "bartlett")$mu_mu,
     integrate = distrib_expected_hessian(bare, 0, th, approx = "integrate")$mu_mu,
     mc        = distrib_expected_hessian(bare, 0, th, approx = "mc")$mu_mu
   )
+  # (c) opg, the default, is the same score-based quantity with the expectation
+  #     dropped. AWAY FROM THE KINK it is exact to machine precision, the
+  #     squared score of a Laplace being 1/sigma^2 almost surely rather than in
+  #     expectation; AT the kink it is zero, because sign(0) is 0 and that one
+  #     observation's score vanishes. The section prints both, so both are
+  #     pinned -- and the second is what stops the first from being written as
+  #     an unqualified claim.
+  opg_away <- distrib_expected_hessian(bare, 1, th, approx = "opg")$mu_mu
+  if (abs(opg_away + 0.25) > 1e-12 || abs(strat[["opg"]]) > 1e-12) {
+    stop("The bare-Laplace opg claims are stale: away from the kink ",
+         round(opg_away, 6), ", at the kink ", round(strat[["opg"]], 6),
+         "; the section says -0.25 and 0.", call. = FALSE)
+  }
   if (abs(strat[["bartlett"]] + 0.25) > 1e-6 ||
       abs(strat[["integrate"]]) > 1e-8 || abs(strat[["mc"]]) > 1e-8) {
     stop("The bare-Laplace strategy comparison no longer matches the prose of the ",
@@ -1370,7 +1384,8 @@ numbered_families_table <- function() {
   exported <- grep("_distrib$", getNamespaceExports("distributions7"), value = TRUE)
   exported <- setdiff(exported, c(
     # the multivariate families, which have their own section
-    "mvgaussian_distrib", "mvstudent_t_distrib",
+    "mvgaussian1_distrib", "mvgaussian2_distrib",
+    "mvstudent_t1_distrib", "mvstudent_t2_distrib",
     "dirichlet_distrib", "multinomial_distrib",
     # exports that end in _distrib without being family constructors
     "check_distrib", "fit_distrib",
@@ -1438,13 +1453,11 @@ numbered_families_table <- function() {
       map_derivs = md
     )
   }
-  md <- function(psi) {
+  md <- function(psi, order) {
     v <- psi[[2]]
-    list(
-      list("1" = rep_len(1, length(v))),
-      list("2" = 0.5 / sqrt(v), "2,2" = -0.25 / v^1.5,
-           "2,2,2" = 0.375 / v^2.5, "2,2,2,2" = -0.9375 / v^3.5)
-    )
+    s <- list("2" = 0.5 / sqrt(v), "2,2" = -0.25 / v^1.5,
+              "2,2,2" = 0.375 / v^2.5, "2,2,2,2" = -0.9375 / v^3.5)
+    list(list("1" = rep_len(1, length(v))), s[seq_len(order)])
   }
   h <- distributions7::gaussian2_distrib()
   y <- c(-0.5, 0.8, 2.2)

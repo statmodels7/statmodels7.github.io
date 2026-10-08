@@ -16,25 +16,27 @@ cp ../logo/svg/*.svg       stack/logo-svg/
 cp ../logo/svg/statmodels7.svg logo/statmodels7.svg
 
 # The book: source under stack/book (so it is versioned), rendered HTML under
-# book/ (so GitHub Pages serves it at /book/). The render itself stays a manual
-# step -- `quarto render` in ../book -- because it executes R against the
-# working tree and takes minutes.
+# book/ (so GitHub Pages serves it at /book/). Since 2026-10-08 the published
+# book is the one in ../new_book; the earlier book stays in ../book and in the
+# history of this repository. The render itself stays a manual step --
+# `quarto render` in ../new_book -- because it executes R against the working
+# tree and takes minutes.
 #
 # The rendered book is only replaced when there is one to replace it with. A
-# render interrupted part way leaves ../book/_book empty, and wiping book/
+# render interrupted part way leaves ../new_book/_book empty, and wiping book/
 # against it would take the published book offline while this script still
 # reported success.
-if [ ! -f ../book/_book/index.html ]; then
-  echo "../book/_book/index.html is missing: render the book first" >&2
+if [ ! -f ../new_book/_book/index.html ]; then
+  echo "../new_book/_book/index.html is missing: render the book first" >&2
   exit 1
 fi
 
 rm -rf stack/book book
 mkdir -p stack/book
-cp -r ../book/chapters ../book/R ../book/assets stack/book/
-cp ../book/_quarto.yml ../book/index.qmd ../book/README.md stack/book/
-cp ../book/references.bib stack/book/
-cp -r ../book/_book book
+cp -r ../new_book/chapters ../new_book/R ../new_book/assets stack/book/
+cp ../new_book/_quarto.yml ../new_book/index.qmd ../new_book/README.md stack/book/
+cp ../new_book/references.bib stack/book/
+cp -r ../new_book/_book book
 
 # An interrupted render also leaves its intermediates beside the sources, and
 # those are not sources: they would be committed as if they were.

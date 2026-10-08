@@ -1,0 +1,1585 @@
+# Time series {#sec-timeseries}
+
+```{r}
+#| label: setup-13
+#| include: false
+source("R/_setup.R")
+source("R/timeseries-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+```
+
+In a time series the distribution of an observation depends on the
+observations before it. `statmodels7` has two model terms for this kind of
+dependence. The term `gas()` adds to the predictor of one parameter of the
+distribution a level $f_t$, and it updates the level at each time with the
+score of the previous observation [@creal2013; @harvey2013]. The term
+`regime()` makes the model a hidden Markov model [@hamilton1989;
+@zucchini2016]. At each time the series is in one of $k$ states, which we do
+not observe. The state at time $t$ depends only on the state at time
+$t - 1$, through a matrix of transition probabilities, and each state adds
+its own level to the predictor. In both cases the contribution of the term at
+one time depends on the data at earlier times, so it is computed by a
+recursion and it cannot be written as a block of a design matrix. We call
+such a term structural. A model can contain one structural term, in the
+equation of any parameter of the distribution.
+
+## The score-driven filter {#sec-timeseries-gas}
+
+The term `gas()` adds a level $f_t$ to the predictor of one parameter of the
+distribution. If $\theta_t$ is that parameter and $g$ its link,
+$$
+g(\theta_t) = \eta_t = x_t^\top \beta + f_t, \qquad
+f_t = \omega + \sum_{i=1}^{p} \kappa_i\, u_{t-i} + \sum_{j=1}^{q} \xi_j f_{t-j},
+$$
+where $x_t^\top \beta$ is the rest of the predictor. The recursion is driven
+by the scaled score of the previous observations [@creal2013; @harvey2013],
+$$
+u_t = s_t\, \mathcal{I}_t^{-d}, \qquad
+s_t = \frac{\partial \log p(y_t)}{\partial \eta_t}, \qquad
+\mathcal{I}_t = \mathrm{E}\left[-\frac{\partial^2 \log p(y_t)}{\partial \eta_t^2}\right].
+$$
+The score $s_t$ is the derivative of the log-density of observation $t$ with
+respect to the predictor. An observation that the current predictor fits
+badly has a large score, and the recursion moves the predictor of the next
+times in the direction that would have fitted it better. The quantity
+$\mathcal{I}_t$ is the expected information of the predictor, which is also
+the variance of $s_t$. The argument `scaling` of `gas()` sets the power $d$,
+and three values are common:
+
+- with $d = 0$, the default, the score is used as it is;
+- with $d = 1/2$ the score is divided by its standard deviation, so $u_t$
+  has variance one;
+- with $d = 1$ the score is multiplied by the inverse of its information,
+  which is the step of Newton's method for one observation.
+
+For every $d$ the scaled score has mean zero, so $f_t$ fluctuates around
+$\omega/(1 - \sum_j \xi_j)$, and the recursion starts there. If
+$\mathcal{I}_t$ is the same at every time, the power $d$ multiplies $u_t$ by
+a constant, the loadings absorb that constant, and the model does not depend
+on $d$. If $\mathcal{I}_t$ changes over time, each $d$ gives a different
+model.
+
+The intercept of the predictor and the level $\omega$ cannot both be
+estimated. Both move the predictor by a constant: with an intercept
+$\beta_0$ the predictor fluctuates around $\beta_0 + \omega/(1 - \sum_j\xi_j)$,
+and adding $c$ to $\beta_0$ while subtracting $c\,(1 - \sum_j\xi_j)$ from
+$\omega$ leaves every $\eta_t$ unchanged. When the formula has an intercept,
+`statmod()` therefore holds $\omega$ at zero and estimates $\beta_0$, which
+is then the level around which the predictor fluctuates. Written without an
+intercept, as `y ~ 0 + gas(...)`, the same model has $\omega$ free instead,
+and the two spellings are related by
+$$
+\beta_0 = \frac{\omega}{1 - \sum_j \xi_j}, \qquad
+\omega = \beta_0\,\Bigl(1 - \sum_j \xi_j\Bigr).
+$$
+
+Several models of the time series literature are score-driven models with a
+particular family, parameter, link and power $d$, and `gas()` fits them by
+naming those four. @tbl-ts-known lists the ones of this chapter, and the
+following sections fit each of them and compare the fit with the package
+that implements the model. Where the information is constant, every $d$
+gives the same model, and the table says "any".
+
+| model | family | parameter, link | $d$ | section |
+|---|---|---|---|---|
+| ARMA(1, 1) | `gaussian1_distrib()` | mean, identity | any | @sec-timeseries-gas |
+| GARCH(1, 1) [@bollerslev1986] | `gaussian2_distrib()` | variance, identity | 1 | @sec-timeseries-volatility |
+| Beta-t-EGARCH [@harvey2013] | `student_t1_distrib()` | scale, log | any | @sec-timeseries-volatility |
+| INGARCH(1, 1) [@ferland2006] | `poisson_distrib()` | mean, identity | 1 | @sec-timeseries-counts |
+| ACD(1, 1) [@engle1998] | `exponential_distrib()` | mean, identity | 1 | @sec-timeseries-families |
+| logarithmic ACD, second form [@bauwens2000] | `exponential_distrib()` | mean, log | any | @sec-timeseries-families |
+
+: Known models that `gas()` fits exactly. {#tbl-ts-known}
+
+### The working parametrization
+
+The loadings and the persistences are constrained. A loading is positive, so
+that an observation the predictor underestimates raises the predictor of
+the next times, and the persistences must keep the recursion stationary, so
+that $f_t$ fluctuates around its level instead of drifting away from it.
+`gas()` does not search the parameters in these constrained sets. It
+searches unconstrained working parameters, from which the parameters of the
+model follow, so that every point the search visits is an admissible model.
+
+With one lag of each kind, $p = q = 1$, the recursion is
+$f_t = \omega + \kappa\, u_{t-1} + \xi f_{t-1}$, and it is stationary when
+$|\xi| < 1$. The working parameters are
+$$
+a = \log \kappa, \qquad z = \operatorname{atanh} \xi
+= \frac{1}{2}\log\frac{1 + \xi}{1 - \xi},
+$$
+so $\kappa = e^{a}$ is positive and $\xi = \tanh z$ lies in $(-1, 1)$ for
+every real $a$ and $z$. The level $\omega$ needs no constraint and is its
+own working parameter. The summary reports $\kappa$ and $\xi$, and builds
+their intervals on the working scale and maps them back, so the interval of
+$\kappa$ is positive and that of $\xi$ lies inside $(-1, 1)$.
+
+With several lags each loading has its own working parameter,
+$a_i = \log \kappa_i$ for $i = 1, \dots, p$. The persistences need more
+care. The recursion is stationary when the roots of
+$1 - \xi_1 z - \dots - \xi_q z^q$ lie outside the unit circle, and this
+region is not a box: for $q = 2$ it is the triangle $|\xi_2| < 1$,
+$\xi_2 + \xi_1 < 1$, $\xi_2 - \xi_1 < 1$. The recursion is therefore
+parametrized by its partial autocorrelations $r_1, \dots, r_q$, which range
+over the box $(-1, 1)^q$, and every point of the box gives a stationary
+recursion, each stationary recursion being given by exactly one point
+[@barndorffnielsen1973; @monahan1984]. Each partial autocorrelation has the
+working parameter $z_k = \operatorname{atanh} r_k$, and the persistences
+follow from the Durbin-Levinson recursion,
+$$
+\xi^{(k)}_k = r_k, \qquad
+\xi^{(k)}_j = \xi^{(k-1)}_j - r_k\, \xi^{(k-1)}_{k-j}, \quad j = 1, \dots, k - 1,
+$$
+for $k = 1, \dots, q$, with $\xi_j = \xi^{(q)}_j$. For $q = 2$ this gives
+$\xi_1 = r_1 (1 - r_2)$ and $\xi_2 = r_2$. The same recursion gives
+$$
+1 - \sum_{j=1}^{q} \xi_j = \prod_{k=1}^{q} (1 - r_k),
+$$
+so the level $\omega / (1 - \sum_j \xi_j)$ around which $f_t$ fluctuates is
+finite at every point of the box. With one lag the persistence and the
+partial autocorrelation coincide. With several, the summary reports the
+persistences $\xi_j$, with standard errors from the Jacobian of the
+Durbin-Levinson recursion, and builds their intervals on the scale of the
+persistences, because the region they range over is not a box.
+
+### The mean of a gaussian response
+
+The series `Nile` gives the annual flow of the river Nile at Aswan from 1871
+to 1970, in $10^8$ cubic meters [@cobb1978]. We put the filter in the
+equation of the mean of a gaussian response:
+$$
+y_t \sim \mathrm{N}(\mu_t, \sigma), \qquad
+\mu_t = \beta_0 + f_t, \qquad
+f_t = \kappa\, u_{t-1} + \xi f_{t-1}.
+$$
+The score with respect to $\mu_t$ and its information are
+$$
+s_t = \frac{y_t - \mu_t}{\sigma^2}, \qquad \mathcal{I}_t = \frac{1}{\sigma^2},
+$$
+so $u_t = (y_t - \mu_t)\,\sigma^{2(d - 1)}$. An observation above its mean
+raises the mean of the next year, and the parameter $\xi$ sets how long the
+effect lasts. The information does not change over time, so $d$ only sets
+the units of $\kappa$. We fit the model with the default $d = 0$:
+
+```{r}
+#| label: ts-fit-nile
+nile <- data.frame(year = 1871:1970, flow = as.numeric(Nile))
+fit_nile <- statmod(flow ~ gas(p = 1, q = 1, time = year),
+                    distrib = gaussian1_distrib(), data = nile)
+summary(fit_nile)
+```
+
+The argument `p` of `gas()` is the number of lagged scores and `q` the number
+of lagged levels, and `time` gives the order of the observations. The
+summary marks $\omega$ as held at zero. With $d = 1$ the fit is the same, and only the loading changes, by
+the factor $\sigma^2$:
+
+```{r}
+#| label: ts-fit-nile-d1
+fit_nile_1 <- statmod(flow ~ gas(p = 1, q = 1, time = year, scaling = 1),
+                      distrib = gaussian1_distrib(), data = nile)
+c(d_0 = logLik(fit_nile), d_1 = logLik(fit_nile_1))
+c(kappa_d0_over_s2 = coef(fit_nile)$mu[["gas.kappa1"]] /
+    exp(2 * coef(fit_nile)$sigma[["(Intercept)"]]),
+  kappa_d1 = coef(fit_nile_1)$mu[["gas.kappa1"]])
+```
+
+```{r}
+#| label: ts-nile-numbers
+#| include: false
+cf_nile <- coef(fit_nile)$mu
+s2_nile <- exp(2 * coef(fit_nile)$sigma[["(Intercept)"]])
+a_nile <- cf_nile[["gas.kappa1"]] / s2_nile
+b_nile <- cf_nile[["gas.xi1"]]
+```
+
+With $d = 1$ the scaled score is the residual $y_t - \mu_t$, and the loading
+$\hat\kappa = `r fmt(a_nile, 3)`$ is the fraction of the last residual added
+to the mean. With $\hat\xi = `r fmt(b_nile, 3)`$, a flow that exceeds its
+mean by 100 raises the mean of the next year by about
+`r fmt(100 * a_nile, 0)`, and a third of that remains after
+`r fmt(log(1/3) / log(b_nile), 0)` years.
+
+This model is a model of the autoregressive moving average family
+[@brockwell1991]. Writing $e_t = y_t - \mu_t$ and substituting the recursion
+with $d = 1$ gives
+$$
+y_t - \beta_0 = \xi\,(y_{t-1} - \beta_0) + e_t + (\kappa - \xi)\, e_{t-1},
+$$
+an ARMA(1, 1) with autoregressive coefficient $\xi$ and moving average
+coefficient $\kappa - \xi$. The function `arima()` of `stats` fits it by
+maximum likelihood:
+
+```{r}
+#| label: ts-arima-nile
+arima_nile <- arima(nile$flow, order = c(1, 0, 1), method = "ML")
+arima_nile
+cbind(statmod = c(ar1 = b_nile, ma1 = a_nile - b_nile,
+                  intercept = cf_nile[["(Intercept)"]]),
+      arima = coef(arima_nile))
+c(statmod = logLik(fit_nile), arima = logLik(arima_nile))
+```
+
+The estimates are close but not equal, and so are the log-likelihoods. The
+two functions maximize different likelihoods of the same model. Our
+recursion starts at the level $f_1 = 0$, so the first observation has
+variance $\sigma^2$. The likelihood of `arima()` gives the first observation
+the variance of the stationary process, which is larger. Both
+log-likelihoods are maximized over all the parameters, $\sigma$ included.
+
+A second lagged level, `q = 2`, gives the recursion
+$f_t = \kappa u_{t-1} + \xi_1 f_{t-1} + \xi_2 f_{t-2}$. We compare the two
+models by the likelihood ratio:
+
+```{r}
+#| label: ts-fit-nile-q2
+fit_nile2 <- statmod(flow ~ gas(p = 1, q = 2, time = year),
+                     distrib = gaussian1_distrib(), data = nile)
+summary(fit_nile2)
+l0 <- logLik(fit_nile)
+l1 <- logLik(fit_nile2)
+lr_nile <- 2 * (as.numeric(l1) - as.numeric(l0))
+lr_nile
+pchisq(lr_nile, df = 1, lower.tail = FALSE)
+```
+
+```{r}
+#| label: ts-nile-q2-numbers
+#| include: false
+p_nile <- pchisq(lr_nile, df = 1, lower.tail = FALSE)
+```
+
+The smaller model has $\xi_2 = 0$, a point inside the range of the
+partial autocorrelation, so the ratio has its usual $\chi^2_1$ reference. It
+is `r fmt(lr_nile, 3)`, with a p-value of `r fmt(p_nile, 3)`, and one lag is
+enough. With two lags the coefficients $\xi_1$ and $\xi_2$ are functions
+of both partial autocorrelations, and the region where the recursion is
+stationary is not a product of two intervals, so their intervals are built on
+the scale of the coefficients and can leave $(-1, 1)$, as the interval of
+$\xi_1$ does here. Lagged scores are added in the same way with `p`, each
+with a loading of its own. @fig-ts-nile shows the flows with the mean of the
+first model and its 95% confidence band, which `predict()` computes with
+`se = TRUE`.
+
+```{r}
+#| label: fig-ts-nile
+#| fig-cap: "Annual flow of the Nile with the mean of the score-driven model and its 95% confidence band."
+#| echo: false
+#| fig-height: 3.8
+band_nile <- predict(fit_nile, what = "mu", se = TRUE)
+band_df <- data.frame(year = nile$year, fit = band_nile$fit,
+                      lower = band_nile$lower, upper = band_nile$upper)
+ggplot(nile, aes(x = year, y = flow)) +
+  geom_ribbon(data = band_df, aes(x = year, ymin = lower, ymax = upper,
+                                  fill = "95% band"),
+              inherit.aes = FALSE, alpha = 0.2) +
+  geom_point(colour = book_grey, size = 1.2) +
+  geom_line(data = band_df, aes(x = year, y = fit,
+                                colour = "mean of the model"),
+            linewidth = 0.9) +
+  scale_colour_manual(values = chalk, guide = guide_legend(order = 1)) +
+  scale_fill_manual(values = chalk, guide = guide_legend(order = 2)) +
+  labs(x = "year", y = expression(flow ~ (10^8 ~ m^3)))
+```
+
+## Volatility {#sec-timeseries-volatility}
+
+The data set `EuStockMarkets` gives the daily closing prices of four
+European stock indices from 1991 to 1998. We use the German index DAX and its
+daily returns in percent, $r_t = 100\,(\log P_t - \log P_{t-1})$. Returns go
+through quiet periods and turbulent periods, so their variance changes over
+time, and we put the filter in the equation of the variance or of the scale.
+
+### GARCH(1, 1)
+
+The best-known model of a changing variance is the GARCH(1, 1) model
+[@bollerslev1986], which writes the variance as
+$$
+\sigma_t^2 = \omega_G + \alpha_G\,(r_{t-1} - \mu)^2 + \beta_G\,\sigma_{t-1}^2 .
+$$
+The package `rugarch` fits it, and we print its table of estimates
+[@galanos2026]:
+
+```{r}
+#| label: ts-garch-dax
+dax <- data.frame(day = 1:1859,
+                  r = 100 * diff(log(as.numeric(EuStockMarkets[, "DAX"]))))
+spec_n <- rugarch::ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = TRUE),
+  distribution.model = "norm")
+garch_n <- rugarch::ugarchfit(spec = spec_n, data = dax$r, solver = "hybrid")
+garch_n@fit$matcoef
+```
+
+The gaussian distribution with the variance $\sigma_t^2$ as its parameter is
+`gaussian2_distrib()`. On the identity link of the variance the score and
+its information are
+$$
+s_t = \frac{(r_t - \mu)^2 - \sigma_t^2}{2\sigma_t^4}, \qquad
+\mathcal{I}_t = \frac{1}{2\sigma_t^4},
+$$
+and the information changes over time. With $d = 1$ the recursion is driven
+by $u_t = (r_t - \mu)^2 - \sigma_t^2$. We write the model with an intercept
+$\gamma_0$:
+$$
+r_t \sim \mathrm{N}(\mu, \sigma_t^2), \qquad
+\sigma_t^2 = \gamma_0 + f_t, \qquad
+f_t = \kappa\left[(r_{t-1} - \mu)^2 - \sigma_{t-1}^2\right] + \xi f_{t-1}.
+$$
+Substituting $f_t = \sigma_t^2 - \gamma_0$ gives
+$$
+\sigma_t^2 = \gamma_0\,(1 - \xi) + \kappa\,(r_{t-1} - \mu)^2 +
+(\xi - \kappa)\,\sigma_{t-1}^2,
+$$
+the GARCH(1, 1) recursion with $\omega_G = \gamma_0 (1 - \xi)$,
+$\alpha_G = \kappa$ and $\beta_G = \xi - \kappa$:
+
+```{r}
+#| label: ts-fit-garch
+fit_garch <- statmod(r ~ 1 | sigma2 ~ gas(p = 1, q = 1, time = day, scaling = 1),
+                     distrib = gaussian2_distrib(link_sigma2 = identity_link()),
+                     data = dax)
+summary(fit_garch)
+cf_g <- coef(fit_garch)$sigma2
+cbind(statmod = c(mu = coef(fit_garch)$mu[["(Intercept)"]],
+                  omega = cf_g[["(Intercept)"]] * (1 - cf_g[["gas.xi1"]]),
+                  alpha1 = cf_g[["gas.kappa1"]],
+                  beta1 = cf_g[["gas.xi1"]] - cf_g[["gas.kappa1"]]),
+      rugarch = rugarch::coef(garch_n))
+c(statmod = logLik(fit_garch), rugarch = rugarch::likelihood(garch_n))
+```
+
+```{r}
+#| label: ts-garch-numbers
+#| include: false
+d_garch <- abs(as.numeric(logLik(fit_garch)) - rugarch::likelihood(garch_n))
+```
+
+The estimates agree to two decimals, and the log-likelihoods differ by
+`r fmt(d_garch, 3)`: `rugarch` starts the recursion at the mean of the
+squared residuals, and we start it at $\gamma_0$. The identity link does not
+keep $\sigma_t^2$ positive by itself. At these estimates $\omega_G$,
+$\alpha_G$ and $\beta_G$ are positive, so every $\sigma_t^2$ is positive, as
+in the GARCH model.
+
+### The logarithm of the scale
+
+The variance can also be filtered on the logarithmic scale, which keeps it
+positive whatever the loadings are. With the gaussian distribution of scale
+$\sigma_t$,
+$$
+r_t \sim \mathrm{N}(\mu, \sigma_t), \qquad
+\log \sigma_t = \gamma_0 + f_t, \qquad
+f_t = \kappa\, u_{t-1} + \xi f_{t-1},
+$$
+the score with respect to $\log \sigma_t$ and its information are
+$$
+s_t = z_t^2 - 1, \qquad \mathcal{I}_t = 2, \qquad z_t = \frac{r_t - \mu}{\sigma_t}.
+$$
+The information is constant, so $d$ does not change the model. A return that
+is large compared with $\sigma_t$ has a positive score and raises the scale
+of the next day; a small one lowers it.
+
+```{r}
+#| label: ts-fit-dax
+fit_dax <- statmod(r ~ 1 | sigma ~ gas(p = 1, q = 1, time = day),
+                   distrib = gaussian1_distrib(), data = dax)
+summary(fit_dax)
+c(log_scale = logLik(fit_dax), garch = logLik(fit_garch))
+```
+
+```{r}
+#| label: ts-dax-numbers
+#| include: false
+sd_gas <- predict(fit_dax, what = "sigma")
+sd_garch <- sqrt(predict(fit_garch, what = "sigma2"))
+d_n <- as.numeric(logLik(fit_garch)) - as.numeric(logLik(fit_dax))
+```
+
+Both models have four parameters. With the gaussian distribution the GARCH
+model has the larger log-likelihood, by `r fmt(d_n, 1)`. The two fitted
+standard deviations follow the same quiet and turbulent periods (their
+correlation over the days is `r fmt(cor(sd_gas, sd_garch), 2)`), and
+@fig-ts-dax shows them over the returns.
+
+```{r}
+#| label: fig-ts-dax
+#| fig-cap: "Absolute daily returns of the DAX, with the standard deviation of the score-driven model on the logarithm of the scale and of the GARCH(1, 1) model, both with a gaussian distribution."
+#| echo: false
+#| fig-height: 3.8
+yr <- as.numeric(time(EuStockMarkets))[-1]
+sd_names <- c("logarithm of the scale", "GARCH(1, 1)")
+curves_dax <- data.frame(
+  year = rep(yr, times = 2), sd = c(sd_gas, sd_garch),
+  curve = factor(rep(sd_names, each = length(yr)), levels = sd_names))
+ggplot(data.frame(year = yr, r = abs(dax$r)), aes(x = year)) +
+  geom_linerange(aes(ymin = 0, ymax = r), colour = book_grey,
+                 linewidth = 0.3) +
+  geom_line(data = curves_dax, aes(y = sd, colour = curve, linetype = curve),
+            linewidth = 0.6) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c(1, 2)) +
+  scale_x_continuous(breaks = seq(ceiling(min(yr)), floor(max(yr)))) +
+  labs(x = "year", y = "absolute return (%)")
+```
+
+### A heavy-tailed distribution
+
+The recursion uses the score of whatever distribution the model carries, so
+the same term gives a different model with each family. Daily returns have
+heavier tails than the gaussian distribution. With the Student $t$
+distribution of location $\mu$, scale $\sigma_t$ and $\nu$ degrees of
+freedom, the score with respect to $\log \sigma_t$ and its information are
+$$
+s_t = \frac{(\nu + 1)\, z_t^2}{\nu + z_t^2} - 1 , \qquad
+\mathcal{I}_t = \frac{2\nu}{\nu + 3}.
+$$
+The score tends to $\nu$ as $z_t$ grows. A single very large return therefore
+moves the scale by a bounded amount, while under the gaussian distribution
+its effect grows with $z_t^2$ (@fig-ts-score). The information is again
+constant, so $d$ does not change the model. This model, a Student $t$
+response whose log-scale is driven by its own score, is the Beta-t-EGARCH
+model of @harvey2013, so `gas()` fits it with the family and nothing else.
+
+```{r}
+#| label: ts-fit-dax-t
+fit_dax_t <- statmod(r ~ 1 | sigma ~ gas(p = 1, q = 1, time = day),
+                     distrib = student_t1_distrib(), data = dax)
+summary(fit_dax_t)
+c(gaussian = AIC(fit_dax), t = AIC(fit_dax_t))
+```
+
+```{r}
+#| label: ts-dax-t-numbers
+#| include: false
+nu_dax <- exp(coef(fit_dax_t)$nu[["(Intercept)"]])
+```
+
+The $t$ distribution has $\hat\nu = `r fmt(nu_dax, 2)`$ and a much lower AIC.
+The gaussian distribution is the limit $\nu \to \infty$, a point outside the
+range of $\nu$, so the likelihood ratio between the two has no $\chi^2$
+reference and we compare them by the AIC. The GARCH(1, 1) model with the
+$t$ distribution has five parameters, as ours does:
+
+```{r}
+#| label: ts-garch-dax-t
+spec_t <- rugarch::ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = TRUE),
+  distribution.model = "std")
+garch_t <- rugarch::ugarchfit(spec = spec_t, data = dax$r, solver = "hybrid")
+garch_t@fit$matcoef
+c(statmod = logLik(fit_dax_t), rugarch = rugarch::likelihood(garch_t))
+```
+
+```{r}
+#| label: ts-dax-t-compare
+#| include: false
+d_t <- as.numeric(logLik(fit_dax_t)) - rugarch::likelihood(garch_t)
+```
+
+With the $t$ distribution the order is reversed: the score-driven model has
+the larger log-likelihood, by `r fmt(d_t, 1)`. The degrees of freedom of the
+two fits are close (`r fmt(nu_dax, 2)` here,
+`r fmt(rugarch::coef(garch_t)[["shape"]], 2)` in the GARCH model). In the
+GARCH model a large return enters the variance as a squared residual whatever
+the distribution, while in the score-driven model the distribution decides
+how much it counts.
+
+@fig-ts-dax-t compares the standard deviations of the two score-driven
+models on the logarithm of the scale. The scale $\sigma_t$ of the $t$
+distribution is not its standard deviation, which is
+$\sigma_t\sqrt{\nu/(\nu - 2)}$, so we plot the latter for both models. After
+the large returns of August 1991 the gaussian model raises its standard
+deviation more and keeps it high longer, because each of those returns
+enters through $z_t^2$; the $t$ model bounds their effect.
+
+```{r}
+#| label: fig-ts-dax-t
+#| fig-cap: "Standard deviation of the DAX returns under the score-driven model with a gaussian distribution and with a Student t distribution, over the absolute returns. For the t distribution the standard deviation is the scale times the square root of nu/(nu - 2)."
+#| echo: false
+#| fig-height: 3.8
+sd_t <- predict(fit_dax_t, what = "sigma") * sqrt(nu_dax / (nu_dax - 2))
+sdt_names <- c("gaussian", "Student t")
+curves_dax_t <- data.frame(
+  year = rep(yr, times = 2), sd = c(sd_gas, sd_t),
+  curve = factor(rep(sdt_names, each = length(yr)), levels = sdt_names))
+ggplot(data.frame(year = yr, r = abs(dax$r)), aes(x = year)) +
+  geom_linerange(aes(ymin = 0, ymax = r), colour = book_grey,
+                 linewidth = 0.3) +
+  geom_line(data = curves_dax_t, aes(y = sd, colour = curve, linetype = curve),
+            linewidth = 0.6) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c(1, 2)) +
+  scale_x_continuous(breaks = seq(ceiling(min(yr)), floor(max(yr)))) +
+  labs(x = "year", y = "absolute return (%)")
+```
+
+```{r}
+#| label: fig-ts-score
+#| fig-cap: "The score with respect to the log-scale as a function of the standardized observation, for the gaussian distribution and for the Student t distribution with the degrees of freedom estimated on the DAX returns."
+#| echo: false
+#| fig-height: 3.6
+zz <- seq(-6, 6, length.out = 400)
+score_names <- c("gaussian", sprintf("Student t, nu = %.2f", nu_dax),
+                 "limit of the t score")
+curves_score <- data.frame(
+  z = rep(zz, times = 3),
+  score = c(zz^2 - 1, (nu_dax + 1) * zz^2 / (nu_dax + zz^2) - 1,
+            rep(nu_dax, times = length(zz))),
+  curve = factor(rep(score_names, each = length(zz)), levels = score_names))
+ggplot(curves_score, aes(x = z, y = score)) +
+  geom_line(aes(colour = curve, linetype = curve, linewidth = curve)) +
+  scale_colour_manual(values = c(chalk, rust, grey)) +
+  scale_linetype_manual(values = c(1, 2, 3)) +
+  scale_linewidth_manual(values = c(0.9, 0.9, 0.5)) +
+  coord_cartesian(ylim = c(-1, 12)) +
+  labs(x = "standardized observation z", y = "score")
+```
+
+## Counts {#sec-timeseries-counts}
+
+The series `discoveries` gives the number of great inventions and scientific
+discoveries in each year from 1860 to 1959. We put the filter in the
+equation of the mean of a Poisson response.
+
+### INGARCH(1, 1)
+
+On the identity link the score with respect to $\mu_t$ is
+$(y_t - \mu_t)/\mu_t$ and its information is $1/\mu_t$, so with $d = 1$ the
+recursion is driven by $u_t = y_t - \mu_t$. With an intercept $\gamma_0$, as
+for the GARCH model,
+$$
+y_t \sim \mathrm{Poisson}(\mu_t), \qquad
+\mu_t = \gamma_0\,(1 - \xi) + \kappa\, y_{t-1} + (\xi - \kappa)\,\mu_{t-1},
+$$
+which is the INGARCH(1, 1) model of counts [@ferland2006; @fokianos2009].
+The package `tscount` fits it with the identity link [@liboschik2017]. There
+the coefficient of the past count is named `beta_1` and that of the past
+mean `alpha_1`:
+
+```{r}
+#| label: ts-fit-ingarch
+disc <- data.frame(year = 1860:1959, n = as.numeric(discoveries))
+fit_ingarch <- statmod(n ~ gas(p = 1, q = 1, time = year, scaling = 1),
+                       distrib = poisson_distrib(link_mu = identity_link()),
+                       data = disc)
+summary(fit_ingarch)
+tsc_id <- tscount::tsglm(discoveries, model = list(past_obs = 1, past_mean = 1),
+                         link = "identity", distr = "poisson")
+cf_i <- coef(fit_ingarch)$mu
+cbind(statmod = c(intercept = cf_i[["(Intercept)"]] * (1 - cf_i[["gas.xi1"]]),
+                  beta_1 = cf_i[["gas.kappa1"]],
+                  alpha_1 = cf_i[["gas.xi1"]] - cf_i[["gas.kappa1"]]),
+      tscount = coef(tsc_id))
+c(statmod = logLik(fit_ingarch), tscount = logLik(tsc_id))
+```
+
+The estimates agree to two decimals, and the log-likelihoods differ by less
+than 0.001, because the two recursions start from different values.
+
+### The logarithmic link
+
+On the logarithmic link the score with respect to $\log \mu_t$ is
+$y_t - \mu_t$ and its information is $\mu_t$, so
+$$
+y_t \sim \mathrm{Poisson}(\mu_t), \qquad
+\log \mu_t = \beta_0 + f_t, \qquad
+f_t = \kappa\,\frac{y_{t-1} - \mu_{t-1}}{\mu_{t-1}^{d}} + \xi f_{t-1}.
+$$
+The information changes over time, so each $d$ gives a different model. A
+year with more discoveries than expected raises the expected number of the
+next year: with $d = 0$ in proportion to the excess $y_t - \mu_t$, with
+$d = 1$ in proportion to the relative excess $(y_t - \mu_t)/\mu_t$. We fit
+the three models:
+
+```{r}
+#| label: ts-fit-disc
+fit_disc <- statmod(n ~ gas(p = 1, q = 1, time = year),
+                    distrib = poisson_distrib(), data = disc)
+fit_disc_h <- statmod(n ~ gas(p = 1, q = 1, time = year, scaling = 0.5),
+                      distrib = poisson_distrib(), data = disc)
+fit_disc_1 <- statmod(n ~ gas(p = 1, q = 1, time = year, scaling = 1),
+                      distrib = poisson_distrib(), data = disc)
+summary(fit_disc_1)
+c(d_0 = logLik(fit_disc), d_half = logLik(fit_disc_h), d_1 = logLik(fit_disc_1))
+```
+
+```{r}
+#| label: ts-disc-scaling-numbers
+#| include: false
+d_sc <- as.numeric(logLik(fit_disc_1)) - as.numeric(logLik(fit_disc))
+```
+
+The three models have the same number of parameters, so we compare their
+log-likelihoods directly. The model with $d = 1$ has the largest, by
+`r fmt(d_sc, 2)` over the model with the score as it is. We compare the
+score-driven models with the constant ones by the AIC, since the model
+without dynamics is the limit $\kappa \to 0$, which is the edge of the range
+of a loading on the logarithmic scale:
+
+```{r}
+#| label: ts-fit-disc-static
+fit_disc0 <- statmod(n ~ 1, distrib = poisson_distrib(), data = disc)
+fit_disc_nb <- statmod(n ~ 1, distrib = negbin2_distrib(), data = disc)
+c(poisson = AIC(fit_disc0), negbin = AIC(fit_disc_nb),
+  score_driven = AIC(fit_disc))
+```
+
+The score-driven Poisson model has a lower AIC than both the constant
+Poisson model and the constant negative binomial model: part of the
+overdispersion of the counts is a mean that changes over time. The rest of
+it can be given to the distribution. With the negative binomial of mean
+$\mu_t$ and size $\theta$ the score with respect to $\log\mu_t$ is
+$\theta(y_t - \mu_t)/(\theta + \mu_t)$, which grows more slowly than the
+Poisson score for large counts:
+
+```{r}
+#| label: ts-fit-disc-nb
+fit_disc_gnb <- statmod(n ~ gas(p = 1, q = 1, time = year),
+                        distrib = negbin2_distrib(), data = disc)
+summary(fit_disc_gnb)
+c(poisson = AIC(fit_disc), negbin = AIC(fit_disc_gnb))
+```
+
+The log-linear model of `tscount` writes
+$\log\mu_t = \beta_0 + \beta_1 \log(y_{t-1} + 1) + \alpha_1 \log\mu_{t-1}$,
+so the past count enters through its logarithm, where the score-driven model
+uses the difference $y_{t-1} - \mu_{t-1}$. It is not a score-driven model,
+but it has the same number of parameters, and we compare the maximized
+log-likelihoods for both distributions:
+
+```{r}
+#| label: ts-tscount-disc
+tsc_p <- tscount::tsglm(discoveries, model = list(past_obs = 1, past_mean = 1),
+                        link = "log", distr = "poisson")
+summary(tsc_p)
+tsc_nb <- tscount::tsglm(discoveries, model = list(past_obs = 1, past_mean = 1),
+                         link = "log", distr = "nbinom")
+rbind(poisson = c(statmod = logLik(fit_disc), tscount = logLik(tsc_p)),
+      negbin = c(statmod = logLik(fit_disc_gnb), tscount = logLik(tsc_nb)))
+```
+
+```{r}
+#| label: ts-tscount-numbers
+#| include: false
+d_tsc_p <- as.numeric(logLik(fit_disc)) - as.numeric(logLik(tsc_p))
+d_tsc_nb <- as.numeric(logLik(fit_disc_gnb)) - as.numeric(logLik(tsc_nb))
+```
+
+On these counts the score-driven models have the larger log-likelihood, by
+`r fmt(d_tsc_p, 2)` with the Poisson distribution and by
+`r fmt(d_tsc_nb, 2)` with the negative binomial. @fig-ts-disc shows the
+counts with the means of the Poisson and negative binomial score-driven
+models.
+
+```{r}
+#| label: fig-ts-disc
+#| fig-cap: "Number of great discoveries in each year, with the means of the score-driven Poisson and negative binomial models and the mean of the constant model."
+#| echo: false
+#| fig-height: 3.6
+disc_names <- c("Poisson", "negative binomial", "constant mean")
+curves_disc <- data.frame(
+  year = rep(disc$year, times = 3),
+  n = c(predict(fit_disc, what = "mu"), predict(fit_disc_gnb, what = "mu"),
+        rep(mean(disc$n), nrow(disc))),
+  curve = factor(rep(disc_names, each = nrow(disc)), levels = disc_names))
+ggplot(disc, aes(x = year, y = n)) +
+  geom_point(colour = book_grey, size = 1.2) +
+  geom_line(data = curves_disc, aes(colour = curve, linetype = curve),
+            linewidth = 0.8) +
+  scale_colour_manual(values = c(chalk, rust, ink)) +
+  scale_linetype_manual(values = c(1, 2, 3)) +
+  labs(x = "year", y = "discoveries")
+```
+
+## Durations, positive measurements and proportions {#sec-timeseries-families}
+
+### Durations
+
+The time between two trades of a stock is a positive quantity whose mean
+changes during the day and from one trade to the next. Models of
+autoregressive conditional duration describe the mean duration by a
+recursion [@engle1998]. The package `ACDm` carries a series of durations
+between trades, already adjusted for the daily pattern so that their mean is
+close to one [@belfrage2025], and we use its first 1000.
+
+The exponential distribution with its mean $\psi_t$ on the identity link has
+the score $(x_t - \psi_t)/\psi_t^2$ and the information $1/\psi_t^2$, so with
+$d = 1$ the recursion is driven by $x_t - \psi_t$, and with an intercept
+$\gamma_0$
+$$
+x_t \sim \mathrm{Exp}(\psi_t), \qquad
+\psi_t = \gamma_0\,(1 - \xi) + \kappa\, x_{t-1} + (\xi - \kappa)\,\psi_{t-1}
+$$
+is the ACD(1, 1) model of @engle1998, which `ACDm` fits as the model `"ACD"`:
+
+```{r}
+#| label: ts-fit-acd-linear
+data(adjDurData, package = "ACDm")
+dur <- data.frame(i = 1:1000, x = adjDurData$adjDur[1:1000])
+fit_acd_lin <- statmod(x ~ gas(p = 1, q = 1, time = i, scaling = 1),
+                       distrib = exponential_distrib(link_mu = identity_link()),
+                       data = dur)
+summary(fit_acd_lin)
+acd_lin <- ACDm::acdFit(durations = dur$x, model = "ACD", dist = "exponential",
+                        order = c(1, 1), output = FALSE)
+cf_l <- coef(fit_acd_lin)$mu
+cbind(statmod = c(omega = cf_l[["(Intercept)"]] * (1 - cf_l[["gas.xi1"]]),
+                  alpha1 = cf_l[["gas.kappa1"]],
+                  beta1 = cf_l[["gas.xi1"]] - cf_l[["gas.kappa1"]]),
+      ACDm = acd_lin$mPar)
+c(statmod = logLik(fit_acd_lin),
+  ACDm = acd_lin$goodnessOfFit["LogLikelihood", "value"])
+```
+
+```{r}
+#| label: ts-acd-linear-numbers
+#| include: false
+d_acl <- abs(as.numeric(logLik(fit_acd_lin)) -
+               acd_lin$goodnessOfFit["LogLikelihood", "value"])
+```
+
+The estimates agree to two decimals, and the log-likelihoods differ by
+`r fmt(d_acl, 3)`, because the two recursions start from different values.
+
+On the logarithmic link the score with respect to $\log\psi_t$ is
+$x_t/\psi_t - 1$ and its information is one, so $d$ does not change the
+model:
+$$
+x_t \sim \mathrm{Exp}(\psi_t), \qquad
+\log\psi_t = \beta_0 + f_t, \qquad
+f_t = \kappa\left(\frac{x_{t-1}}{\psi_{t-1}} - 1\right) + \xi f_{t-1}.
+$$
+This is the logarithmic ACD model of @bauwens2000 in its second form,
+$\log\psi_t = \omega_A + \kappa\, x_{t-1}/\psi_{t-1} + \xi\log\psi_{t-1}$,
+with $\omega_A = \beta_0 (1 - \xi) - \kappa$.
+
+```{r}
+#| label: ts-fit-acd
+fit_acd <- statmod(x ~ gas(p = 1, q = 1, time = i),
+                   distrib = exponential_distrib(), data = dur)
+summary(fit_acd)
+acd <- ACDm::acdFit(durations = dur$x, model = "LACD2", dist = "exponential",
+                    order = c(1, 1), output = FALSE)
+cf_acd <- coef(fit_acd)$mu
+cbind(statmod = c(omega = cf_acd[["(Intercept)"]] * (1 - cf_acd[["gas.xi1"]]) -
+                    cf_acd[["gas.kappa1"]],
+                  alpha1 = cf_acd[["gas.kappa1"]], beta1 = cf_acd[["gas.xi1"]]),
+      ACDm = acd$mPar)
+c(statmod = logLik(fit_acd),
+  ACDm = acd$goodnessOfFit["LogLikelihood", "value"])
+```
+
+```{r}
+#| label: ts-acd-numbers
+#| include: false
+d_acd <- as.numeric(logLik(fit_acd)) -
+  acd$goodnessOfFit["LogLikelihood", "value"]
+```
+
+The estimates agree to three decimals, and the log-likelihoods differ by
+`r fmt(abs(d_acd), 3)`, because the two recursions start from different
+values.
+
+### Positive measurements and proportions
+
+The family can be any distribution of `distributions7`. The series `lh` gives
+the level of luteinizing hormone in blood samples taken every ten minutes
+from a woman, 48 positive measurements [@diggle1990]. A gamma response with
+mean $\mu_t$ and dispersion $\phi$ has the score
+$(y_t/\mu_t - 1)/\phi$ with respect to $\log\mu_t$ and the information
+$1/\phi$, which is constant, so $d$ does not change the model:
+
+```{r}
+#| label: ts-fit-lh
+lhd <- data.frame(t = 1:48, y = as.numeric(lh))
+fit_lh <- statmod(y ~ gas(p = 1, q = 1, time = t),
+                  distrib = gamma1_distrib(), data = lhd)
+summary(fit_lh)
+fit_lh0 <- statmod(y ~ 1, distrib = gamma1_distrib(), data = lhd)
+c(constant = AIC(fit_lh0), score_driven = AIC(fit_lh))
+```
+
+A proportion has a beta distribution. The series `Seatbelts` gives the
+monthly numbers of car drivers, front-seat passengers and rear-seat
+passengers killed or seriously injured in Great Britain from 1969 to 1984,
+and a law made front seat belts compulsory from February 1983
+[@harvey1986]. We model the share of front-seat passengers among all the
+passengers, $y_t$, with a beta distribution of mean $\mu_t$ and precision
+$\phi$, the law as a covariate of the mean and a score-driven filter beside
+it:
+$$
+y_t \sim \mathrm{Beta}(\mu_t, \phi), \qquad
+\mathrm{logit}\,\mu_t = \beta_0 + \beta_1\,\mathrm{law}_t + f_t .
+$$
+On the logit link the information of the beta distribution changes with
+$\mu_t$, so each $d$ gives a different model; we use the default $d = 0$.
+
+```{r}
+#| label: ts-fit-seatbelts
+belts <- data.frame(month = 1:192, law = Seatbelts[, "law"],
+                    share = Seatbelts[, "front"] /
+                      (Seatbelts[, "front"] + Seatbelts[, "rear"]))
+fit_belt <- statmod(share ~ law + gas(p = 1, q = 1, time = month),
+                    distrib = beta1_distrib(), data = belts)
+summary(fit_belt)
+fit_belt0 <- statmod(share ~ law, distrib = beta1_distrib(), data = belts)
+c(static = AIC(fit_belt0), score_driven = AIC(fit_belt))
+```
+
+```{r}
+#| label: ts-belt-numbers
+#| include: false
+cf_belt <- coef(fit_belt)$mu
+```
+
+With the filter beside it the law lowers the logit of the front-seat share
+by `r fmt(-cf_belt[["law"]], 3)`. @fig-ts-families shows the fitted means of
+the three series.
+
+```{r}
+#| label: fig-ts-families
+#| fig-cap: "Three score-driven models with other families: the first 200 trade durations with the mean of the logarithmic ACD model, the hormone levels with the mean of the gamma model, and the share of front-seat passengers with the mean of the beta model. The dashed line in the last panel marks the seat-belt law."
+#| echo: false
+#| fig-height: 3.4
+#| fig-width: 9
+fam_obs <- rbind(
+  data.frame(x = 1:200, y = dur$x[1:200], panel = "durations (exponential)"),
+  data.frame(x = lhd$t, y = lhd$y, panel = "hormone (gamma)"),
+  data.frame(x = 1969 + (belts$month - 1) / 12, y = belts$share,
+             panel = "front-seat share (beta)"))
+fam_fit <- rbind(
+  data.frame(x = 1:200, y = predict(fit_acd, what = "mu")[1:200],
+             panel = "durations (exponential)"),
+  data.frame(x = lhd$t, y = predict(fit_lh, what = "mu"),
+             panel = "hormone (gamma)"),
+  data.frame(x = 1969 + (belts$month - 1) / 12,
+             y = predict(fit_belt, what = "mu"),
+             panel = "front-seat share (beta)"))
+lev_fam <- c("durations (exponential)", "hormone (gamma)",
+             "front-seat share (beta)")
+fam_obs$panel <- factor(fam_obs$panel, levels = lev_fam)
+fam_fit$panel <- factor(fam_fit$panel, levels = lev_fam)
+ggplot(fam_obs, aes(x = x, y = y)) +
+  geom_point(aes(colour = "observations"), size = 0.9) +
+  geom_line(data = fam_fit, aes(colour = "mean of the model"),
+            linewidth = 0.8) +
+  geom_vline(data = data.frame(x = 1983 + 1 / 12,
+                               panel = factor("front-seat share (beta)",
+                                              levels = lev_fam)),
+             aes(xintercept = x), linetype = 2, colour = ink) +
+  facet_wrap(~panel, nrow = 1, scales = "free") +
+  scale_colour_manual(values = c("observations" = book_grey,
+                                 "mean of the model" = chalk)) +
+  labs(x = NULL, y = NULL)
+```
+
+## Panels of short series {#sec-timeseries-panels}
+
+The data frame `Ovary` of the package `nlme` gives the number of ovarian
+follicles larger than 10 mm in eleven mares, counted on 25 to 31 days of one
+cycle [@pinheiro2000]. The variable `Time` is scaled so that ovulations fall
+at 0 and 1, and the mean follows the cycle, which we describe with
+$\sin(2\pi t)$ and $\cos(2\pi t)$. Around that mean the counts of one mare
+are correlated from one day to the next. We treat the counts as gaussian, as
+@pinheiro2000 do, and we give every mare a score-driven filter:
+$$
+y_{it} \sim \mathrm{N}(\mu_{it}, \sigma), \qquad
+\mu_{it} = \beta_0 + \beta_1 \sin(2\pi t) + \beta_2 \cos(2\pi t) + f_{it},
+$$
+$$
+f_{it} = \kappa\, s_{i,t-1} + \xi f_{i,t-1}.
+$$
+The argument `by` of `gas()` names the grouping: the recursion runs over the
+series of each mare separately, from its own starting level, and the
+parameters are shared.
+
+```{r}
+#| label: ts-fit-ovary
+data(Ovary, package = "nlme")
+fit_ov <- statmod(follicles ~ sin(2 * pi * Time) + cos(2 * pi * Time) +
+                    gas(p = 1, q = 1, by = Mare, time = Time),
+                  distrib = gaussian1_distrib(), data = Ovary)
+summary(fit_ov)
+```
+
+As in @sec-timeseries-gas, a gaussian filter on the mean is an ARMA(1, 1),
+now one for each mare. The function `gls()` of `nlme` fits the same mean with
+ARMA(1, 1) errors within each mare:
+
+```{r}
+#| label: ts-gls-ovary
+gls_ov <- nlme::gls(follicles ~ sin(2 * pi * Time) + cos(2 * pi * Time),
+                    data = Ovary, method = "ML",
+                    correlation = nlme::corARMA(p = 1, q = 1, form = ~ 1 | Mare))
+summary(gls_ov)
+cf_ov <- coef(fit_ov)$mu
+s2_ov <- exp(2 * coef(fit_ov)$sigma[["(Intercept)"]])
+arma_gls <- coef(gls_ov$modelStruct$corStruct, unconstrained = FALSE)
+cbind(statmod = c(cf_ov[c("(Intercept)", "sin(2 * pi * Time)",
+                          "cos(2 * pi * Time)")],
+                  ar1 = cf_ov[["gas.xi1"]],
+                  ma1 = cf_ov[["gas.kappa1"]] / s2_ov - cf_ov[["gas.xi1"]]),
+      gls = c(coef(gls_ov), arma_gls))
+c(statmod = logLik(fit_ov), gls = logLik(gls_ov))
+```
+
+The estimates are close, and the log-likelihoods differ for the reason given
+for the Nile: `gls()` gives the first count of each mare the variance of the
+stationary process, while our filter starts every mare at the level
+$f_{i1} = 0$.
+
+### A level for each mare
+
+The mares differ in their average number of follicles. In a score-driven
+model the level around which $f_{it}$ fluctuates is $\omega/(1-\xi)$, so a
+mare-specific $\omega_i$ gives each mare a level of its own. A parameter of
+`gas()` takes a formula, as the parameters of `nl()` do in
+@sec-nonlinear-covariates, and with `omega ~ 1 + random(~ 1 | Mare)` it is
+$\omega_i = \omega + b_i$ with $b_i \sim \mathrm{N}(0, \tau)$. The formula of
+the mean has no intercept, because the intercept of `omega` plays its role:
+
+```{r}
+#| label: ts-fit-ovary-omega
+fit_ov_om <- statmod(follicles ~ 0 + sin(2 * pi * Time) + cos(2 * pi * Time) +
+                       gas(p = 1, q = 1, omega ~ 1 + random(~ 1 | Mare),
+                           by = Mare, time = Time),
+                     distrib = gaussian1_distrib(), data = Ovary)
+summary(fit_ov_om)
+```
+
+```{r}
+#| label: ts-ovary-omega-numbers
+#| include: false
+cf_om <- coef(fit_ov_om)$mu
+tau_om <- hyper(fit_ov_om)$estimate
+lev_sd <- tau_om / (1 - cf_om[["gas.xi1"]])
+```
+
+The standard deviation of the $\omega_i$ is $\hat\tau = `r fmt(tau_om, 3)`$,
+which is a standard deviation of
+$\hat\tau/(1 - \hat\xi) = `r fmt(lev_sd, 2)`$ follicles between the levels
+of the mares. As for any random effect, $\tau$ is estimated by restricted
+maximum likelihood.
+
+The model with shared parameters is this model with $\tau = 0$. We compare
+the two by the likelihood ratio, which needs the maximized likelihood of
+both, so we fit the second under `ml()`:
+
+```{r}
+#| label: ts-lr-ovary
+fit_ov_ml <- statmod(follicles ~ 0 + sin(2 * pi * Time) + cos(2 * pi * Time) +
+                       gas(p = 1, q = 1, omega ~ 1 + random(~ 1 | Mare),
+                           by = Mare, time = Time),
+                     distrib = gaussian1_distrib(), data = Ovary,
+                     outer_criterion = ml())
+l0 <- logLik(fit_ov)
+l1 <- logLik(fit_ov_ml, type = "marginal")
+lr_ov <- 2 * (as.numeric(l1) - as.numeric(l0))
+lr_ov
+0.5 * pchisq(lr_ov, df = 1, lower.tail = FALSE)
+```
+
+```{r}
+#| label: ts-lr-ovary-numbers
+#| include: false
+p_ov <- 0.5 * pchisq(lr_ov, df = 1, lower.tail = FALSE)
+```
+
+The value $\tau = 0$ is the edge of the range of a standard deviation, so the
+ratio has the reference distribution of @self1987: half the time it is zero
+and half the time a $\chi^2_1$, which halves the p-value of the $\chi^2_1$.
+The ratio is `r fmt(lr_ov, 2)`, with a p-value of `r fmt(p_ov, 3)`. Each
+mare's filter already moves towards the counts of that mare, so a level for
+each mare adds little.
+
+The same family of means can be written with a random intercept in the
+formula of the mean and $\omega$ held at zero, as in @sec-timeseries-gas:
+$\mu_{it} = \beta_0 + c_i + \beta_1\sin(2\pi t) + \beta_2\cos(2\pi t) + f_{it}$
+with $c_i \sim \mathrm{N}(0, \tau_c)$. For a given $\xi$, a mare's
+intercept $c_i$ and her level $\omega_i$ move the mean in the same way when
+$\omega_i - \omega = c_i\,(1 - \xi)$:
+
+```{r}
+#| label: ts-fit-ovary-intercept
+fit_ov_int <- statmod(follicles ~ sin(2 * pi * Time) + cos(2 * pi * Time) +
+                        random(~ 1 | Mare) +
+                        gas(p = 1, q = 1, by = Mare, time = Time),
+                      distrib = gaussian1_distrib(), data = Ovary,
+                      outer_criterion = ml())
+summary(fit_ov_int)
+c(intercept = logLik(fit_ov_int, type = "marginal"),
+  level = logLik(fit_ov_ml, type = "marginal"))
+```
+
+```{r}
+#| label: ts-ovary-intercept-numbers
+#| include: false
+tau_int <- hyper(fit_ov_int)$estimate
+lev_ml <- hyper(fit_ov_ml)$estimate / (1 - coef(fit_ov_ml)$mu[["gas.xi1"]])
+```
+
+The two spellings are not the same model. The distribution of the random
+effects is placed on different quantities: on $c_i$ the standard deviation
+of a mare's level is $\tau_c$ whatever $\xi$ is, while on $\omega_i$ it is
+$\tau/(1 - \xi)$, which changes with $\xi$. Since $\xi$ is estimated
+together with the effects, the two criteria differ. Here the random
+intercept goes to $\hat\tau_c = `r format(signif(tau_int, 2))`$, which is the
+model with shared parameters, while the level of each mare has a standard
+deviation of `r fmt(lev_ml, 2)` follicles under `ml()`, with the larger
+maximized likelihood.
+
+### A loading for each mare
+
+The loading can vary between mares in the same way. It is estimated on the
+logarithmic scale, and the formula of `kappa1` acts on that scale, so
+$\kappa_i = \exp(a + c_i)$ with $c_i \sim \mathrm{N}(0, \tau_\kappa)$:
+
+```{r}
+#| label: ts-fit-ovary-alpha
+fit_ov_al <- statmod(follicles ~ 0 + sin(2 * pi * Time) + cos(2 * pi * Time) +
+                       gas(p = 1, q = 1, omega ~ 1 + random(~ 1 | Mare),
+                           kappa1 ~ 1 + random(~ 1 | Mare),
+                           by = Mare, time = Time),
+                     distrib = gaussian1_distrib(), data = Ovary)
+summary(fit_ov_al)
+```
+
+```{r}
+#| label: ts-ovary-alpha-numbers
+#| include: false
+h_al <- hyper(fit_ov_al)
+cf_al <- coef(fit_ov_al)$mu
+al_mare <- exp(cf_al[["gas.kappa1.(Intercept)"]] +
+                 cf_al[paste0("gas.kappa1.random.", levels(Ovary$Mare))])
+```
+
+The loadings of the mares range from `r fmt(min(al_mare), 2)` to
+`r fmt(max(al_mare), 2)`. @fig-ts-ovary shows three mares, the one with the
+lowest level, one in the middle and the one with the highest, with the means
+of the three models.
+
+```{r}
+#| label: fig-ts-ovary
+#| fig-cap: "Number of large follicles over one cycle for three mares, with the means of the model with shared parameters, of the model with a level for each mare and of the model with a level and a loading for each mare."
+#| echo: false
+#| fig-height: 3.6
+#| fig-width: 9
+b_om <- cf_om[paste0("gas.omega.random.", levels(Ovary$Mare))]
+names(b_om) <- levels(Ovary$Mare)
+sel_ov <- names(sort(b_om))[c(1, 6, 11)]
+sel_ov <- sel_ov[order(as.numeric(sel_ov))]
+m_sh <- predict(fit_ov, what = "mu", newdata = Ovary)
+m_om <- predict(fit_ov_om, what = "mu", newdata = Ovary)
+m_al <- predict(fit_ov_al, what = "mu", newdata = Ovary)
+rows_ov <- as.character(Ovary$Mare) %in% sel_ov
+obs_ov <- data.frame(Time = Ovary$Time[rows_ov],
+                     follicles = Ovary$follicles[rows_ov],
+                     panel = factor(paste("mare", Ovary$Mare[rows_ov]),
+                                    levels = paste("mare", sel_ov)))
+ov_names <- c("shared", "level by mare", "level and loading")
+curves_ov <- data.frame(
+  Time = rep(obs_ov$Time, times = 3), panel = rep(obs_ov$panel, times = 3),
+  follicles = c(m_sh[rows_ov], m_om[rows_ov], m_al[rows_ov]),
+  curve = factor(rep(ov_names, each = nrow(obs_ov)), levels = ov_names))
+ggplot(obs_ov, aes(x = Time, y = follicles)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = curves_ov, aes(colour = curve, linetype = curve,
+                                  linewidth = curve)) +
+  facet_wrap(~panel, nrow = 1) +
+  scale_colour_manual(values = c(ink, chalk, rust)) +
+  scale_linetype_manual(values = c(3, 1, 2)) +
+  scale_linewidth_manual(values = c(0.6, 0.9, 0.7)) +
+  coord_cartesian(ylim = range(Ovary$follicles)) +
+  labs(x = "time in the cycle", y = "follicles")
+```
+
+The argument `random` of `predict()` cannot set these random effects aside.
+The level of the filter is a recursion read at the predictor, so removing a
+random effect would change the whole path of the recursion. Called with
+`random = "zero"` on a model with a structural term, `predict()` signals an
+error.
+
+## Forecasts beyond the series {#sec-timeseries-forecast}
+
+`predict()` continues the filter past the last observation when `newdata`
+gives times that the fit did not see. The score has mean zero, so beyond the
+data the expected score is zero, and the forecast follows the recursion
+without the score:
+$$
+f_{n+1} = \omega + \kappa\, s_n + \xi f_n, \qquad
+f_{n+h} = \omega + \xi f_{n+h-1} \quad (h \ge 2).
+$$
+The forecast therefore approaches the level $\omega/(1 - \xi)$ around which
+the series fluctuates, at the rate $\xi$. In the Nile model $\omega$ is held
+at zero and the level is the intercept.
+
+```{r}
+#| label: ts-forecast-nile
+future <- data.frame(year = 1971:1990)
+fc_nile <- predict(fit_nile, what = "mu", newdata = future)
+head(fc_nile, n = 5)
+```
+
+With `se = TRUE`, `predict()` reports a standard error and an interval for
+each forecast. They are the uncertainty of the estimated parameters, carried
+by the delta method through the continued recursion, whose derivative in the
+parameters is computed exactly. A forecast also carries the uncertainty of
+the future scores, which this standard error leaves out, and `predict()`
+issues a warning that states this:
+
+```{r}
+#| label: ts-forecast-se
+#| warning: true
+fc_nile_se <- predict(fit_nile, what = "mu", newdata = future, se = TRUE)
+head(fc_nile_se, n = 5)
+```
+
+```{r}
+#| label: ts-forecast-se-numbers
+#| include: false
+se_fc <- fc_nile_se$se
+```
+
+The standard error is `r fmt(se_fc[1], 1)` one year ahead, rises to
+`r fmt(max(se_fc), 1)` `r which.max(se_fc)` years ahead and then stays near
+`r fmt(se_fc[20], 0)`. Far ahead the forecast approaches the level of the
+series, the intercept, so its standard error approaches that of the
+intercept, `r fmt(confint(fit_nile)["mu:(Intercept)", "se"], 1)`.
+
+In a panel the forecast continues the series of one group. The rows of
+`newdata` give the group and times after its last observation, and the
+formula computes the terms of the cycle from `Time`:
+
+```{r}
+#| label: ts-forecast-ovary
+last_1 <- max(Ovary$Time[Ovary$Mare == "1"])
+new_1 <- data.frame(Mare = "1", Time = last_1 + 0.045 * (1:6))
+fc_ov <- predict(fit_ov_om, what = "mu", newdata = new_1)
+fc_ov
+```
+
+@fig-ts-forecast shows the three forecasts.
+
+```{r}
+#| label: fig-ts-forecast
+#| fig-cap: "Forecasts of the score-driven models beyond the last observation: the Nile flow, the number of discoveries and the follicles of mare 1, with the 95% band that the uncertainty of the parameters alone gives. The dotted line is the level around which each series fluctuates."
+#| echo: false
+#| fig-height: 3.6
+#| fig-width: 9
+fc_disc <- predict(fit_disc, what = "mu",
+                   newdata = data.frame(year = 1960:1979))
+r1 <- which(Ovary$Mare == "1")
+r1 <- r1[order(Ovary$Time[r1])]
+cf1 <- coef(fit_ov_om)$mu
+w1 <- cf1[["gas.omega.(Intercept)"]] + cf1[["gas.omega.random.1"]]
+lev_ov <- cf1[["sin(2 * pi * Time)"]] * sin(2 * pi * new_1$Time) +
+  cf1[["cos(2 * pi * Time)"]] * cos(2 * pi * new_1$Time) +
+  w1 / (1 - cf1[["gas.xi1"]])
+pan_fc <- c("Nile flow against year", "discoveries against year",
+            "follicles of mare 1 against time in the cycle")
+fc_names <- c("mean of the model", "forecast", "level")
+fc_part <- function(k, x, y, curve) {
+  data.frame(panel = factor(pan_fc[k], levels = pan_fc), x = x, y = y,
+             curve = factor(curve, levels = fc_names))
+}
+obs_fc <- rbind(fc_part(1, nile$year, nile$flow, NA),
+                fc_part(2, disc$year, disc$n, NA),
+                fc_part(3, Ovary$Time[r1], Ovary$follicles[r1], NA))
+curves_fc <- rbind(
+  fc_part(1, nile$year, predict(fit_nile, what = "mu"), fc_names[1]),
+  fc_part(1, future$year, fc_nile, fc_names[2]),
+  fc_part(1, c(1871, 1990), rep(cf_nile[["(Intercept)"]], 2), fc_names[3]),
+  fc_part(2, disc$year, predict(fit_disc, what = "mu"), fc_names[1]),
+  fc_part(2, 1960:1979, fc_disc, fc_names[2]),
+  fc_part(2, c(1860, 1979), rep(exp(coef(fit_disc)$mu[["(Intercept)"]]), 2),
+          fc_names[3]),
+  fc_part(3, Ovary$Time[r1], m_om[r1], fc_names[1]),
+  fc_part(3, new_1$Time, fc_ov, fc_names[2]),
+  fc_part(3, new_1$Time, lev_ov, fc_names[3]))
+band_disc <- predict(fit_disc, what = "mu",
+                     newdata = data.frame(year = 1960:1979), se = TRUE)
+band_ov <- predict(fit_ov_om, what = "mu", newdata = new_1, se = TRUE)
+bands_fc <- rbind(
+  data.frame(panel = factor(pan_fc[1], levels = pan_fc), x = future$year,
+             lower = fc_nile_se$lower, upper = fc_nile_se$upper),
+  data.frame(panel = factor(pan_fc[2], levels = pan_fc), x = 1960:1979,
+             lower = band_disc$lower, upper = band_disc$upper),
+  data.frame(panel = factor(pan_fc[3], levels = pan_fc), x = new_1$Time,
+             lower = band_ov$lower, upper = band_ov$upper))
+ggplot(obs_fc, aes(x = x, y = y)) +
+  geom_ribbon(data = bands_fc, aes(x = x, ymin = lower, ymax = upper,
+                                   fill = "95% band of the parameters"),
+              inherit.aes = FALSE, alpha = 0.2) +
+  geom_point(colour = book_grey, size = 1) +
+  geom_line(data = curves_fc, aes(colour = curve, linetype = curve,
+                                  linewidth = curve)) +
+  facet_wrap(~panel, nrow = 1, scales = "free") +
+  scale_fill_manual(values = rust) +
+  scale_colour_manual(values = c(chalk, rust, ink)) +
+  scale_linetype_manual(values = c(1, 1, 3)) +
+  scale_linewidth_manual(values = c(0.7, 0.9, 0.5)) +
+  labs(x = NULL, y = NULL)
+```
+
+## Hidden regimes: regime() {#sec-timeseries-regime}
+
+The data frame `geyser` of the package `MASS` records
+`r nrow(MASS::geyser)` successive eruptions of the Old Faithful geyser in
+Yellowstone National Park [@azzalini1990; @venables2002]. The variable
+`waiting` is the time in minutes between the start of one eruption and the
+start of the next. The waiting times form two groups, one around 55 minutes
+and one around 80 minutes, and a short waiting time is almost never followed
+by another short one. A hidden Markov model with two states describes this
+[@hamilton1989; @zucchini2016]:
+$$
+y_t \sim \mathrm{N}(\mu_{S_t}, \sigma), \qquad
+P(S_t = j \mid S_{t-1} = i) = p_{ij}.
+$$
+The state $S_t$ is not observed. It follows a Markov chain with transition
+matrix $P = (p_{ij})$, and each state has its own mean. In econometrics the
+same model is called a Markov-switching or regime-switching model. The
+likelihood is a sum over all paths of the chain, and the forward recursion
+computes it in one pass over the series, starting from the stationary
+distribution of the chain.
+
+```{r}
+#| label: ts-fit-geyser
+data(geyser, package = "MASS")
+fit_gey <- statmod(waiting ~ regime(k = 2), distrib = gaussian1_distrib(),
+                   data = geyser)
+print(summary(fit_gey), notes = TRUE)
+```
+
+The term `regime(k = 2)` adds the level of the current state to the
+equation of `mu`. The levels are written as a first level and positive gaps,
+so the second state is always the one with the larger mean. The intercept of
+the equation plays the role of the first level, which is held at zero, as
+the level of `gas()` is. The summary gives the gap and the four transition
+probabilities $p_{ij}$, named `p1.1`, `p1.2`, `p2.1` and `p2.2`. They are
+estimated through the logarithms of the ratios within each row, and their
+intervals are built on the logit scale and mapped back.
+
+```{r}
+#| label: ts-geyser-numbers
+#| include: false
+cg <- coef(fit_gey)$mu
+mu_gey <- cg[["(Intercept)"]] + c(0, cg[["regime.gap2"]])
+```
+
+The two means are `r fmt(mu_gey[1], 1)` and `r fmt(mu_gey[2], 1)` minutes.
+After a short waiting time the next one is long with probability
+`r fmt(cg[["regime.p1.2"]], 3)`: $\hat p_{11}$ is at the edge of its range,
+where the logarithm of its ratio runs to $-\infty$. There the derivative of
+the probability with respect to that coordinate goes to zero, and the delta
+method would report a standard error that vanishes exactly where the data
+stop locating the probability. The summary therefore reports the first row
+of $P$ without a standard error and an interval, and a note below the
+summary gives the reason.
+After a long waiting time the next one is short with probability
+`r fmt(cg[["regime.p2.1"]], 2)`.
+
+The function `statmod_latent()` gives the probability of each state at each
+time given the whole series, which the forward recursion and a backward
+recursion compute together:
+
+```{r}
+#| label: ts-latent-geyser
+st_gey <- statmod_latent(fit_gey)
+head(st_gey, n = 4)
+```
+
+The package `depmixS4` fits hidden Markov models [@visser2010]. Its forward
+recursion, run at our estimates with the initial probabilities set to the
+stationary distribution of the chain, gives the same log-likelihood and the
+same probabilities of the states. Its own fit is a different model: each
+state has its own standard deviation, and the probabilities of the first
+state are estimated as two further parameters. We start its EM algorithm
+from our estimates, without the random starts it uses by default.
+
+```{r}
+#| label: ts-depmix-geyser
+cf_gey <- coef(fit_gey)$mu
+means_gey <- cf_gey[["(Intercept)"]] + c(0, cf_gey[["regime.gap2"]])
+P_gey <- matrix(cf_gey[c("regime.p1.1", "regime.p1.2", "regime.p2.1",
+                         "regime.p2.2")], nrow = 2, byrow = TRUE)
+delta_gey <- c(P_gey[2, 1], P_gey[1, 2]) / (P_gey[1, 2] + P_gey[2, 1])
+sd_gey <- exp(coef(fit_gey)$sigma[["(Intercept)"]])
+hmm_gey <- depmixS4::depmix(waiting ~ 1, data = geyser, nstates = 2,
+                            family = gaussian())
+hmm_gey <- depmixS4::setpars(hmm_gey, c(delta_gey, P_gey[1, ], P_gey[2, ],
+                                        means_gey[1], sd_gey,
+                                        means_gey[2], sd_gey))
+fb_gey <- depmixS4::forwardbackward(hmm_gey)
+c(statmod = logLik(fit_gey), depmixS4 = fb_gey$logLike)
+max(abs(as.matrix(st_gey) - fb_gey$gamma))
+hmm_fit <- depmixS4::fit(hmm_gey, verbose = FALSE,
+                         emcontrol = depmixS4::em.control(random.start = FALSE))
+depmixS4::getpars(hmm_fit)
+ll_hmm <- depmixS4::forwardbackward(hmm_fit)$logLike
+bic_hmm <- -2 * ll_hmm + log(nrow(geyser)) * depmixS4::freepars(hmm_fit)
+c(statmod = BIC(fit_gey), depmixS4 = bic_hmm)
+```
+
+```{r}
+#| label: ts-depmix-numbers
+#| include: false
+gap_fb <- max(abs(as.matrix(st_gey) - fb_gey$gamma))
+```
+
+The two forward recursions agree, and the probabilities of the states differ
+by at most `r format(signif(gap_fb, 1))`. With a standard deviation for
+each state the fit of `depmixS4` has a lower BIC. In `statmodels7` a regime
+term sits in the equation of one parameter, so the standard deviation of this
+model is common to the two states.
+
+@fig-ts-geyser shows the first 100 waiting times with the mean of the model,
+which `predict()` computes as the average of the two means weighted by the
+probabilities of the states. The background shows the most probable state of
+each eruption, and the lower panel the probability of the long state.
+
+```{r}
+#| label: ts-state-runs
+#| include: false
+# consecutive runs of the most probable state, as rectangles for a background
+state_runs <- function(x, prob) {
+  s <- max.col(as.matrix(prob), ties.method = "first")
+  r <- rle(s)
+  end <- cumsum(r$lengths)
+  start <- end - r$lengths + 1
+  step <- if (length(x) > 1) median(diff(x)) / 2 else 0.5
+  data.frame(xmin = x[start] - step, xmax = x[end] + step,
+             state = factor(paste("state", r$values)))
+}
+```
+
+```{r}
+#| label: fig-ts-geyser
+#| fig-cap: "Top: the first 100 waiting times of Old Faithful with the mean of the two-state model; the background shows the most probable state of each eruption. Bottom: the probability that each waiting time belongs to the long state, given the whole series."
+#| echo: false
+#| fig-height: 5
+ii <- 1:100
+pan_gey <- c("waiting (min)", "P(long state)")
+on_gey <- function(df, k) {
+  df$panel <- factor(pan_gey[k], levels = pan_gey)
+  df
+}
+runs_gey <- on_gey(state_runs(ii, st_gey[ii, ]), k = 1)
+ggplot(mapping = aes(x = x, y = y)) +
+  geom_rect(data = runs_gey, aes(xmin = xmin, xmax = xmax, ymin = -Inf,
+                                 ymax = Inf, fill = state),
+            inherit.aes = FALSE, alpha = 0.18) +
+  geom_blank(data = on_gey(data.frame(x = NA_real_, y = c(0, 1)), k = 2)) +
+  geom_point(data = on_gey(data.frame(x = ii, y = geyser$waiting[ii]), k = 1),
+             colour = book_grey, size = 1.2) +
+  geom_line(data = on_gey(data.frame(x = ii,
+                                     y = predict(fit_gey, what = "mu")[ii]),
+                          k = 1),
+            aes(colour = "mean of the model"), linewidth = 0.7) +
+  geom_linerange(data = on_gey(data.frame(x = ii, y = st_gey$state2[ii]),
+                               k = 2),
+                 aes(ymin = 0, ymax = y), colour = rust, linewidth = 0.8) +
+  facet_wrap(~panel, ncol = 1, scales = "free_y", strip.position = "left") +
+  scale_colour_manual(values = chalk) +
+  scale_fill_manual(values = c("state 1" = "#5B7DB1", "state 2" = rust),
+                    breaks = c("state 1", "state 2"),
+                    labels = c("short state", "long state")) +
+  labs(x = "eruption", y = NULL) +
+  theme(strip.placement = "outside", strip.background = element_blank(),
+        strip.text = element_text(size = rel(1)))
+```
+
+### More states, and more than one start
+
+The likelihood of a regime model often has several local maxima, and the
+starting point decides which one the fit reaches. The first start puts the
+levels at quantiles of the response. The argument `n_start` of `regime()`
+adds further starts around it, and the fit keeps the best. With three
+states:
+
+```{r}
+#| label: ts-fit-geyser3
+fit_gey3 <- statmod(waiting ~ regime(k = 3, n_start = 3),
+                    distrib = gaussian1_distrib(), data = geyser)
+summary(fit_gey3)
+c(two = BIC(fit_gey), three = BIC(fit_gey3))
+```
+
+```{r}
+#| label: ts-geyser3-numbers
+#| include: false
+cg3 <- coef(fit_gey3)$mu
+mu_gey3 <- cg3[["(Intercept)"]] + c(0, cg3[["regime.gap2"]],
+                                    cg3[["regime.gap2"]] + cg3[["regime.gap3"]])
+```
+
+The three means are `r fmt(mu_gey3[1], 1)`, `r fmt(mu_gey3[2], 1)` and
+`r fmt(mu_gey3[3], 1)` minutes, and the BIC prefers three states. The model
+with two states is the one with three in which two states coincide, a point
+where the transition probabilities of the third state are not defined, so
+the likelihood ratio between them has no $\chi^2$ reference
+[@davies1987]. The criteria do not have this problem. @fig-ts-geyser3 shows
+the first 100 waiting times with the mean of the three-state model and the
+most probable state of each eruption.
+
+```{r}
+#| label: fig-ts-geyser3
+#| fig-cap: "The first 100 waiting times of Old Faithful with the mean of the three-state model. The background shows the most probable state of each eruption."
+#| echo: false
+#| fig-height: 3.4
+st_gey3 <- statmod_latent(fit_gey3)
+runs_gey3 <- state_runs(ii, st_gey3[ii, ])
+ggplot(data.frame(x = ii, y = geyser$waiting[ii]), aes(x = x, y = y)) +
+  geom_rect(data = runs_gey3, aes(xmin = xmin, xmax = xmax, ymin = -Inf,
+                                  ymax = Inf, fill = state),
+            inherit.aes = FALSE, alpha = 0.18) +
+  geom_point(colour = book_grey, size = 1.2) +
+  geom_line(data = data.frame(x = ii, y = predict(fit_gey3, what = "mu")[ii]),
+            aes(colour = "mean of the model"), linewidth = 0.7) +
+  scale_colour_manual(values = chalk) +
+  scale_fill_manual(values = c("state 1" = "#5B7DB1", "state 2" = "#C49A2C",
+                               "state 3" = rust),
+                    breaks = c("state 1", "state 2", "state 3"),
+                    labels = sprintf("state %d, mean %.1f", 1:3, mu_gey3)) +
+  labs(x = "eruption", y = "waiting (min)")
+```
+
+## Regimes with covariates, and on the scale {#sec-timeseries-regime-more}
+
+The other terms of an equation can sit beside `regime()`. The waiting time
+after an eruption depends on how long the eruption lasted. We add the
+duration of the previous eruption, `dlag`, to the equation of the mean:
+$$
+y_t \sim \mathrm{N}(\mu_t, \sigma), \qquad
+\mu_t = \beta_0 + \beta_1\, d_{t-1} + \lambda_{S_t}.
+$$
+The first eruption has no previous one, so we fit the model to the other
+`r nrow(geyser) - 1` waiting times, and the model without states to the same
+ones.
+
+```{r}
+#| label: ts-fit-geyser-dlag
+geyser$dlag <- c(NA, head(geyser$duration, n = -1))
+fit_gey_d <- statmod(waiting ~ dlag + regime(k = 2),
+                     distrib = gaussian1_distrib(), data = geyser[-1, ])
+summary(fit_gey_d)
+fit_gey_d0 <- statmod(waiting ~ dlag, distrib = gaussian1_distrib(),
+                      data = geyser[-1, ])
+c(static = BIC(fit_gey_d0), regime = BIC(fit_gey_d))
+```
+
+```{r}
+#| label: ts-geyser-dlag-numbers
+#| include: false
+cgd <- coef(fit_gey_d)$mu
+```
+
+A covariate shifts the mean of every state by the same amount, here
+`r fmt(cgd[["dlag"]], 2)` minutes for each minute of the previous eruption.
+The gap between the states falls from `r fmt(cg[["regime.gap2"]], 1)` to
+`r fmt(cgd[["regime.gap2"]], 1)` minutes, because the duration of the
+previous eruption explains most of the difference between short and long
+waiting times, and the BIC still prefers the model with the states. The
+transition probabilities of `regime()` are constant: they do not depend on
+covariates, and a covariate can enter the model only through the equations
+of the parameters.
+
+The term can also sit in the equation of another parameter. On the DAX
+returns, a chain on the scale gives a model with a quiet state and a
+turbulent state:
+$$
+r_t \sim \mathrm{N}(\mu, \sigma_t), \qquad
+\log \sigma_t = \gamma_0 + \lambda_{S_t}.
+$$
+
+```{r}
+#| label: ts-fit-dax-regime
+fit_dax_r <- statmod(r ~ 1 | sigma ~ regime(k = 2), distrib = gaussian1_distrib(),
+                     data = dax)
+summary(fit_dax_r)
+c(score_driven = AIC(fit_dax), regime = AIC(fit_dax_r))
+```
+
+```{r}
+#| label: ts-dax-regime-numbers
+#| include: false
+cdr <- coef(fit_dax_r)$sigma
+sd_dr <- exp(cdr[["(Intercept)"]] + c(0, cdr[["regime.gap2"]]))
+st_dax <- statmod_latent(fit_dax_r)
+```
+
+The two states have standard deviations of `r fmt(sd_dr[1], 2)` and
+`r fmt(sd_dr[2], 2)` percent. Each state lasts long: the probability of
+staying in the quiet state is `r fmt(cdr[["regime.p1.1"]], 3)` and that of
+staying in the turbulent state `r fmt(cdr[["regime.p2.2"]], 3)`. With the
+gaussian distribution this model has a lower AIC than the score-driven model
+of @sec-timeseries-volatility. @fig-ts-dax-regime shows the fitted standard
+deviation over the absolute returns, with the most probable state of each day
+in the background, and the probability of the turbulent state. `predict()`
+gives the standard deviation as the exponential of the predictor averaged
+over the probabilities of the states.
+
+```{r}
+#| label: fig-ts-dax-regime
+#| fig-cap: "Top: absolute daily returns of the DAX with the standard deviation of the two-state model on the scale; the background shows the most probable state of each day. Bottom: the probability of the turbulent state, given the whole series."
+#| echo: false
+#| fig-height: 5
+pan_reg <- c("absolute return (%)", "P(turbulent state)")
+reg_ret <- data.frame(x = yr, hi = abs(dax$r),
+                      panel = factor(pan_reg[1], levels = pan_reg))
+reg_sd <- data.frame(x = yr, y = predict(fit_dax_r, what = "sigma"),
+                     panel = factor(pan_reg[1], levels = pan_reg))
+reg_prob <- data.frame(x = yr, y = st_dax$state2,
+                       panel = factor(pan_reg[2], levels = pan_reg))
+reg_lim <- data.frame(x = NA_real_, y = c(0, 1),
+                      panel = factor(pan_reg[2], levels = pan_reg))
+runs_dax <- state_runs(yr, st_dax)
+ggplot(mapping = aes(x = x)) +
+  geom_rect(data = runs_dax, aes(xmin = xmin, xmax = xmax, ymin = -Inf,
+                                 ymax = Inf, fill = state),
+            inherit.aes = FALSE, alpha = 0.18) +
+  geom_blank(data = reg_lim, aes(y = y)) +
+  geom_linerange(data = reg_ret, aes(ymin = 0, ymax = hi),
+                 colour = book_grey, linewidth = 0.3) +
+  geom_line(data = reg_sd, aes(y = y, colour = "standard deviation"),
+            linewidth = 0.6) +
+  geom_line(data = reg_prob, aes(y = y), colour = rust, linewidth = 0.5) +
+  facet_wrap(~panel, ncol = 1, scales = "free_y", strip.position = "left") +
+  scale_colour_manual(values = chalk) +
+  scale_fill_manual(values = c("state 1" = "#5B7DB1", "state 2" = rust),
+                    breaks = c("state 1", "state 2"),
+                    labels = c("quiet state", "turbulent state")) +
+  scale_x_continuous(breaks = seq(ceiling(min(yr)), floor(max(yr)))) +
+  labs(x = "year", y = NULL) +
+  theme(strip.placement = "outside", strip.background = element_blank(),
+        strip.text = element_text(size = rel(1)))
+```
+
+```{r}
+#| label: gate-13
+#| include: false
+assert_timeseries_ok(
+  fits = list(nile = fit_nile, nile2 = fit_nile2, dax = fit_dax,
+              dax_t = fit_dax_t, disc = fit_disc, disc0 = fit_disc0,
+              disc_nb = fit_disc_nb, disc_gnb = fit_disc_gnb, acd = fit_acd,
+              disc_h = fit_disc_h, disc_1 = fit_disc_1, garch = fit_garch,
+              ingarch = fit_ingarch, acd_lin = fit_acd_lin, nile_1 = fit_nile_1,
+              lh = fit_lh, lh0 = fit_lh0, belt = fit_belt, belt0 = fit_belt0,
+              ov = fit_ov, ov_om = fit_ov_om, ov_ml = fit_ov_ml,
+              ov_int = fit_ov_int, ov_al = fit_ov_al, gey = fit_gey,
+              gey3 = fit_gey3, gey_d = fit_gey_d, gey_d0 = fit_gey_d0,
+              dax_r = fit_dax_r),
+  ref = list(arima_nile = arima_nile, garch_n = garch_n, garch_t = garch_t,
+             tsc_p = tsc_p, tsc_nb = tsc_nb, acd = acd, tsc_id = tsc_id,
+             acd_lin = acd_lin, gls_ov = gls_ov,
+             fb_gey = fb_gey, hmm_fit = hmm_fit),
+  data = list(nile = nile, dax = dax, disc = disc, dur = dur, lhd = lhd,
+              belts = belts, ov = Ovary, geyser = geyser, gey = geyser[-1, ]),
+  claims = list(lr_nile = lr_nile, fc_nile = fc_nile, se_fc = se_fc,
+                lr_ov = lr_ov, fc_ov = fc_ov, new_1 = new_1,
+                tau_int = tau_int, lev_ml = lev_ml, st_gey = st_gey,
+                gap_fb = gap_fb, bic_hmm = bic_hmm, st_dax = st_dax))
+```

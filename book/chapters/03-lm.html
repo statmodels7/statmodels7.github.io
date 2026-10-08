@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>3&nbsp; Linear models and beyond – statmodels7</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/04-glm.html" rel="next">
+<link href="../chapters/02-beyond.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e986b704c747e817427b29ebc19a759e.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a2ce0b05719297c8ab99eac5b5b92eaa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/01-model.html">Using statmod()</a></li><li class="breadcrumb-item"><a href="../chapters/03-lm.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Linear models and beyond</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="../index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">statmodels7</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Using statmod()</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-model.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">A first model</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-beyond.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Beyond the basics</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-lm.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Linear models and beyond</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-glm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Generalized linear models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Distributions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/06-gam.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Generalized additive models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/07-lmm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Linear mixed models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/08-glmm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Generalized linear mixed models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/09-gamm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Generalized additive mixed models</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Special model terms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/10-penalized.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Penalized regression</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/11-breakpoints.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Break-points</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/12-nonlinear.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Nonlinear models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/13-timeseries.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Time series</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Choosing</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/14-choosing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Choosing</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Extending the toolkit</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/15-own-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Writing a distribution and a link</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/16-own-terms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A2-references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active" data-toc-expanded="99">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-lm-linear" id="toc-sec-lm-linear" class="nav-link active" data-scroll-target="#sec-lm-linear"><span class="header-section-number">3.1</span> The linear model</a>
+  <ul>
+  <li><a href="#the-standard-deviation" id="toc-the-standard-deviation" class="nav-link" data-scroll-target="#the-standard-deviation">The standard deviation</a></li>
+  <li><a href="#the-variance-matrix" id="toc-the-variance-matrix" class="nav-link" data-scroll-target="#the-variance-matrix">The variance matrix</a></li>
+  <li><a href="#tests-and-intervals" id="toc-tests-and-intervals" class="nav-link" data-scroll-target="#tests-and-intervals">Tests and intervals</a></li>
+  <li><a href="#the-log-likelihood" id="toc-the-log-likelihood" class="nav-link" data-scroll-target="#the-log-likelihood">The log-likelihood</a></li>
+  </ul></li>
+  <li><a href="#sec-lm-factors" id="toc-sec-lm-factors" class="nav-link" data-scroll-target="#sec-lm-factors"><span class="header-section-number">3.2</span> Factors, interactions and contrasts</a>
+  <ul>
+  <li><a href="#other-contrasts" id="toc-other-contrasts" class="nav-link" data-scroll-target="#other-contrasts">Other contrasts</a></li>
+  <li><a href="#many-levels" id="toc-many-levels" class="nav-link" data-scroll-target="#many-levels">Many levels</a></li>
+  </ul></li>
+  <li><a href="#sec-lm-spread" id="toc-sec-lm-spread" class="nav-link" data-scroll-target="#sec-lm-spread"><span class="header-section-number">3.3</span> A variance that changes</a>
+  <ul>
+  <li><a href="#a-variance-that-changes-with-a-covariate" id="toc-a-variance-that-changes-with-a-covariate" class="nav-link" data-scroll-target="#a-variance-that-changes-with-a-covariate">A variance that changes with a covariate</a></li>
+  <li><a href="#a-variance-that-changes-with-a-factor" id="toc-a-variance-that-changes-with-a-factor" class="nav-link" data-scroll-target="#a-variance-that-changes-with-a-factor">A variance that changes with a factor</a></li>
+  </ul></li>
+  <li><a href="#sec-lm-param" id="toc-sec-lm-param" class="nav-link" data-scroll-target="#sec-lm-param"><span class="header-section-number">3.4</span> Three parametrizations of the gaussian</a>
+  <ul>
+  <li><a href="#the-link-changes-the-interval" id="toc-the-link-changes-the-interval" class="nav-link" data-scroll-target="#the-link-changes-the-interval">The link changes the interval</a></li>
+  </ul></li>
+  <li><a href="#sec-lm-penalized" id="toc-sec-lm-penalized" class="nav-link" data-scroll-target="#sec-lm-penalized"><span class="header-section-number">3.5</span> Penalized linear regression</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/01-model.html">Using statmod()</a></li><li class="breadcrumb-item"><a href="../chapters/03-lm.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Linear models and beyond</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span id="sec-lm" class="quarto-section-identifier"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Linear models and beyond</span></span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>This chapter starts the second part of the book, where each chapter takes one class of models. The first class is the gaussian linear model, the model that <code>lm()</code> fits. We fit it with <code>statmod()</code> and compare every number with the output of <code>lm()</code>, and we explain the few places where the two differ. Then we write factors, interactions and contrasts, and we let the variance change with a covariate or with a factor. We end with the three ways of writing the variance of the gaussian distribution.</p>
+<section id="sec-lm-linear" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="sec-lm-linear"><span class="header-section-number">3.1</span> The linear model</h2>
+<p>The data frame <code>whiteside</code> from the <code>MASS</code> package records the weekly gas consumption of a house in south-east England, in thousands of cubic feet, and the average outside temperature of the same week, in degrees Celsius <span class="citation" data-cites="hand1994 venables2002">(<a href="A2-references.html#ref-hand1994" role="doc-biblioref">Hand et al. 1994</a>; <a href="A2-references.html#ref-venables2002" role="doc-biblioref">Venables and Ripley 2002</a>)</span>. The house was observed for 26 weeks before cavity-wall insulation was installed and for 30 weeks after. The factor <code>Insul</code> records the period.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(whiteside, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(whiteside, <span class="at">n =</span> <span class="dv">3</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    Insul Temp Gas</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 Before -0.8 7.2</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 Before -0.7 6.9</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 Before  0.4 6.4</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(whiteside<span class="sc">$</span>Insul)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Before  After </span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     26     30</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The consumption falls as the temperature rises, and after the insulation the house uses less gas at every temperature. We allow a different straight line in each period: <span class="math display">\[
+y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
+\mu_i = \beta_0 + \beta_1 t_i + \beta_2 a_i + \beta_3 t_i a_i ,
+\]</span> where <span class="math inline">\(t_i\)</span> is the temperature and <span class="math inline">\(a_i\)</span> is 1 in the weeks after the insulation and 0 before. The formula <code>Gas ~ Temp * Insul</code> writes this mean in the usual notation of R. We fit the model with <code>statmod()</code> and with <code>lm()</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(statmodels7)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>fit_lin <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Gas <span class="sc">~</span> Temp <span class="sc">*</span> Insul, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> whiteside)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_lin)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = Gas ~ Temp * Insul, distrib = gaussian1_distrib(), </span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = whiteside)</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gaussian1     Observations: 56</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                    estimate      se      z         p   lower   upper</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)         6.854   0.136  50.41   &lt; 1e-16   6.587    7.12</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Temp              -0.3932 0.02249 -17.49   &lt; 1e-16 -0.4373 -0.3492</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   InsulAfter          -2.13  0.1801 -11.83   &lt; 1e-16  -2.483  -1.777</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Temp:InsulAfter    0.1153 0.03211  3.591 0.0003298 0.05237  0.1782</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z       p  lower   upper</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     -1.13 0.09806 -11.52 &lt; 1e-16 -1.322 -0.9379</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -14.175512    effective df 5.00</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 38.351    cBIC 48.478</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.75 s</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.6e-15   min eigen 0.034</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.3e-11   min eigen 1</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>lm_lin <span class="ot">&lt;-</span> <span class="fu">lm</span>(Gas <span class="sc">~</span> Temp <span class="sc">*</span> Insul, <span class="at">data =</span> whiteside)</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm_lin)</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; lm(formula = Gas ~ Temp * Insul, data = whiteside)</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Residuals:</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      Min       1Q   Median       3Q      Max </span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -0.97802 -0.18011  0.03757  0.20930  0.63803 </span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Coefficients:</span></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                 Estimate Std. Error t value Pr(&gt;|t|)    </span></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)      6.85383    0.13596  50.409  &lt; 2e-16 ***</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Temp            -0.39324    0.02249 -17.487  &lt; 2e-16 ***</span></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; InsulAfter      -2.12998    0.18009 -11.827 2.32e-16 ***</span></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Temp:InsulAfter  0.11530    0.03211   3.591 0.000731 ***</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ---</span></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Residual standard error: 0.323 on 52 degrees of freedom</span></span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Multiple R-squared:  0.9277, Adjusted R-squared:  0.9235 </span></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; F-statistic: 222.3 on 3 and 52 DF,  p-value: &lt; 2.2e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The model has no penalty, so there is no smoothing parameter and no smooth block. The coefficients of the mean are the same in the two fits:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_lin)<span class="sc">$</span>mu</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     (Intercept)            Temp      InsulAfter Temp:InsulAfter </span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       6.8538277      -0.3932388      -2.1299780       0.1153039</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(lm_lin)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     (Intercept)            Temp      InsulAfter Temp:InsulAfter </span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       6.8538277      -0.3932388      -2.1299780       0.1153039</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>For a gaussian response the maximum likelihood estimate of the mean is the least squares estimate, whatever the value of <span class="math inline">\(\sigma\)</span>, so this equality is exact.</p>
+<section id="the-standard-deviation" class="level3">
+<h3 class="anchored" data-anchor-id="the-standard-deviation">The standard deviation</h3>
+<p>The estimate of <span class="math inline">\(\sigma\)</span> is also the one of <code>lm()</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">exp</span>(<span class="fu">coef</span>(fit_lin)<span class="sc">$</span>sigma)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept) </span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   0.3230042</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm_lin)<span class="sc">$</span>sigma</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3230042</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><a href="02-beyond.html#sec-beyond-outer" class="quarto-xref"><span>Section 2.8</span></a> explained why. By default <code>statmod()</code> estimates <span class="math inline">\(\sigma\)</span> by maximizing the REML criterion, which integrates the <span class="math inline">\(p\)</span> coefficients of the mean out of the likelihood. For a linear model this gives <span class="math inline">\(\hat\sigma^2 = \mathrm{RSS}/(n - p)\)</span>, the estimate of <code>lm()</code>, where RSS is the residual sum of squares. The maximum likelihood estimate divides by <span class="math inline">\(n\)</span> and is smaller:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(whiteside)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">length</span>(<span class="fu">coef</span>(lm_lin))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>rss <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">residuals</span>(lm_lin)<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">sqrt</span>(rss <span class="sc">/</span> (n <span class="sc">-</span> p))</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3230042</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sqrt</span>(rss <span class="sc">/</span> n)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.3112546</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="the-variance-matrix" class="level3">
+<h3 class="anchored" data-anchor-id="the-variance-matrix">The variance matrix</h3>
+<p>The variance matrix of the coefficients of the mean is the one of <code>lm()</code>, <span class="math inline">\(\hat\sigma^2 (X^\top X)^{-1}\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>V <span class="ot">&lt;-</span> <span class="fu">vcov</span>(fit_lin)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>V_mu <span class="ot">&lt;-</span> V[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>]</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>V_mu</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                    mu:(Intercept)       mu:Temp mu:InsulAfter mu:Temp:InsulAfter</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:(Intercept)        0.018486202 -0.0027053168  -0.018486202       0.0027053168</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:Temp              -0.002705317  0.0005056667   0.002705317      -0.0005056667</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:InsulAfter        -0.018486202  0.0027053168   0.032433027      -0.0050508961</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:Temp:InsulAfter    0.002705317 -0.0005056667  -0.005050896       0.0010311886</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">vcov</span>(lm_lin)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  (Intercept)          Temp   InsulAfter Temp:InsulAfter</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)      0.018486202 -0.0027053168 -0.018486202    0.0027053168</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Temp            -0.002705317  0.0005056667  0.002705317   -0.0005056667</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; InsulAfter      -0.018486202  0.0027053168  0.032433027   -0.0050508961</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Temp:InsulAfter  0.002705317 -0.0005056667 -0.005050896    0.0010311886</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="fu">all.equal</span>(<span class="at">target =</span> <span class="fu">unname</span>(<span class="fu">vcov</span>(lm_lin)), <span class="at">current =</span> <span class="fu">unname</span>(V_mu))</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The matrix <code>V</code> has one more row and one more column, for the intercept of <span class="math inline">\(\log\sigma\)</span>. The estimates of the mean and of <span class="math inline">\(\sigma\)</span> carry separate information, so the covariances between that coefficient and the others are zero, as in <a href="01-model.html#sec-model-coef" class="quarto-xref"><span>Section 1.4</span></a>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>V[<span class="dv">5</span>, ]</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     mu:(Intercept)            mu:Temp      mu:InsulAfter mu:Temp:InsulAfter </span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        0.000000000        0.000000000        0.000000000        0.000000000 </span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  sigma:(Intercept) </span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        0.009615385</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="tests-and-intervals" class="level3">
+<h3 class="anchored" data-anchor-id="tests-and-intervals">Tests and intervals</h3>
+<p>The estimates and the standard errors are the same, so the column <code>z</code> of <code>summary(fit_lin)</code> holds the same numbers as the column <code>t value</code> of <code>summary(lm_lin)</code>. The p-values differ, because the two functions compare the statistic with different distributions. <code>lm()</code> uses the <span class="math inline">\(t\)</span> distribution with <span class="math inline">\(n - p\)</span> degrees of freedom. For a gaussian linear model this distribution is exact: the estimate divided by its standard error has exactly this distribution when the coefficient is zero. <code>statmod()</code> uses the standard gaussian distribution for every model. This is the distribution of the statistic when <span class="math inline">\(n\)</span> is large, and it is the only reference that holds for every family and every penalty that <code>statmod()</code> fits. We recompute both p-values from the estimates and the standard errors:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>ci_lin <span class="ot">&lt;-</span> <span class="fu">confint</span>(fit_lin, <span class="at">parm =</span> <span class="fu">c</span>(<span class="st">"mu:(Intercept)"</span>, <span class="st">"mu:Temp"</span>,</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="st">"mu:InsulAfter"</span>, <span class="st">"mu:Temp:InsulAfter"</span>))</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>z <span class="ot">&lt;-</span> ci_lin<span class="sc">$</span>estimate <span class="sc">/</span> ci_lin<span class="sc">$</span>se</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>z</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  50.409146 -17.487358 -11.827185   3.590665</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="dv">2</span> <span class="sc">*</span> <span class="fu">pnorm</span>(<span class="at">q =</span> <span class="sc">-</span><span class="fu">abs</span>(z))</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.000000e+00 1.788578e-68 2.824567e-32 3.298358e-04</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="dv">2</span> <span class="sc">*</span> <span class="fu">pt</span>(<span class="at">q =</span> <span class="sc">-</span><span class="fu">abs</span>(z), <span class="at">df =</span> n <span class="sc">-</span> p)</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 7.997414e-46 1.976009e-23 2.315921e-16 7.306852e-04</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm_lin)<span class="sc">$</span>coefficients[, <span class="st">"Pr(&gt;|t|)"</span>]</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     (Intercept)            Temp      InsulAfter Temp:InsulAfter </span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    7.997414e-46    1.976009e-23    2.315921e-16    7.306852e-04</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>With 52 degrees of freedom the two distributions are close, and the p-values differ visibly only for the interaction, where they are 0.00033 and 0.00073. The same holds for the intervals. <code>confint()</code> of <code>statmod()</code> uses the quantile 1.960 of the standard gaussian distribution, and <code>confint()</code> of <code>lm()</code> uses the quantile 2.007 of the <span class="math inline">\(t\)</span> distribution, so its intervals are wider by the ratio of the two:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>ci_lin</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                    parameter   term     coefficient   estimate         se</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:(Intercept)            mu linpar     (Intercept)  6.8538277 0.13596397</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:Temp                   mu linpar            Temp -0.3932388 0.02248703</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:InsulAfter             mu linpar      InsulAfter -2.1299780 0.18009172</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:Temp:InsulAfter        mu linpar Temp:InsulAfter  0.1153039 0.03211212</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                          lower      upper</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:(Intercept)      6.58734321  7.1203122</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:Temp            -0.43731260 -0.3491650</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:InsulAfter      -2.48295131 -1.7770048</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:Temp:InsulAfter  0.05236526  0.1782425</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(lm_lin)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                       2.5 %     97.5 %</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)      6.58099603  7.1266594</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Temp            -0.43836236 -0.3481153</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; InsulAfter      -2.49135850 -1.7685976</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Temp:InsulAfter  0.05086618  0.1797416</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="fu">qt</span>(<span class="at">p =</span> <span class="fl">0.975</span>, <span class="at">df =</span> n <span class="sc">-</span> p) <span class="sc">/</span> <span class="fu">qnorm</span>(<span class="at">p =</span> <span class="fl">0.975</span>)</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.023818</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="the-log-likelihood" class="level3">
+<h3 class="anchored" data-anchor-id="the-log-likelihood">The log-likelihood</h3>
+<p>The log-likelihood is where the two fits differ most. <code>logLik()</code> of <code>statmod()</code> evaluates the gaussian density at the REML estimate of <span class="math inline">\(\sigma\)</span>. <code>logLik()</code> of <code>lm()</code> evaluates it at the maximum likelihood estimate <span class="math inline">\(\sqrt{\mathrm{RSS}/n}\)</span>, where the log-likelihood reaches its maximum. We compute both with <code>dnorm()</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_lin)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -14.17551 (df=5)</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(lm_lin)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -14.10049 (df=5)</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>mu_hat <span class="ot">&lt;-</span> <span class="fu">fitted</span>(lm_lin)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(<span class="fu">dnorm</span>(<span class="at">x =</span> whiteside<span class="sc">$</span>Gas, <span class="at">mean =</span> mu_hat, <span class="at">sd =</span> <span class="fu">sqrt</span>(rss <span class="sc">/</span> (n <span class="sc">-</span> p)),</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">log =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -14.17551</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(<span class="fu">dnorm</span>(<span class="at">x =</span> whiteside<span class="sc">$</span>Gas, <span class="at">mean =</span> mu_hat, <span class="at">sd =</span> <span class="fu">sqrt</span>(rss <span class="sc">/</span> n), <span class="at">log =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -14.10049</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Both values count five parameters, the four coefficients and <span class="math inline">\(\sigma\)</span>, so <code>AIC()</code> gives slightly different values for the two fits:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">AIC</span>(fit_lin)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 38.35102</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">AIC</span>(lm_lin)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 38.20098</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The REML criterion that <code>statmod()</code> maximized is the restricted log-likelihood of <code>lm()</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_lin, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -23.65996 (df=5)</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(lm_lin, <span class="at">REML =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -23.65996 (df=5)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-lm-factors" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="sec-lm-factors"><span class="header-section-number">3.2</span> Factors, interactions and contrasts</h2>
+<p>A formula in <code>statmod()</code> codes factors and interactions in the same way as a formula in <code>lm()</code>. By default R codes a factor with <em>treatment contrasts</em>: the first level is the reference, and each other level gets a column that is 1 for that level and 0 otherwise. In <code>fit_lin</code> the reference level of <code>Insul</code> is <code>Before</code>, so the coefficients mean the following. The intercept and the coefficient of <code>Temp</code> are the intercept and the slope of the line before the insulation. The coefficient <code>InsulAfter</code> is the change in the intercept after the insulation, and <code>Temp:InsulAfter</code> is the change in the slope.</p>
+<p>We can also write the model so that each period gets its own intercept and its own slope. The formula <code>Gas ~ 0 + Insul + Insul:Temp</code> removes the global intercept, so each level of <code>Insul</code> gets an intercept column, and it gives each level a slope:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>fit_sep <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Gas <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> Insul <span class="sc">+</span> Insul<span class="sc">:</span>Temp,</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> whiteside)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_sep)<span class="sc">$</span>mu</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      InsulBefore       InsulAfter InsulBefore:Temp  InsulAfter:Temp </span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        6.8538277        4.7238497       -0.3932388       -0.2779350</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>This is the same model written with other coefficients. The intercept after the insulation is <span class="math inline">\(\hat\beta_0 + \hat\beta_2\)</span>, the slope after the insulation is <span class="math inline">\(\hat\beta_1 + \hat\beta_3\)</span>, and the fitted values are the same:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">coef</span>(fit_lin)<span class="sc">$</span>mu</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>b[[<span class="st">"(Intercept)"</span>]] <span class="sc">+</span> b[[<span class="st">"InsulAfter"</span>]]</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4.72385</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>b[[<span class="st">"Temp"</span>]] <span class="sc">+</span> b[[<span class="st">"Temp:InsulAfter"</span>]]</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -0.277935</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_lin) <span class="sc">-</span> <span class="fu">fitted</span>(fit_sep)))</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 8.881784e-16</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-whiteside" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-whiteside-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="03-lm_files/figure-html/fig-whiteside-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-whiteside-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3.1: Weekly gas consumption against the outside temperature, before and after the insulation, with the fitted line of each period.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p><a href="#fig-whiteside" class="quarto-xref">Figure&nbsp;<span>3.1</span></a> shows the two lines. After the insulation the line is lower and less steep, so the house saves more gas in cold weeks than in warm ones.</p>
+<section id="other-contrasts" class="level3">
+<h3 class="anchored" data-anchor-id="other-contrasts">Other contrasts</h3>
+<p>Other contrasts give other coefficients for the same model. With <em>sum contrasts</em> the column of a two-level factor is <span class="math inline">\(+1\)</span> for the first level and <span class="math inline">\(-1\)</span> for the second. The intercept and the slope are then the averages of the two periods, and the coefficients of <code>Insul</code> are half the differences between the two periods. In <code>lm()</code> we choose the contrasts with the argument <code>contrasts</code>. In <code>statmod()</code> the columns of the formula that are not model terms, here <code>Temp</code>, <code>Insul</code> and their interaction, form one parametric block, and we pass its contrasts with the argument <code>linpar_control</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>fit_sum <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Gas <span class="sc">~</span> Temp <span class="sc">*</span> Insul, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> whiteside,</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">linpar_control =</span> <span class="fu">linpar_options</span>(</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>                     <span class="at">contrasts =</span> <span class="fu">list</span>(<span class="at">Insul =</span> <span class="st">"contr.sum"</span>)))</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_sum)<span class="sc">$</span>mu</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        Temp      Insul1 Temp:Insul1 </span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  5.78883868 -0.33558689  1.06498902 -0.05765194</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>lm_sum <span class="ot">&lt;-</span> <span class="fu">lm</span>(Gas <span class="sc">~</span> Temp <span class="sc">*</span> Insul, <span class="at">data =</span> whiteside,</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>             <span class="at">contrasts =</span> <span class="fu">list</span>(<span class="at">Insul =</span> <span class="st">"contr.sum"</span>))</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(lm_sum)</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        Temp      Insul1 Temp:Insul1 </span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  5.78883868 -0.33558689  1.06498902 -0.05765194</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The intercept 5.7888 is the average of the two intercepts of <code>fit_sep</code>, and <code>Insul1</code> is half their difference:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>(bs[[<span class="st">"InsulBefore"</span>]] <span class="sc">+</span> bs[[<span class="st">"InsulAfter"</span>]]) <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 5.788839</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>(bs[[<span class="st">"InsulBefore"</span>]] <span class="sc">-</span> bs[[<span class="st">"InsulAfter"</span>]]) <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.064989</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The same block can be written explicitly with the term <code>linpar()</code>, which takes a one-sided formula and the same two options. The intercept belongs to the formula of the model: when the formula has one, <code>linpar()</code> drops the column <code>(Intercept)</code> of its own design after coding the factors. So the next model has the columns of <code>lm(Gas ~ Temp * Insul)</code>, with sum contrasts:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fit_lp <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Gas <span class="sc">~</span> <span class="fu">linpar</span>(<span class="sc">~</span> Temp <span class="sc">*</span> Insul,</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>                               <span class="at">contrasts =</span> <span class="fu">list</span>(<span class="at">Insul =</span> <span class="st">"contr.sum"</span>)),</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> whiteside)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_lp)<span class="sc">$</span>mu</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        Temp      Insul1 Temp:Insul1 </span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  5.78883868 -0.33558689  1.06498902 -0.05765194</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Writing <code>linpar()</code> explicitly is useful when a model needs two parametric blocks with different options, or to give a block a label with the argument <code>label</code>.</p>
+</section>
+<section id="many-levels" class="level3">
+<h3 class="anchored" data-anchor-id="many-levels">Many levels</h3>
+<p>A factor with many levels gives a design matrix that is mostly zeros: each row has a 1 in the column of its level and 0 in all the others. Such a matrix can be stored <em>sparse</em>, keeping only its nonzero entries, and the products that the fit needs then cost much less. We simulate the weekly sales of a product in 200 shops, 2000 weeks in all, with a price that changes from week to week and a level of its own for each shop:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">3</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>shops <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">shop =</span> <span class="fu">factor</span>(<span class="fu">sample</span>(<span class="fu">sprintf</span>(<span class="st">"s%03d"</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">200</span>), <span class="at">size =</span> <span class="dv">2000</span>, <span class="at">replace =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">price =</span> <span class="fu">runif</span>(<span class="at">n =</span> <span class="dv">2000</span>, <span class="at">min =</span> <span class="dv">1</span>, <span class="at">max =</span> <span class="dv">5</span>))</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>shop_level <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="at">n =</span> <span class="dv">200</span>)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>shops<span class="sc">$</span>sales <span class="ot">&lt;-</span> <span class="dv">10</span> <span class="sc">-</span> <span class="fl">1.5</span> <span class="sc">*</span> shops<span class="sc">$</span>price <span class="sc">+</span> shop_level[<span class="fu">as.integer</span>(shops<span class="sc">$</span>shop)] <span class="sc">+</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rnorm</span>(<span class="at">n =</span> <span class="dv">2000</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The argument <code>sparse</code> of <code>linpar_options()</code> chooses the storage of the parametric block. We fit the model with a dense and with a sparse design and time the two fits:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>t_dense <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  fit_dense <span class="ot">&lt;-</span> <span class="fu">statmod</span>(sales <span class="sc">~</span> price <span class="sc">+</span> shop, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>                       <span class="at">data =</span> shops,</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>                       <span class="at">linpar_control =</span> <span class="fu">linpar_options</span>(<span class="at">sparse =</span> <span class="cn">FALSE</span>)))</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>t_sparse <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  fit_sparse <span class="ot">&lt;-</span> <span class="fu">statmod</span>(sales <span class="sc">~</span> price <span class="sc">+</span> shop, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>                        <span class="at">data =</span> shops,</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>                        <span class="at">linpar_control =</span> <span class="fu">linpar_options</span>(<span class="at">sparse =</span> <span class="cn">TRUE</span>)))</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>t_dense[[<span class="st">"elapsed"</span>]]</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.56</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>t_sparse[[<span class="st">"elapsed"</span>]]</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.39</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(<span class="fu">model.matrix</span>(fit_dense))</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "matrix" "array"</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(<span class="fu">model.matrix</span>(fit_sparse))</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "dgCMatrix"</span></span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; attr(,"package")</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "Matrix"</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">coef</span>(fit_dense)<span class="sc">$</span>mu <span class="sc">-</span> <span class="fu">coef</span>(fit_sparse)<span class="sc">$</span>mu))</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.220446e-15</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The two fits give the same coefficients, and the sparse fit is faster. The function <code>model.matrix()</code> returns the design of an equation, which is a <code>dgCMatrix</code> of the <code>Matrix</code> package in the sparse fit. When we do not set <code>sparse</code>, <code>statmod()</code> chooses the storage from the size of the design: it builds the block sparse when the number of rows times the number of columns coded from factors exceeds <span class="math inline">\(10^5\)</span>. Here that product is about <span class="math inline">\(2000 \times 200 = 4 \times 10^5\)</span>, so the default fit is sparse too:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>fit_shops <span class="ot">&lt;-</span> <span class="fu">statmod</span>(sales <span class="sc">~</span> price <span class="sc">+</span> shop, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> shops)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(<span class="fu">model.matrix</span>(fit_shops))</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "dgCMatrix"</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; attr(,"package")</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "Matrix"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-lm-spread" class="level2" data-number="3.3">
+<h2 data-number="3.3" class="anchored" data-anchor-id="sec-lm-spread"><span class="header-section-number">3.3</span> A variance that changes</h2>
+<p>The linear model assumes the same variance for every observation. When the spread of the data changes with a covariate, we give <span class="math inline">\(\log\sigma\)</span> an equation of its own, as we did with a smooth function in <a href="01-model.html#sec-model-sigma" class="quarto-xref"><span>Section 1.8</span></a>. Here the equation is linear. We use two data sets from the <code>datasets</code> package of R.</p>
+<section id="a-variance-that-changes-with-a-covariate" class="level3">
+<h3 class="anchored" data-anchor-id="a-variance-that-changes-with-a-covariate">A variance that changes with a covariate</h3>
+<p>The data frame <code>cars</code> gives the speed of 50 cars, in miles per hour, and the distance that each car needed to stop, in feet <span class="citation" data-cites="ezekiel1930">(<a href="A2-references.html#ref-ezekiel1930" role="doc-biblioref">Ezekiel 1930</a>)</span>. <a href="#fig-cars" class="quarto-xref">Figure&nbsp;<span>3.2</span></a> shows that the distances spread out as the speed grows. We model the mean and the logarithm of the standard deviation as straight lines in the speed <span class="math inline">\(v_i\)</span>: <span class="math display">\[
+y_i \sim \mathrm{N}(\mu_i, \sigma_i), \qquad
+\mu_i = \beta_0 + \beta_1 v_i, \qquad
+\log\sigma_i = \gamma_0 + \gamma_1 v_i .
+\]</span> This is the regression with multiplicative heteroscedasticity of <span class="citation" data-cites="harvey1976">Harvey (<a href="A2-references.html#ref-harvey1976" role="doc-biblioref">1976</a>)</span>. We fit it, and for comparison the model with a constant standard deviation:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>fit_c1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(dist <span class="sc">~</span> speed <span class="sc">|</span> sigma <span class="sc">~</span> speed,</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> cars)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>fit_c0 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(dist <span class="sc">~</span> speed, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> cars)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_c1)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = dist ~ speed | sigma ~ speed, distrib = gaussian1_distrib(), </span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = cars)</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gaussian1     Observations: 50</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate    se      z      p  lower  upper</span></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -12.12  4.75 -2.552 0.0107 -21.43 -2.814</span></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   speed           3.539 0.359  9.858 &lt;1e-16  2.835  4.242</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z         p   lower  upper</span></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.761  0.3729 4.723 2.326e-06    1.03  2.492</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   speed         0.05857 0.02313 2.533   0.01131 0.01325 0.1039</span></span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -203.102705    effective df 4.00</span></span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 414.205    cBIC 421.854</span></span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 110 ms</span></span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.8e-16   min eigen 0.079</span></span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.1e-09   min eigen 0.038</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>By default the criterion is REML. It integrates the two coefficients of the mean and estimates <span class="math inline">\(\gamma_0\)</span> and <span class="math inline">\(\gamma_1\)</span>, which is the REML estimation of a variance regression of <span class="citation" data-cites="verbyla1993">Verbyla (<a href="A2-references.html#ref-verbyla1993" role="doc-biblioref">1993</a>)</span>. The function <code>gls()</code> of the <code>nlme</code> package fits the same model <span class="citation" data-cites="pinheiro2000">(<a href="A2-references.html#ref-pinheiro2000" role="doc-biblioref">Pinheiro and Bates 2000</a>)</span>. Its variance function <code>varExp(form = ~ speed)</code> writes the variance as <span class="math inline">\(\sigma^2 \exp(2\delta v_i)\)</span>, so its standard deviation is <span class="math inline">\(\sigma\exp(\delta v_i)\)</span>, and its logarithm is our equation with <span class="math inline">\(\gamma_0 = \log\sigma\)</span> and <span class="math inline">\(\gamma_1 = \delta\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(nlme)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>gls_c1 <span class="ot">&lt;-</span> <span class="fu">gls</span>(dist <span class="sc">~</span> speed, <span class="at">data =</span> cars, <span class="at">weights =</span> <span class="fu">varExp</span>(<span class="at">form =</span> <span class="sc">~</span> speed),</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(gls_c1)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)       speed </span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   -12.12346     3.53889</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="fu">log</span>(gls_c1<span class="sc">$</span>sigma)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.76109</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(gls_c1<span class="sc">$</span>modelStruct<span class="sc">$</span>varStruct, <span class="at">unconstrained =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      expon </span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 0.05857306</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_c1)</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $mu</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)       speed </span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  -12.123472    3.538891 </span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $sigma</span></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)       speed </span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   1.7610929   0.0585729</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The two fits agree, and the REML criterion that <code>statmod()</code> maximized is the restricted log-likelihood of <code>gls()</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_c1, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(gls_c1)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The estimated standard deviation is 7.4 feet at 4 miles per hour and 25.2 feet at 25 miles per hour. Each additional mile per hour multiplies it by <span class="math inline">\(e^{\gamma_1}\)</span>. We compute this factor with its interval by transforming the interval of <span class="math inline">\(\gamma_1\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit_c1, <span class="at">what =</span> <span class="st">"sigma"</span>, <span class="at">newdata =</span> <span class="fu">data.frame</span>(<span class="at">speed =</span> <span class="fu">c</span>(<span class="dv">4</span>, <span class="dv">25</span>)))</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1]  7.355031 25.164025</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>ci_g1 <span class="ot">&lt;-</span> <span class="fu">confint</span>(fit_c1, <span class="at">parm =</span> <span class="st">"sigma:speed"</span>)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">exp</span>(<span class="fu">c</span>(ci_g1<span class="sc">$</span>estimate, ci_g1<span class="sc">$</span>lower, ci_g1<span class="sc">$</span>upper))</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.060322 1.013337 1.109486</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><a href="#fig-cars" class="quarto-xref">Figure&nbsp;<span>3.2</span></a> shows the band <span class="math inline">\(\hat\mu \pm 2\hat\sigma\)</span> of the two models. With a constant standard deviation the band is too wide at low speeds and too narrow at high speeds.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-cars" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-cars-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="03-lm_files/figure-html/fig-cars-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cars-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3.2: Stopping distance against speed. The line is the fitted mean. The shaded band is the fitted mean plus or minus two standard deviations with the modeled standard deviation, and the dashed lines are the same band with a constant standard deviation.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Is the change of the standard deviation real? The two models have the same equation for the mean, so their REML criteria integrate the same coefficients out of the likelihood. They are marginal likelihoods of the same data, and we can compare them with a likelihood ratio test <span class="citation" data-cites="pinheiro2000">(<a href="A2-references.html#ref-pinheiro2000" role="doc-biblioref">Pinheiro and Bates 2000, sec. 5.2</a>)</span>. This is not the case of <a href="02-beyond.html#sec-beyond-lr" class="quarto-xref"><span>Section 2.5</span></a>, where the two models had different unpenalized terms in the mean. The model with a constant standard deviation is the model with <span class="math inline">\(\gamma_1 = 0\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>l0 <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_c0, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>l1 <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_c1, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>lr <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (<span class="fu">as.numeric</span>(l1) <span class="sc">-</span> <span class="fu">as.numeric</span>(l0))</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>lr</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 6.371165</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="fu">pchisq</span>(lr, <span class="at">df =</span> <span class="dv">1</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.01159894</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>gls_c0 <span class="ot">&lt;-</span> <span class="fu">gls</span>(dist <span class="sc">~</span> speed, <span class="at">data =</span> cars, <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(gls_c0, gls_c1)</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        Model df      AIC      BIC    logLik   Test  L.Ratio p-value</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; gls_c0     1  3 415.7246 421.3382 -204.8623                        </span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; gls_c1     2  4 411.3535 418.8383 -201.6767 1 vs 2 6.371165  0.0116</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The statistic and the p-value are those of <code>anova()</code> of <code>nlme</code>. The Wald statistic of <span class="math inline">\(\gamma_1\)</span> in the summary is <span class="math inline">\(z = 2.53\)</span>, with a p-value of 0.0113, against 0.0116 for the likelihood ratio. Both tests reject a constant standard deviation at the 5% level.</p>
+</section>
+<section id="a-variance-that-changes-with-a-factor" class="level3">
+<h3 class="anchored" data-anchor-id="a-variance-that-changes-with-a-factor">A variance that changes with a factor</h3>
+<p>The data frame <code>InsectSprays</code> gives the number of insects counted on 72 agricultural plots treated with six insecticides, A to F, 12 plots for each <span class="citation" data-cites="beall1942">(<a href="A2-references.html#ref-beall1942" role="doc-biblioref">Beall 1942</a>)</span>. The counts spread out more where they are large. We let both the mean and the logarithm of the standard deviation depend on the insecticide:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>fit_s1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(count <span class="sc">~</span> spray <span class="sc">|</span> sigma <span class="sc">~</span> spray,</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> InsectSprays)</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>fit_s0 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(count <span class="sc">~</span> spray, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> InsectSprays)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>sprays <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">spray =</span> <span class="fu">factor</span>(LETTERS[<span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>]))</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit_s1, <span class="at">what =</span> <span class="st">"sigma"</span>, <span class="at">newdata =</span> sprays)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4.719399 4.271115 1.975225 2.503028 1.732051 6.213378</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="fu">tapply</span>(InsectSprays<span class="sc">$</span>count, InsectSprays<span class="sc">$</span>spray, sd)</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        A        B        C        D        E        F </span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4.719399 4.271115 1.975225 2.503028 1.732051 6.213378</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The estimated standard deviation of each insecticide is the sample standard deviation of its 12 counts. The mean has one free level for each insecticide, so its REML criterion splits into one factor for each insecticide. Each factor integrates out the mean of its group, and it is maximized by the residual sum of squares of the group divided by <span class="math inline">\(12 - 1\)</span>. The model with a constant standard deviation pools the six groups instead:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">exp</span>(<span class="fu">coef</span>(fit_s0)<span class="sc">$</span>sigma)</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept) </span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    3.921902</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(<span class="fu">lm</span>(count <span class="sc">~</span> spray, <span class="at">data =</span> InsectSprays))<span class="sc">$</span>sigma</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 3.921902</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The function <code>gls()</code> with the variance function <code>varIdent(form = ~ 1 | spray)</code> fits the same model. It reports <span class="math inline">\(\sigma\)</span> for the first insecticide and the ratios of the others to it:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>gls_s1 <span class="ot">&lt;-</span> <span class="fu">gls</span>(count <span class="sc">~</span> spray, <span class="at">data =</span> InsectSprays,</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">weights =</span> <span class="fu">varIdent</span>(<span class="at">form =</span> <span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> spray), <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>gls_s1<span class="sc">$</span>sigma</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4.719391</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(gls_s1<span class="sc">$</span>modelStruct<span class="sc">$</span>varStruct, <span class="at">unconstrained =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         B         C         D         E         F </span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 0.9050145 0.4185346 0.5303716 0.3670072 1.3165615</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_s1, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -177.8599 (df=12)</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(gls_s1)</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -177.8599 (df=12)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The standard deviations change the standard errors of the means. With a constant standard deviation every insecticide has the same standard error. With the modeled one, the standard error of the mean of insecticide <span class="math inline">\(g\)</span> is <span class="math inline">\(\hat\sigma_g/\sqrt{12}\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>p_s1 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_s1, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> sprays, <span class="at">se =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>p_s0 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_s0, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> sprays, <span class="at">se =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>p_s1<span class="sc">$</span>se</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.3623732 1.2329647 0.5701984 0.7225621 0.5000000 1.7936476</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit_s1, <span class="at">what =</span> <span class="st">"sigma"</span>, <span class="at">newdata =</span> sprays) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="dv">12</span>)</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.3623732 1.2329647 0.5701984 0.7225621 0.5000000 1.7936476</span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>p_s0<span class="sc">$</span>se</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.132156 1.132156 1.132156 1.132156 1.132156 1.132156</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><a href="#fig-sprays" class="quarto-xref">Figure&nbsp;<span>3.3</span></a> shows the counts with the two sets of 95% intervals of the means. The insecticides C, D and E have small counts and small standard deviations, and the modeled standard deviation gives them intervals that are narrower than the pooled ones.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-sprays" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sprays-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="03-lm_files/figure-html/fig-sprays-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sprays-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3.3: Insect counts for the six insecticides, with the 95% interval of each mean: modeled standard deviations (solid) and a pooled standard deviation (dashed).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>When the ratios of the variances are known in advance, the equation of <span class="math inline">\(\sigma\)</span> has nothing to estimate beyond a constant. This is the case of the precision weights of <code>lm()</code>, where the variance of observation <span class="math inline">\(i\)</span> is <span class="math inline">\(\sigma^2/w_i\)</span>. Then <span class="math inline">\(\log\sigma_i = \gamma_0 - \tfrac{1}{2}\log w_i\)</span>, and the known term enters the equation of <span class="math inline">\(\sigma\)</span> as an offset. <a href="02-beyond.html#sec-beyond-weights" class="quarto-xref"><span>Section 2.9</span></a> writes this model and checks it against <code>lm(weights = )</code>.</p>
+</section>
+</section>
+<section id="sec-lm-param" class="level2" data-number="3.4">
+<h2 data-number="3.4" class="anchored" data-anchor-id="sec-lm-param"><span class="header-section-number">3.4</span> Three parametrizations of the gaussian</h2>
+<p>The gaussian distribution can be written with its standard deviation, with its variance or with its precision, the inverse of the variance. <code>statmodels7</code> has one distribution for each:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gaussian1_distrib</span>()<span class="sc">@</span>params</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu"    "sigma"</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="fu">gaussian2_distrib</span>()<span class="sc">@</span>params</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu"     "sigma2"</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="fu">gaussian3_distrib</span>()<span class="sc">@</span>params</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu"  "tau"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>All three use the log link for the second parameter. Since <span class="math inline">\(\log\sigma^2 = 2\log\sigma\)</span> and <span class="math inline">\(\log\tau = -2\log\sigma\)</span>, a linear equation for one of them is a linear equation for the others, with the coefficients multiplied by 2 or by <span class="math inline">\(-2\)</span>. We fit the model of <code>cars</code> with the three distributions:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>fit_g1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(dist <span class="sc">~</span> speed <span class="sc">|</span> sigma <span class="sc">~</span> speed,</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> cars)</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>fit_g2 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(dist <span class="sc">~</span> speed <span class="sc">|</span> sigma2 <span class="sc">~</span> speed,</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian2_distrib</span>(), <span class="at">data =</span> cars)</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>fit_g3 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(dist <span class="sc">~</span> speed <span class="sc">|</span> tau <span class="sc">~</span> speed,</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian3_distrib</span>(), <span class="at">data =</span> cars)</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_g1)<span class="sc">$</span>sigma</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)       speed </span></span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   1.7610929   0.0585729</span></span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_g2)<span class="sc">$</span>sigma2</span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)       speed </span></span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   3.5221859   0.1171458</span></span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_g3)<span class="sc">$</span>tau</span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)       speed </span></span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  -3.5221859  -0.1171458</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The three fits are the same model, so they have the same log-likelihood and the same REML criterion:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g1)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -203.1027 (df=4)</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g2)</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -203.1027 (df=4)</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g3)</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -203.1027 (df=4)</span></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g1, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g2, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g3, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The REML criterion is the same because it integrates only the coefficients of the mean, and the three second parameters do not depend on the mean. Their standard errors are also multiplied by 2:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit_g1, <span class="at">parm =</span> <span class="st">"sigma:speed"</span>)<span class="sc">$</span>se</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.02312501</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit_g2, <span class="at">parm =</span> <span class="st">"sigma2:speed"</span>)<span class="sc">$</span>se</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.04625002</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fit_g3, <span class="at">parm =</span> <span class="st">"tau:speed"</span>)<span class="sc">$</span>se</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.04625002</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<section id="the-link-changes-the-interval" class="level3">
+<h3 class="anchored" data-anchor-id="the-link-changes-the-interval">The link changes the interval</h3>
+<p>The link does matter for the intervals, which <code>confint()</code> builds on the scale of the link. We fit the model with a constant variance twice, with the default log link on <span class="math inline">\(\sigma^2\)</span> and with the identity link:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>fit_v_log <span class="ot">&lt;-</span> <span class="fu">statmod</span>(dist <span class="sc">~</span> speed, <span class="at">distrib =</span> <span class="fu">gaussian2_distrib</span>(), <span class="at">data =</span> cars)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>fit_v_id <span class="ot">&lt;-</span> <span class="fu">statmod</span>(dist <span class="sc">~</span> speed,</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>                    <span class="at">distrib =</span> <span class="fu">gaussian2_distrib</span>(<span class="at">link_sigma2 =</span> <span class="fu">identity_link</span>()),</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>                    <span class="at">data =</span> cars)</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>ci_v_log <span class="ot">&lt;-</span> <span class="fu">confint</span>(fit_v_log, <span class="at">parm =</span> <span class="st">"sigma2:(Intercept)"</span>)</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>ci_v_id <span class="ot">&lt;-</span> <span class="fu">confint</span>(fit_v_id, <span class="at">parm =</span> <span class="st">"sigma2:(Intercept)"</span>)</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>ci_v_id</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                    parameter   term coefficient estimate       se   lower</span></span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2:(Intercept)    sigma2 linpar (Intercept) 236.5317 48.28183 141.901</span></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                       upper</span></span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; sigma2:(Intercept) 331.1623</span></span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a><span class="fu">exp</span>(<span class="fu">c</span>(ci_v_log<span class="sc">$</span>estimate, ci_v_log<span class="sc">$</span>lower, ci_v_log<span class="sc">$</span>upper))</span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 236.5317 158.5399 352.8906</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Both estimates are the variance <span class="math inline">\(\mathrm{RSS}/(n - p)\)</span> of <code>lm()</code>. On the identity scale the interval is symmetric around the estimate. On the log scale the standard error is <span class="math inline">\(\sqrt{2/(n - p)}\)</span>, whatever the variance, and the interval is symmetric around <span class="math inline">\(\log\hat\sigma^2\)</span>, so it is asymmetric around <span class="math inline">\(\hat\sigma^2\)</span>. For a linear model the exact interval is also known: <span class="math inline">\((n - p)\hat\sigma^2/\sigma^2\)</span> has a <span class="math inline">\(\chi^2\)</span> distribution with <span class="math inline">\(n - p\)</span> degrees of freedom, and the interval divides <span class="math inline">\((n - p)\hat\sigma^2\)</span> by two of its quantiles:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>s2 <span class="ot">&lt;-</span> <span class="fu">summary</span>(<span class="fu">lm</span>(dist <span class="sc">~</span> speed, <span class="at">data =</span> cars))<span class="sc">$</span>sigma<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>df_c <span class="ot">&lt;-</span> <span class="fu">nrow</span>(cars) <span class="sc">-</span> <span class="dv">2</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>ci_v_log<span class="sc">$</span>se</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.2041241</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sqrt</span>(<span class="dv">2</span> <span class="sc">/</span> df_c)</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.2041241</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(df_c <span class="sc">*</span> s2 <span class="sc">/</span> <span class="fu">qchisq</span>(<span class="at">p =</span> <span class="fl">0.975</span>, <span class="at">df =</span> df_c),</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>  df_c <span class="sc">*</span> s2 <span class="sc">/</span> <span class="fu">qchisq</span>(<span class="at">p =</span> <span class="fl">0.025</span>, <span class="at">df =</span> df_c))</span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 164.4899 369.1661</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The exact interval runs from 164.5 to 369.2. The interval on the log scale, from 158.5 to 352.9, is closer to it than the interval on the identity scale, from 141.9 to 331.2. The distribution of <span class="math inline">\(\hat\sigma^2\)</span> is skewed to the right, and its logarithm is closer to a gaussian variable. For this reason the log link is the default for every parameter that must be positive.</p>
+</section>
+</section>
+<section id="sec-lm-penalized" class="level2" data-number="3.5">
+<h2 data-number="3.5" class="anchored" data-anchor-id="sec-lm-penalized"><span class="header-section-number">3.5</span> Penalized linear regression</h2>
+<p>A linear model with many covariates can also be fitted with a penalty on its coefficients. The term <code>ridge()</code> subtracts the penalty <span class="math inline">\(\tfrac{1}{2}\lambda\sum_j \beta_j^2\)</span> from the log-likelihood, where the sum runs over the coefficients of the covariates that the term holds, and <code>statmod()</code> estimates <span class="math inline">\(\lambda\)</span> by REML, as it estimated the smoothing parameter in <a href="01-model.html" class="quarto-xref"><span>Chapter 1</span></a>. The terms <code>lasso()</code>, <code>enet()</code>, <code>scad()</code> and <code>mcp()</code> use penalties that can set coefficients exactly to zero. <a href="10-penalized.html" class="quarto-xref"><span>Chapter 10</span></a> describes all of them.</p>
+
+
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-beall1942" class="csl-entry" role="listitem">
+Beall, Geoffrey. 1942. <span>“The Transformation of Data from Entomological Field Experiments so That the Analysis of Variance Becomes Applicable.”</span> <em>Biometrika</em> 32 (3/4): 243–62.
+</div>
+<div id="ref-ezekiel1930" class="csl-entry" role="listitem">
+Ezekiel, Mordecai. 1930. <em>Methods of Correlation Analysis</em>. New York: Wiley.
+</div>
+<div id="ref-hand1994" class="csl-entry" role="listitem">
+Hand, David J., Fergus Daly, A. Daniel Lunn, Kevin J. McConway, and Elizabeth Ostrowski. 1994. <em>A Handbook of Small Data Sets</em>. London: Chapman; Hall.
+</div>
+<div id="ref-harvey1976" class="csl-entry" role="listitem">
+Harvey, Andrew C. 1976. <span>“Estimating Regression Models with Multiplicative Heteroscedasticity.”</span> <em>Econometrica</em> 44 (3): 461–65.
+</div>
+<div id="ref-pinheiro2000" class="csl-entry" role="listitem">
+Pinheiro, José C., and Douglas M. Bates. 2000. <em>Mixed-Effects Models in <span>S</span> and <span>S-PLUS</span></em>. New York: Springer.
+</div>
+<div id="ref-venables2002" class="csl-entry" role="listitem">
+Venables, William N., and Brian D. Ripley. 2002. <em>Modern Applied Statistics with <span>S</span></em>. 4th ed. New York: Springer.
+</div>
+<div id="ref-verbyla1993" class="csl-entry" role="listitem">
+Verbyla, Arūnas P. 1993. <span>“Modelling Variance Heterogeneity: Residual Maximum Likelihood and Diagnostics.”</span> <em>Journal of the Royal Statistical Society, Series B</em> 55 (2): 493–508.
+</div>
+</div>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/02-beyond.html" class="pagination-link" aria-label="Beyond the basics">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Beyond the basics</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/04-glm.html" class="pagination-link" aria-label="Generalized linear models">
+        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Generalized linear models</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>statmodels7</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

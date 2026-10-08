@@ -1,0 +1,932 @@
+# Generalized linear models {#sec-glm}
+
+```{r}
+#| label: setup-04
+#| include: false
+source("R/_setup.R")
+source("R/glm-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+```
+
+A generalized linear model has a response with a distribution from the
+exponential family, a mean that is a function of a linear predictor, and a
+variance that is a function of the mean. The function `glm()` fits these
+models, and `statmod()` fits them too, for these and for other
+distributions. This chapter takes the usual cases one by one: counts,
+proportions and binary responses, positive measurements, and counts that vary
+more than the Poisson distribution allows. For each case we fit the model with
+`statmod()` and compare the result with `glm()` or, for the negative binomial
+distribution, with `MASS::glm.nb()`. Two differences appear in every
+comparison, and we state them here once.
+
+Not every model of the chapter is a generalized linear model in the strict
+sense. The Poisson, binomial, Bernoulli, gamma and inverse gaussian
+distributions belong to the exponential family, and with them `statmod()` fits
+the models of `glm()`. The negative binomial distribution belongs to the
+family only when $\theta$ is known, and `glm.nb()` treats it as a
+generalized linear model with $\theta$ estimated in an outer loop. The
+distributions `negbin1_distrib()`, `pig1_distrib()`, `pig2_distrib()` and
+`betabinom1_distrib()` are not in the exponential family for any value of
+their dispersion, and a model with an equation for the dispersion, as in
+@sec-glm-dispersion, is an extension of the generalized linear model as well.
+We keep these models in this chapter because they answer the same question,
+the variance of counts and proportions, and because they use the same
+formulas and the same link functions. The text says each time when a model
+goes beyond `glm()`.
+
+First, some distributions have a second parameter, the dispersion. `glm()`
+estimates it by a moment estimator, dividing the Pearson statistic by the
+residual degrees of freedom. `statmod()` estimates it as a parameter of the
+distribution, by maximizing a criterion, and the estimate is a little
+different. Second, `statmod()` evaluates the log-likelihood at its own
+estimates, so the log-likelihood and the AIC that it reports can differ from
+those of `glm()`. When the distribution has no dispersion, as the Poisson and
+the binomial distributions, the two functions give the same numbers.
+
+## Counts and rates {#sec-glm-counts}
+
+The data frame `ships` from the `MASS` package records damage incidents to
+cargo ships [@mccullagh1989]. Each row is one combination of three factors:
+the type of the ship, from A to E, the period of construction and the period
+of operation. The response `incidents` is the number of damage incidents in
+the row, and `service` is the number of months of service of the ships in the
+row.
+
+```{r}
+#| label: ships-data
+data(ships, package = "MASS")
+ships <- subset(ships, service > 0)
+ships$year <- factor(ships$year)
+ships$period <- factor(ships$period)
+head(ships, n = 4)
+```
+
+We keep the `r nrow(ships)` rows with some months of service. When the
+factors are the same, a row with twice the months of service has on average
+twice as many incidents. So we model the rate of incidents per month of
+service. Let $y_i$ be the number of incidents in row $i$ and $t_i$ its months
+of service. The model is
+$$
+y_i \sim \mathrm{Poisson}(\mu_i), \qquad
+\log \mu_i = \log t_i + x_i^\top \beta ,
+$$
+where $x_i$ holds the intercept and the indicators of the three factors. The
+term $\log t_i$ has a coefficient fixed at one, and it is called an offset.
+It turns the model for the mean count $\mu_i$ into a model for the rate
+$\mu_i / t_i$. We wrote an offset in @sec-beyond-weights, and here we use it
+as in `glm()`:
+
+```{r}
+#| label: fit-ships
+fit_ships <- statmod(incidents ~ type + year + period + offset(log(service)),
+                     distrib = poisson_distrib(), data = ships)
+glm_ships <- glm(incidents ~ type + year + period + offset(log(service)),
+                 family = poisson, data = ships)
+summary(fit_ships)
+```
+
+The distribution `poisson_distrib()` has one parameter, the mean `mu`, with
+the log link. The model has no dispersion, so the estimates are those of
+`glm()`:
+
+```{r}
+#| label: ships-glm
+coef(fit_ships)$mu
+coef(glm_ships)
+all.equal(target = unname(vcov(glm_ships)), current = unname(vcov(fit_ships)),
+          tolerance = 1e-3)
+logLik(fit_ships)
+logLik(glm_ships)
+AIC(fit_ships)
+AIC(glm_ships)
+```
+
+The coefficients, the variance matrix, the log-likelihood and the AIC agree
+up to the precision of the two optimizers. The $z$ values and the p-values
+also agree: for a Poisson response `glm()` compares the Wald statistic with
+the standard gaussian distribution, as `statmod()` does.
+
+### Rate ratios
+
+A coefficient of a log-linear model is the logarithm of a ratio of rates.
+Each coefficient of a factor compares one level with the first level of the
+factor, at equal values of the other factors. We exponentiate the estimates
+and the ends of the intervals of `confint()`:
+
+```{r}
+#| label: ships-ratios
+ci_ships <- confint(fit_ships)
+ci_ships <- ci_ships[ci_ships$coefficient != "(Intercept)", ]
+ratios <- data.frame(ratio = exp(ci_ships$estimate),
+                     lower = exp(ci_ships$lower),
+                     upper = exp(ci_ships$upper),
+                     row.names = ci_ships$coefficient)
+ratios
+```
+
+```{r}
+#| label: fig-ships
+#| fig-cap: "Rate ratios of damage incidents with 95% intervals, on a log scale. Each ratio compares a level with the first level of its factor: type A, construction in 1960--64 and operation in 1960--74."
+#| echo: false
+#| fig-height: 3.4
+lab <- c(typeB = "type B", typeC = "type C", typeD = "type D",
+         typeE = "type E", year65 = "built 1965-69", year70 = "built 1970-74",
+         year75 = "built 1975-79", period75 = "operated 1975-79")
+rr <- data.frame(ratios,
+                 term = factor(lab[rownames(ratios)],
+                               levels = rev(lab[rownames(ratios)])))
+ggplot(rr, aes(x = ratio, y = term)) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = book_grey) +
+  geom_linerange(aes(xmin = lower, xmax = upper), colour = chalk,
+                 linewidth = 0.8) +
+  geom_point(colour = chalk, size = 2) +
+  scale_x_log10() +
+  labs(x = "rate ratio", y = NULL)
+```
+
+Type C has the smallest rate, `r fmt(ratios["typeC", "ratio"])` times the
+rate of type A, and type E has the largest, `r fmt(ratios["typeE", "ratio"])`
+times. Ships built in 1965--69 have `r fmt(ratios["year65", "ratio"])` times
+the rate of ships built in 1960--64, and operation in 1975--79 multiplies the
+rate by `r fmt(ratios["period75", "ratio"])`.
+
+### Is the variance equal to the mean?
+
+The Poisson distribution has variance equal to its mean. The Pearson
+statistic $X^2 = \sum_i (y_i - \hat\mu_i)^2/\hat\mu_i$ compares the squared
+residuals with this variance. If the model is right, $X^2$ divided by the
+residual degrees of freedom is close to one:
+
+```{r}
+#| label: ships-pearson
+mu_ships <- predict(fit_ships, what = "mu", newdata = ships)
+x2_ships <- sum((ships$incidents - mu_ships)^2 / mu_ships)
+df_ships <- nrow(ships) - length(coef(fit_ships)$mu)
+x2_ships
+df_ships
+x2_ships / df_ships
+```
+
+The ratio is `r fmt(x2_ships / df_ships)`. A ratio above one means that the
+counts vary more than the Poisson distribution allows: here they vary about
+`r fmt(x2_ships / df_ships, 1)` times as much, and the standard errors of
+the Poisson model are too small by about the square root of this ratio,
+`r fmt(sqrt(x2_ships / df_ships))`. The next sections use distributions with a
+variance that is larger than the mean, and a data set where the ratio is
+much larger.
+
+## Proportions and binary responses {#sec-glm-binary}
+
+### A number of successes out of a number of trials
+
+In a dose-response experiment a number of subjects receive a dose, and we
+count how many of them react. The table below is the classic experiment on
+the tobacco budworm [@collett1991; @venables2002]. Batches of 20 moths of
+each sex received one of six doses of a poison, and the response is the
+number of dead moths after three days. The dose is coded by its base-2
+logarithm, `ldose`.
+
+```{r}
+#| label: budworm-data
+budworm <- data.frame(
+  ldose = rep(0:5, times = 2),
+  sex = factor(rep(c("M", "F"), each = 6)),
+  numdead = c(1, 4, 9, 13, 18, 20, 0, 2, 6, 10, 12, 16),
+  n = 20)
+budworm
+```
+
+Let $y_i$ be the number of dead moths in batch $i$, out of $m_i = 20$. The
+model is
+$$
+y_i \sim \mathrm{Binomial}(m_i, p_i), \qquad
+\mathrm{logit}\,p_i = \beta_0 + \beta_1 s_i + \beta_2 d_i + \beta_3 s_i d_i ,
+$$
+where $s_i$ is 1 for males and $d_i$ is the log-dose. In `statmod()` the
+parameter `mu` of `binomial_distrib()` is the probability $p_i$. The response
+is the two-column matrix of successes and failures, as in `glm()`, and the
+number of trials of each row is the sum of its two entries:
+
+```{r}
+#| label: fit-budworm
+fit_bw <- statmod(cbind(numdead, n - numdead) ~ sex * ldose,
+                  distrib = binomial_distrib(), data = budworm)
+glm_bw <- glm(cbind(numdead, n - numdead) ~ sex * ldose, family = binomial,
+              data = budworm)
+summary(fit_bw)
+coef(glm_bw)
+logLik(fit_bw)
+logLik(glm_bw)
+```
+
+The estimates agree with those of `glm()`. The coefficient of `ldose` is the
+increase of the log odds of death for one more unit of log-dose in the
+reference sex, females: `r fmt(coef(fit_bw)$mu[["ldose"]], 3)`. The slope of
+the males is larger by the coefficient of `sexM:ldose`,
+`r fmt(coef(fit_bw)$mu[["sexM:ldose"]], 3)`, but this interaction is not
+significant (its p-value is `r fmt(summary(fit_bw)@tables$mu[[1]]$table$p_value[4], 2)`), so the data do not show a
+difference between the slopes of the two sexes. We drop the interaction in the
+next comparison, where we look at the link.
+
+### The link
+
+The logit link is not the only link that maps a probability onto the real
+line. The probit link $\Phi^{-1}(p)$ uses the quantile function of the
+standard gaussian distribution, and the complementary log-log link
+$\log(-\log(1 - p))$ is asymmetric: it approaches 0 slowly and 1 quickly. The
+distribution takes the link as the argument `link_mu`. We fit the additive
+model with the three links:
+
+```{r}
+#| label: fit-links
+fit_bw_logit <- statmod(cbind(numdead, n - numdead) ~ sex + ldose,
+                        distrib = binomial_distrib(link_mu = logit_link()),
+                        data = budworm)
+fit_bw_probit <- statmod(cbind(numdead, n - numdead) ~ sex + ldose,
+                         distrib = binomial_distrib(link_mu = probit_link()),
+                         data = budworm)
+fit_bw_cloglog <- statmod(cbind(numdead, n - numdead) ~ sex + ldose,
+                          distrib = binomial_distrib(link_mu = cloglog_link()),
+                          data = budworm)
+link_table <- data.frame(
+  link = c("logit", "probit", "cloglog"),
+  logLik = c(as.numeric(logLik(fit_bw_logit)),
+             as.numeric(logLik(fit_bw_probit)),
+             as.numeric(logLik(fit_bw_cloglog))),
+  AIC = c(AIC(fit_bw_logit), AIC(fit_bw_probit), AIC(fit_bw_cloglog)))
+link_table
+```
+
+The three models have the same number of parameters, so their log-likelihoods
+compare directly. The probit link has the largest log-likelihood, but the
+differences are small: with only 12 batches the data cannot separate the
+links well. @fig-links shows why. The three curves are close in the middle of
+the range of doses and differ at the ends.
+
+```{r}
+#| label: fig-links
+#| fig-cap: "Proportion of dead male moths against the log-dose, with the fitted probability of the additive model under three links."
+#| echo: false
+#| fig-height: 3.8
+grid <- data.frame(ldose = seq(from = 0, to = 5, length.out = 100),
+                   sex = factor("M", levels = levels(budworm$sex)),
+                   numdead = 0, n = 20)
+p_logit <- predict(fit_bw_logit, what = "mu", newdata = grid)
+p_probit <- predict(fit_bw_probit, what = "mu", newdata = grid)
+p_cloglog <- predict(fit_bw_cloglog, what = "mu", newdata = grid)
+males <- budworm$sex == "M"
+links <- c("logit", "probit", "cloglog")
+bw_obs <- data.frame(ldose = budworm$ldose[males],
+                     prop = budworm$numdead[males] / budworm$n[males])
+bw_fit <- data.frame(ldose = rep(grid$ldose, times = 3),
+                     prop = c(p_logit, p_probit, p_cloglog),
+                     link = factor(rep(links, each = nrow(grid)),
+                                   levels = links))
+ggplot(bw_obs, aes(x = ldose, y = prop)) +
+  geom_point(aes(shape = "observed proportion"), colour = book_grey,
+             size = 1.8) +
+  geom_line(aes(colour = link, linetype = link), data = bw_fit,
+            linewidth = 0.8) +
+  scale_shape_manual(values = 16) +
+  scale_colour_manual(values = c(chalk, rust, "grey15")) +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  coord_cartesian(xlim = c(0, 5), ylim = c(0, 1)) +
+  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
+         linetype = guide_legend(order = 2)) +
+  labs(x = "log-dose", y = "proportion dead")
+```
+
+### A binary response
+
+When every row is one subject, the response is 0 or 1 and the distribution
+is the Bernoulli distribution, which is the binomial distribution with one
+trial. The data frame `birthwt` from the `MASS` package has the birth weight
+of 189 babies, and `low` is 1 when the weight is below 2.5 kg
+[@hosmer1989]. The covariates are the age and the weight of the mother at
+the last menstrual period, `smoke` for smoking during the pregnancy and `ht`
+for a history of hypertension:
+
+```{r}
+#| label: fit-birthwt
+data(birthwt, package = "MASS")
+fit_bwt <- statmod(low ~ age + lwt + smoke + ht,
+                   distrib = bernoulli_distrib(), data = birthwt)
+glm_bwt <- glm(low ~ age + lwt + smoke + ht, family = binomial,
+               data = birthwt)
+summary(fit_bwt)
+coef(glm_bwt)
+```
+
+The coefficients are those of `glm()`. Each coefficient is a log odds ratio,
+so we exponentiate the estimates and the ends of the intervals:
+
+```{r}
+#| label: birthwt-or
+ci_bwt <- confint(fit_bwt)
+ci_bwt <- ci_bwt[ci_bwt$coefficient != "(Intercept)", ]
+odds <- data.frame(odds_ratio = exp(ci_bwt$estimate),
+                   lower = exp(ci_bwt$lower),
+                   upper = exp(ci_bwt$upper),
+                   row.names = ci_bwt$coefficient)
+odds
+```
+
+Smoking multiplies the odds of a low birth weight by
+`r fmt(odds["smoke", "odds_ratio"])`, and a history of hypertension by
+`r fmt(odds["ht", "odds_ratio"])`. The intervals are Wald intervals, built
+on the log scale and mapped back, so they are not symmetric around the odds
+ratio. The function `MASS::confint.glm()` computes profile intervals, which
+differ from the Wald ones when the sample is small. @sec-beyond-invert gave
+the intervals of `statmod()` that invert the likelihood ratio.
+
+The Bernoulli distribution takes the same links. We fit the four links that
+the `linkfunctions7` package provides for a probability, with the cauchit
+link, the inverse of the Cauchy distribution function, in addition to the
+three of the previous section:
+
+```{r}
+#| label: birthwt-links
+fit_bwt_probit <- statmod(low ~ age + lwt + smoke + ht,
+                          distrib = bernoulli_distrib(link_mu = probit_link()),
+                          data = birthwt)
+fit_bwt_cloglog <- statmod(low ~ age + lwt + smoke + ht,
+                           distrib = bernoulli_distrib(link_mu = cloglog_link()),
+                           data = birthwt)
+fit_bwt_cauchit <- statmod(low ~ age + lwt + smoke + ht,
+                           distrib = bernoulli_distrib(link_mu = cauchit_link()),
+                           data = birthwt)
+bwt_links <- data.frame(
+  link = c("logit", "probit", "cloglog", "cauchit"),
+  logLik = c(as.numeric(logLik(fit_bwt)), as.numeric(logLik(fit_bwt_probit)),
+             as.numeric(logLik(fit_bwt_cloglog)),
+             as.numeric(logLik(fit_bwt_cauchit))),
+  AIC = c(AIC(fit_bwt), AIC(fit_bwt_probit), AIC(fit_bwt_cloglog),
+          AIC(fit_bwt_cauchit)))
+bwt_links
+```
+
+The four log-likelihoods differ by less than one unit, so the data do not
+choose among them. The logit link is the usual choice because its
+coefficients are log odds ratios.
+
+## Positive responses {#sec-glm-positive}
+
+The data frame `GAGurine` from the `MASS` package gives the concentration of
+glycosaminoglycans (GAG) in the urine of `r nrow(MASS::GAGurine)` children
+aged from 0 to 17 years [@venables2002]. The concentration is positive, and
+its spread is larger where its mean is larger. The gamma distribution has
+mean $\mu$ and variance $\phi\mu^2$, so its standard deviation is
+proportional to the mean, and $\phi$ is the squared coefficient of variation.
+We model the mean with a log link, as a straight line in the age:
+$$
+y_i \sim \mathrm{Gamma}(\mu_i, \phi), \qquad
+\log\mu_i = \beta_0 + \beta_1 a_i .
+$$
+
+```{r}
+#| label: fit-gamma
+data(GAGurine, package = "MASS")
+fit_gam <- statmod(GAG ~ Age, distrib = gamma1_distrib(), data = GAGurine)
+glm_gam <- glm(GAG ~ Age, family = Gamma(link = "log"), data = GAGurine)
+summary(fit_gam)
+coef(glm_gam)
+```
+
+The distribution `gamma1_distrib()` has two parameters, the mean `mu` and
+the dispersion `phi`, both with the log link. The formula has no equation for
+`phi`, so `statmod()` estimates it as a constant. The coefficients of the
+mean are those of `glm()`. The dispersion is not:
+
+```{r}
+#| label: gamma-phi
+n_gag <- nrow(GAGurine)
+fit_gam_ml <- statmod(GAG ~ Age, distrib = gamma1_distrib(), data = GAGurine,
+                      outer_criterion = ml())
+phi_table <- data.frame(
+  phi = c(exp(coef(fit_gam)$phi), exp(coef(fit_gam_ml)$phi),
+          summary(glm_gam)$dispersion, glm_gam$deviance / n_gag,
+          1 / MASS::gamma.shape(glm_gam)$alpha),
+  row.names = c("statmod, default", "statmod, ml()", "glm, Pearson",
+                "glm, deviance / n", "MASS::gamma.shape"))
+phi_table
+```
+
+Four of the estimates are close to each other, and the Pearson estimate of
+`glm()` is larger. The maximum likelihood estimate is
+`r fmt(phi_table["statmod, ml()", "phi"], 4)`. It is the value of
+`MASS::gamma.shape()`, and it is the estimate of `statmod()` with the
+criterion `ml()`. The default criterion of `statmod()` is REML. It
+integrates the two coefficients of the mean out of the likelihood, and for a
+gamma response its estimate is close to the maximum likelihood estimate times
+$n/(n - 2)$, as the two numbers below show:
+
+```{r}
+#| label: gamma-reml
+phi_table["statmod, ml()", "phi"] * n_gag / (n_gag - 2)
+phi_table["statmod, default", "phi"]
+```
+
+The estimate of `glm()` is different in kind. It is the moment estimate, the
+Pearson statistic divided by $n - 2$, and it is
+`r fmt(phi_table["glm, Pearson", "phi"], 4)`, larger than the others. The standard errors of the coefficients of the mean are proportional
+to $\sqrt\phi$, so `glm()` reports larger standard errors than `statmod()`,
+in the ratio of the square roots of the two estimates:
+
+```{r}
+#| label: gamma-se
+se_gam <- sqrt(diag(vcov(fit_gam)))[["mu:Age"]]
+se_glm <- summary(glm_gam)$coefficients["Age", "Std. Error"]
+c(statmod = se_gam, glm = se_glm, ratio = se_glm / se_gam)
+sqrt(phi_table["glm, Pearson", "phi"] / phi_table["statmod, default", "phi"])
+```
+
+The log-likelihood depends on the dispersion too. `logLik()` of `statmod()`
+evaluates the gamma density at its estimate of $\phi$. `logLik()` of `glm()`
+evaluates it at the deviance divided by $n$, which approximates the maximum
+likelihood estimate. Both count three parameters, the two coefficients and
+$\phi$:
+
+```{r}
+#| label: gamma-loglik
+logLik(fit_gam)
+logLik(fit_gam_ml)
+logLik(glm_gam)
+```
+
+### The inverse gaussian distribution
+
+When the standard deviation grows faster with the mean, the inverse gaussian
+distribution, with variance $\phi\mu^3$, is an alternative. The two models
+describe the same response, so we compare them through the AIC:
+
+```{r}
+#| label: fit-ig
+fit_ig <- statmod(GAG ~ Age, distrib = invgauss1_distrib(), data = GAGurine)
+c(gamma = AIC(fit_gam), inverse_gaussian = AIC(fit_ig))
+```
+
+The gamma distribution has the smaller AIC, by `r fmt(AIC(fit_ig) - AIC(fit_gam), 1)`
+units. The linear log-mean is a restriction that we can relax. A smooth
+function of the age gives a much better fit:
+
+```{r}
+#| label: fit-gamma-smooth
+fit_gam_s <- statmod(GAG ~ s(Age, bspline_smooth(k = 10)),
+                     distrib = gamma1_distrib(), data = GAGurine)
+c(linear = AIC(fit_gam), smooth = AIC(fit_gam_s))
+```
+
+The effective number of parameters of the smooth model is
+`r fmt(sum(fit_gam_s@edf$edf), 1)`, against 3 for the linear model.
+@fig-gag shows that the curve is steeper for the youngest children than a
+straight line on the log scale can be. The smooth terms are the subject of a
+later chapter.
+
+```{r}
+#| label: fig-gag
+#| fig-cap: "GAG concentration against age, with three fitted means: gamma with a linear log-mean, inverse gaussian with a linear log-mean, and gamma with a smooth log-mean."
+#| echo: false
+#| fig-height: 3.8
+ga <- data.frame(Age = seq(from = 0, to = 17, length.out = 200))
+m_gam <- predict(fit_gam, what = "mu", newdata = ga)
+m_ig <- predict(fit_ig, what = "mu", newdata = ga)
+m_gs <- predict(fit_gam_s, what = "mu", newdata = ga)
+gag_models <- c("gamma, linear", "inverse gaussian, linear", "gamma, smooth")
+gag_fit <- data.frame(Age = rep(ga$Age, times = 3),
+                      GAG = c(m_gam, m_ig, m_gs),
+                      model = factor(rep(gag_models, each = nrow(ga)),
+                                     levels = gag_models))
+ggplot(GAGurine, aes(x = Age, y = GAG)) +
+  geom_point(aes(shape = "data"), colour = book_grey, size = 1.1) +
+  geom_line(aes(colour = model, linetype = model), data = gag_fit,
+            linewidth = 0.8) +
+  scale_shape_manual(values = 16) +
+  scale_colour_manual(values = c(chalk, rust, "grey15")) +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
+         linetype = guide_legend(order = 2)) +
+  labs(x = "age (years)", y = "GAG")
+```
+
+## Counts that vary too much {#sec-glm-overdispersion}
+
+The data frame `quine` from the `MASS` package records the days of absence
+from school in one year for `r nrow(MASS::quine)` children in a town in New
+South Wales [@aitkin1978; @venables2002]. The covariates are the ethnic
+background of the child (`Eth`), the sex, the age group and the learner
+status (`Lrn`). The mean number of days is
+`r fmt(mean(MASS::quine$Days), 1)` and the variance is
+`r fmt(var(MASS::quine$Days), 1)`, so the counts vary far more than a
+Poisson distribution allows.
+
+```{r}
+#| label: quine-data
+data(quine, package = "MASS")
+formula_q <- Days ~ Eth + Sex + Age + Lrn
+fit_q_pois <- statmod(formula_q, distrib = poisson_distrib(), data = quine)
+```
+
+### Four distributions for the variance
+
+Four distributions describe counts with a variance that is larger than the
+mean. Each has a mean $\mu$ and one dispersion parameter, and each gives the
+variance as a different function of the mean:
+
+| distribution in `statmod()` | parameter | variance |
+|:----------------------------|:----------|:---------------------------|
+| `poisson_distrib()` | none | $\mu$ |
+| `negbin2_distrib()` | $\theta$ | $\mu + \mu^2/\theta$ |
+| `negbin1_distrib()` | $\theta$ | $\mu(1 + \theta)$ |
+| `pig1_distrib()`, `pig2_distrib()` | $\sigma$ | $\mu + \sigma\mu^2$ |
+
+Of these, only the Poisson distribution and the negative binomial
+distribution with a known $\theta$ are in the exponential family. The other
+three are extensions of the generalized linear model: the variance function of
+`negbin1_distrib()` is linear in the mean, like that of the quasi-Poisson
+model of `glm()` but with a proper distribution and a likelihood, and the
+Poisson-inverse gaussian distribution, `pig`, is a mixture of Poisson
+distributions with an inverse gaussian mean. It has the same variance function
+as the first negative binomial distribution, with a longer right tail. The two
+versions of it differ in the parametrization of the dispersion.
+We fit the four distributions:
+
+```{r}
+#| label: fit-quine-families
+fit_q_nb2 <- statmod(formula_q, distrib = negbin2_distrib(), data = quine)
+fit_q_nb1 <- statmod(formula_q, distrib = negbin1_distrib(), data = quine)
+fit_q_pig1 <- statmod(formula_q, distrib = pig1_distrib(), data = quine)
+fit_q_pig2 <- statmod(formula_q, distrib = pig2_distrib(), data = quine)
+```
+
+To see whether the variance function of a fitted model is right, we divide
+the Pearson statistic by the residual degrees of freedom. For a model with
+effective number of parameters $\tau$ the statistic is
+$$
+\frac{1}{n - \tau} \sum_{i=1}^{n}
+\frac{(y_i - \hat\mu_i)^2}{\widehat{\mathrm{Var}}(y_i)} ,
+$$
+and its value is close to one when the variance function is right
+[@mccullagh1989, sec. 4.5]. The function `variance()` returns the variance
+of a distribution at given values of its parameters. The function
+`pearson_ratio()` below collects the fitted values of the parameters with
+`predict()` and applies it:
+
+```{r}
+#| label: quine-pearson
+pearson_ratio <- function(fit, distrib, data, y) {
+  theta <- list()
+  for (p in distrib@params) {
+    theta[[p]] <- predict(fit, what = p, newdata = data)
+  }
+  v <- variance(distrib, theta = theta)
+  tau <- sum(fit@edf$edf)
+  sum((y - theta$mu)^2 / v) / (length(y) - tau)
+}
+quine_fits <- data.frame(
+  distribution = c("Poisson", "negbin2", "negbin1", "pig1", "pig2"),
+  AIC = c(AIC(fit_q_pois), AIC(fit_q_nb2), AIC(fit_q_nb1), AIC(fit_q_pig1),
+          AIC(fit_q_pig2)),
+  pearson = c(
+    pearson_ratio(fit_q_pois, poisson_distrib(), quine, quine$Days),
+    pearson_ratio(fit_q_nb2, negbin2_distrib(), quine, quine$Days),
+    pearson_ratio(fit_q_nb1, negbin1_distrib(), quine, quine$Days),
+    pearson_ratio(fit_q_pig1, pig1_distrib(), quine, quine$Days),
+    pearson_ratio(fit_q_pig2, pig2_distrib(), quine, quine$Days)))
+quine_fits
+```
+
+The Poisson model has a ratio of `r fmt(quine_fits$pearson[1], 1)`: the counts
+vary about `r fmt(quine_fits$pearson[1], 0)` times as much as the Poisson
+variance. The first negative binomial distribution brings the ratio to
+`r fmt(quine_fits$pearson[2])`, and it has the smallest AIC. We may compare
+the AIC of the five models, although the distributions are different,
+because every log-likelihood is the logarithm of the probability that its
+model gives to the same observed counts [@akaike1974]. The ratios of the
+`pig` models are below one, because their variance function overstates the
+variance of these counts.
+
+@fig-quine compares the observed number of children in six classes of
+absence with the numbers that the Poisson and the first negative binomial
+model expect. For each class we sum over the children the probability that
+the fitted distribution gives to the class:
+
+```{r}
+#| label: quine-expected
+brk <- c(-0.5, 0.5, 5.5, 10.5, 20.5, 40.5, Inf)
+cls <- c("0", "1-5", "6-10", "11-20", "21-40", "41+")
+observed <- as.numeric(table(cut(quine$Days, breaks = brk)))
+mu_pois <- predict(fit_q_pois, what = "mu", newdata = quine)
+mu_nb2 <- predict(fit_q_nb2, what = "mu", newdata = quine)
+th_nb2 <- predict(fit_q_nb2, what = "theta", newdata = quine)
+exp_pois <- numeric(6)
+exp_nb2 <- numeric(6)
+for (j in 1:6) {
+  exp_pois[j] <- sum(ppois(q = brk[j + 1], lambda = mu_pois) -
+                       ppois(q = brk[j], lambda = mu_pois))
+  exp_nb2[j] <- sum(pnbinom(q = brk[j + 1], size = th_nb2, mu = mu_nb2) -
+                      pnbinom(q = brk[j], size = th_nb2, mu = mu_nb2))
+}
+data.frame(class = cls, observed = observed, Poisson = exp_pois,
+           negbin2 = exp_nb2)
+```
+
+```{r}
+#| label: fig-quine
+#| fig-cap: "Number of children in six classes of days of absence: observed (grey), expected under the Poisson model (rust) and expected under the first negative binomial model (green)."
+#| echo: false
+#| fig-height: 3.4
+counts <- c("observed", "Poisson", "negative binomial")
+quine_bars <- data.frame(class = factor(rep(cls, times = 3), levels = cls),
+                         children = c(observed, exp_pois, exp_nb2),
+                         source = factor(rep(counts, each = length(cls)),
+                                         levels = counts))
+ggplot(quine_bars, aes(x = class, y = children, fill = source)) +
+  geom_col(position = position_dodge(width = 0.85), width = 0.85) +
+  scale_fill_manual(values = c(book_grey, rust, chalk)) +
+  labs(x = "days of absence", y = "children")
+```
+
+The Poisson model expects `r fmt(exp_pois[1], 2)` children with no absence,
+and there are `r observed[1]`. It expects `r fmt(exp_pois[6], 1)` children
+with more than 40 days, and there are `r observed[6]`. The negative binomial
+model expects `r fmt(exp_nb2[1], 1)` and `r fmt(exp_nb2[6], 1)` children in
+these two classes.
+
+### The dispersion of the negative binomial
+
+The function `MASS::glm.nb()` fits the same negative binomial model. It
+alternates the estimation of the coefficients with the maximum likelihood
+estimation of $\theta$. The default criterion of `statmod()` is REML, as for
+the gamma distribution, and the estimate of $\theta$ is a little smaller.
+With the criterion `ml()` the two functions agree:
+
+```{r}
+#| label: quine-glmnb
+glm_q_nb <- MASS::glm.nb(formula_q, data = quine)
+fit_q_nb2_ml <- statmod(formula_q, distrib = negbin2_distrib(), data = quine,
+                        outer_criterion = ml())
+c(reml = exp(coef(fit_q_nb2)$theta), ml = exp(coef(fit_q_nb2_ml)$theta),
+  glm.nb = glm_q_nb$theta)
+max(abs(coef(fit_q_nb2_ml)$mu - coef(glm_q_nb)))
+max(abs(coef(fit_q_nb2)$mu - coef(glm_q_nb)))
+c(statmod_ml = as.numeric(logLik(fit_q_nb2_ml)),
+  glm.nb = as.numeric(logLik(glm_q_nb)))
+```
+
+The REML estimate of the dispersion removes the bias that comes from
+estimating the seven coefficients of the mean, in the same way as in
+@sec-lm-linear, where REML gave the residual variance $\mathrm{RSS}/(n - p)$.
+The coefficients of the mean move by less than $10^{-3}$.
+
+### Proportions that vary too much
+
+A proportion has the same problem as a count, and the remedy is again an
+extension of the generalized linear model and not a member of it: the
+beta-binomial distribution is a mixture of binomial distributions, and it is
+not in the exponential family. The binomial distribution
+with $m$ trials has variance $m\,p(1 - p)$, and a group of trials that share
+a common cause varies more than this. The beta-binomial distribution
+`betabinom1_distrib()` has the probability $\mu$ and a dispersion $\sigma$,
+and its variance is
+$$
+\mathrm{Var}(Y) = m\mu(1 - \mu)\left(1 + (m - 1)\frac{\sigma}{1 + \sigma}\right) ,
+$$
+which is the binomial variance multiplied by a factor above one. The factor
+$\sigma/(1 + \sigma)$ is the correlation between two trials of the same
+group. We draw 200 groups of 20 trials from this distribution with
+`rstatmod()`, with the true values $\mu = \mathrm{logit}^{-1}(0.2 + x)$ and
+$\sigma = 0.5$, and we fit the binomial and the beta-binomial models:
+
+```{r}
+#| label: betabinom-sim
+set.seed(11)
+xs <- data.frame(x = runif(n = 200, min = -1, max = 1))
+sim_bb <- rstatmod(y ~ x | sigma ~ 1, distrib = betabinom1_distrib(size = 20),
+                   data = xs, par = list(mu = c(0.2, 1), sigma = log(0.5)))
+fit_b_bin <- statmod(y ~ x, distrib = binomial_distrib(size = 20),
+                     data = sim_bb$data)
+fit_b_bb <- statmod(y ~ x, distrib = betabinom1_distrib(size = 20),
+                    data = sim_bb$data)
+summary(fit_b_bb)
+```
+
+The estimate of $\log\sigma$ is `r fmt(coef(fit_b_bb)$sigma[[1]], 2)` against
+the true value $\log 0.5 = `r fmt(log(0.5), 2)`$. The binomial model fits
+the same mean with the same kind of coefficients, but its standard errors are
+too small, because it treats the 20 trials of a group as independent:
+
+```{r}
+#| label: betabinom-se
+se_bin <- sqrt(diag(vcov(fit_b_bin)))
+se_bb <- sqrt(diag(vcov(fit_b_bb)))[c("mu:(Intercept)", "mu:x")]
+cbind(binomial = se_bin, beta_binomial = se_bb, ratio = se_bb / se_bin)
+c(binomial = AIC(fit_b_bin), beta_binomial = AIC(fit_b_bb))
+```
+
+The ratio of the two standard errors is about 2.6. Its square, 6.6, is of the
+same size as the Pearson ratio of the binomial fit, and as the factor
+$1 + 19 \cdot 0.5/1.5$ by which the true variance exceeds the binomial one.
+We compute the three numbers:
+
+```{r}
+#| label: betabinom-pearson
+mu_b <- predict(fit_b_bin, what = "mu", newdata = sim_bb$data)
+x2_b <- sum((sim_bb$data$y - 20 * mu_b)^2 / (20 * mu_b * (1 - mu_b)))
+x2_b / (nrow(sim_bb$data) - 2)
+1 + 19 * 0.5 / 1.5
+(se_bb / se_bin)^2
+```
+
+## A dispersion with covariates {#sec-glm-dispersion}
+
+Every parameter of a distribution can have its own equation, as $\sigma$
+had in @sec-lm-spread. The dispersion of a generalized linear model is the
+second parameter, and we can let it depend on covariates. A model with a
+regression for the dispersion is a joint model for the mean and the
+dispersion [@smyth1989], an extension of the generalized linear model that
+`glm()` does not fit. In the `GAGurine`
+data the variation of the concentration may change with age. We give the
+dispersion $\phi$ of the gamma model a linear equation in the age:
+
+```{r}
+#| label: fit-gamma-phi
+fit_gam_phi <- statmod(GAG ~ Age | phi ~ Age, distrib = gamma1_distrib(),
+                       data = GAGurine)
+summary(fit_gam_phi)
+```
+
+The coefficient of the age in the equation of $\log\phi$ is
+`r fmt(coef(fit_gam_phi)$phi[["Age"]], 3)`, so the dispersion grows by a
+factor $e^{`r fmt(coef(fit_gam_phi)$phi[["Age"]], 3)`} =
+`r fmt(exp(coef(fit_gam_phi)$phi[["Age"]]), 3)`$ for each year of age. We
+compute the dispersion at three ages with `predict()`:
+
+```{r}
+#| label: gamma-phi-predict
+ages <- data.frame(Age = c(1, 9, 17))
+predict(fit_gam_phi, what = "phi", newdata = ages)
+```
+
+The criterion of both fits integrates the coefficients of the mean out of the
+likelihood. For a gamma or a negative binomial response the integral is
+approximated by the Laplace method. The two models have the same equation for
+the mean, so they integrate the same coefficients, and the two criteria are
+marginal likelihoods of the same data. Their difference is a legitimate
+likelihood ratio statistic, as for the standard deviation of `cars` in
+@sec-lm-spread. The model with a constant dispersion is the one with a zero
+coefficient of the age:
+
+```{r}
+#| label: gamma-phi-lr
+l0_gam <- logLik(fit_gam, type = "marginal")
+l1_gam <- logLik(fit_gam_phi, type = "marginal")
+lr_gam <- 2 * (as.numeric(l1_gam) - as.numeric(l0_gam))
+lr_gam
+pchisq(lr_gam, df = 1, lower.tail = FALSE)
+c(constant = AIC(fit_gam), age = AIC(fit_gam_phi))
+```
+
+The p-value is `r fmt(pchisq(lr_gam, df = 1, lower.tail = FALSE), 4)`, and
+the AIC falls by `r fmt(AIC(fit_gam) - AIC(fit_gam_phi), 1)`, so the
+dispersion depends on the age.
+
+The same can be done for a count model. In the negative binomial model of
+`quine` the dispersion $\theta$ may depend on the ethnic background and on the
+learner status:
+
+```{r}
+#| label: fit-quine-theta
+fit_q_theta <- statmod(Days ~ Eth + Sex + Age + Lrn | theta ~ Eth + Lrn,
+                       distrib = negbin2_distrib(), data = quine)
+summary(fit_q_theta)
+l0_q <- logLik(fit_q_nb2, type = "marginal")
+l1_q <- logLik(fit_q_theta, type = "marginal")
+lr_q <- 2 * (as.numeric(l1_q) - as.numeric(l0_q))
+lr_q
+pchisq(lr_q, df = 2, lower.tail = FALSE)
+c(constant = AIC(fit_q_nb2), covariates = AIC(fit_q_theta))
+```
+
+Here the test does not reject a constant dispersion. The statistic
+`r fmt(lr_q, 2)` has a p-value of `r fmt(pchisq(lr_q, df = 2, lower.tail = FALSE), 2)`
+on two degrees of freedom, and the AIC of the larger model is larger. The
+data contain no evidence that the two covariates change the dispersion, and
+we keep the simpler model.
+
+## The link {#sec-glm-links}
+
+The link of a parameter is an object of the `linkfunctions7` package, and
+the distribution takes it as an argument. A link has two functions that
+invert each other, `linkfun()` from the parameter to the linear predictor and
+`linkinv()` from the predictor to the parameter, and it has derivatives of
+both. The square root link, for example, maps a positive mean $\mu$ to
+$\eta = \sqrt\mu$:
+
+```{r}
+#| label: link-object
+lk <- sqrt_link()
+mu_values <- c(1, 4, 9)
+eta_values <- linkfun(lk, theta = mu_values)
+eta_values
+linkinv(lk, eta = eta_values)
+dlinkinv(lk, eta = eta_values)
+```
+
+The last call gives the derivative of the mean with respect to the
+predictor, $d\mu/d\eta = 2\eta$. The fitting functions use it, and the
+derivatives of higher order, to compute the score and the information on the
+scale of the linear predictor.
+
+We fit the model for `quine` with the Poisson distribution and the square
+root link, and compare it with `glm()`:
+
+```{r}
+#| label: fit-sqrt
+fit_q_sqrt <- statmod(formula_q, distrib = poisson_distrib(link_mu = sqrt_link()),
+                      data = quine)
+glm_q_sqrt <- glm(formula_q, family = poisson(link = "sqrt"), data = quine)
+coef(fit_q_sqrt)$mu
+coef(glm_q_sqrt)
+c(statmod = AIC(fit_q_sqrt), glm = AIC(glm_q_sqrt), log_link = AIC(fit_q_pois))
+```
+
+The estimates are those of `glm()`. The two links give different models, and
+the log link has the smaller AIC.
+
+### A link written by the user
+
+A link that the package does not provide is an S7 object with two methods,
+`linkfun()` and `linkinv()`. As an example we take the square of the
+logistic function,
+$$
+p = \left(\frac{1}{1 + e^{-\eta}}\right)^2 ,
+\qquad \eta = \mathrm{logit}\left(\sqrt p\right),
+$$
+which maps the real line onto the interval $(0, 1)$, as the links of a
+probability do, and it is not symmetric. We define the class, register the
+two methods, and create the object:
+
+```{r}
+#| label: user-link
+SqLogit <- S7::new_class("SqLogit", parent = link)
+S7::method(linkfun, SqLogit) <- function(x, theta) qlogis(sqrt(theta))
+S7::method(linkinv, SqLogit) <- function(x, eta) plogis(eta)^2
+sq_logit <- SqLogit(link_name = "square-logistic", link_bounds = c(0, 1),
+                    link_params = NULL)
+```
+
+The derivatives are not written, so the package computes them by finite
+differences. The function `link_fallback_orders()` returns the number of
+orders of each direction that are analytic, here zero, and `check_link()`
+tests the properties of the link:
+
+```{r}
+#| label: user-link-check
+link_fallback_orders(sq_logit)
+invisible(check_link(sq_logit))
+dlinkinv(sq_logit, eta = c(-1, 0, 1))
+```
+
+The checks of invertibility and monotonicity pass, and the derivative rows
+are marked as numerical, because a numerical derivative cannot be checked
+against another numerical derivative. The link now works in any
+distribution. We fit the additive budworm model with it and compare it with
+the logit link:
+
+```{r}
+#| label: fit-user-link
+fit_bw_sq <- statmod(cbind(numdead, n - numdead) ~ sex + ldose,
+                     distrib = binomial_distrib(link_mu = sq_logit),
+                     data = budworm)
+coef(fit_bw_sq)$mu
+c(square_logistic = as.numeric(logLik(fit_bw_sq)),
+  logit = as.numeric(logLik(fit_bw_logit)))
+```
+
+```{r}
+#| label: gate-04
+#| include: false
+assert_glm_ok(
+  fits = list(ships = fit_ships, bw = fit_bw, bw_logit = fit_bw_logit,
+              bw_probit = fit_bw_probit, bw_cloglog = fit_bw_cloglog,
+              bwt = fit_bwt, bwt_probit = fit_bwt_probit,
+              bwt_cloglog = fit_bwt_cloglog, bwt_cauchit = fit_bwt_cauchit,
+              gam = fit_gam, gam_ml = fit_gam_ml, ig = fit_ig,
+              gam_s = fit_gam_s, gam_phi = fit_gam_phi,
+              q_pois = fit_q_pois, q_nb2 = fit_q_nb2, q_nb1 = fit_q_nb1,
+              q_pig1 = fit_q_pig1, q_pig2 = fit_q_pig2,
+              q_nb2_ml = fit_q_nb2_ml, q_theta = fit_q_theta,
+              q_sqrt = fit_q_sqrt, b_bin = fit_b_bin, b_bb = fit_b_bb,
+              bw_sq = fit_bw_sq),
+  ref = list(ships = glm_ships, bw = glm_bw, bwt = glm_bwt, gam = glm_gam,
+             q_nb = glm_q_nb, q_sqrt = glm_q_sqrt),
+  data = list(ships = ships, budworm = budworm, birthwt = birthwt,
+              gag = GAGurine, quine = quine, sim_bb = sim_bb$data),
+  claims = list(ratios = ratios, odds = odds, x2_ships = x2_ships,
+                df_ships = df_ships, link_table = link_table,
+                bwt_links = bwt_links, phi_table = phi_table,
+                quine_fits = quine_fits, observed = observed,
+                exp_pois = exp_pois, exp_nb2 = exp_nb2,
+                lr_gam = lr_gam, lr_q = lr_q, sq_logit = sq_logit))
+```

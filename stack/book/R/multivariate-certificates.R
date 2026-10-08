@@ -75,7 +75,7 @@
 
 .certify_mvgauss_density <- function() {
   f <- .mv_fixture()
-  d <- mvgaussian_distrib(2)
+  d <- mvgaussian1_distrib(2)
   th <- as.list(stats::setNames(c(f$mu, f$eta), d@params))
   err <- .mv_maxdiff(
     distrib_pdf(d, f$y, th, log = TRUE),
@@ -105,7 +105,7 @@
 
 .certify_mvgauss_score <- function() {
   f <- .mv_fixture()
-  d <- mvgaussian_distrib(2)
+  d <- mvgaussian1_distrib(2)
   th <- as.list(stats::setNames(c(f$mu, f$eta), d@params))
   dld <- parameters7::param_dlogdet(f$s, f$eta)
 
@@ -141,7 +141,7 @@
 
 .certify_mvgauss_hessian <- function() {
   f <- .mv_fixture()
-  d <- mvgaussian_distrib(2)
+  d <- mvgaussian1_distrib(2)
   th <- as.list(stats::setNames(c(f$mu, f$eta), d@params))
   si <- solve(f$sigma)
   r <- sweep(f$y, 2L, f$mu)
@@ -228,7 +228,7 @@
 
 .certify_mvgauss_information <- function() {
   f <- .mv_fixture()
-  d <- mvgaussian_distrib(2)
+  d <- mvgaussian1_distrib(2)
   th <- as.list(stats::setNames(c(f$mu, f$eta), d@params))
   si <- solve(f$sigma)
   # The DISTRIBUTION's names, not the structure's: a multivariate family
@@ -305,7 +305,7 @@
 
 .certify_mvt_density <- function() {
   f <- .mv_fixture(nu = 4)
-  d <- mvstudent_t_distrib(2)
+  d <- mvstudent_t1_distrib(2)
   th <- as.list(stats::setNames(c(f$mu, f$eta, 4), d@params))
   out <- character()
   err <- .mv_maxdiff(
@@ -341,7 +341,7 @@
   f <- .mv_fixture(nu = 4)
   nu <- 4
   p <- 2
-  d <- mvstudent_t_distrib(2)
+  d <- mvstudent_t1_distrib(2)
   th <- as.list(stats::setNames(c(f$mu, f$eta, nu), d@params))
 
   si <- solve(f$sigma)
@@ -396,7 +396,7 @@
 
 .certify_mv_moments <- function() {
   f <- .mv_fixture()
-  d <- mvstudent_t_distrib(2)
+  d <- mvstudent_t1_distrib(2)
   out <- character()
 
   th <- as.list(stats::setNames(c(f$mu, f$eta, 6), d@params))
@@ -418,8 +418,34 @@
     out <- c(out, "the mean is not NaN at nu = 0.5")
   }
 
+  # eq-mvt-scalings and the two readings that carry over to the response with
+  # no factor, against the response's own covariance. The negative control is
+  # the reading that does NOT carry over: the reciprocal diagonal of the
+  # inverse scale matrix is a conditional scale and not a conditional
+  # variance, so it must differ from the gaussian reading by (nu - 2) / nu.
+  d3s <- mvstudent_t2_distrib(3)
+  eta3 <- c(0.2, -0.1, 0.3, 0.4, -0.2, 0.1)
+  nu3 <- 6
+  th3s <- as.list(stats::setNames(c(0, 0, 0, eta3, nu3), d3s@params))
+  om <- unname(as.matrix(parameters7::param_value(d3s@param, eta3)))
+  vy <- unname(variance(d3s, th3s))
+  if (.mv_maxdiff(solve(vy), (nu3 - 2) / nu3 * om) > 1e-12) {
+    out <- c(out, "the inverse covariance is not (nu - 2) / nu times the matrix")
+  }
+  if (.mv_maxdiff(stats::cov2cor(unname(mv_sigma(d3s, th3s))),
+                  stats::cov2cor(vy)) > 1e-12) {
+    out <- c(out, "the scale matrix's correlations are not the response's")
+  }
+  .pcor <- function(m) -m / outer(sqrt(diag(m)), sqrt(diag(m)))
+  if (.mv_maxdiff(.pcor(om), .pcor(solve(vy))) > 1e-12) {
+    out <- c(out, "the partial correlations of the matrix are not the response's")
+  }
+  if (max(abs(1 / diag(om) - 1 / diag(solve(vy)))) < 1e-3) {
+    out <- c(out, "the reciprocal diagonal reads as a conditional variance")
+  }
+
   # the marginal: same family, block of the matrix, and for the t the same nu
-  d3 <- mvstudent_t_distrib(3)
+  d3 <- mvstudent_t1_distrib(3)
   s3 <- parameters7::log_cholesky(3)
   th3f <- as.list(stats::setNames(
     c(0, 1, -1, 0.1, -0.1, 0.2, 0.5, -0.2, 0.3, 7), d3@params
@@ -433,7 +459,7 @@
     out <- c(out, "the t marginal changed the degrees of freedom")
   }
 
-  g3 <- mvgaussian_distrib(3)
+  g3 <- mvgaussian1_distrib(3)
   thg <- as.list(stats::setNames(
     c(0, 1, -1, 0.1, -0.1, 0.2, 0.5, -0.2, 0.3), g3@params
   ))
@@ -444,8 +470,8 @@
   }
 
   # the two parametrizations of the gaussian describe the same law
-  ds <- mvgaussian_distrib(2)
-  do <- mvgaussian_distrib(2, omega = parameters7::log_cholesky(2))
+  ds <- mvgaussian1_distrib(2)
+  do <- mvgaussian2_distrib(2, parameters7::log_cholesky(2))
   ths <- as.list(stats::setNames(c(f$mu, f$eta), ds@params))
   etao <- parameters7::param_free(do@param, solve(mv_sigma(ds, ths)))
   tho <- as.list(stats::setNames(c(f$mu, unname(etao)), do@params))
@@ -460,7 +486,7 @@
 
 .certify_mv_reporting <- function() {
   f <- .mv_fixture()
-  d <- mvgaussian_distrib(2)
+  d <- mvgaussian1_distrib(2)
   th <- as.list(stats::setNames(c(f$mu, f$eta), d@params))
   out <- character()
 
@@ -528,8 +554,8 @@
 
   # The precision form: same law, so the same standard deviations and
   # correlations, plus the readings that are its own.
-  do <- mvgaussian_distrib(3, omega = parameters7::log_cholesky(3))
-  ds <- mvgaussian_distrib(3)
+  do <- mvgaussian2_distrib(3, parameters7::log_cholesky(3))
+  ds <- mvgaussian1_distrib(3)
   set.seed(5108)
   ths <- generate_random_theta(ds)
   sig3 <- unname(mv_sigma(ds, ths))
@@ -587,7 +613,7 @@
   }
 
   # The t reports the SCALE standard deviations, and says so in the name.
-  dt <- mvstudent_t_distrib(2)
+  dt <- mvstudent_t1_distrib(2)
   tht <- as.list(stats::setNames(c(f$mu, f$eta, 6), dt@params))
   vt <- mv_derived(dt, tht)$value
   if (!all(c("scale_sd_v1", "scale_sd_v2", "cor_v1_v2") %in% names(vt))) {
@@ -616,7 +642,7 @@
 .certify_mv_structure_block <- function() {
   out <- character()
   q <- 2L
-  d <- distributions7::mvgaussian_distrib(
+  d <- distributions7::mvgaussian1_distrib(
     6L, sigma = parameters7::autoregressive(6L, order = q)
   )
   eta <- c(log(3), atanh(0.7), atanh(-0.3))

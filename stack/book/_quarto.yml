@@ -4,37 +4,44 @@ project:
   execute-dir: project
 
 book:
-  title: "The statmodels7 Framework"
-  subtitle: "Mathematical foundations"
+  title: "statmodels7"
+  subtitle: "Statistical models built from reusable parts"
   author: "Giovanni Tinervia"
   date: today
   date-format: "D MMMM YYYY"
   search: true
   page-footer:
-    left: "The statmodels7 Framework"
-  # One chapter per package, each divided into sections. The section files are
-  # prefixed with an underscore and pulled in with {{< include >}} from the
-  # chapter that owns them, so that Quarto numbers them 3.1, 3.2, ... instead of
-  # promoting each to a chapter of its own.
+    left: "statmodels7"
   chapters:
     - index.qmd
-    - chapters/01-introduction.qmd
-    - chapters/02-linkfunctions7.qmd
-    - chapters/03-distributions7.qmd
-    - chapters/04-optimizers7.qmd
-    - chapters/05-parameters7.qmd
-    - chapters/06-basis7.qmd
-    - chapters/07-penalties7.qmd
-    - chapters/08-modelterms7.qmd
-    - chapters/09-statmodels7.qmd
-    - chapters/10-numericals7.qmd
-  appendices:
-    - chapters/A1-notation.qmd
+    - part: "Using statmod()"
+      chapters:
+        - chapters/01-model.qmd
+        - chapters/02-beyond.qmd
+        - chapters/03-lm.qmd
+        - chapters/04-glm.qmd
+        - chapters/05-distributions.qmd
+        - chapters/06-gam.qmd
+        - chapters/07-lmm.qmd
+        - chapters/08-glmm.qmd
+        - chapters/09-gamm.qmd
+    - part: "Special model terms"
+      chapters:
+        - chapters/10-penalized.qmd
+        - chapters/11-breakpoints.qmd
+        - chapters/12-nonlinear.qmd
+        - chapters/13-timeseries.qmd
+    - part: "Choosing"
+      chapters:
+        - chapters/14-choosing.qmd
+    - part: "Extending the toolkit"
+      chapters:
+        - chapters/15-own-distributions.qmd
+        - chapters/16-own-terms.qmd
     - chapters/A2-references.qmd
 
 bibliography: references.bib
 link-citations: true
-
 
 format:
   html:
@@ -42,12 +49,10 @@ format:
       - cosmo
       - assets/theme.scss
     toc: true
-    # A package chapter nests one level deeper than the old per-topic chapters
-    # did, so the table of contents reaches four levels while the numbering
-    # stops at three -- 3.2.4 is a useful label, 3.2.4.1 is not.
     toc-depth: 4
+    toc-expand: true
     number-sections: true
-    number-depth: 3
+    number-depth: 2
     code-link: false
     code-copy: true
     html-math-method: mathjax
@@ -58,15 +63,9 @@ format:
     smooth-scroll: true
 
 execute:
-  # Deliberately not `auto`. Quarto's freeze cache is keyed on the .qmd, and it
-  # does not see the R files a chapter sources -- which is precisely where the
-  # printed formulas and their transcriptions live, and where the packages
-  # themselves sit one directory up. With `auto`, editing a formula in
-  # R/link-formulas.R and re-rendering left the old text in the output, and,
-  # worse, the consistency gate for that chapter did not re-run either: the
-  # render reported success without having checked anything. A book whose whole
-  # claim is that its formulas are the ones the code runs cannot be built on a
-  # cache that silently skips the check.
+  # Not `auto`: the freeze cache does not see the R files a chapter sources,
+  # which is where the gates live, so a cached render would report success
+  # without having checked anything.
   freeze: false
   echo: true
   warning: false
@@ -76,10 +75,3 @@ knitr:
   opts_chunk:
     R.options:
       knitr.graphics.auto_pdf: false
-
-crossref:
-  thm-title: "Theorem"
-  lem-title: "Lemma"
-  cor-title: "Corollary"
-  prp-title: "Proposition"
-  def-title: "Definition"

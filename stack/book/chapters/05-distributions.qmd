@@ -1,0 +1,956 @@
+# Distributions {#sec-distribs}
+
+```{r}
+#| label: setup-05
+#| include: false
+source("R/_setup.R")
+source("R/families-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+```
+
+In the previous chapters the distribution of the response was gaussian,
+Poisson, binomial, gamma or negative binomial. The argument `distrib` of
+`statmod()` accepts every distribution of the `distributions7` package, and
+the parameters of a distribution are the parameters that the formula models:
+`distrib@params` lists them, and each one can have an equation, as `sigma` had
+in @sec-lm-spread. This chapter shows the families that the earlier chapters
+do not use. They describe responses with heavy tails, with asymmetry, with
+values in the unit interval and with many zeros. After them come the wrappers
+that change a family (`truncated()`, `folded()` and `transformation()`), the
+wrapper that holds a parameter at a known value (`fixed()`), and a
+distribution that the user defines by writing its density.
+
+The references of this chapter maximize the likelihood, and the default
+criterion of `statmod()` is REML, which estimates the dispersion parameters by
+integrating out the coefficients of the means (@sec-lm-linear). We therefore
+refit with `outer_criterion = ml()` whenever we compare the estimates with
+those of another package.
+
+## Heavy tails {#sec-distribs-heavy}
+
+We return to the `GAGurine` data of @sec-glm-positive. A few children have a
+concentration of glycosaminoglycans far above that of the other children of
+their age, and the spread of the concentration falls with the age. We give
+`sigma` a linear equation in the age, and we compare a gaussian response with
+a Student $t$ response. The Student $t$ distribution has a location $\mu$, a
+scale $\sigma$ and a number of degrees of freedom $\nu$. A small $\nu$ gives
+heavy tails, and as $\nu$ grows the distribution approaches the gaussian
+[@lange1989]. The parameter `nu` has the log link, and we leave it without
+an equation, so that `statmod()` estimates it as a constant.
+
+```{r}
+#| label: fit-heavy
+data(GAGurine, package = "MASS")
+fit_hg <- statmod(GAG ~ Age | sigma ~ Age, distrib = gaussian1_distrib(),
+                  data = GAGurine)
+summary(fit_hg)
+fit_ht <- statmod(GAG ~ Age | sigma ~ Age, distrib = student_t1_distrib(),
+                  data = GAGurine)
+summary(fit_ht)
+```
+
+The estimate of $\log\nu$ is `r fmt(coef(fit_ht)$nu[[1]], 3)`, so
+$\hat\nu = `r fmt(exp(coef(fit_ht)$nu[[1]]))`$. We read the interval of
+$\nu$ with `confint()`, which maps the interval of the coefficient back to the
+parameter:
+
+```{r}
+#| label: heavy-nu
+ci_ht <- confint(fit_ht)
+ci_ht[ci_ht$parameter == "nu", ]
+c(gaussian = AIC(fit_hg), student_t = AIC(fit_ht))
+```
+
+The interval of $\log\nu$ runs from `r fmt(ci_ht$lower[ci_ht$parameter == "nu"], 2)`
+to `r fmt(ci_ht$upper[ci_ht$parameter == "nu"], 2)`, so $\nu$ lies between
+`r fmt(exp(ci_ht$lower[ci_ht$parameter == "nu"]), 1)` and
+`r fmt(exp(ci_ht$upper[ci_ht$parameter == "nu"]), 1)`. A gaussian
+distribution, with $\nu = \infty$, is far outside this interval. The AIC of the
+$t$ model is `r fmt(AIC(fit_hg) - AIC(fit_ht), 0)` units smaller than the AIC
+of the gaussian model.
+
+### The same model in `gamlss`
+
+The package `gamlss` fits the same model with its family `TF`
+[@rigby2005]. It maximizes the likelihood, so we compare it with the fit of
+`statmod()` under `ml()`. This model has no penalty, so the criterion `ml()`
+integrates no coefficient out of the likelihood, and the estimates are those of
+the joint maximum likelihood. The default stopping rule of `gamlss` is loose
+(the relative change of the deviance below 0.001), and we tighten it:
+
+```{r}
+#| label: heavy-gamlss
+fit_ht_ml <- statmod(GAG ~ Age | sigma ~ Age, distrib = student_t1_distrib(),
+                     data = GAGurine, outer_criterion = ml())
+gl_ht <- gamlss::gamlss(GAG ~ Age, sigma.formula = ~ Age,
+                        family = gamlss.dist::TF, data = GAGurine,
+                        control = gamlss::gamlss.control(n.cyc = 200,
+                                                         c.crit = 1e-10,
+                                                         trace = FALSE))
+cmp_ht <- rbind(
+  statmod_ml = c(coef(fit_ht_ml)$mu, coef(fit_ht_ml)$sigma, coef(fit_ht_ml)$nu),
+  gamlss = c(coef(gl_ht, what = "mu"), coef(gl_ht, what = "sigma"),
+             coef(gl_ht, what = "nu")))
+colnames(cmp_ht) <- c("mu:(Intercept)", "mu:Age", "sigma:(Intercept)",
+                      "sigma:Age", "nu:(Intercept)")
+cmp_ht
+c(statmod_ml = as.numeric(logLik(fit_ht_ml)), gamlss = as.numeric(logLik(gl_ht)))
+```
+
+The two sets of estimates agree to five digits, and the log-likelihoods agree
+to the printed digits. With the default stopping rule of `gamlss` the
+agreement is about three digits, because that rule stops the iteration before
+the maximum. The fits with `outer_criterion = NULL` and with
+`ml(marginal = "none")` give the same estimates to about five digits, since
+there is nothing to integrate out.
+
+@fig-heavy shows the two fitted models. The band of each model runs from the
+5% to the 95% quantile of the fitted distribution at each age, so it should
+leave out 10% of the children. We count the children outside each band:
+
+```{r}
+#| label: heavy-coverage
+mu_d <- predict(fit_ht, what = "mu", newdata = GAGurine)
+sg_d <- predict(fit_ht, what = "sigma", newdata = GAGurine)
+nu_d <- exp(coef(fit_ht)$nu[[1]])
+out_t <- mean(GAGurine$GAG < mu_d + qt(0.05, nu_d) * sg_d |
+                GAGurine$GAG > mu_d + qt(0.95, nu_d) * sg_d)
+mu_dg <- predict(fit_hg, what = "mu", newdata = GAGurine)
+sg_dg <- predict(fit_hg, what = "sigma", newdata = GAGurine)
+out_g <- mean(GAGurine$GAG < mu_dg + qnorm(0.05) * sg_dg |
+                GAGurine$GAG > mu_dg + qnorm(0.95) * sg_dg)
+c(student_t = out_t, gaussian = out_g)
+```
+
+The band of the $t$ model leaves out `r fmt(100 * out_t, 1)`% of the children
+and the band of the gaussian model `r fmt(100 * out_g, 1)`%. The $t$ band is
+close to the 10% that the model predicts, and the gaussian band is wider than
+the data need. In the figure the upper limit of the gaussian band is above
+that of the $t$ band for the youngest children, and the lower limit of the $t$
+band is below the gaussian one. The scale $\sigma$ of the $t$ model is not a
+standard deviation, and the children far above the others are covered by the
+tails of the distribution. The AIC of the gaussian model is much larger, so
+the similar bands do not make the two models equal.
+
+```{r}
+#| label: fig-heavy
+#| fig-cap: "GAG concentration against age, with the fitted location and the band from the 5% to the 95% quantile of the gaussian model (dashed) and of the Student $t$ model (solid)."
+#| echo: false
+#| fig-height: 4
+ga <- data.frame(Age = seq(from = 0, to = 17, length.out = 100))
+mu_t <- predict(fit_ht, what = "mu", newdata = ga)
+sg_t <- predict(fit_ht, what = "sigma", newdata = ga)
+mu_g <- predict(fit_hg, what = "mu", newdata = ga)
+sg_g <- predict(fit_hg, what = "sigma", newdata = ga)
+nu_t <- exp(coef(fit_ht)$nu[[1]])
+heavy_band <- data.frame(Age = ga$Age, lower = mu_t + qt(0.05, nu_t) * sg_t,
+                         upper = mu_t + qt(0.95, nu_t) * sg_t)
+heavy_lines <- data.frame(
+  Age = rep(ga$Age, times = 3),
+  GAG = c(mu_t, mu_g + qnorm(0.95) * sg_g, mu_g + qnorm(0.05) * sg_g),
+  curve = factor(rep(c(1, 2, 2), each = nrow(ga)),
+                 labels = c("t: location", "gaussian: 5% and 95%")),
+  line = rep(1:3, each = nrow(ga)))
+ggplot(GAGurine, aes(x = Age, y = GAG)) +
+  geom_ribbon(data = heavy_band,
+              aes(x = Age, ymin = lower, ymax = upper, fill = "t: 5-95% band"),
+              inherit.aes = FALSE, alpha = 0.2) +
+  geom_point(colour = book_grey, size = 1) +
+  geom_line(data = heavy_lines,
+            aes(colour = curve, linetype = curve, group = line),
+            linewidth = 0.8) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_fill_manual(values = chalk) +
+  guides(colour = guide_legend(order = 1), linetype = guide_legend(order = 1),
+         fill = guide_legend(order = 2)) +
+  coord_cartesian(ylim = c(0, 45)) +
+  labs(x = "age (years)", y = "GAG")
+```
+
+### The degrees of freedom with an equation
+
+The parameter `nu` can have an equation like `mu` and `sigma`. The tails may
+be heavier for some ages than for others, so we let $\log\nu$ depend on the
+age:
+
+```{r}
+#| label: fit-heavy-nu
+crit_e <- reml(hessian = "expected")
+fit_ht0 <- statmod(GAG ~ Age | sigma ~ Age, distrib = student_t1_distrib(),
+                   data = GAGurine, outer_criterion = crit_e)
+summary(fit_ht0)
+fit_ht1 <- statmod(GAG ~ Age | sigma ~ Age | nu ~ Age,
+                   distrib = student_t1_distrib(), data = GAGurine,
+                   outer_criterion = crit_e)
+summary(fit_ht1)
+```
+
+The criterion of these two fits is `reml(hessian = "expected")`. The default
+REML criterion evaluates the curvature of the log-likelihood with the observed
+information, and for a $t$ distribution with small $\nu$ the observed
+information of the mean is not positive at the observations far from the
+location. The criterion then has no value at some of the points that the
+search visits, and the model with an equation for `nu` ends with the state
+`not converged` of @sec-model-certificate. The expected information of the
+$t$ distribution is positive at every point, and the two fits above reach the
+state `r statmod_certificate(fit_ht1)$state`.
+
+The coefficient of the age in the equation of $\log\nu$ is
+`r fmt(coef(fit_ht1)$nu[["Age"]], 3)`: the degrees of freedom fall with the
+age, and the tails are heavier for older children. We compare the two models
+with the likelihood ratio of the marginal log-likelihoods, as in
+@sec-glm-dispersion. Both fits integrate the same coefficients of the mean, and
+they use the same criterion:
+
+```{r}
+#| label: heavy-nu-lr
+l0_ht <- logLik(fit_ht0, type = "marginal")
+l1_ht <- logLik(fit_ht1, type = "marginal")
+lr_ht <- 2 * (as.numeric(l1_ht) - as.numeric(l0_ht))
+lr_ht
+pchisq(lr_ht, df = 1, lower.tail = FALSE)
+ages <- data.frame(Age = c(1, 9, 17))
+predict(fit_ht1, what = "nu", newdata = ages)
+```
+
+The statistic is `r fmt(lr_ht, 1)`, with a p-value of
+`r fmt(pchisq(lr_ht, df = 1, lower.tail = FALSE), 4)`. The fitted $\nu$ is
+`r fmt(predict(fit_ht1, what = "nu", newdata = ages)[1], 1)` at one year of
+age and `r fmt(predict(fit_ht1, what = "nu", newdata = ages)[3], 2)` at 17 years. The
+value of $\nu$ for the oldest children is below one, which is a distribution
+with heavier tails than the Cauchy distribution ($\nu = 1$).
+
+### A degrees of freedom parameter at the boundary
+
+When the data have gaussian tails, the likelihood increases with $\nu$ up to
+infinity, and no finite estimate exists. We draw 400 observations from a
+gaussian distribution with `rstatmod()` and we fit a Student $t$ model:
+
+```{r}
+#| label: fit-heavy-boundary
+set.seed(1)
+xb <- data.frame(x = runif(n = 400))
+sim_b <- rstatmod(y ~ x | sigma ~ 1, distrib = gaussian1_distrib(), data = xb,
+                  par = list(mu = c(1, 2), sigma = log(0.5)))
+fit_bt <- statmod(y ~ x | sigma ~ 1, distrib = student_t1_distrib(),
+                  data = sim_b$data)
+summary(fit_bt)
+fit_bg <- statmod(y ~ x | sigma ~ 1, distrib = gaussian1_distrib(),
+                  data = sim_b$data)
+summary(fit_bg)
+exp(coef(fit_bt)$nu)
+cert_bt <- statmod_certificate(fit_bt)
+cert_bt$state
+cert_bt$boundary
+c(student_t = AIC(fit_bt), gaussian = AIC(fit_bg))
+```
+
+The estimate of $\nu$ is `r format(exp(coef(fit_bt)$nu[[1]]), scientific = FALSE, big.mark = ",")`,
+the largest value that the log link can produce, and the certificate gives the
+state `r cert_bt$state` and names the coefficient `r cert_bt$boundary`. The
+fit is at its maximum, and the maximum is a limit: the $t$ model has become the
+gaussian model. `summary()` leaves the standard error of this coefficient
+empty, since it has no meaning at the boundary. The AIC of the gaussian model
+is smaller by `r fmt(AIC(fit_bt) - AIC(fit_bg), 1)` units, which is the
+penalty of the extra parameter.
+
+## Asymmetry {#sec-distribs-skew}
+
+The data frame `Cars93` from the `MASS` package has the list price in
+thousands of dollars of 93 cars and their engine power in horse power. The
+price has a long right tail. We compute the skewness of the residuals of a
+linear regression of the price on the power, as the third central moment
+divided by the cube of the standard deviation:
+
+```{r}
+#| label: skew-data
+data(Cars93, package = "MASS")
+cars93 <- Cars93[, c("Price", "Horsepower")]
+r_lm <- residuals(lm(Price ~ Horsepower, data = cars93))
+skew_lm <- mean((r_lm - mean(r_lm))^3) / mean((r_lm - mean(r_lm))^2)^1.5
+skew_lm
+```
+
+The skew normal distribution of @azzalini1985 has a location, a scale and a
+shape $\alpha$ that controls the asymmetry. Its skewness cannot be larger than
+the limit that it reaches as $\alpha \to \infty$:
+$$
+\gamma_{\max} = \frac{4 - \pi}{2}\,
+\frac{(2/\pi)^{3/2}}{(1 - 2/\pi)^{3/2}} .
+$$
+
+```{r}
+#| label: skew-limit
+gamma_max <- (4 - pi) / 2 * (2 / pi)^1.5 / (1 - 2 / pi)^1.5
+gamma_max
+```
+
+The skewness of the residuals is larger than this limit. This skewness is a
+moment of the sample, and the likelihood of the skew normal
+regression still has its maximum at a finite shape. The package has two
+parametrizations of the distribution. `skewnormal1_distrib()` has the
+direct parameters of @azzalini1985: the location $\xi$ (`mu`), the scale
+$\omega$ (`sigma`) and the shape $\alpha$ (`alpha`), with the identity link
+for the shape. `skewnormal2_distrib()` has the centred parameters: the mean
+(`mu`), the standard deviation (`sigma`) and the skewness `gamma1`, with a
+link that keeps `gamma1` between $-\gamma_{\max}$ and $\gamma_{\max}$. The two
+parametrizations describe the same family of distributions, so we expect the
+same maximum from both:
+
+```{r}
+#| label: fit-skew-sn
+fit_sn1 <- statmod(Price ~ Horsepower, distrib = skewnormal1_distrib(),
+                   data = cars93)
+summary(fit_sn1)
+fit_ss <- statmod(Price ~ Horsepower, distrib = skewnormal2_distrib(),
+                  data = cars93)
+summary(fit_ss)
+rbind(direct = c(slope = coef(fit_sn1)$mu[["Horsepower"]],
+                 logLik = as.numeric(logLik(fit_sn1)),
+                 marginal = as.numeric(logLik(fit_sn1, type = "marginal"))),
+      centred = c(coef(fit_ss)$mu[["Horsepower"]], as.numeric(logLik(fit_ss)),
+                  as.numeric(logLik(fit_ss, type = "marginal"))))
+```
+
+The slopes and the log-likelihoods agree. The intercepts differ, because the
+intercept of the first fit is the location $\xi$ for a car with no power, and
+the intercept of the second fit is the mean, which is $\xi$ plus
+$\omega\sqrt{2/\pi}\,\alpha/\sqrt{1 + \alpha^2}$. The estimate of the shape is
+$\hat\alpha = `r fmt(coef(fit_sn1)$alpha[[1]], 2)`$, and the estimate of the
+skewness in the second fit is
+$\hat\gamma_1 = `r fmt(predict(fit_ss, what = "gamma1", newdata = cars93[1, ])[[1]], 3)`$,
+close to the limit $\gamma_{\max}$.
+
+The direct parametrization is difficult to use near this limit. The skewness
+of the price without the covariate is
+`r fmt(mean(((cars93$Price - mean(cars93$Price)) / sd(cars93$Price))^3), 2)`,
+which is also above $\gamma_{\max}$, and the model without covariates then has
+its maximum at $\alpha \to \infty$, with $\xi$ at the smallest price. At that
+limit the distribution is a half-normal distribution, and the curvature of
+the log-likelihood in $\xi$ grows as $\alpha^2$. A fit that started there would
+take steps of order $1/\alpha^2$. For this reason `statmod()` starts the
+direct parametrization from the moment estimate, with the skewness of the
+sample held at 0.9, when the skewness of the response is beyond that value.
+The centred parametrization does not have this difficulty, since the mean and
+the standard deviation stay finite as the skewness approaches $\gamma_{\max}$
+[@azzalini1985].
+
+The skew $t$ distribution of @azzalini2003 has the degrees of freedom $\nu$ as
+a fourth parameter, and its skewness is not bounded by this limit. We fit the
+gaussian model and the skew $t$ model, and we compare them with the skew
+normal model:
+
+```{r}
+#| label: fit-skew
+fit_sg <- statmod(Price ~ Horsepower, distrib = gaussian1_distrib(),
+                  data = cars93)
+summary(fit_sg)
+fit_st <- statmod(Price ~ Horsepower, distrib = skewt_distrib(), data = cars93)
+summary(fit_st)
+skew_table <- data.frame(
+  distribution = c("gaussian", "skew normal", "skew t"),
+  parameters = c(3, 4, 5),
+  logLik = c(as.numeric(logLik(fit_sg)), as.numeric(logLik(fit_ss)),
+             as.numeric(logLik(fit_st))),
+  AIC = c(AIC(fit_sg), AIC(fit_ss), AIC(fit_st)))
+skew_table
+```
+
+The skew normal model has a much smaller AIC than the gaussian model, and the
+skew $t$ model has the smallest. The estimate of the degrees of freedom of the
+skew $t$ model is $\hat\nu = `r fmt(exp(coef(fit_st)$nu[[1]]))`$. The tails of
+the skew $t$ distribution decay like those of a Student $t$ distribution with
+$\nu$ degrees of freedom, so the same limits hold: the skew $t$ distribution
+has a variance only when $\nu > 2$ and a skewness only when $\nu > 3$. The
+generics `variance()` and `skewness()` of `distributions7` return these
+moments at given parameters, and `NaN` where the moment does not exist. We
+evaluate them at the fitted parameters for a car with 150 horse power:
+
+```{r}
+#| label: skewt-moments
+th_150 <- list(mu = predict(fit_st, what = "mu", newdata = data.frame(Horsepower = 150)),
+               sigma = predict(fit_st, what = "sigma", newdata = data.frame(Horsepower = 150)),
+               alpha = predict(fit_st, what = "alpha", newdata = data.frame(Horsepower = 150)),
+               nu = predict(fit_st, what = "nu", newdata = data.frame(Horsepower = 150)))
+c(nu = th_150$nu, variance = variance(skewt_distrib(), theta = th_150),
+  skewness = skewness(skewt_distrib(), theta = th_150))
+th_150$nu <- 6
+c(nu = th_150$nu, variance = variance(skewt_distrib(), theta = th_150),
+  skewness = skewness(skewt_distrib(), theta = th_150))
+```
+
+At the fitted $\nu$ the variance is finite and the skewness does not exist. With
+$\nu = 6$ and the other parameters unchanged, both exist.
+
+### A check of the log-likelihood
+
+The skew normal density is $f(y) = (2/\omega)\,\phi(z)\,\Phi(\alpha z)$, with
+$z = (y - \xi)/\omega$. We write the log-likelihood in R, and we maximize it
+with `optim()`. This is a computation that shares no code with
+`distributions7`:
+
+```{r}
+#| label: skew-check
+nll_sn <- function(p) {
+  z <- (cars93$Price - p[1] - p[2] * cars93$Horsepower) / exp(p[3])
+  -sum(log(2) - p[3] + dnorm(z, log = TRUE) + pnorm(p[4] * z, log.p = TRUE))
+}
+opt_sn <- optim(par = c(-2, 0.1, 0.5, 1), fn = nll_sn, method = "BFGS",
+                control = list(reltol = 1e-12, maxit = 1000))
+fit_ss_ml <- statmod(Price ~ Horsepower, distrib = skewnormal2_distrib(),
+                     data = cars93, outer_criterion = NULL)
+c(by_hand = -opt_sn$value, statmod_ml = as.numeric(logLik(fit_ss_ml)))
+```
+
+With `outer_criterion = NULL` the function `statmod()` has no criterion for
+the dispersion parameters, and it maximizes the log-likelihood jointly over
+all the coefficients. The maximized log-likelihoods agree. The parametrization of the
+hand-written function is the direct one, $(\xi, \omega, \alpha)$, and the
+model of `statmod()` uses $(\mu, \sigma, \gamma_1)$, so the parameters differ
+while the maximum is the same.
+
+@fig-skew shows the conditional median and the band from the 10% to the 90%
+quantile of the gaussian and of the skew $t$ model. The gaussian band is
+symmetric around the median and it extends below zero for the cheap cars. The
+skew $t$ band is short below the median and long above it.
+
+```{r}
+#| label: fig-skew
+#| fig-cap: "List price against engine power. The lines are the conditional median and the 10% and 90% quantiles of the gaussian model (dashed) and of the skew $t$ model (solid)."
+#| echo: false
+#| fig-height: 4
+hp <- data.frame(Horsepower = seq(from = 55, to = 300, length.out = 40))
+pars_t <- list(mu = predict(fit_st, what = "mu", newdata = hp),
+               sigma = predict(fit_st, what = "sigma", newdata = hp),
+               alpha = predict(fit_st, what = "alpha", newdata = hp),
+               nu = predict(fit_st, what = "nu", newdata = hp))
+qt_lo <- numeric(40); qt_md <- numeric(40); qt_hi <- numeric(40)
+for (i in 1:40) {
+  th_i <- lapply(pars_t, function(v) v[i])
+  qt_lo[i] <- distrib_quantile(skewt_distrib(), 0.1, th_i)
+  qt_md[i] <- distrib_quantile(skewt_distrib(), 0.5, th_i)
+  qt_hi[i] <- distrib_quantile(skewt_distrib(), 0.9, th_i)
+}
+mu_sg <- predict(fit_sg, what = "mu", newdata = hp)
+sg_sg <- predict(fit_sg, what = "sigma", newdata = hp)
+skew_lines <- data.frame(
+  Horsepower = rep(hp$Horsepower, times = 6),
+  Price = c(qt_md, qt_lo, qt_hi, mu_sg, mu_sg + qnorm(0.1) * sg_sg,
+            mu_sg + qnorm(0.9) * sg_sg),
+  curve = factor(rep(c(1, 2, 2, 3, 3, 3), each = nrow(hp)),
+                 labels = c("skew t: median", "skew t: 10% and 90%",
+                            "gaussian: mean, 10% and 90%")),
+  line = rep(1:6, each = nrow(hp)))
+ggplot(cars93, aes(x = Horsepower, y = Price)) +
+  geom_point(colour = book_grey, size = 1.1) +
+  geom_line(data = skew_lines,
+            aes(colour = curve, linetype = curve, group = line),
+            linewidth = 0.8) +
+  scale_colour_manual(values = c(chalk, chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dotted", "dashed")) +
+  coord_cartesian(ylim = c(min(mu_sg + qnorm(0.1) * sg_sg), 65)) +
+  labs(x = "horse power", y = "price (thousand dollars)")
+```
+
+## Proportions {#sec-distribs-beta}
+
+A response in the open interval $(0, 1)$, such as a rate or a share, has a
+variance that is smaller near the ends of the interval. The beta distribution
+has a mean $\mu$ and a precision $\phi$, and its variance is
+$\mu(1 - \mu)/(1 + \phi)$ [@ferrari2004]. The parameter `mu` has the logit
+link and `phi` the log link. The data frame `swiss` of the `datasets` package
+has, for 47 French-speaking provinces of Switzerland in 1888, the share of
+males who worked in agriculture (`Agriculture`, in percent) and the share of
+army draftees with education beyond primary school (`Education`, in percent).
+We model the proportion in agriculture as a function of the education:
+
+```{r}
+#| label: fit-beta
+swiss_p <- swiss[, c("Agriculture", "Education")]
+swiss_p$agr <- swiss_p$Agriculture / 100
+fit_b0 <- statmod(agr ~ Education, distrib = beta1_distrib(), data = swiss_p)
+summary(fit_b0)
+```
+
+The coefficient of the education is `r fmt(coef(fit_b0)$mu[["Education"]], 3)`
+on the logit scale, so the odds of working in agriculture fall by
+`r fmt(100 * (1 - exp(coef(fit_b0)$mu[["Education"]])), 1)`% for each
+percent of draftees with further education. The precision is
+$\hat\phi = `r fmt(exp(coef(fit_b0)$phi[[1]]), 2)`$.
+
+The packages `gamlss` and `glmmTMB` fit the same model. The `gamlss` family
+`BE` parametrizes the dispersion by $\sigma = 1/\sqrt{1 + \phi}$ on the logit
+scale, and `glmmTMB` uses $\phi$ itself. Both maximize the likelihood:
+
+```{r}
+#| label: beta-refs
+fit_b0_ml <- statmod(agr ~ Education, distrib = beta1_distrib(), data = swiss_p,
+                     outer_criterion = ml())
+gl_be <- gamlss::gamlss(agr ~ Education, family = gamlss.dist::BE,
+                        data = swiss_p, trace = FALSE)
+tmb_be <- glmmTMB::glmmTMB(agr ~ Education, family = glmmTMB::beta_family(),
+                           data = swiss_p)
+sigma_be <- plogis(coef(gl_be, what = "sigma"))
+phi_table <- data.frame(
+  phi = c(exp(coef(fit_b0_ml)$phi[[1]]), (1 - sigma_be^2) / sigma_be^2,
+          glmmTMB::sigma(tmb_be), exp(coef(fit_b0)$phi[[1]])),
+  logLik = c(as.numeric(logLik(fit_b0_ml)), as.numeric(logLik(gl_be)),
+             as.numeric(logLik(tmb_be)), as.numeric(logLik(fit_b0))),
+  row.names = c("statmod, ml()", "gamlss BE", "glmmTMB", "statmod, default"))
+phi_table
+rbind(statmod_ml = coef(fit_b0_ml)$mu, gamlss = coef(gl_be, what = "mu"),
+      glmmTMB = glmmTMB::fixef(tmb_be)$cond)
+```
+
+The three packages give the same coefficients, the same precision and the same
+log-likelihood. The default criterion of `statmod()` gives a precision that is
+about two per cent smaller, because it integrates the two coefficients of the
+mean out of the likelihood, as it did for the gamma distribution in
+@sec-glm-positive.
+
+### A precision with an equation
+
+We give `phi` an equation in the education, and we compare the two models with
+the likelihood ratio of the marginal log-likelihoods:
+
+```{r}
+#| label: fit-beta-phi
+fit_b1 <- statmod(agr ~ Education | phi ~ Education, distrib = beta1_distrib(),
+                  data = swiss_p)
+summary(fit_b1)
+l0_b <- logLik(fit_b0, type = "marginal")
+l1_b <- logLik(fit_b1, type = "marginal")
+lr_b <- 2 * (as.numeric(l1_b) - as.numeric(l0_b))
+lr_b
+pchisq(lr_b, df = 1, lower.tail = FALSE)
+c(constant = AIC(fit_b0), education = AIC(fit_b1))
+```
+
+The statistic is `r fmt(lr_b, 2)` and the p-value
+`r fmt(pchisq(lr_b, df = 1, lower.tail = FALSE), 2)`, so the data do not show a
+change of the precision with the education, and the simpler model stays.
+
+## Excess zeros {#sec-distribs-zeros}
+
+A count with more zeros than its distribution expects needs a model for the
+zeros. The data frame `solder` of the `rpart` package comes from an experiment
+on the soldering of components on printed circuit boards [@chambers1992]. The
+response `skips` is the number of visible solder skips on a board, and the
+covariates are five factors: the size of the opening in the solder mask, the
+thickness of the solder, the type of mask, the type of pad and the panel.
+
+```{r}
+#| label: solder-data
+data(solder, package = "rpart")
+fs <- skips ~ Opening + Solder + Mask + PadType + Panel
+c(boards = nrow(solder), zeros = sum(solder$skips == 0))
+```
+
+The wrapper `zero_inflated()` adds to a count distribution a probability
+$\zeta$ of a zero that does not come from the distribution
+[@lambert1992]:
+$$
+P(y = 0) = \zeta + (1 - \zeta)\, f(0), \qquad
+P(y = k) = (1 - \zeta)\, f(k), \quad k \ge 1 .
+$$
+The wrapper `zero_adjusted()` builds a hurdle model [@mullahy1986]. It gives
+the probability $\pi$ of a zero, and it describes the positive counts by the
+distribution truncated at zero:
+$$
+P(y = 0) = \pi, \qquad
+P(y = k) = (1 - \pi)\,\frac{f(k)}{1 - f(0)}, \quad k \ge 1 .
+$$
+Each wrapper adds one parameter, `zi` for the first and `za` for the second,
+with the logit link, and the parameter can have an equation like any other. We
+fit the Poisson and the negative binomial models of @sec-glm-overdispersion,
+the zero-inflated negative binomial model with a constant $\zeta$, and the
+hurdle model in which `za` depends on the same five factors as the mean:
+
+```{r}
+#| label: fit-zeros
+fit_zp <- statmod(fs, distrib = poisson_distrib(), data = solder)
+summary(fit_zp)
+fit_zn <- statmod(fs, distrib = negbin2_distrib(), data = solder)
+summary(fit_zn)
+fit_zi <- statmod(fs, distrib = zero_inflated(negbin2_distrib()), data = solder)
+summary(fit_zi)
+fit_za <- statmod(skips ~ Opening + Solder + Mask + PadType + Panel |
+                    za ~ Opening + Solder + Mask + PadType + Panel,
+                  distrib = zero_adjusted(negbin2_distrib()), data = solder)
+c(Poisson = AIC(fit_zp), negbin2 = AIC(fit_zn), zero_inflated = AIC(fit_zi),
+  hurdle = AIC(fit_za))
+```
+
+The zero-inflated model has almost the same AIC as the negative binomial
+model. A constant $\zeta$ adds zeros in the same proportion to every
+combination of the factors, and the estimate is
+$\hat\zeta = `r fmt(plogis(coef(fit_zi)$zi[[1]]), 3)`$. The hurdle model has a
+much smaller AIC. In it the probability of a zero depends on the factors, and
+the summary of the model shows how:
+
+```{r}
+#| label: zeros-za
+summary(fit_za)
+```
+
+All the coefficients of `za` for the opening and the solder are negative, so
+the probability of a board with no skips falls for the larger openings and the
+thinner solder, which are the conditions that produce more skips. The
+zero-inflated model can also have an equation for `zi`. We give it the
+opening and the solder:
+
+```{r}
+#| label: fit-zi-x
+fit_zi2 <- statmod(skips ~ Opening + Solder + Mask + PadType + Panel |
+                     zi ~ Opening + Solder,
+                   distrib = zero_inflated(negbin2_distrib()), data = solder)
+summary(fit_zi2)
+c(constant = AIC(fit_zi), opening_solder = AIC(fit_zi2))
+```
+
+### The same models in `glmmTMB`
+
+The package `glmmTMB` fits the zero-inflated and the hurdle negative binomial
+models, the second with its family `truncated_nbinom2`. We compare the log-likelihoods
+of the two packages, with `statmod()` under `ml()`:
+
+```{r}
+#| label: zeros-refs
+fit_zi_ml <- statmod(fs, distrib = zero_inflated(negbin2_distrib()),
+                     data = solder, outer_criterion = ml())
+fit_za_ml <- statmod(skips ~ Opening + Solder + Mask + PadType + Panel |
+                       za ~ Opening + Solder + Mask + PadType + Panel,
+                     distrib = zero_adjusted(negbin2_distrib()), data = solder,
+                     outer_criterion = ml())
+tmb_zi <- glmmTMB::glmmTMB(fs, ziformula = ~ 1, family = glmmTMB::nbinom2,
+                           data = solder)
+tmb_za <- glmmTMB::glmmTMB(fs, ziformula = ~ Opening + Solder + Mask + PadType + Panel,
+                           family = glmmTMB::truncated_nbinom2, data = solder)
+data.frame(statmod = c(as.numeric(logLik(fit_zi_ml)), as.numeric(logLik(fit_za_ml))),
+           glmmTMB = c(as.numeric(logLik(tmb_zi)), as.numeric(logLik(tmb_za))),
+           row.names = c("zero-inflated", "hurdle"))
+```
+
+The log-likelihoods are the same. The parameter of the zero-inflated
+model of `glmmTMB` is `zi` on the logit scale, and it is
+`r fmt(glmmTMB::fixef(tmb_zi)$zi[[1]], 3)`, against
+`r fmt(coef(fit_zi_ml)$zi[[1]], 3)` for `statmod()`.
+
+## Truncation, folding and transformation {#sec-distribs-wrappers}
+
+Three more wrappers change the support of a distribution. They take a
+distribution and return another distribution that has the same parameters and
+can be used in any formula.
+
+### Truncation
+
+A response is truncated when only the values above a limit are observed. The
+density of the truncated distribution is the density of the original one
+divided by the probability of the observed region:
+$$
+f_T(y) = \frac{f(y)}{1 - F(a)}, \qquad y \ge a .
+$$
+`truncated(distrib, lower =, upper =)` builds this distribution. We draw 300
+observations from a gaussian distribution truncated below zero, with a mean
+that increases with $x$, and we fit the truncated and the plain gaussian
+models:
+
+```{r}
+#| label: fit-truncated
+set.seed(5)
+xt <- data.frame(x = runif(n = 300))
+tg <- truncated(gaussian1_distrib(), lower = 0)
+sim_t <- rstatmod(y ~ x | sigma ~ 1, distrib = tg, data = xt,
+                  par = list(mu = c(0.5, 1.5), sigma = 0))
+fit_tr <- statmod(y ~ x | sigma ~ 1, distrib = tg, data = sim_t$data,
+                  outer_criterion = ml())
+summary(fit_tr)
+fit_tg <- statmod(y ~ x | sigma ~ 1, distrib = gaussian1_distrib(),
+                  data = sim_t$data, outer_criterion = ml())
+summary(fit_tg)
+rbind(truth = c(0.5, 1.5, 0), truncated = c(coef(fit_tr)$mu, coef(fit_tr)$sigma),
+      gaussian = c(coef(fit_tg)$mu, coef(fit_tg)$sigma))
+```
+
+The plain gaussian model ignores the truncation, and its intercept and slope
+are biased. The truncated model recovers the true values. @fig-truncated shows
+why: near $x = 0$ the observations cannot fall below zero, so the plain
+gaussian line is pushed up at the left end and flattened. The lines of the
+truncated model are the mean of the gaussian distribution before truncation.
+
+```{r}
+#| label: fig-truncated
+#| fig-cap: "Simulated data from a gaussian distribution truncated below zero, with the true mean before truncation and the fitted lines of the truncated and of the plain gaussian model."
+#| echo: false
+#| fig-height: 3.8
+xg <- seq(from = 0, to = 1, length.out = 100)
+trunc_labels <- c("truncation at zero", "true mean before truncation",
+                  "truncated model", "plain gaussian model")
+trunc_lines <- data.frame(
+  x = rep(xg, times = 3),
+  y = c(0.5 + 1.5 * xg, coef(fit_tr)$mu[[1]] + coef(fit_tr)$mu[[2]] * xg,
+        coef(fit_tg)$mu[[1]] + coef(fit_tg)$mu[[2]] * xg),
+  curve = factor(rep(trunc_labels[2:4], each = length(xg)),
+                 levels = trunc_labels))
+trunc_zero <- data.frame(curve = factor(trunc_labels[1], levels = trunc_labels))
+ggplot(sim_t$data, aes(x = x, y = y)) +
+  geom_point(colour = book_grey, size = 1) +
+  geom_hline(data = trunc_zero,
+             aes(yintercept = 0, colour = curve, linetype = curve,
+                 linewidth = curve)) +
+  geom_line(data = trunc_lines,
+            aes(colour = curve, linetype = curve, linewidth = curve)) +
+  scale_colour_manual(values = c("black", "black", chalk, rust)) +
+  scale_linetype_manual(values = c("dotted", "dotted", "solid", "dashed")) +
+  scale_linewidth_manual(values = c(0.4, 0.8, 0.8, 0.8)) +
+  coord_cartesian(ylim = c(-0.3, max(sim_t$data$y))) +
+  labs(x = "x", y = "y")
+```
+
+The log-likelihood of the truncated model is the sum of the logarithms of the
+density above, and we write it in R:
+
+```{r}
+#| label: truncated-check
+nll_tr <- function(p) {
+  mu <- p[1] + p[2] * sim_t$data$x
+  s <- exp(p[3])
+  -sum(dnorm(sim_t$data$y, mean = mu, sd = s, log = TRUE) -
+         pnorm(0, mean = mu, sd = s, lower.tail = FALSE, log.p = TRUE))
+}
+opt_tr <- optim(par = c(0.5, 1, 0), fn = nll_tr, method = "BFGS",
+                control = list(reltol = 1e-12))
+c(by_hand = -opt_tr$value, statmod = as.numeric(logLik(fit_tr)))
+```
+
+### Folding
+
+The folded distribution is the distribution of $|X|$. It describes a
+measurement whose sign is lost, such as a distance or a deviation. The
+folded normal density is $f(y) = \phi_{\mu,\sigma}(y) + \phi_{-\mu,\sigma}(y)$
+for $y \ge 0$ [@leone1961]. The density does not change when $\mu$ is replaced
+by $-\mu$, so the intercept and the slope are identified only up to a common
+change of sign: the pairs $(-0.3, 1.5)$ and $(0.3, -1.5)$ describe the same
+distribution, and `statmod()` returns one of the two. What the data determine
+is the curve $|\mu(x)|$. We draw data from $\mu(x) = -0.3 + 1.5x$, which
+crosses zero at $x = 0.2$, and we fit a model with the same linear equation for
+`mu`. The model has no break-point term. The curve $|\mu(x)|$ has a corner at
+the point where $\mu(x)$ crosses zero, because the absolute value changes the
+sign of the line there. @fig-folded shows the data with the curve $|\mu(x)|$
+of the truth and of the fit:
+
+```{r}
+#| label: fit-folded
+set.seed(6)
+sim_f <- rstatmod(y ~ x | sigma ~ 1, distrib = folded(gaussian1_distrib()),
+                  data = xt, par = list(mu = c(-0.3, 1.5), sigma = log(0.6)))
+fit_fo <- statmod(y ~ x | sigma ~ 1, distrib = folded(gaussian1_distrib()),
+                  data = sim_f$data, outer_criterion = ml())
+summary(fit_fo)
+nll_fo <- function(p) {
+  mu <- p[1] + p[2] * sim_f$data$x
+  s <- exp(p[3])
+  -sum(log(dnorm(sim_f$data$y, mean = mu, sd = s) +
+             dnorm(sim_f$data$y, mean = -mu, sd = s)))
+}
+opt_fo <- optim(par = c(0, 1, 0), fn = nll_fo, method = "BFGS",
+                control = list(reltol = 1e-12))
+rbind(truth = c(-0.3, 1.5, log(0.6)), statmod = c(coef(fit_fo)$mu, coef(fit_fo)$sigma),
+      by_hand = opt_fo$par)
+c(by_hand = -opt_fo$value, statmod = as.numeric(logLik(fit_fo)))
+```
+
+```{r}
+#| label: fig-folded
+#| fig-cap: "Simulated data from a folded gaussian distribution, with the curve of the absolute value of the true mean and of the fitted mean."
+#| echo: false
+#| fig-height: 3.8
+fold_lines <- data.frame(
+  x = rep(xg, times = 2),
+  y = c(abs(-0.3 + 1.5 * xg),
+        abs(coef(fit_fo)$mu[[1]] + coef(fit_fo)$mu[[2]] * xg)),
+  curve = factor(rep(1:2, each = length(xg)),
+                 labels = c("|true mean|", "|fitted mean|")))
+ggplot(sim_f$data, aes(x = x, y = y)) +
+  geom_point(colour = book_grey, size = 1) +
+  geom_line(data = fold_lines, aes(colour = curve, linetype = curve),
+            linewidth = 0.8) +
+  scale_colour_manual(values = c("black", chalk)) +
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  labs(x = "x", y = "y")
+```
+
+### Transformation
+
+`transformation(distrib, transformer)` is the distribution of $T(X)$, where $X$
+has the distribution `distrib` and $T$ is a transformer. The package has
+transformers for the exponential, the logarithm, the power, the logit and its
+inverse, among others. The exponential of a gaussian variable is a lognormal
+variable, so `transformation(gaussian1_distrib(), exp_transform())` is the
+lognormal distribution of `lognormal1_distrib()`. We fit both to the `GAGurine`
+data and compare the results:
+
+```{r}
+#| label: fit-transformation
+fit_tx <- statmod(GAG ~ Age, distrib = transformation(gaussian1_distrib(),
+                                                      exp_transform()),
+                  data = GAGurine, outer_criterion = ml())
+summary(fit_tx)
+fit_ln <- statmod(GAG ~ Age, distrib = lognormal1_distrib(), data = GAGurine,
+                  outer_criterion = ml())
+summary(fit_ln)
+rbind(transformation = coef(fit_tx)$mu, lognormal1 = coef(fit_ln)$mu)
+c(transformation = as.numeric(logLik(fit_tx)),
+  lognormal1 = as.numeric(logLik(fit_ln)))
+```
+
+The coefficients and the log-likelihoods are identical, and the two fits differ
+only in the parametrization of the second parameter: `sigma` for the
+transformed gaussian and `sigma2`, the variance, for `lognormal1_distrib()`.
+
+The inverse of the logit is a transformation of the real line onto the unit
+interval, so a gaussian variable transformed by `expit_transform()` is a
+logit-normal variable [@aitchison1980], an alternative to the beta
+distribution for a proportion. We fit it to the `swiss` data of
+@sec-distribs-beta:
+
+```{r}
+#| label: fit-logitnormal
+fit_ln_b <- statmod(agr ~ Education, distrib = transformation(gaussian1_distrib(),
+                                                              expit_transform()),
+                    data = swiss_p)
+summary(fit_ln_b)
+c(beta = AIC(fit_b0), logit_normal = AIC(fit_ln_b))
+```
+
+The logit-normal model has the smaller AIC by
+`r fmt(AIC(fit_b0) - AIC(fit_ln_b), 1)` units. The two distributions have the
+same number of parameters, and their log-likelihoods are the logarithms of the
+probability that each model gives to the same observed proportions. The
+comparison holds because the response of both models is $y$ itself.
+
+## A known parameter {#sec-distribs-fixed}
+
+A parameter may be known from outside the data. `fixed(distrib, ...)` holds
+the named parameters of `distrib` at given values, and the distribution that it
+returns has the remaining parameters only. In the `quine` data of
+@sec-glm-overdispersion the negative binomial dispersion $\theta$ is estimated.
+We fix it at 1.5 and compare the fit with `glm()` of the family
+`MASS::negative.binomial(theta = 1.5)`, which takes $\theta$ as known:
+
+```{r}
+#| label: fit-fixed
+data(quine, package = "MASS")
+fq <- Days ~ Eth + Sex + Age + Lrn
+d_fixed <- fixed(negbin2_distrib(), theta = 1.5)
+d_fixed@params
+fit_fx <- statmod(fq, distrib = d_fixed, data = quine, outer_criterion = ml())
+summary(fit_fx)
+glm_fx <- glm(fq, family = MASS::negative.binomial(theta = 1.5), data = quine)
+rbind(statmod = coef(fit_fx)$mu, glm = coef(glm_fx))
+c(statmod = as.numeric(logLik(fit_fx)), glm = as.numeric(logLik(glm_fx)))
+```
+
+The distribution has the parameter `mu` only. The coefficients agree to about
+four digits, which is the precision of the iteration of `glm()`, and the
+log-likelihoods agree to the printed digits. The same wrapper applies to any family: the equation for
+`nu` of a Student $t$ model is replaced by a known degrees of freedom with
+`fixed(student_t1_distrib(), nu = 4)`.
+
+## A distribution defined by its density {#sec-distribs-own}
+
+A distribution that the package does not provide needs one function, its
+density. The log-logistic distribution has the density
+$$
+f(y) = \frac{(\beta/\alpha)(y/\alpha)^{\beta - 1}}
+{\bigl(1 + (y/\alpha)^\beta\bigr)^2}, \qquad y > 0,
+$$
+with a scale $\alpha$, which is the median, and a shape $\beta$
+[@bennett1983]. We define a class that inherits from `continuous_distrib`,
+the method `distrib_pdf()` for it, and a constructor with the names, the bounds
+and the links of the parameters:
+
+```{r}
+#| label: own-family
+LogLogistic <- S7::new_class("LogLogistic", parent = continuous_distrib)
+S7::method(distrib_pdf, LogLogistic) <- function(distrib, y, theta, log = FALSE,
+                                                 ...) {
+  a <- theta[[1]]
+  b <- theta[[2]]
+  z <- y / a
+  ld <- log(b) - log(a) + (b - 1) * log(z) - 2 * log1p(z^b)
+  if (log) ld else exp(ld)
+}
+loglogistic_distrib <- function(link_mu = log_link(), link_shape = log_link()) {
+  LogLogistic(distrib_name = "log-logistic", dimension = "univariate",
+              bounds = c(0, Inf), params = c("mu", "shape"),
+              params_interpretation = c(mu = "scale", shape = "shape"),
+              n_params = 2,
+              params_bounds = list(mu = c(0, Inf), shape = c(0, Inf)),
+              link_params = list(mu = link_mu, shape = link_shape))
+}
+d_ll <- loglogistic_distrib()
+distrib_pdf(d_ll, y = 2, theta = list(mu = 3, shape = 2))
+```
+
+That is all the definition. The cdf, the quantile function, the random
+generator, the score, the Hessian and the expected information come from
+the numerical fallbacks of `distributions7`. The function `check_distrib()`
+tests them against each other:
+
+```{r}
+#| label: own-check
+chk_ll <- check_distrib(d_ll, theta = list(mu = 3, shape = 2))
+```
+
+The `r nrow(chk_ll)` checks in the table pass. The `r nrow(attr(chk_ll, "skipped"))` checks of the derivatives in the
+parameters are not run, and the table gives the reason: the family has no
+derivatives of its own, so their values are the numerical fallbacks, and a
+comparison with finite differences would compare the fallbacks with
+themselves. The distribution is now an argument of `statmod()`.
+We fit it to the `GAGurine` data, and we compare the fit with `survreg()` of
+the `survival` package, which fits the log-logistic distribution to a
+response without censoring through a parametrization of the logarithm of the
+response:
+
+```{r}
+#| label: own-fit
+fit_ll <- statmod(GAG ~ Age, distrib = loglogistic_distrib(), data = GAGurine,
+                  outer_criterion = ml())
+summary(fit_ll)
+sv_ll <- survival::survreg(survival::Surv(GAG) ~ Age, data = GAGurine,
+                           dist = "loglogistic")
+rbind(statmod = c(coef(fit_ll)$mu, coef(fit_ll)$shape),
+      survreg = c(coef(sv_ll), -log(sv_ll$scale)))
+c(statmod = as.numeric(logLik(fit_ll)), survreg = as.numeric(logLik(sv_ll)))
+```
+
+In `survreg()` the logarithm of the response is $X\beta + s W$, with $W$
+a standard logistic variable, so $\alpha = \exp(X\beta)$ and $\beta = 1/s$.
+The two fits give the same coefficients and the same log-likelihood.
+
+```{r}
+#| label: gate-05
+#| include: false
+assert_families_ok(
+  fits = list(hg = fit_hg, ht = fit_ht, ht_ml = fit_ht_ml, ht0 = fit_ht0,
+              ht1 = fit_ht1, bt = fit_bt, bg = fit_bg, sg = fit_sg,
+              sn1 = fit_sn1, ss = fit_ss, st = fit_st, ss_ml = fit_ss_ml, b0 = fit_b0,
+              b0_ml = fit_b0_ml, b1 = fit_b1, zp = fit_zp, zn = fit_zn,
+              zi = fit_zi, za = fit_za, zi2 = fit_zi2, zi_ml = fit_zi_ml,
+              za_ml = fit_za_ml, tr = fit_tr, tg = fit_tg, fo = fit_fo,
+              tx = fit_tx, ln = fit_ln, ln_b = fit_ln_b, fx = fit_fx,
+              ll = fit_ll),
+  ref = list(gl_ht = gl_ht, gl_be = gl_be, tmb_be = tmb_be, tmb_zi = tmb_zi,
+             tmb_za = tmb_za, glm_fx = glm_fx, sv_ll = sv_ll),
+  data = list(gag = GAGurine, cars93 = cars93, swiss = swiss_p,
+              solder = solder, sim_t = sim_t$data, sim_f = sim_f$data,
+              quine = quine),
+  claims = list(lr_ht = lr_ht, lr_b = lr_b, cert_bt = cert_bt,
+                skew_lm = skew_lm, gamma_max = gamma_max,
+                nll_sn = nll_sn, opt_sn = opt_sn, opt_tr = opt_tr,
+                opt_fo = opt_fo, chk_ll = chk_ll, phi_table = phi_table,
+                skew_table = skew_table, d_fixed = d_fixed, d_ll = d_ll))
+```

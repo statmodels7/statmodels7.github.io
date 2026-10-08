@@ -1,0 +1,1082 @@
+# Beyond the basics {#sec-beyond}
+
+```{r}
+#| label: setup-02
+#| include: false
+source("R/_setup.R")
+source("R/beyond-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
+sci <- function(x, d = 1) {
+  e <- floor(log10(abs(x)))
+  sprintf("%.*f \\times 10^{%d}", d, x / 10^e, e)
+}
+data(mcycle, package = "MASS")
+```
+
+@sec-model fitted one model and read what `statmod()` returns for it. This
+chapter goes further in nine directions. We compare the three variance
+matrices that a penalized fit offers, and we explain the two
+log-likelihoods of a model with random effects. We test a single
+coefficient with four different statistics, invert these tests into
+confidence intervals, and compare two nested models with a likelihood ratio
+test. Then we predict for a group that the data do not contain, start a fit
+from the estimates of another fit, change the criterion that estimates the
+hyperparameters, and use prior weights, offsets and parameters with a known
+value.
+
+We start again from the two models of @sec-model for the motorcycle data:
+a smooth mean with a constant standard deviation, and a smooth mean with a
+smooth standard deviation.
+
+```{r}
+#| label: fits-mcycle
+library(statmodels7)
+fit0 <- statmod(accel ~ s(times, bspline_smooth(k = 20)),
+                distrib = gaussian1_distrib(), data = mcycle)
+fit1 <- statmod(accel ~ s(times, bspline_smooth(k = 20)) |
+                  sigma ~ s(times, bspline_smooth(k = 10)),
+                distrib = gaussian1_distrib(), data = mcycle)
+```
+
+## Three variance matrices {#sec-beyond-variances}
+
+The summary of @sec-model ends with the line "95% intervals, bayesian
+variance". Every standard error of a penalized model depends on a choice of
+variance matrix, and `statmodels7` offers three of them. As in @sec-model,
+let $H$ be the Fisher information of the coefficients at the fit, and let
+$S$ be the matrix of second derivatives of the penalty. The first two
+matrices are
+$$
+V_b = (H + S)^{-1}, \qquad V_f = (H + S)^{-1} H (H + S)^{-1} .
+$$
+$V_f$ is the sampling variance of the penalized estimator when the
+smoothing parameters are fixed. $V_b$ is the posterior variance of the
+coefficients when we read the penalty as a gaussian prior, as REML does.
+$V_b$ is larger than $V_f$. The difference accounts for the bias that the
+penalty introduces: a penalized curve is pulled towards a straight line, so
+an interval built from $V_f$ covers the true curve less often than its
+nominal level. Intervals built from $V_b$ have close to their nominal
+coverage when we average over the points of the curve
+[@wahba1983; @nychka1988; @marra2012]. This is why $V_b$ is the default.
+
+Both matrices treat the smoothing parameters as known, although REML
+estimated them from the same data. The third matrix adds the uncertainty of
+the smoothing parameters [@woodpya2016]:
+$$
+V_u = V_b + J V_\theta J^\top, \qquad
+J = \frac{\partial \hat\beta}{\partial \theta},
+$$
+where $\theta$ contains the logarithms of the smoothing parameters and
+$V_\theta$ is their variance, which we read from the curvature of the REML
+criterion. The matrix $J$ measures how far the estimated coefficients move
+when a smoothing parameter moves.
+
+We choose among the three matrices with the argument `type` of `vcov()`,
+`confint()`, `summary()` and `predict()`. We print the same three rows and
+columns as in @sec-model under each matrix:
+
+```{r}
+#| label: vcov-types
+keep <- c("mu:(Intercept)", "mu:s(times).lin", "sigma:(Intercept)")
+vcov(fit1, type = "bayesian")[keep, keep]
+vcov(fit1, type = "frequentist")[keep, keep]
+vcov(fit1, type = "unconditional")[keep, keep]
+```
+
+The first two matrices have a zero block between `mu` and `sigma`, as in
+@sec-model. The third matrix does not. The smoothing parameters of the two
+equations are estimated together, so a change of one of them moves the
+coefficients of both equations, and the term $J V_\theta J^\top$ connects
+them. The function `confint()` takes the same argument:
+
+```{r}
+#| label: confint-types
+confint(fit1, parm = keep, type = "unconditional")
+```
+
+We compare the three standard errors of the fitted mean on a grid of 200
+times:
+
+```{r}
+#| label: se-types
+grid <- data.frame(times = seq(from = min(mcycle$times),
+                               to = max(mcycle$times), length.out = 200))
+pb <- predict(fit1, what = "mu", newdata = grid, se = TRUE, type = "bayesian")
+pf <- predict(fit1, what = "mu", newdata = grid, se = TRUE,
+              type = "frequentist")
+pu <- predict(fit1, what = "mu", newdata = grid, se = TRUE,
+              type = "unconditional")
+head(pb, n = 3)
+head(pf, n = 3)
+head(pu, n = 3)
+```
+
+```{r}
+#| label: se-numbers
+#| include: false
+rf <- pf$se / pb$se
+ru <- pu$se / pb$se
+t_ru <- grid$times[which.max(ru)]
+```
+
+The three predictions `fit` are the same, and only the standard errors
+differ. @fig-se-types shows them over the whole time range. The frequentist
+standard error is smaller than the Bayesian one at every time, by
+`r pct(1 - median(rf))` in the median and by up to `r pct(1 - min(rf))`. In
+the first 15 milliseconds the two are almost equal, because there the curve
+is nearly flat and the penalty moves it very little. The unconditional
+standard error is larger than the Bayesian one at every time, by
+`r pct(median(ru) - 1)` in the median and by `r pct(max(ru) - 1)` at
+`r fmt(t_ru, 1)` milliseconds. The two curves differ where the curve bends
+most, because there the fitted mean depends most on the smoothing
+parameter.
+
+```{r}
+#| label: fig-se-types
+#| fig-cap: "Top: the standard error of the fitted mean of the second motorcycle model under the three variance matrices. Bottom: the frequentist and the unconditional standard errors as a percentage difference from the Bayesian one."
+#| echo: false
+#| fig-height: 5.2
+se_types <- c("bayesian", "frequentist", "unconditional")
+se_scales <- c("standard error (g)", "% from bayesian")
+se_df <- data.frame(
+  times = rep(grid$times, times = 6),
+  value = c(pb$se, pf$se, pu$se,
+            rep(0, times = nrow(grid)), 100 * (rf - 1), 100 * (ru - 1)),
+  type = factor(rep(rep(se_types, each = nrow(grid)), times = 2),
+                levels = se_types),
+  scale = factor(rep(se_scales, each = 3 * nrow(grid)), levels = se_scales))
+ggplot(se_df, aes(x = times, y = value, colour = type, linetype = type)) +
+  geom_line(linewidth = 0.8) +
+  facet_wrap(facets = vars(scale), ncol = 1, scales = "free_y",
+             strip.position = "left") +
+  scale_colour_manual(values = c(chalk, grey, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed", "solid")) +
+  labs(x = "time after impact (ms)", y = NULL) +
+  theme(strip.placement = "outside", strip.background = element_blank())
+```
+
+Which of the three intervals covers the true curve at its nominal rate? We
+answer with a small simulation study. The function `rstatmod()` of
+@sec-model draws data from a model that we write, and when we do not give
+the coefficients it draws them: here it draws a smooth function of $x$ from
+the prior that the penalty defines, with a smoothing parameter drawn as
+well. We draw one such function on 100 equally spaced points and 40 data
+sets from it. We fit each data set and count how many of the 100 true means
+each pointwise 95% interval contains.
+
+```{r}
+#| label: coverage
+set.seed(2)
+xd <- data.frame(x = seq(from = 0, to = 1, length.out = 100))
+sim <- rstatmod(y ~ s(x), distrib = gaussian1_distrib(), data = xd,
+                n_sim = 40)
+cover <- matrix(NA, nrow = 40, ncol = 3,
+                dimnames = list(NULL, c("bayesian", "frequentist",
+                                        "unconditional")))
+for (k in 1:40) {
+  fit <- statmod(y ~ s(x), distrib = gaussian1_distrib(),
+                 data = sim$data[[k]])
+  truth <- sim$theta[[k]]$mu
+  p_b <- predict(fit, what = "mu", newdata = xd, se = TRUE, type = "bayesian")
+  p_f <- predict(fit, what = "mu", newdata = xd, se = TRUE,
+                 type = "frequentist")
+  p_u <- predict(fit, what = "mu", newdata = xd, se = TRUE,
+                 type = "unconditional")
+  cover[k, "bayesian"] <- mean(p_b$lower <= truth & truth <= p_b$upper)
+  cover[k, "frequentist"] <- mean(p_f$lower <= truth & truth <= p_f$upper)
+  cover[k, "unconditional"] <- mean(p_u$lower <= truth & truth <= p_u$upper)
+}
+colMeans(cover)
+```
+
+```{r}
+#| label: coverage-numbers
+#| include: false
+cv <- colMeans(cover)
+```
+
+Averaged over the points and the data sets, the Bayesian intervals cover
+the true mean `r pct(cv[["bayesian"]])` of the time, the frequentist ones
+`r pct(cv[["frequentist"]])` and the unconditional ones
+`r pct(cv[["unconditional"]])`, against a nominal 95%. The frequentist
+intervals cover less because $V_f$ does not include the bias of the
+penalized curve. This agrees with @marra2012, and it is the reason for the
+default.
+
+## Which likelihood {#sec-beyond-likelihood}
+
+A model with random effects has two log-likelihoods. We use a classic data
+set to explain them. The data frame `Orthodont` from the `nlme` package gives
+the distance, in millimeters, from the pituitary to the pterygomaxillary
+fissure of 27 children, measured every two years from age 8 to age 14
+[@potthoff1964; @pinheiro2000]. We center the age at 11 years and give each
+child its own intercept and its own slope in age:
+$$
+y_{ij} \sim \mathrm{N}(\mu_{ij}, \sigma), \qquad
+\mu_{ij} = \beta_0 + \beta_1 a_{ij} + b_{0i} + b_{1i} a_{ij}, \qquad
+(b_{0i}, b_{1i}) \sim \mathrm{N}(0, \Sigma_b),
+$$
+where $a_{ij}$ is the centered age of child $i$ at its $j$-th measurement.
+We center the age inside the formula, with `I(age - 11)`. The term
+`random(~ I(age - 11) | Subject)` gives each child the two random effects,
+and by default their covariance matrix $\Sigma_b$ is unstructured, so the
+two effects can be correlated.
+
+```{r}
+#| label: fit-ortho
+data(Orthodont, package = "nlme")
+reml1 <- statmod(distance ~ I(age - 11) + random(~ I(age - 11) | Subject),
+                 distrib = gaussian1_distrib(), data = Orthodont)
+summary(reml1)
+```
+
+`statmodels7` reads the random effects as coefficients with a penalty. The
+penalty is minus the logarithm of the gaussian density of the random
+effects, and its hyperparameters describe $\Sigma_b$. The summary reports
+them as the two standard deviations and the correlation, estimated by REML.
+The function `lme()` of the `nlme` package fits the same model:
+
+```{r}
+#| label: fit-lme
+library(nlme)
+lme1 <- lme(distance ~ I(age - 11), random = ~ I(age - 11) | Subject,
+            data = Orthodont)
+fixef(lme1)
+VarCorr(lme1)
+```
+
+The two packages give the same estimates of the fixed effects, the same
+standard deviations and the same correlation. The residual standard
+deviation of `lme()` is $\exp(\hat\gamma_0)$, the exponential of the
+intercept of `sigma`:
+
+```{r}
+#| label: sigma-ortho
+exp(coef(reml1)$sigma)
+```
+
+The two log-likelihoods of the model differ in how they treat the random
+effects $b$. The *conditional* log-likelihood is computed at the estimated
+random effects $\hat b$:
+$$
+\ell_C = \log f(y \mid \hat b).
+$$
+It is the one that `logLik()` returns by default, and the one that cAIC uses.
+The *marginal* log-likelihood integrates the random effects out:
+$$
+\ell_M = \log \int f(y \mid b)\, \pi(b)\, db ,
+$$
+where $\pi$ is the gaussian density of $b$. `statmodels7` computes the
+integral by the Laplace method, which is exact for a gaussian response.
+REML also integrates the unpenalized coefficients $\beta_0$ and $\beta_1$
+[@patterson1971]. The argument `type = "marginal"` of `logLik()` returns the
+criterion that the fit maximized: the REML criterion by default, and the
+marginal log-likelihood when the fit used `outer_criterion = ml()`.
+
+```{r}
+#| label: loglik-ortho
+logLik(reml1)
+logLik(reml1, type = "marginal")
+logLik(lme1)
+```
+
+The marginal value is the restricted log-likelihood that `lme()` reports.
+Its attribute `df` counts the two fixed effects, the three parameters of
+$\Sigma_b$ and $\sigma$. The conditional value is larger, because $f(y \mid
+\hat b)$ uses the random effects of each child, and its `df` is the total
+effective degrees of freedom of @sec-model. The two values answer different
+questions. The marginal log-likelihood describes a new child drawn from the
+population, and the conditional one describes the 27 children that we
+observed [@vaida2005].
+
+## Testing one coefficient {#sec-beyond-tests}
+
+The column `z` of the summary is a Wald statistic, which tests that a
+coefficient is zero. Three other statistics test a coefficient $\beta_j$
+against any value $\beta_{j0}$. We write $\ell$ for the log-likelihood,
+$\hat\theta$ for the estimate of all the coefficients, and $\tilde\theta$
+for the estimate when $\beta_j$ is held at $\beta_{j0}$. Let $U(\theta)$ be
+the gradient of $\ell$ and $I(\theta)$ the Fisher information. The four
+statistics are
+$$
+\begin{aligned}
+W &= (\hat\beta_j - \beta_{j0})^2 / \mathrm{se}(\hat\beta_j)^2
+  && \text{(Wald)}, \\
+L &= 2\{\ell(\hat\theta) - \ell(\tilde\theta)\}
+  && \text{(likelihood ratio)}, \\
+R &= U(\tilde\theta)^\top I(\tilde\theta)^{-1} U(\tilde\theta)
+  && \text{(Rao score)}, \\
+G &= U_j(\tilde\theta)\, (\hat\beta_j - \beta_{j0})
+  && \text{(Terrell gradient)}.
+\end{aligned}
+$$
+If $\beta_j = \beta_{j0}$, each of them has approximately a $\chi^2$
+distribution with one degree of freedom [@coxhinkley1974; @terrell2002].
+$W$ needs only the fit that we have. The other three need the model fitted
+again with $\beta_j$ held at $\beta_{j0}$. For a penalized model the three
+use the penalized log-likelihood, with the smoothing parameters held at
+their estimates.
+
+We use a nonlinear model. The data frame `Puromycin` gives the initial rate
+of an enzymatic reaction, in counts per minute per minute, against the
+concentration of the substrate, in parts per million [@bates1988]. We use
+the `r sum(Puromycin$state == "treated")` measurements on cells treated with
+the antibiotic puromycin. The Michaelis–Menten model describes the rate as
+$$
+y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
+\mu_i = \frac{V_m\, c_i}{K + c_i},
+$$
+where $c_i$ is the concentration. The parameter $V_m$ is the largest rate,
+and $K$ is the concentration at which the rate reaches half of $V_m$. The
+term `nl()` takes the formula of the mean as a function of its parameters,
+and a later chapter describes it in full. The formula of the model starts
+with `0` because the curve has no intercept.
+
+```{r}
+#| label: fit-puro
+puro <- Puromycin[Puromycin$state == "treated", ]
+fit_p <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc)),
+                 distrib = gaussian1_distrib(), data = puro)
+coef(fit_p)
+```
+
+The function `statmod_test()` computes one of the four statistics for one
+coefficient. Its arguments name the parameter of the distribution, the
+coefficient, the value under the null hypothesis and the statistic. We test
+$K = 0.05$ with each of the four:
+
+```{r}
+#| label: test-puro
+statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
+             test = "wald")
+statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
+             test = "lr")
+statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
+             test = "score")
+statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
+             test = "gradient")
+```
+
+```{r}
+#| label: test-numbers
+#| include: false
+t_w <- statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
+                    test = "wald")
+t_l <- statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
+                    test = "lr")
+t_s <- statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
+                    test = "score")
+t_g <- statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
+                    test = "gradient")
+```
+
+The four statistics range from `r fmt(t_s@statistic)` for the score test to
+`r fmt(t_l@statistic)` for the likelihood ratio, with p-values between
+`r fmt(t_l@p.value, 3)` and `r fmt(t_s@p.value, 3)`. With
+`r nrow(puro)` observations they do not agree closely, and none of them
+rejects $K = 0.05$ at the 5% level.
+
+We can compute two of them by hand. The Wald statistic comes from the
+estimate and the standard error that `confint()` reports:
+
+```{r}
+#| label: wald-by-hand
+ci_k <- confint(fit_p, parm = "mu:nl.K")
+(ci_k$estimate - 0.05)^2 / ci_k$se^2
+```
+
+For the likelihood ratio, `statmod_test()` compares the maximum
+log-likelihood of the full model with the maximum log-likelihood of the
+model with $K$ held at 0.05, with $\sigma$ estimated by maximum likelihood
+in both. The function `nls()` fits the full model by least squares. When
+$K$ is held at 0.05 the mean is $V_m$ times the known variable
+$c_i/(0.05 + c_i)$, so `lm()` without an intercept fits the restricted
+model. The function `logLik()` of both returns the maximum log-likelihood:
+
+```{r}
+#| label: lr-by-hand
+nls_p <- nls(rate ~ Vm * conc / (K + conc), data = puro,
+             start = list(Vm = 200, K = 0.05))
+puro$x05 <- puro$conc / (0.05 + puro$conc)
+lm_05 <- lm(rate ~ 0 + x05, data = puro)
+2 * (as.numeric(logLik(nls_p)) - as.numeric(logLik(lm_05)))
+```
+
+The argument `test` of `summary()` replaces the Wald statistic of every
+row with another of the four statistics, each testing that its coefficient
+is zero. The column then holds the signed square root of the statistic,
+which has approximately a standard gaussian distribution, and its heading is
+`r` instead of `z`:
+
+```{r}
+#| label: summary-lr
+summary(fit_p, test = "lr")
+```
+
+Each row needs one restricted fit, so `summary(test = "lr")` costs a few
+more fits than `summary()`. Only the statistic and the p-value change. The
+interval of each row is still the Wald interval, and the next section
+explains how to replace it.
+
+## Intervals by inversion {#sec-beyond-invert}
+
+A 95% confidence interval for $\beta_j$ contains the values $\beta_{j0}$
+that a test at the 5% level does not reject. The Wald interval
+$\hat\beta_j \pm 1.96\,\mathrm{se}$ is the set of values where
+$W \le \chi^2_{1,0.95} = 3.84$, and it is symmetric around the estimate. We
+obtain an interval from each of the other three statistics in the same way,
+by solving for the two values of $\beta_{j0}$ where the statistic equals
+3.84. These intervals can be asymmetric. We choose the statistic with the
+argument `test` of `confint()`.
+
+We also set the argument `readable` to `FALSE`. Some model terms estimate
+their parameters on working coordinates, which keep the estimation stable
+but are hard to interpret. For example, the score-driven filter `gas()` of a
+later chapter estimates the persistence of the filter through a partial
+autocorrelation, and `confint()` reports by default the autoregressive
+coefficient computed from it. This default is `readable = TRUE`. A test holds
+one working coordinate at a value, so an inverted interval exists only for
+the working coordinates, and `confint()` with `test` other than `"wald"`
+requires `readable = FALSE`. In the Michaelis–Menten model the coefficients
+are $V_m$ and $K$ themselves, so this argument does not change the result
+here:
+
+```{r}
+#| label: invert-puro
+confint(fit_p, parm = "mu:nl.K")
+confint(fit_p, parm = "mu:nl.K", test = "lr", readable = FALSE)
+confint(fit_p, parm = "mu:nl.K", test = "score", readable = FALSE)
+confint(fit_p, parm = "mu:nl.K", test = "gradient", readable = FALSE)
+```
+
+```{r}
+#| label: invert-numbers
+#| include: false
+ciw <- confint(fit_p, parm = "mu:nl.K")
+cil <- confint(fit_p, parm = "mu:nl.K", test = "lr", readable = FALSE)
+k_hat <- ciw$estimate
+```
+
+The likelihood ratio interval runs from `r fmt(cil$lower, 4)` to
+`r fmt(cil$upper, 4)`. It extends `r fmt(k_hat - cil$lower, 4)` below the
+estimate $\hat K = `r fmt(k_hat, 4)`$ and `r fmt(cil$upper - k_hat, 4)`
+above it, while the Wald interval extends `r fmt(k_hat - ciw$lower, 4)` on
+both sides. The Wald statistic is a quadratic function of $K$, so its
+interval is symmetric. The likelihood ratio statistic is not, because the
+log-likelihood of this model is not a quadratic function of $K$: it rises
+more steeply below $\hat K$ than above it.
+
+The function `confint()` of `nls()` gives another interval:
+
+```{r}
+#| label: confint-nls
+confint(nls_p)
+```
+
+```{r}
+#| label: nls-numbers
+#| include: false
+ci_nls <- suppressMessages(confint(nls_p))["K", ]
+```
+
+It runs from `r fmt(ci_nls[1], 4)` to `r fmt(ci_nls[2], 4)`, so it is wider.
+`nls()` uses the profile $t$ statistic [@bates1988]
+$$
+\tau(K_0) = \mathrm{sign}(\hat K - K_0)\,
+\frac{\sqrt{S(K_0) - S(\hat K)}}{s},
+$$
+where $S(K_0)$ is the residual sum of squares with $K$ held at $K_0$ and
+$V_m$ estimated, and $s^2 = S(\hat K)/(n - 2)$. For a gaussian model the
+likelihood ratio statistic is $L = n \log\{S(K_0)/S(\hat K)\}$, so
+$L = n\log\{1 + \tau^2/(n-2)\}$. The two statistics are functions of each
+other, and the two intervals come from the same test. They differ in the
+reference distribution. `nls()` compares $\tau$ with the quantiles of the $t$
+distribution with $n - 2$ degrees of freedom, which is exact for a linear
+model. `statmodels7` compares $L$ with the quantile 3.84 of the $\chi^2_1$
+distribution, which corresponds to a smaller cutoff for $|\tau|$:
+
+```{r}
+#| label: t-cutoff
+n_p <- nrow(puro)
+qt(p = 0.975, df = n_p - 2)
+sqrt((n_p - 2) * (exp(qchisq(p = 0.95, df = 1) / n_p) - 1))
+```
+
+The $\chi^2_1$ distribution is the limit of the distribution of $L$ as $n$
+grows. With `r nrow(puro)` observations the limit is optimistic, and the
+interval of `nls()` is the better one.
+
+## Comparing two models {#sec-beyond-lr}
+
+The tests of the previous sections hold one coefficient at a value. To
+compare two nested models we use the likelihood ratio of the two fits. We
+return to the `Orthodont` data and ask whether boys and girls have
+different mean distances. The second model adds the sex of the child:
+
+```{r}
+#| label: fit-ortho-ml
+ml1 <- statmod(distance ~ I(age - 11) + random(~ I(age - 11) | Subject),
+               distrib = gaussian1_distrib(), data = Orthodont,
+               outer_criterion = ml())
+ml2 <- statmod(distance ~ I(age - 11) + Sex + random(~ I(age - 11) | Subject),
+               distrib = gaussian1_distrib(), data = Orthodont,
+               outer_criterion = ml())
+```
+
+Both fits use `outer_criterion = ml()`, so they maximize the marginal
+log-likelihood. The likelihood ratio statistic is twice the difference of
+the two maximized marginal log-likelihoods, and under the smaller model it
+has approximately a $\chi^2$ distribution with one degree of freedom:
+
+```{r}
+#| label: lr-ortho
+l1 <- logLik(ml1, type = "marginal")
+l2 <- logLik(ml2, type = "marginal")
+lr <- 2 * (as.numeric(l2) - as.numeric(l1))
+lr
+pchisq(lr, df = 1, lower.tail = FALSE)
+```
+
+The function `anova()` of `nlme` gives the same statistic and p-value for
+the two models fitted by maximum likelihood:
+
+```{r}
+#| label: lr-lme
+lme1_ml <- lme(distance ~ I(age - 11), random = ~ I(age - 11) | Subject,
+               data = Orthodont, method = "ML")
+lme2_ml <- lme(distance ~ I(age - 11) + Sex, random = ~ I(age - 11) | Subject,
+               data = Orthodont, method = "ML")
+an <- anova(lme1_ml, lme2_ml)
+an$logLik
+an$L.Ratio
+an[["p-value"]]
+```
+
+We do not compare the two models with REML. The REML criterion is the
+likelihood of the residuals of the unpenalized part of the mean, that is, of
+the combinations of $y$ that do not depend on the unpenalized coefficients.
+When we add `Sex` to the model, these combinations change. So the two REML
+criteria describe two different functions of the data, and their difference
+is not a likelihood ratio statistic [@pinheiro2000, sec. 2.4]:
+
+```{r}
+#| label: reml-diff
+reml2 <- statmod(distance ~ I(age - 11) + Sex + random(~ I(age - 11) | Subject),
+                 distrib = gaussian1_distrib(), data = Orthodont)
+2 * (as.numeric(logLik(reml2, type = "marginal")) -
+       as.numeric(logLik(reml1, type = "marginal")))
+```
+
+We use `reml()` to estimate the variances of one model, and `ml()` to
+compare models that differ in their unpenalized terms.
+
+The test of @sec-beyond-tests gives a third answer for the coefficient of
+`Sex`:
+
+```{r}
+#| label: test-sex
+statmod_test(reml2, param = "mu", coefname = "SexFemale", value = 0,
+             test = "lr")
+```
+
+```{r}
+#| label: sex-numbers
+#| include: false
+t_sex <- statmod_test(reml2, param = "mu", coefname = "SexFemale", value = 0,
+                      test = "lr")
+```
+
+This statistic is `r fmt(t_sex@statistic)`, against `r fmt(lr)` from the
+marginal log-likelihoods. The two tests treat the covariance matrix
+$\Sigma_b$ of the random effects in different ways. In the restricted fit
+of `statmod_test()`, $\Sigma_b$ stays at the estimate of the full model
+`reml2`, and only the coefficients and $\sigma$ are estimated again. In the
+comparison of the marginal log-likelihoods, each model estimates its own
+$\Sigma_b$. Sex does not change within a child, so without `Sex` the
+difference between boys and girls becomes a difference between children,
+and the variance of the random intercepts grows to absorb it. The fits of
+`lme()` by maximum likelihood show this:
+
+```{r}
+#| label: varcorr-ml
+VarCorr(lme1_ml)
+VarCorr(lme2_ml)
+```
+
+The standard deviation of the random intercepts is larger in the model
+without `Sex`. This model explains part of the effect of sex with the
+random intercepts, so its marginal log-likelihood is closer to that of the
+full model, and the likelihood ratio is smaller.
+
+## Predictions with random effects {#sec-beyond-random}
+
+A model with random effects raises one more question about predictions:
+what to predict for a group that the data do not contain. The data frame
+`epil` from the `MASS` package gives the number of epileptic seizures of 59
+patients in four periods of two weeks, in a trial of the drug progabide
+[@thall1990]. The covariates are the treatment `trt`, the logarithm of the
+number of seizures in the eight weeks before the trial (`lbase`, centered),
+the logarithm of the age (`lage`, centered) and an indicator of the fourth
+period (`V4`). We give each patient a random intercept on the log scale:
+$$
+y_{ij} \sim \mathrm{Poisson}(\mu_{ij}), \qquad
+\log\mu_{ij} = x_{ij}^\top\beta + b_i, \qquad b_i \sim \mathrm{N}(0, \tau).
+$$
+
+```{r}
+#| label: fit-epil
+data(epil, package = "MASS")
+fit_e <- statmod(y ~ lbase * trt + lage + V4 + random(~ 1 | subject),
+                 distrib = poisson_distrib(), data = epil)
+hyper(fit_e)
+```
+
+The hyperparameter of the random intercept is its standard deviation
+$\tau$. For a patient in the data, `predict()` uses the estimated random
+intercept of that patient. These are the first four rows of the data,
+which belong to the first patient:
+
+```{r}
+#| label: predict-known
+predict(fit_e, what = "mu", newdata = epil[1:4, ], se = TRUE)
+```
+
+For a new patient $b$ is unknown. We describe a new patient on placebo with
+average baseline and age, and we give it the number 0. The patients of the
+data are numbered from 1 to 59, so the fit has no random intercept for this
+patient. By default `predict()` signals an error:
+
+```{r}
+#| label: predict-new-error
+#| error: true
+new <- data.frame(lbase = 0, trt = factor("placebo", levels(epil$trt)),
+                  lage = 0, V4 = 0, subject = 0)
+predict(fit_e, what = "mu", newdata = new)
+```
+
+We choose how to treat $b$ with the argument `random` of `predict()`. With
+`random = "zero"` we set $b = 0$, and the prediction is
+$\exp(x^\top\hat\beta)$, the mean number of seizures of a typical patient.
+With `random = "marginal"` we average over the distribution of $b$, and the
+prediction is the mean over all patients with these covariates:
+$$
+\mathbb{E}\{\exp(x^\top\beta + b)\} = \exp(x^\top\beta + \tau^2/2) .
+$$
+The two predictions differ because the link function is not linear
+[@zeger1988].
+
+```{r}
+#| label: predict-zero-marginal
+pz <- predict(fit_e, what = "mu", newdata = new, se = TRUE, random = "zero")
+pz
+pm <- predict(fit_e, what = "mu", newdata = new, se = TRUE,
+              random = "marginal")
+pm
+tau <- hyper(fit_e)$estimate
+pz$fit * exp(tau^2 / 2)
+```
+
+With the argument `interval` we choose which uncertainty the interval
+describes. With `interval = "confidence"`, the default, it describes the
+uncertainty of the estimates. With `interval = "group"` it also includes the
+variation of $b$, so it covers the mean $\exp(x^\top\beta + b)$ of a new
+patient. On the log scale this interval is
+$x^\top\hat\beta \pm 1.96\sqrt{\mathrm{se}^2 + \hat\tau^2}$, where se is the
+standard error of $x^\top\hat\beta$.
+
+With `what = "response"` and `interval = "prediction"` the interval
+describes the number of seizures $Y$ that a new patient has in one period.
+Three things make $Y$ uncertain: the estimate of $x^\top\beta$, the random
+intercept $b$ of the patient, and the Poisson variation of $Y$ around its
+mean. The predictor $u = x^\top\beta + b$ of the new patient is gaussian,
+with mean $x^\top\hat\beta$ and variance $\mathrm{se}^2 + \hat\tau^2$, and
+given $u$ the count has a Poisson distribution with mean $e^u$. So
+$$
+P(Y \le k) = \int \mathrm{Poisson}(k;\, e^u)\,
+\phi\big(u;\, x^\top\hat\beta,\, \mathrm{se}^2 + \hat\tau^2\big)\, du ,
+$$
+where $\mathrm{Poisson}(k; m)$ is the Poisson distribution function with
+mean $m$ and $\phi(u; a, v)$ is the gaussian density with mean $a$ and
+variance $v$. The interval runs from the 2.5% quantile to the 97.5%
+quantile of this distribution, and the prediction `fit` is its median.
+
+```{r}
+#| label: predict-intervals
+pg <- predict(fit_e, what = "mu", newdata = new, se = TRUE, random = "zero",
+              interval = "group")
+pg
+pr <- predict(fit_e, what = "response", newdata = new, se = TRUE,
+              random = "zero", interval = "prediction")
+pr
+```
+
+The standard deviation of the random intercepts is $\hat\tau =
+`r fmt(tau)`$. For a patient on placebo with average baseline and age, the
+typical patient has a mean of `r fmt(pz$fit)` seizures per period, with a
+95% interval from `r fmt(pz$lower)` to `r fmt(pz$upper)`. The mean over all
+such patients is larger, `r fmt(pm$fit)`, by the factor
+$\exp(\hat\tau^2/2) = `r fmt(exp(tau^2 / 2), 3)`$. The mean of one new
+patient lies between `r fmt(pg$lower)` and `r fmt(pg$upper)` with
+probability 95%, and the number of seizures of that patient in one period
+lies between `r pr$lower` and `r pr$upper`, with a median of `r pr$fit`.
+@fig-epil shows the three intervals as functions of the baseline count. All
+three are conditional on the estimated variance $\hat\tau^2$.
+
+```{r}
+#| label: fig-epil
+#| fig-cap: "Seizures per two weeks for a new patient on placebo, against the centered logarithm of the baseline count."
+#| echo: false
+#| fig-height: 4.2
+#| fig-width: 9
+lb <- seq(min(epil$lbase), max(epil$lbase), length.out = 60)
+gnew <- new[rep(1, 60), ]; gnew$lbase <- lb
+gz <- predict(fit_e, what = "mu", newdata = gnew, se = TRUE, random = "zero")
+gg <- predict(fit_e, what = "mu", newdata = gnew, se = TRUE, random = "zero",
+              interval = "group")
+gr <- predict(fit_e, what = "response", newdata = gnew, se = TRUE,
+              random = "zero", interval = "prediction")
+pl <- epil$trt == "placebo"
+ep_bands <- data.frame(
+  lbase = rep(lb, times = 2),
+  lower = c(gz$lower, gg$lower),
+  upper = c(gz$upper, gg$upper),
+  band = rep(c("confidence interval", "group interval"),
+             each = length(lb)))
+ep_mean <- data.frame(lbase = lb, value = gz$fit,
+                      curve = "mean of a typical patient")
+ep_pred <- data.frame(lbase = rep(lb, times = 2),
+                      value = c(gr$lower, gr$upper),
+                      end = rep(c("lower", "upper"), each = length(lb)),
+                      curve = "prediction interval")
+ggplot(mapping = aes(x = lbase)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = band), data = ep_bands) +
+  geom_line(aes(y = value, colour = curve, linetype = curve), data = ep_mean,
+            linewidth = 0.8) +
+  geom_step(aes(y = value, colour = curve, linetype = curve, group = end),
+            data = ep_pred) +
+  geom_point(aes(y = y, shape = "patients on placebo"), data = epil[pl, ],
+             colour = book_grey, size = 0.9) +
+  scale_shape_manual(values = 16) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_fill_manual(values = c(adjustcolor(chalk, 0.4),
+                               adjustcolor(chalk, 0.15))) +
+  coord_cartesian(ylim = c(0, max(gr$upper))) +
+  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
+         linetype = guide_legend(order = 2), fill = guide_legend(order = 3)) +
+  labs(x = "centered log baseline count", y = "seizures per period")
+```
+
+## Starting from another fit {#sec-beyond-start}
+
+`statmod()` starts from the maximum likelihood estimates of a model with
+intercepts only, and then fits the full model. When we have already fitted a
+similar model, we can start from its estimates with the argument `start`
+and the function `start_from()`. Here we fit the second motorcycle model
+again, starting from the first one:
+
+```{r}
+#| label: start-from
+fit1_s <- statmod(accel ~ s(times, bspline_smooth(k = 20)) |
+                    sigma ~ s(times, bspline_smooth(k = 10)),
+                  distrib = gaussian1_distrib(), data = mcycle,
+                  start = start_from(fit0))
+fit1_s
+fit1
+```
+
+`start_from()` takes the coefficients that the two models share. The
+parametric coefficients are matched by name. A smooth is matched when the two
+models write it in the same way; when the two bases differ, `start_from()`
+projects the fitted curve of the old model onto the new basis. A coefficient
+that the old model does not have starts from the intercept-only fit, and
+here this is the case of the smooth of `sigma`.
+
+```{r}
+#| label: start-numbers
+#| include: false
+n_ev1 <- nrow(fit1@history$outer)
+n_ev1s <- nrow(fit1_s@history$outer)
+```
+
+The two fits end at the same point, up to the precision of the search:
+
+```{r}
+#| label: start-same
+logLik(fit1)
+logLik(fit1_s)
+max(abs(fitted(fit1) - fitted(fit1_s)))
+```
+
+The difference between the two fits is
+$`r d_crit <- abs(fit1@criterion - fit1_s@criterion); if (d_crit == 0) "0" else sci(d_crit)`$
+in the REML criterion,
+`r fmt(abs(as.numeric(logLik(fit1)) - as.numeric(logLik(fit1_s))), 3)` in
+the log-likelihood and at most
+`r fmt(max(abs(fitted(fit1) - fitted(fit1_s))), 3)` $g$ in the fitted
+means. The fit that
+starts from `fit0` evaluates the REML criterion at `r n_ev1s` values of the
+smoothing parameters, against `r n_ev1` for the fit that starts from the
+intercepts. The saving is largest when the models are large and the start is
+close.
+
+## The outer criterion {#sec-beyond-outer}
+
+In @sec-model the REML criterion estimated the smoothing parameter. The
+argument `outer_criterion` of `statmod()` chooses this criterion. Its
+default is `reml()`, and `ml()` maximizes the marginal log-likelihood of
+@sec-beyond-likelihood instead. REML integrates both the penalized and the
+unpenalized coefficients of the equations, and ML integrates only the
+penalized ones.
+
+The criterion also decides where the other parameters of the distribution
+are estimated. The argument `marginal` of `reml()` and `ml()` names the
+parameters whose unpenalized coefficients the criterion estimates. By
+default it names every parameter except the first one, the location. So in
+`fit0` the criterion estimated both the smoothing parameter and the
+intercept of $\log\sigma$. With `marginal = "none"` the criterion estimates
+only the smoothing parameter, and $\sigma$ is estimated with the mean, by
+maximizing the penalized log-likelihood.
+
+```{r}
+#| label: outer-fits
+fit0_none <- statmod(accel ~ s(times, bspline_smooth(k = 20)),
+                     distrib = gaussian1_distrib(), data = mcycle,
+                     outer_criterion = reml(marginal = "none"))
+fit0_ml <- statmod(accel ~ s(times, bspline_smooth(k = 20)),
+                   distrib = gaussian1_distrib(), data = mcycle,
+                   outer_criterion = ml())
+exp(coef(fit0)$sigma)
+exp(coef(fit0_none)$sigma)
+exp(coef(fit0_ml)$sigma)
+hyper(fit0)$estimate
+hyper(fit0_none)$estimate
+hyper(fit0_ml)$estimate
+```
+
+The three smoothing parameters are close, and the three estimates of
+$\sigma$ differ. For a gaussian response each estimate of $\sigma^2$ is the
+residual sum of squares divided by $n$ minus the number of degrees of
+freedom that the criterion counts as spent on the mean. In a linear model
+without penalty the same thing happens: the maximum likelihood estimate
+divides by $n$, and the REML estimate divides by $n - p$, because REML
+integrates the $p$ coefficients of the mean.
+
+Here the coefficients of the mean are of two kinds. Let $\tau_\mu$ be the
+effective degrees of freedom of the equation of the mean. Two of them belong
+to the unpenalized coefficients, the intercept and the linear part of the
+smooth, and the other $\tau_\mu - 2$ to the penalized ones. REML integrates
+both kinds, so it divides by $n - \tau_\mu$. ML integrates only the
+penalized coefficients, so it divides by $n - (\tau_\mu - 2)$. The joint
+mode integrates nothing and divides by $n$:
+
+```{r}
+#| label: outer-by-hand
+n <- nrow(mcycle)
+rss <- sum((mcycle$accel - fitted(fit0))^2)
+tau_mu <- sum(fit0@edf$edf[fit0@edf$parameter == "mu"])
+tau_mu
+sqrt(rss / (n - tau_mu))
+rss_ml <- sum((mcycle$accel - fitted(fit0_ml))^2)
+tau_ml <- sum(fit0_ml@edf$edf[fit0_ml@edf$parameter == "mu"])
+sqrt(rss_ml / (n - (tau_ml - 2)))
+rss_none <- sum((mcycle$accel - fitted(fit0_none))^2)
+sqrt(rss_none / n)
+```
+
+A criterion that integrates a coefficient accounts for the fact that the
+coefficient was estimated from the same data. The joint mode does not, so
+its estimate of $\sigma$ is the smallest of the three and is biased
+downwards. REML is the default because it removes this bias for all the
+coefficients of the mean.
+
+We can also hold a hyperparameter at a value that we choose. We write the
+value in the term with the argument `hyper`:
+
+```{r}
+#| label: held
+fit0_held <- statmod(accel ~ s(times, bspline_smooth(k = 20),
+                               hyper = c(lambda = 1e-3)),
+                     distrib = gaussian1_distrib(), data = mcycle)
+hyper(fit0_held)
+fit0_held@edf
+fit0@edf
+```
+
+The column `held` of `hyper()` is `TRUE`, and the column `source` is
+`fixed`. The smoothing parameter 0.001 is `r fmt(1e-3 / hyper(fit0)$estimate, 0)`
+times the REML estimate, so the smooth is stiffer and uses
+`r fmt(fit0_held@edf$edf[2])` effective degrees of freedom instead of
+`r fmt(fit0@edf$edf[2])`. @fig-held shows the two fitted curves. The
+criterion still runs, because it still estimates $\sigma$.
+
+```{r}
+#| label: fig-held
+#| fig-cap: "The fitted mean of the first motorcycle model with the smoothing parameter estimated by REML and held at 0.001."
+#| echo: false
+#| fig-height: 3.8
+ph <- predict(fit0_held, what = "mu", newdata = grid)
+p0 <- predict(fit0, what = "mu", newdata = grid)
+fits <- c("lambda estimated by REML", "lambda held at 0.001")
+held <- data.frame(times = rep(grid$times, times = 2), fit = c(p0, ph),
+                   curve = factor(rep(fits, each = nrow(grid)),
+                                  levels = fits))
+ggplot(mcycle, aes(x = times)) +
+  geom_point(aes(y = accel, shape = "data"), colour = book_grey, size = 1.1) +
+  geom_line(aes(y = fit, colour = curve, linetype = curve), data = held,
+            linewidth = 0.8) +
+  scale_shape_manual(values = 16) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
+         linetype = guide_legend(order = 2)) +
+  labs(x = "time after impact (ms)", y = "acceleration (g)")
+```
+
+## Weights, offsets and known parameters {#sec-beyond-weights}
+
+### Prior weights
+
+The argument `weights` of `statmod()` multiplies the contribution of each
+observation to the log-likelihood:
+$$
+\ell = \sum_i w_i \log f(y_i; \theta_i) .
+$$
+These are *frequency weights*: an observation with $w_i = 3$ counts as three
+identical observations. We give each observation of the motorcycle data a
+weight of 1, 2 or 3, fit a straight line with these weights, and fit it
+again to the data with each row repeated $w_i$ times:
+
+```{r}
+#| label: weights
+set.seed(1)
+w <- sample(1:3, size = nrow(mcycle), replace = TRUE)
+big <- mcycle[rep(seq_len(nrow(mcycle)), times = w), ]
+fit_w <- statmod(accel ~ times, distrib = gaussian1_distrib(), data = mcycle,
+                 weights = w)
+fit_big <- statmod(accel ~ times, distrib = gaussian1_distrib(), data = big)
+coef(fit_w)
+coef(fit_big)
+```
+
+The two fits are the same. The function `lm()` also takes weights, but it
+reads them in another way, as *precision weights*: each observation is seen
+once, and its variance is $\sigma^2/w_i$. The estimate of the mean is the
+same, because in both cases it minimizes $\sum_i w_i (y_i - \mu_i)^2$. The
+estimate of $\sigma$ is not:
+
+```{r}
+#| label: weights-lm
+lm_w <- lm(accel ~ times, data = mcycle, weights = w)
+coef(lm_w)
+summary(lm_w)$sigma
+exp(coef(fit_w)$sigma)
+```
+
+With frequency weights the number of observations is $\sum_i w_i =
+`r sum(w)`$, and with precision weights it is $n = `r nrow(mcycle)`$. So the
+two estimates of $\sigma$ differ, and so do the standard errors.
+`statmodels7` uses frequency weights because their definition holds for
+every distribution, while a precision weight has a meaning only for a
+distribution with a parameter tied to the variance. In a model with an
+equation for $\sigma$, a precision weight is a part of that equation, so we
+write it there. If the variance of observation $i$ is $\sigma^2/w_i$, then
+$\log\sigma_i = \gamma_0 - \tfrac{1}{2}\log w_i$, and the known term $-\tfrac{1}{2}\log w_i$ is an
+*offset*, a term with a coefficient fixed at 1. We write it with
+`offset()`:
+
+```{r}
+#| label: weights-precision
+fit_prec <- statmod(accel ~ times | sigma ~ offset(-0.5 * log(w)),
+                    distrib = gaussian1_distrib(), data = mcycle)
+exp(coef(fit_prec)$sigma)
+confint(fit_prec, parm = c("mu:(Intercept)", "mu:times"))
+sqrt(diag(vcov(lm_w)))
+```
+
+This model is the one that `lm()` fits: the same $\sigma$ and the same
+standard errors.
+
+### Offsets
+
+An offset is common in a model for counts, when the counts come from
+different amounts of exposure. The data frame `Insurance` from the `MASS`
+package gives the number of claims on car insurance policies in 64 groups
+of policyholders, defined by the district, the size of the car and the age
+of the driver [@venables2002]. The column `Holders` is the number of
+policyholders in each group. The expected number of claims is the number of
+holders times the rate of claims per holder, so we write
+$$
+\log\mu_i = \log(\text{holders}_i) + x_i^\top\beta ,
+$$
+and the coefficients describe the logarithm of the rate:
+
+```{r}
+#| label: offset
+data(Insurance, package = "MASS")
+fit_i <- statmod(Claims ~ offset(log(Holders)) + District + Group + Age,
+                 distrib = poisson_distrib(), data = Insurance)
+coef(fit_i)$mu
+glm_i <- glm(Claims ~ offset(log(Holders)) + District + Group + Age,
+             family = poisson, data = Insurance)
+coef(glm_i)
+```
+
+The coefficients are those of `glm()`. The factors `Group` and `Age` are
+ordered, so their coefficients are polynomial contrasts. The coefficient
+`Group.L`, for example, is the linear trend of the log-rate across the four
+sizes of the car.
+
+### A parameter with a known value
+
+Sometimes a parameter of the distribution has a value that we know, or a
+value that we want to fix. The function `fixed()` takes a distribution and
+holds some of its parameters at given values. The Student $t$ distribution
+`student_t1_distrib()` has three parameters, the location `mu`, the scale
+`sigma` and the degrees of freedom `nu`. With `nu` fixed at 4 we get a
+distribution with heavier tails than the gaussian and two free parameters:
+
+```{r}
+#| label: fixed-distrib
+fixed(student_t1_distrib(), nu = 4)
+```
+
+We use it in place of the gaussian in the second motorcycle model:
+
+```{r}
+#| label: fixed-fit
+fit_t4 <- statmod(accel ~ s(times, bspline_smooth(k = 20)) |
+                    sigma ~ s(times, bspline_smooth(k = 10)),
+                  distrib = fixed(student_t1_distrib(), nu = 4),
+                  data = mcycle)
+fit_t4
+AIC(fit1)
+AIC(fit_t4)
+```
+
+The model with $t$ errors has the same equations as `fit1`, and it has no
+equation for `nu`, because `nu` is not a parameter of the fixed
+distribution. Its cAIC is higher than the cAIC of the gaussian model, so the
+motorcycle data do not need tails heavier than the gaussian ones once the
+standard deviation changes with time.
+
+```{r}
+#| label: gate-02
+#| include: false
+assert_beyond_ok(
+  fits = list(fit0 = fit0, fit1 = fit1, reml1 = reml1, reml2 = reml2,
+              ml1 = ml1, ml2 = ml2, puro = fit_p, epil = fit_e,
+              fit1_s = fit1_s, fit0_none = fit0_none, fit0_ml = fit0_ml,
+              fit0_held = fit0_held, fit_w = fit_w, fit_big = fit_big,
+              fit_prec = fit_prec, fit_i = fit_i, fit_t4 = fit_t4),
+  ref = list(lme1 = lme1, lme1_ml = lme1_ml, lme2_ml = lme2_ml,
+             nls_p = nls_p, lm_w = lm_w, glm_i = glm_i),
+  data = list(mcycle = mcycle, puro = puro, new = new, w = w),
+  claims = list(pb = pb, pf = pf, pu = pu, cv = cv, keep = keep,
+                ciw = ciw, cil = cil, lr = lr,
+                t_sex = t_sex, pz = pz, pm = pm, pg = pg, pr = pr,
+                tests = list(wald = t_w, lr = t_l, score = t_s,
+                             gradient = t_g)))
+```

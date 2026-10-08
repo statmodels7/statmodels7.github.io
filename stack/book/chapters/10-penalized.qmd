@@ -1,0 +1,1227 @@
+# Penalized regression {#sec-penalized}
+
+```{r}
+#| label: setup-10
+#| include: false
+source("R/_setup.R")
+source("R/penalized-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+code <- function(v) {
+  v <- paste0("\x60", v, "\x60")
+  if (length(v) < 2) return(v)
+  paste(paste(v[-length(v)], collapse = ", "), "and", v[length(v)])
+}
+```
+
+A penalized regression subtracts a penalty on the coefficients from the
+log-likelihood. The penalty shrinks the estimates towards zero. Some penalties
+also set coefficients exactly to zero, and so they choose which covariates
+stay in the model. In `statmodels7` a penalty is a term of the formula. The
+terms `ridge()`, `lasso()`, `enet()`, `scad()` and `mcp()` each contain a
+block of covariates, and the penalty acts only on the coefficients of that
+block. Each penalty is minus the logarithm of a density for the coefficients,
+with its normalizing constant. The penalty of a smooth (@sec-gam) and the
+penalty of a random effect (@sec-lmm) have the same form, so one model can
+contain all three.
+
+## Ridge, lasso and elastic net {#sec-penalized-basic}
+
+The data frame `UScrime` gives the crime rate in 47 states of the USA in
+1960, together with 15 covariates [@ehrlich1973; @venables2002]. The
+covariates include the police expenditure in 1960 (`Po1`) and in 1959
+(`Po2`), the mean years of schooling (`Ed`), the income inequality (`Ineq`)
+and the probability of imprisonment (`Prob`).
+
+```{r}
+#| label: crime-data
+data(UScrime, package = "MASS")
+UScrime$lrate <- log(UScrime$y)
+xs <- ~ M + So + Ed + Po1 + Po2 + LF + M.F + Pop + NW + U1 + U2 + GDP +
+  Ineq + Prob + Time
+X <- model.matrix(xs, data = UScrime)[, -1]
+cor(UScrime$Po1, UScrime$Po2)
+```
+
+With 47 observations and 15 covariates, the least squares estimates are
+unstable. Some covariates are also strongly correlated, for example the two
+police expenditures. Let $y_i$ be the logarithm of the crime rate. The model
+is
+$$
+y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
+\mu_i = \beta_0 + \sum_{j=1}^{15} \beta_j x_{ij}.
+$$
+Let $s_j$ be the standard deviation of covariate $j$, and let
+$u_j = s_j \beta_j$. We subtract from the log-likelihood one of three
+penalties on the $u_j$:
+$$
+\begin{aligned}
+\text{ridge: } & \tfrac{1}{2}\lambda \textstyle\sum_j u_j^2
+  - \tfrac{p}{2}\log\{\lambda/(2\pi)\}, \\
+\text{lasso: } & \lambda \textstyle\sum_j \lvert u_j\rvert
+  - p\log(\lambda/2), \\
+\text{elastic net: } & \lambda \textstyle\sum_j
+  \big\{\alpha\lvert u_j\rvert + \tfrac{1}{2}(1-\alpha)u_j^2\big\}
+  + p\log Z(\lambda, \alpha).
+\end{aligned}
+$$
+Here $p = 15$, and $Z$ is the normalizing constant of the density
+$\exp[-\lambda\{\alpha\lvert u\rvert + (1-\alpha)u^2/2\}]$. The ridge
+penalty is minus the log density of a gaussian distribution with mean zero
+and precision $\lambda$ [@hoerl1970]. The lasso penalty is minus the log
+density of a Laplace distribution with rate $\lambda$ [@tibshirani1996]. The
+elastic net mixes the two [@zou2005]. The factor $s_j$ puts the covariates
+on a common scale, so that the penalty does not depend on the units of each
+covariate. We include this factor by setting `standardize = TRUE` in the
+term.
+
+### The ridge penalty
+
+```{r}
+#| label: fit-ridge
+fit_ridge <- statmod(lrate ~ ridge(xs, standardize = TRUE),
+                     distrib = gaussian1_distrib(), data = UScrime)
+summary(fit_ridge)
+```
+
+The ridge penalty has derivatives of every order, so `statmod()` estimates
+its $\lambda$ by REML, in the same way as a smoothing parameter
+(@sec-beyond-outer). The block of the ridge term reports
+$\hat\lambda = `r fmt(hyper(fit_ridge)$estimate, 1)`$ with a standard error
+and an interval. The block spends `r fmt(fit_ridge@edf$edf[2], 2)` effective
+degrees of freedom on its 15 coefficients. The ridge shrinks every
+coefficient and sets none of them to zero. The standard errors and the tests
+of the coefficients use the Bayesian variance of @sec-beyond-variances, as
+for the coefficients of a smooth. The summary prints the first ten
+coefficients of the block, and `coef(fit_ridge)` gives all of them.
+
+The package `mgcv` fits the same model with the argument `paraPen`, which
+puts a penalty on the coefficients of a matrix in the formula. Its penalty is
+$\theta\, u^\top u$, added to the residual sum of squares. This is our
+penalty multiplied by $2\sigma^2$, so its smoothing parameter is
+$\theta = \sigma^2\lambda$:
+
+```{r}
+#| label: mgcv-ridge
+UScrime$Z <- scale(X)
+g_ridge <- mgcv::gam(lrate ~ Z, data = UScrime,
+                     paraPen = list(Z = list(diag(15))), method = "REML")
+c(statmod = hyper(fit_ridge)$estimate, mgcv = g_ridge$sp / g_ridge$sig2)
+max(abs(fitted(fit_ridge) - fitted(g_ridge)))
+c(statmod = fit_ridge@criterion, mgcv = -g_ridge$gcv.ubre)
+```
+
+The two packages give the same $\lambda$, the same fitted values and the
+same REML criterion.
+
+### The lasso penalty
+
+```{r}
+#| label: fit-lasso
+fit_lasso <- statmod(lrate ~ lasso(xs, standardize = TRUE),
+                     distrib = gaussian1_distrib(), data = UScrime)
+summary(fit_lasso)
+```
+
+```{r}
+#| label: lasso-numbers
+#| include: false
+lam_l <- hyper(fit_lasso)$estimate
+sig_l <- exp(coef(fit_lasso)$sigma[[1]])
+b_l <- coef(fit_lasso)$mu[-1]
+keep_l <- colnames(X)[b_l != 0]
+zero_l <- colnames(X)[b_l == 0]
+```
+
+The lasso penalty has a kink at zero, where its derivative does not exist.
+REML needs the second derivative, so `statmod()` cannot use it here.
+Instead, `statmod()` fits the model at a sequence of values of $\lambda$. The
+sequence starts at the value that sets every coefficient to zero and goes
+down to a small value. `statmod()` then keeps the value with the smallest
+BIC (@sec-penalized-hyper). The block reports
+$\hat\lambda = `r fmt(lam_l, 2)`$ with the label `[bic]` and without a
+standard error, because $\hat\lambda$ is one value of a finite set and not
+the root of a derivative. The lasso keeps `r length(keep_l)` covariates and
+sets `r length(zero_l)` coefficients exactly to zero: `r code(zero_l)`. It
+keeps `Po1` and drops `Po2`, while the ridge shares the effect between the
+two. The effective degrees of freedom of the block are the number of
+coefficients that are not zero [@zou2007].
+
+The standard errors of the coefficients that are not zero are those of a
+model in which we knew that the other coefficients are zero. They ignore the
+selection, so they are too small, and the intervals cover less than 95% of
+the time. The line `zeros` checks the condition for a coefficient to be
+zero. At a zero coefficient, the derivative of the log-likelihood must be at
+most $\lambda s_j$ in absolute value, so the ratio on that line must be at
+most one.
+
+The package `glmnet` fits the lasso by coordinate descent [@friedman2010]. It
+minimizes
+$\tfrac{1}{2n}\sum_i (y_i - \mu_i)^2 + \lambda_g \sum_j \tilde s_j
+\lvert\beta_j\rvert$. Here $\tilde s_j$ is the standard deviation of
+covariate $j$, computed with the divisor $n$. With $\sigma$ at its estimate,
+our objective in the coefficients is
+$\tfrac{1}{2\sigma^2}\sum_i (y_i - \mu_i)^2 + \lambda\sum_j s_j\lvert
+\beta_j\rvert$. If we multiply it by $\sigma^2/n$, we obtain the objective of
+`glmnet` with $\lambda_g = \lambda\sigma^2/n \cdot s_j/\tilde s_j =
+\lambda\sigma^2/\sqrt{n(n-1)}$:
+
+```{r}
+#| label: glmnet-lasso
+n <- nrow(UScrime)
+lam_g <- hyper(fit_lasso)$estimate * exp(2 * coef(fit_lasso)$sigma[[1]]) /
+  sqrt(n * (n - 1))
+g_lasso <- glmnet::glmnet(x = X, y = UScrime$lrate, lambda = lam_g,
+                          control = list(thresh = 1e-14))
+cbind(statmod = coef(fit_lasso)$mu, glmnet = as.numeric(coef(g_lasso)))
+```
+
+The two fits agree to
+`r format(signif(max(abs(coef(fit_lasso)$mu - as.numeric(coef(g_lasso)))), 1))`.
+
+### The elastic net
+
+```{r}
+#| label: fit-enet
+fit_enet <- statmod(lrate ~ enet(xs, standardize = TRUE),
+                    distrib = gaussian1_distrib(), data = UScrime)
+hyper(fit_enet)[, c("name", "estimate", "source")]
+```
+
+```{r}
+#| label: enet-numbers
+#| include: false
+h_e <- hyper(fit_enet)
+lam_e <- h_e$estimate[h_e$name == "lambda"]
+alp_e <- h_e$estimate[h_e$name == "alpha"]
+same_e <- identical(coef(fit_enet)$mu[-1] != 0, coef(fit_lasso)$mu[-1] != 0)
+n_e <- sum(coef(fit_enet)$mu[-1] != 0)
+zero_e <- colnames(X)[coef(fit_enet)$mu[-1] == 0]
+edf_e <- fit_enet@edf$edf[2]
+```
+
+The elastic net has two hyperparameters, and `statmod()` chooses both of them
+by BIC over a grid of values (@sec-penalized-hyper). It chooses
+$\hat\lambda = `r fmt(lam_e, 2)`$ and $\hat\alpha = `r fmt(alp_e, 3)`$. With
+this value of $\alpha$, most of the penalty comes from its ridge part. The
+fit keeps `r n_e` covariates, more than the lasso, and sets only
+`r code(zero_e)` to zero. The block spends `r fmt(edf_e, 2)` effective
+degrees of freedom on these `r n_e` coefficients. The number is smaller than
+`r n_e` because the quadratic part of the penalty also shrinks the
+coefficients that are not zero. Let $A$ be the set of these coefficients,
+let $H$ be the information of the log-likelihood and let $S$ be the second
+derivative of the penalty. The effective degrees of freedom of the block are
+$\operatorname{tr}\{(H_{AA} + S_{AA})^{-1} H_{AA}\}$. For the lasso,
+$S_{AA} = 0$, and the trace equals the number of coefficients in $A$.
+
+@fig-crime shows the standardized coefficients $s_j\hat\beta_j$ of the three
+fits and of least squares.
+
+```{r}
+#| label: fig-crime
+#| fig-cap: "Standardized coefficients $s_j\\hat\\beta_j$ of the fifteen covariates of the `UScrime` data under least squares, the ridge, the lasso and the elastic net."
+#| echo: false
+#| fig-height: 5.2
+sdx <- apply(X, 2, sd)
+ols <- stats::lm(UScrime$lrate ~ X)
+std <- cbind(ols = coef(ols)[-1] * sdx, ridge = coef(fit_ridge)$mu[-1] * sdx,
+             lasso = coef(fit_lasso)$mu[-1] * sdx,
+             enet = coef(fit_enet)$mu[-1] * sdx)
+rownames(std) <- colnames(X)
+meth <- c(ols = "least squares", ridge = "ridge", lasso = "lasso",
+          enet = "elastic net")
+std_df <- data.frame(
+  covariate = factor(rep(rownames(std), times = ncol(std)),
+                     levels = rev(rownames(std))),
+  method = factor(rep(meth[colnames(std)], each = nrow(std)), levels = meth),
+  value = as.vector(std))
+ggplot(std_df, aes(x = value, y = covariate, colour = method,
+                   shape = method)) +
+  geom_vline(xintercept = 0, linetype = 2, colour = grey) +
+  geom_point(size = 2.2, stroke = 0.9) +
+  scale_colour_manual(values = c(ink, grey, chalk, rust)) +
+  scale_shape_manual(values = c(1, 16, 2, 4)) +
+  labs(x = "standardized coefficient", y = NULL)
+```
+
+### A matrix as input
+
+The first argument of a penalized term is a one-sided formula, as above, or a
+matrix. We add the matrix to the data frame as a single column with `$`,
+because `data.frame(X = X)` would split it into 15 columns. The names of its
+columns become the names of the coefficients:
+
+```{r}
+#| label: fit-matrix
+UScrime$X <- X
+fit_mat <- statmod(lrate ~ lasso(X, standardize = TRUE),
+                   distrib = gaussian1_distrib(), data = UScrime)
+max(abs(coef(fit_mat)$mu - coef(fit_lasso)$mu))
+```
+
+A matrix is useful when there are many covariates, or when the covariates
+come from another computation and have no formula. `statmod()` keeps a
+sparse matrix of the package `Matrix` sparse.
+
+### The scale of the covariates
+
+The penalty treats all the coefficients in the same way. Without the factor
+$s_j$, the fit would therefore depend on the units of the covariates. The
+covariates of `UScrime` have been rescaled to convenient numbers
+[@venables2002]. We change the units of two of them: we multiply the
+population `Pop` by 1000 and the gross domestic product `GDP` by 10, in a
+second formula of the covariates. We then fit the lasso at the same
+$\lambda$ with and without `standardize`:
+
+```{r}
+#| label: fit-units
+xs_units <- ~ M + So + Ed + Po1 + Po2 + LF + M.F + I(1000 * Pop) + NW + U1 +
+  U2 + I(10 * GDP) + Ineq + Prob + Time
+fit_s1 <- statmod(lrate ~ lasso(xs, standardize = TRUE, lambda = 17),
+                  distrib = gaussian1_distrib(), data = UScrime)
+fit_s2 <- statmod(lrate ~ lasso(xs_units, standardize = TRUE, lambda = 17),
+                  distrib = gaussian1_distrib(), data = UScrime)
+fit_r1 <- statmod(lrate ~ lasso(xs, lambda = 17),
+                  distrib = gaussian1_distrib(), data = UScrime)
+fit_r2 <- statmod(lrate ~ lasso(xs_units, lambda = 17),
+                  distrib = gaussian1_distrib(), data = UScrime)
+c(standardized = max(abs(fitted(fit_s1) - fitted(fit_s2))),
+  raw = max(abs(fitted(fit_r1) - fitted(fit_r2))))
+```
+
+With `standardize = TRUE` the two fits are the same. Without it, the fitted
+values change by up to `r fmt(max(abs(fitted(fit_r1) - fitted(fit_r2))), 3)`
+on the log scale. When we multiply a covariate by $c$, its coefficient is
+divided by $c$, and so is the penalty on that coefficient. In the new units
+the penalty on `Pop` is therefore a thousand times smaller, and the penalty on
+`GDP` ten times smaller. The default of `standardize` is `FALSE`, because a
+block of indicators, or a block of covariates on one scale, does not need it.
+
+## SCAD and MCP {#sec-penalized-scad}
+
+The lasso shrinks every coefficient that it keeps, the large ones as much as
+the small ones, so these coefficients are biased towards zero. The SCAD
+penalty [@fan2001] and the MCP penalty [@zhang2010] grow like the lasso
+penalty near zero, but they stop growing beyond a certain size of the
+coefficient. They therefore do not shrink a large coefficient. They are
+defined by their derivatives for $t \ge 0$:
+$$
+p'_{\text{SCAD}}(t) = \lambda\Big\{1(t \le \lambda)
+  + \frac{(a\lambda - t)_+}{(a - 1)\lambda}\, 1(t > \lambda)\Big\},
+\qquad
+p'_{\text{MCP}}(t) = \Big(\lambda - \frac{t}{\gamma}\Big)_+ ,
+$$
+with $a > 2$ and $\gamma > 1$. The derivative of SCAD equals $\lambda$, as
+for the lasso, up to $t = \lambda$. It then falls linearly to zero at
+$t = a\lambda$, and it is zero beyond $a\lambda$. The derivative of MCP falls
+linearly from $\lambda$ at $t = 0$ to zero at $t = \gamma\lambda$. Neither
+penalty is minus the log of a density: both are constant for large
+coefficients, so their exponential has no finite integral.
+
+The left panel of @fig-shapes shows the three penalties. The right panel
+shows their effect in the simplest problem. For one observation $z$, the
+estimate $\hat\theta$ minimizes $\tfrac12 (z - \theta)^2 + p(\lvert\theta\rvert)$.
+The lasso sets $\hat\theta$ to zero for $\lvert z\rvert \le \lambda$ and
+moves every other $z$ towards zero by $\lambda$. SCAD and MCP also set small
+values to zero, but they leave $z$ unchanged beyond $a\lambda$ and
+$\gamma\lambda$.
+
+```{r}
+#| label: fig-shapes
+#| fig-cap: "Left: the lasso, SCAD ($a = 3.7$) and MCP ($\\gamma = 3$) penalties at $\\lambda = 1$. Right: the estimate $\\hat\\theta$ that minimizes $\\frac12 (z - \\theta)^2 + p(\\lvert\\theta\\rvert)$ under each penalty, with the identity as a dotted line."
+#| echo: false
+#| fig-height: 3.6
+tt <- seq(from = 0, to = 5, length.out = 400)
+pen_lasso <- tt
+pen_scad <- ifelse(tt <= 1, tt,
+                   ifelse(tt <= 3.7, (2 * 3.7 * tt - tt^2 - 1) / (2 * 2.7), 4.7 / 2))
+pen_mcp <- ifelse(tt <= 3, tt - tt^2 / 6, 1.5)
+zz <- seq(from = -5, to = 5, length.out = 801)
+soft <- sign(zz) * pmax(abs(zz) - 1, 0)
+th_scad <- ifelse(abs(zz) <= 2, soft,
+                  ifelse(abs(zz) <= 3.7, (2.7 * zz - sign(zz) * 3.7) / 1.7, zz))
+th_mcp <- ifelse(abs(zz) <= 3, soft / (1 - 1 / 3), zz)
+pan_shp <- c('"penalty"~p(abs(theta))~"against"~abs(theta)',
+             'hat(theta)~"against"~z')
+pen_names <- c("lasso", "SCAD", "MCP")
+shp_df <- rbind(
+  data.frame(panel = pan_shp[1], x = tt, y = c(pen_lasso, pen_scad, pen_mcp),
+             penalty = rep(pen_names, each = length(tt))),
+  data.frame(panel = pan_shp[2], x = zz, y = c(soft, th_scad, th_mcp),
+             penalty = rep(pen_names, each = length(zz))))
+shp_df$panel <- factor(shp_df$panel, levels = pan_shp)
+shp_df$penalty <- factor(shp_df$penalty, levels = pen_names)
+id_line <- data.frame(panel = factor(pan_shp[2], levels = pan_shp))
+ggplot(shp_df, aes(x = x, y = y)) +
+  geom_abline(data = id_line, aes(intercept = 0, slope = 1), linetype = 3,
+              colour = grey) +
+  geom_line(aes(colour = penalty, linetype = penalty), linewidth = 0.8) +
+  facet_wrap(~panel, nrow = 1, scales = "free", labeller = label_parsed) +
+  scale_colour_manual(values = c(chalk, rust, ink)) +
+  scale_linetype_manual(values = c(1, 2, 4)) +
+  labs(x = NULL, y = NULL)
+```
+
+The two authors define the shape parameters $a$ and $\gamma$ for the problem
+of the right panel, in which the loss $\tfrac12 (z - \theta)^2$ has
+curvature one. A regression is different. Fix every coefficient except
+$\beta_j$ at its estimate. As a function of $\beta_j$ alone, minus the
+log-likelihood is then close to a parabola
+$\tfrac12 c_j (\beta_j - z_j)^2$ plus a constant. Here $z_j$ is the value of
+$\beta_j$ at the minimum of the parabola, that is, the estimate of $\beta_j$
+without the penalty when the other coefficients are fixed. The curvature of
+the parabola is
+$$
+c_j = \sum_{i=1}^{n} w_i (x_{ij} - \bar x_j)^2 ,
+$$
+where $w_i$ is the information of observation $i$ in the equation that
+contains $\beta_j$. For a gaussian mean, $w_i = 1/\sigma^2$. So $c_j$ plays
+the role of the curvature one in the problem of the right panel.
+`statmodels7` therefore uses the penalty
+$c_j\, p_{\lambda/c_j}(\lvert\beta_j\rvert)$, with $c_j$ computed at the
+fitted coefficients. Under `standardize = TRUE` the penalty acts on
+$s_j\beta_j$, and $c_j$ is divided by $s_j^2$. The derivative of this penalty
+at zero is $\lambda$, as for the lasso. The penalty stops growing at
+$\lvert\beta_j\rvert = a\lambda/c_j$, and the lasso threshold of the same
+problem is $\lambda/c_j$. The ratio between the two points is $a$ for every
+coefficient, whatever the units of the covariate and whatever the
+distribution. With this scaling the defaults of the two authors, $a = 3.7$
+and $\gamma = 3$, have the meaning that they have in their papers.
+
+We fit SCAD and MCP with their default shape parameters:
+
+```{r}
+#| label: fit-scad
+fit_scad <- statmod(lrate ~ scad(xs, standardize = TRUE),
+                    distrib = gaussian1_distrib(), data = UScrime)
+summary(fit_scad)
+```
+
+```{r}
+#| label: fit-mcp
+fit_mcp <- statmod(lrate ~ mcp(xs, standardize = TRUE),
+                   distrib = gaussian1_distrib(), data = UScrime)
+summary(fit_mcp)
+```
+
+```{r}
+#| label: scad-numbers
+#| include: false
+on_s <- coef(fit_scad)$mu[-1] != 0
+keep_s <- colnames(X)[on_s]
+on_m <- coef(fit_mcp)$mu[-1] != 0
+keep_m <- colnames(X)[on_m]
+only_l <- setdiff(keep_l, keep_s)
+only_s <- setdiff(keep_s, keep_l)
+lam_mcp <- hyper(fit_mcp)$estimate[1]
+c_mcp <- (n - 1) / exp(2 * coef(fit_mcp)$sigma[[1]])
+edf_s <- fit_scad@edf$edf[2]
+edf_m <- fit_mcp@edf$edf[2]
+```
+
+In both summaries the shape parameter has the label `[fixed]`, because we
+did not ask `statmod()` to estimate it. Only $\lambda$ is chosen by BIC:
+$\hat\lambda = `r fmt(hyper(fit_scad)$estimate[1], 2)`$ for SCAD and
+$\hat\lambda = `r fmt(lam_mcp, 2)`$ for MCP. SCAD keeps `r length(keep_s)`
+covariates. Compared with the lasso, it drops `r code(only_l)` and adds
+`r code(only_s)`. MCP keeps `r length(keep_m)` covariates: `r code(keep_m)`.
+The SCAD block spends `r fmt(edf_s, 2)` effective degrees of freedom on its
+`r length(keep_s)` coefficients. The MCP block spends `r fmt(edf_m, 2)` on
+its `r length(keep_m)` coefficients, which is more than one per
+coefficient. We explain the reason below. The estimates of `Po1`, `Ed`,
+`Ineq` and `M` are similar in the two fits, and the coefficient of `Prob`
+is less certain under MCP than under SCAD.
+
+The effective degrees of freedom of MCP depend on where each coefficient
+lies. Under `standardize = TRUE` and a gaussian mean, $c_j/s_j^2$ equals
+$(n-1)/\sigma^2$ for every covariate. On the scale of $u_j = s_j\beta_j$,
+the MCP penalty therefore stops growing at
+$\gamma\hat\lambda\hat\sigma^2/(n-1) = `r fmt(3 * lam_mcp / c_mcp, 4)`$.
+Beyond this point the derivative of the penalty is zero. At the fit, the
+derivative of the log-likelihood in a coefficient beyond this point must then
+be zero too, as in least squares. Inside the point, the derivative of the
+log-likelihood equals the derivative of the penalty, which on this scale is
+$\lambda - c\lvert u_j\rvert/\gamma$ with $c = (n-1)/\sigma^2$. We compute
+both derivatives for the six coefficients that MCP keeps:
+
+```{r}
+#| label: mcp-score
+u_m <- coef(fit_mcp)$mu[-1] * apply(X, 2, sd)
+r_m <- UScrime$lrate - fitted(fit_mcp)
+score_u <- crossprod(scale(X, center = TRUE, scale = FALSE), r_m) /
+  exp(2 * coef(fit_mcp)$sigma[[1]]) / apply(X, 2, sd)
+pen_u <- pmax(lam_mcp - c_mcp * abs(u_m) / 3, 0) * sign(u_m)
+round(cbind(u = u_m, score = score_u[, 1], penalty = pen_u)[on_m, ], 4)
+```
+
+Four coefficients lie beyond the point. Their score is zero, so MCP does not
+shrink them at all. The coefficients of
+`r code(keep_m[abs(u_m[on_m]) < 3 * lam_mcp / c_mcp])` lie inside the
+point. Their score equals the derivative of the penalty, so MCP shrinks
+them. In this region the second derivative of the penalty is negative, so
+the trace $\operatorname{tr}\{(H_{AA} + S_{AA})^{-1} H_{AA}\}$ counts each of
+these two coefficients as more than one parameter. This is why the MCP block
+spends more effective degrees of freedom than it has coefficients. For SCAD
+the corresponding point is $a\lambda/c_j$ with $a = 3.7$, further from zero,
+and on these data no SCAD coefficient lies in the region where its penalty
+bends, so its effective degrees of freedom equal its number of coefficients.
+
+The package `ncvreg` fits SCAD and MCP by coordinate descent along a sequence
+of values of $\lambda$ [@breheny2011]. It minimizes
+$\tfrac{1}{2n}\sum_i (y_i - \mu_i)^2 + \sum_j p_{\lambda_n}(\lvert
+v_j\rvert)$, where $v_j = \tilde s_j\beta_j$ and the columns are standardized
+with the divisor $n$. Under `standardize = TRUE` and a gaussian mean,
+$c_j = (n-1)/\sigma^2$. If we multiply our objective by $\sigma^2/n$ and
+write it in terms of $v_j$, we obtain the objective of `ncvreg` with
+$\lambda_n = \lambda\sigma^2/\sqrt{n(n-1)}$ and the same $a$ or $\gamma$:
+
+```{r}
+#| label: ncvreg-scad
+s_n <- apply(X, 2, sd) * sqrt((n - 1) / n)
+Zn <- scale(X, center = TRUE, scale = s_n)
+yc <- UScrime$lrate - mean(UScrime$lrate)
+lam_s <- hyper(fit_scad)$estimate[1] * exp(2 * coef(fit_scad)$sigma[[1]]) /
+  sqrt(n * (n - 1))
+ncv_scad <- ncvreg::ncvfit(X = Zn, y = yc, penalty = "SCAD", gamma = 3.7,
+                           lambda = lam_s, eps = 1e-12, max.iter = 1e6)
+max(abs(ncv_scad$beta / s_n - coef(fit_scad)$mu[-1]))
+```
+
+The two SCAD fits agree. SCAD and MCP are not convex, so their objective
+can have several local minima. A coordinate descent can reach a different
+minimum when it starts from a different point. `statmod()` fits each value of
+$\lambda$ starting from the fit at the previous, larger value. We compute the
+MCP fit of `ncvreg` in two ways: along a sequence of values of $\lambda$ that
+ends at ours, as `statmod()` does, and with `ncvfit()` started from zero.
+
+```{r}
+#| label: ncvreg-mcp
+lam_m <- hyper(fit_mcp)$estimate[1] * exp(2 * coef(fit_mcp)$sigma[[1]]) /
+  sqrt(n * (n - 1))
+lam_top <- max(abs(crossprod(Zn, yc))) / n
+lam_seq <- exp(seq(from = log(lam_top), to = log(lam_m), length.out = 100))
+ncv_path <- ncvreg::ncvreg(X = Zn, y = yc, penalty = "MCP", gamma = 3,
+                           lambda = lam_seq, eps = 1e-12, max.iter = 1e6)
+ncv_zero <- ncvreg::ncvfit(X = Zn, y = yc, penalty = "MCP", gamma = 3,
+                           lambda = lam_m, eps = 1e-12, max.iter = 1e6)
+v_mcp <- coef(fit_mcp)$mu[-1] * s_n
+round(cbind(statmod = v_mcp, path = ncv_path$beta[-1, 100],
+            from_zero = ncv_zero$beta), 4)
+```
+
+```{r}
+#| label: ncvreg-obj
+#| include: false
+obj_mcp <- function(v) {
+  sum((yc - Zn %*% v)^2) / (2 * n) +
+    sum(ifelse(abs(v) <= 3 * lam_m, lam_m * abs(v) - v^2 / 6, 1.5 * lam_m^2))
+}
+o_ours <- obj_mcp(v_mcp)
+o_zero <- obj_mcp(ncv_zero$beta)
+```
+
+On these data both computations of `ncvreg` reach our estimates. On other
+data the computation from zero can end in a different local minimum. Neither
+package searches for a lower minimum than the one that its sequence of
+starting points reaches.
+
+### The shape parameter
+
+The shape parameter is a hyperparameter like $\lambda$. If we give it one
+number, as the default does, `statmod()` keeps it fixed at that value. If we
+give it several numbers, `statmod()` adds them to the grid of the path. If we
+give `NULL`, `statmod()` builds a grid of values itself. We give SCAD four
+values of $a$:
+
+```{r}
+#| label: fit-scad-a
+fit_scad_a <- statmod(lrate ~ scad(xs, standardize = TRUE,
+                                   a = c(2.5, 3.7, 8, 30)),
+                      distrib = gaussian1_distrib(), data = UScrime)
+hyper(fit_scad_a)[, c("name", "estimate", "source")]
+```
+
+```{r}
+#| label: scad-a-numbers
+#| include: false
+pa <- fit_scad_a@history$outer
+best_a <- tapply(pa$criterion, factor(pa$setting, levels = unique(pa$setting)), min)
+```
+
+For each of the four values of $a$, the path runs over 25 values of
+$\lambda$, so `statmod()` fits the model `r nrow(pa)` times. The smallest BIC
+for each value of $a$ is
+
+```{r}
+#| label: scad-a-best
+round(best_a, 3)
+```
+
+The smallest of these is at
+$a = `r fmt(hyper(fit_scad_a)$estimate[2], 1)`$, the default. The values 2.5
+and 3.7 give nearly the same BIC. The larger values of $a$ make SCAD closer
+to the lasso, so they shrink the large coefficients more, and they give a
+larger BIC.
+
+## The hyperparameters {#sec-penalized-hyper}
+
+If a penalty has derivatives of every order, as the ridge does, `statmod()`
+estimates its hyperparameter by REML, together with the other smooth
+hyperparameters of the model (@sec-beyond-outer). If a penalty has a kink,
+`statmod()` chooses its hyperparameters along a path. The path starts at the
+value of $\lambda$ that sets every coefficient of the block to zero. It goes
+down geometrically to a fraction `min_ratio` of this value, `1e-4` by
+default, in `n_lambda` steps, 25 by default. At each value of $\lambda$,
+`statmod()` fits the model starting from the fit at the previous value. It
+then computes the criterion that we set with the argument `sparse_criterion`
+of `statmod()`, BIC by default. In the end it keeps the value with the
+smallest criterion. The component `history$outer` of the fit contains the
+path:
+
+```{r}
+#| label: path-lasso
+fit_lasso@history$outer[1:10, c("value", "criterion")]
+```
+
+At the first value of the path every coefficient of the block is zero, and
+the first covariate enters at the second value. @fig-path shows the
+coefficients and the BIC along the whole path.
+
+```{r}
+#| label: path-coef
+#| include: false
+# the coefficients and sigma at each value of a path, each fit started from
+# the previous one as statmod() does
+path_coefs <- function(lams) {
+  B <- matrix(NA_real_, length(lams), ncol(X),
+              dimnames = list(NULL, colnames(X)))
+  sg <- numeric(length(lams))
+  prev <- NULL
+  for (k in seq_along(lams)) {
+    st <- if (is.null(prev)) start_intercepts() else start_from(prev)
+    f_k <- statmod(lrate ~ lasso(xs, standardize = TRUE, lambda = lams[k]),
+                   distrib = gaussian1_distrib(), data = UScrime, start = st)
+    B[k, ] <- coef(f_k)$mu[-1] * apply(X, 2, sd)
+    sg[k] <- exp(coef(f_k)$sigma[[1]])
+    prev <- f_k
+  }
+  list(B = B, sigma = sg)
+}
+lams <- fit_lasso@history$outer$value
+pc25 <- path_coefs(lams)
+B_path <- pc25$B
+sig_path <- pc25$sigma
+n_path <- rowSums(abs(B_path) > 1e-6)
+lam_eff <- lams * sig_path^2 / sqrt(n * (n - 1))
+i_jump <- which(diff(n_path) == max(diff(n_path)))[1]
+```
+
+```{r}
+#| label: fig-path
+#| fig-cap: "The lasso on the `UScrime` data along its path of 25 values of $\\lambda$. Top: the standardized coefficients $s_j\\hat\\beta_j$, with `Po1` and `Prob` in colour. Bottom: BIC. The vertical line marks the chosen value."
+#| echo: false
+#| fig-height: 6
+pan_path <- c("standardized coefficient", "BIC")
+on_panel <- function(df, k) {
+  df$panel <- factor(pan_path[k], levels = pan_path)
+  df
+}
+path_df <- function(lam, B) {
+  nm <- rep(colnames(B), each = nrow(B))
+  grp <- ifelse(nm %in% c("Po1", "Prob"), nm, "other covariates")
+  on_panel(data.frame(x = log(rep(lam, times = ncol(B))), y = as.vector(B),
+                      coefficient = nm,
+                      group = factor(grp, levels = c("Po1", "Prob",
+                                                     "other covariates"))),
+           k = 1)
+}
+path_plot <- function(cf) {
+  ggplot(mapping = aes(x = x, y = y)) +
+    geom_hline(data = on_panel(data.frame(y = 0), k = 1),
+               aes(yintercept = y), linetype = 3, colour = grey) +
+    geom_line(data = cf[cf$group == "other covariates", ],
+              aes(group = coefficient, colour = group, linewidth = group)) +
+    geom_line(data = cf[cf$group != "other covariates", ],
+              aes(group = coefficient, colour = group, linewidth = group)) +
+    facet_wrap(~panel, ncol = 1, scales = "free_y", strip.position = "left") +
+    scale_colour_manual(values = c(Po1 = chalk, Prob = rust,
+                                   "other covariates" = grey),
+                        breaks = levels(cf$group)) +
+    scale_linewidth_manual(values = c(Po1 = 0.9, Prob = 0.9,
+                                      "other covariates" = 0.4),
+                           breaks = levels(cf$group)) +
+    guides(colour = guide_legend(order = 1),
+           linewidth = guide_legend(order = 1)) +
+    labs(x = expression(log(lambda)), y = NULL) +
+    theme(strip.placement = "outside", strip.background = element_blank(),
+          strip.text = element_text(size = rel(1)))
+}
+bic_25 <- on_panel(data.frame(x = log(lams),
+                              y = fit_lasso@history$outer$criterion,
+                              path = "25 values"), k = 2)
+path_plot(path_df(lams, B_path)) +
+  geom_vline(xintercept = log(lam_l), linetype = 2, colour = ink) +
+  geom_line(data = bic_25, colour = ink) +
+  geom_point(data = bic_25, colour = ink, size = 1.2)
+```
+
+Between $\lambda = `r fmt(lams[i_jump], 1)`$ and
+$\lambda = `r fmt(lams[i_jump + 1], 1)`$, which are two neighbouring values
+of the path, the number of covariates in the model grows from
+`r n_path[i_jump]` to `r n_path[i_jump + 1]`. The cause is $\sigma$, which
+`statmod()` estimates together with the coefficients. The comparison with
+`glmnet` showed that the selection depends on $\lambda\sigma^2$, not on
+$\lambda$ alone. When a covariate enters, $\hat\sigma$ falls. Then
+$\lambda\hat\sigma^2$ falls more than $\lambda$, and more covariates can
+enter. Between the two values, $\lambda$ falls by a factor of
+`r fmt(lams[i_jump] / lams[i_jump + 1], 2)`, and $\lambda\hat\sigma^2$ falls
+by a factor of `r fmt(lam_eff[i_jump] / lam_eff[i_jump + 1], 2)`. For the same
+reason BIC is not a smooth function of $\lambda$. It jumps by
+$\log n = `r fmt(log(n), 2)`$ each time a coefficient enters, and the value
+that it chooses depends on where the points of the path fall. We fit the
+lasso again with a path of 100 values:
+
+```{r}
+#| label: fit-lasso-100
+fit_lasso_100 <- statmod(lrate ~ lasso(xs, standardize = TRUE, n_lambda = 100),
+                         distrib = gaussian1_distrib(), data = UScrime)
+c(n25 = hyper(fit_lasso)$estimate, n100 = hyper(fit_lasso_100)$estimate)
+c(n25 = BIC(fit_lasso), n100 = BIC(fit_lasso_100))
+c(n25 = sum(coef(fit_lasso)$mu[-1] != 0),
+  n100 = sum(coef(fit_lasso_100)$mu[-1] != 0))
+```
+
+```{r}
+#| label: path-coef-100
+#| include: false
+lams_100 <- fit_lasso_100@history$outer$value
+pc100 <- path_coefs(lams_100)
+lam_100 <- hyper(fit_lasso_100)$estimate
+```
+
+@fig-path-100 shows the coefficients along the path of 100 values and the
+BIC of both paths. The path of 100 values visits values between the 25
+points, and some of these values have a smaller BIC. The finer path chooses
+$\hat\lambda = `r fmt(lam_100, 2)`$ with a smaller BIC and the same number of
+covariates. Both fits are reasonable. The difference shows that the chosen
+$\lambda$ is uncertain: many values have nearly the same criterion.
+
+```{r}
+#| label: fig-path-100
+#| fig-cap: "The lasso on the `UScrime` data along a path of 100 values of $\\lambda$. Top: the standardized coefficients, with `Po1` and `Prob` in colour. Bottom: BIC along the path of 100 values (line) and of 25 values (points). The vertical lines mark the values chosen by the two paths."
+#| echo: false
+#| fig-height: 6
+bic_100 <- on_panel(data.frame(x = log(lams_100),
+                               y = fit_lasso_100@history$outer$criterion,
+                               path = "100 values"), k = 2)
+path_plot(path_df(lams_100, pc100$B)) +
+  geom_vline(xintercept = log(lam_l), linetype = 2, colour = ink) +
+  geom_vline(xintercept = log(lam_100), linetype = 3, colour = ink) +
+  geom_line(data = bic_100, aes(linetype = path), colour = ink) +
+  geom_point(data = bic_25, aes(shape = path), colour = ink, size = 1.2) +
+  scale_linetype_manual(values = 1, guide = guide_legend(order = 2)) +
+  scale_shape_manual(values = 16, guide = guide_legend(order = 3))
+```
+
+### Held and written values
+
+If we give the hyperparameter one number, `statmod()` holds it fixed at that
+value. If we give it several numbers, `statmod()` uses them as the values of
+the path:
+
+```{r}
+#| label: fit-held
+fit_held <- statmod(lrate ~ lasso(xs, standardize = TRUE, lambda = 40),
+                    distrib = gaussian1_distrib(), data = UScrime)
+hyper(fit_held)[, c("name", "estimate", "held", "source")]
+fit_grid <- statmod(lrate ~ lasso(xs, standardize = TRUE,
+                                  lambda = c(5, 10, 20, 40, 80)),
+                    distrib = gaussian1_distrib(), data = UScrime)
+fit_grid@history$outer[, c("value", "criterion")]
+hyper(fit_grid)[, c("name", "estimate", "held", "source")]
+```
+
+The fixed value has the source `fixed`, and at $\lambda = 40$ the fit keeps
+`r sum(coef(fit_held)$mu[-1] != 0)` covariate. `statmod()` visits the
+written values from the largest to the smallest and keeps the value with the
+smallest BIC, $\lambda = `r fmt(hyper(fit_grid)$estimate, 0)`$.
+
+### Two hyperparameters
+
+The elastic net has two hyperparameters. By default `statmod()` builds a path
+of 25 values of $\lambda$ for each of 5 values of $\alpha$, and it computes
+the criterion at all 125 pairs (`search = "grid"`). For each $\alpha$, the
+path of $\lambda$ starts at the value that sets every coefficient to zero.
+This value is $\lambda_{\max}/\alpha$, where $\lambda_{\max}$ is the starting
+value of the lasso, so the paths of different values of $\alpha$ cover
+different ranges. With `search = "cyclic"`, `statmod()` instead changes one
+hyperparameter at a time, with the other fixed, until neither changes:
+
+```{r}
+#| label: fit-enet-cyclic
+fit_enet_c <- statmod(lrate ~ enet(xs, standardize = TRUE, search = "cyclic"),
+                      distrib = gaussian1_distrib(), data = UScrime)
+c(grid = nrow(fit_enet@history$outer), cyclic = nrow(fit_enet_c@history$outer))
+rbind(grid = hyper(fit_enet)$estimate, cyclic = hyper(fit_enet_c)$estimate)
+c(grid = BIC(fit_enet), cyclic = BIC(fit_enet_c))
+```
+
+The cyclic search computes the criterion at
+`r nrow(fit_enet_c@history$outer)` pairs, against the
+`r nrow(fit_enet@history$outer)` pairs of the grid, and it stops at a pair
+with a larger BIC. The size of the kink of the elastic net penalty is
+$\lambda\alpha$, so the criterion has a valley along the curves where
+$\lambda\alpha$ is constant. A search that changes one coordinate at a time
+moves along such a valley in small steps. The grid is therefore the safer
+default. The arguments `n_lambda` and `n_alpha` set the size of the grid.
+
+## Penalties on sigma and nu {#sec-penalized-sigma}
+
+Every parameter of the distribution can have its own equation, and a
+penalized term can enter any of these equations. We simulate 300
+observations with eight covariates. The mean depends on the first two
+covariates, and the standard deviation depends on the third and the fourth:
+$$
+y_i \sim \mathrm{N}(\mu_i, \sigma_i), \qquad
+\mu_i = 1 + x_{i1} - 0.5\,x_{i2}, \qquad
+\log\sigma_i = -0.5 + 0.6\,x_{i3} - 0.3\,x_{i4}.
+$$
+
+```{r}
+#| label: sim-sigma
+set.seed(10)
+sim <- as.data.frame(matrix(rnorm(300 * 8), nrow = 300, ncol = 8))
+names(sim) <- paste0("x", 1:8)
+sim$y <- rnorm(300, mean = 1 + sim$x1 - 0.5 * sim$x2,
+               sd = exp(-0.5 + 0.6 * sim$x3 - 0.3 * sim$x4))
+xx <- ~ x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8
+```
+
+The covariates are already on one scale, so we do not standardize them. We
+fit two models. The first has a lasso on the mean and a constant $\sigma$.
+The second has a lasso on the mean and a lasso on $\log\sigma$:
+
+```{r}
+#| label: fit-sigma
+fit_sig0 <- statmod(y ~ lasso(xx), distrib = gaussian1_distrib(), data = sim)
+fit_sig1 <- statmod(y ~ lasso(xx) | sigma ~ lasso(xx),
+                  distrib = gaussian1_distrib(), data = sim)
+summary(fit_sig1)
+```
+
+The summary has a lasso block in each equation, and each block has its own
+$\lambda$, chosen along its own path. `statmod()` alternates between the two
+paths. It chooses $\lambda$ for the mean with the other $\lambda$ fixed, then
+the $\lambda$ of $\log\sigma$ with the first fixed, and it repeats this until
+neither value changes. The lasso of $\log\sigma$ keeps `x3` and `x4`, with
+coefficients `r fmt(coef(fit_sig1)$sigma[["lasso.x3"]], 3)` and
+`r fmt(coef(fit_sig1)$sigma[["lasso.x4"]], 3)` against the true values 0.6
+and $-0.3$, and it sets the other six coefficients to zero. The lasso of the
+mean keeps only `x1` and `x2`. The model with a constant $\sigma$ also keeps
+covariates that are not in the mean:
+
+```{r}
+#| label: compare-sigma
+round(cbind(constant = coef(fit_sig0)$mu, modelled = coef(fit_sig1)$mu), 3)
+c(constant = BIC(fit_sig0), modelled = BIC(fit_sig1))
+```
+
+With a constant $\sigma$, the observations with a large variance have the
+same weight as the others. To fit them, the lasso keeps
+`r code(setdiff(names(which(coef(fit_sig0)$mu[-1] != 0)), c("lasso.x1", "lasso.x2")))`
+in the mean. The model of $\sigma$ removes these covariates and lowers BIC by
+`r fmt(BIC(fit_sig0) - BIC(fit_sig1), 0)`.
+
+The degrees of freedom $\nu$ of a Student $t$ distribution can also have a
+penalized equation. We simulate a response with scale $\exp(-0.5)$ and
+$\log\nu_i = 1 + 0.8\,x_{i5}$, so the tails are heavier where $x_5$ is
+small, and we put a lasso on $\log\nu$:
+
+```{r}
+#| label: fit-nu
+sim$yt <- 1 + sim$x1 + exp(-0.5) * rt(300, df = exp(1 + 0.8 * sim$x5))
+fit_nu <- statmod(yt ~ x1 | nu ~ lasso(xx),
+                  distrib = student_t1_distrib(), data = sim)
+round(coef(fit_nu)$nu, 3)
+```
+
+The lasso keeps `r code(names(which(coef(fit_nu)$nu[-1] != 0)))`, with
+coefficient `r fmt(coef(fit_nu)$nu[coef(fit_nu)$nu != 0][-1], 2)` against the
+true value 0.8. Like every coefficient that the lasso keeps, this
+coefficient is shrunk towards zero. In addition, $\nu$ is hard to estimate
+from 300 observations, because only the tails carry information about it.
+
+## A penalty beside smooths and random effects {#sec-penalized-mixed}
+
+A penalized term is one term of the formula, so a model can contain it
+together with a smooth and a random effect. The data frame `Boston` gives the
+median value of the houses in 506 areas of Boston, with 13 covariates
+[@harrison1978]. The proportion of the population of lower status, `lstat`,
+has a strong and curved effect on the logarithm of the value. We give `lstat`
+a smooth and put a lasso on the other twelve covariates:
+$$
+\log y_i = \beta_0 + f(\mathrm{lstat}_i) + \sum_{j=1}^{12} \beta_j x_{ij} +
+\varepsilon_i .
+$$
+
+```{r}
+#| label: fit-boston
+data(Boston, package = "MASS")
+Boston$lmedv <- log(Boston$medv)
+bx <- ~ crim + zn + indus + chas + nox + rm + age + dis + rad + tax +
+  ptratio + black
+fit_b <- statmod(lmedv ~ s(lstat, bspline_smooth(k = 6)) +
+                   lasso(bx, standardize = TRUE, n_lambda = 12),
+                 distrib = gaussian1_distrib(), data = Boston)
+summary(fit_b)
+```
+
+The model has two hyperparameters of two kinds. `statmod()` estimates the
+smoothing parameter of `s(lstat)` by REML and chooses the $\lambda$ of the
+lasso by BIC along its path. At each value of $\lambda$ on the path,
+`statmod()` estimates the smoothing parameter again. The path therefore costs
+one REML fit for each of its values, and we use a path of 12 values to keep
+the computation short. The lasso keeps
+`r sum(coef(fit_b)$mu[grepl("^lasso", names(coef(fit_b)$mu))] != 0)` of the
+12 covariates and sets
+`r code(sub("lasso.", "", names(which(coef(fit_b)$mu[grepl("^lasso", names(coef(fit_b)$mu))] == 0)), fixed = TRUE))`
+to zero. The smooth spends `r fmt(fit_b@edf$edf[2], 2)` effective degrees of
+freedom on its 5 coefficients. Its free straight line `lin` is the slope of
+the linear part of $f$ per standard deviation of `lstat`.
+
+Suppose we fix the smooth and the intercept at their fitted values. The lasso
+coefficients then solve a lasso problem in which the smooth and the intercept
+are a fixed offset. `glmnet()` accepts an offset, so we can compare the lasso
+block with `glmnet`, using the conversion of @sec-penalized-basic:
+
+```{r}
+#| label: glmnet-boston
+X_b <- as.matrix(model.matrix(fit_b))
+is_l <- startsWith(colnames(X_b), "lasso.")
+off_b <- drop(X_b[, !is_l] %*% coef(fit_b)$mu[!is_l])
+n_b <- nrow(Boston)
+lam_b <- hyper(fit_b)$estimate[2] * exp(2 * coef(fit_b)$sigma[[1]]) /
+  sqrt(n_b * (n_b - 1))
+g_b <- glmnet::glmnet(x = model.matrix(bx, data = Boston)[, -1],
+                      y = Boston$lmedv, offset = off_b, lambda = lam_b,
+                      intercept = FALSE, control = list(thresh = 1e-14))
+max(abs(as.numeric(coef(g_b))[-1] - coef(fit_b)$mu[is_l]))
+```
+
+@fig-boston shows the smooth of `lstat`, with the other covariates at their
+medians.
+
+```{r}
+#| label: fig-boston
+#| fig-cap: "Logarithm of the median value of the houses against the proportion of the population of lower status, with the fitted curve and its 95% band, the other covariates at their medians."
+#| echo: false
+#| fig-height: 3.8
+lg <- seq(from = min(Boston$lstat), to = max(Boston$lstat), length.out = 100)
+nd_b <- data.frame(lstat = lg)
+for (v in all.vars(bx)) nd_b[[v]] <- median(Boston[[v]])
+pb <- predict(fit_b, what = "mu", newdata = nd_b, se = TRUE)
+band_b <- data.frame(lstat = lg, fit = pb$fit, lower = pb$lower,
+                     upper = pb$upper)
+ggplot(Boston, aes(x = lstat, y = lmedv)) +
+  geom_point(colour = book_grey, size = 0.6) +
+  geom_ribbon(data = band_b, aes(x = lstat, ymin = lower, ymax = upper,
+                                 fill = "95% band"),
+              inherit.aes = FALSE, alpha = 0.2) +
+  geom_line(data = band_b, aes(x = lstat, y = fit, colour = "fitted curve"),
+            linewidth = 0.9) +
+  scale_colour_manual(values = chalk) +
+  scale_fill_manual(values = chalk) +
+  labs(x = "lstat (%)", y = "log median value")
+```
+
+A random effect works in the same way. The data frame `Cars93`, which we
+used in @sec-distribs-skew, gives the list price of 93 cars made by 32
+manufacturers. The cars of one manufacturer share a price level that their
+characteristics do not explain. We therefore model the logarithm of the
+price with a lasso on twelve characteristics of the car and a random
+intercept for the manufacturer:
+$$
+\log y_i = \beta_0 + \sum_{j=1}^{12} \beta_j x_{ij} + b_{m(i)} +
+\varepsilon_i , \qquad b_m \sim \mathrm{N}(0, \sigma_b) .
+$$
+
+```{r}
+#| label: fit-cars
+data(Cars93, package = "MASS")
+Cars93$lprice <- log(Cars93$Price)
+cx <- ~ Horsepower + EngineSize + RPM + MPG.city + Fuel.tank.capacity +
+  Passengers + Length + Wheelbase + Width + Turn.circle + Weight + Rev.per.mile
+fit_c <- statmod(lprice ~ lasso(cx, standardize = TRUE, n_lambda = 12) +
+                   random(~ 1 | Manufacturer),
+                 distrib = gaussian1_distrib(), data = Cars93)
+summary(fit_c)
+```
+
+```{r}
+#| label: cars-numbers
+#| include: false
+fit_c0 <- statmod(lprice ~ lasso(cx, standardize = TRUE, n_lambda = 12),
+                  distrib = gaussian1_distrib(), data = Cars93)
+names_c <- all.vars(cx)
+b_c <- coef(fit_c)$mu[paste0("lasso.", names_c)]
+b_c0 <- coef(fit_c0)$mu[paste0("lasso.", names_c)]
+drop_c <- names_c[b_c == 0 & b_c0 != 0]
+sd_b <- hyper(fit_c)$estimate[2]
+```
+
+`statmod()` estimates the standard deviation of the random intercept by
+REML, $\hat\sigma_b = `r fmt(sd_b, 3)`$, and chooses the $\lambda$ of the
+lasso by BIC along its path. At each value of $\lambda$ it estimates
+$\sigma_b$ again. On the log scale, this value of $\hat\sigma_b$ means that
+the price level of a manufacturer typically differs from the average by a
+factor of about $\exp(\hat\sigma_b) = `r fmt(exp(sd_b), 2)`$. The lasso
+keeps `r sum(b_c != 0)` of the 12 characteristics. Without the random
+intercept it keeps `r sum(b_c0 != 0)`, and these include `r code(drop_c)`.
+Part of what these covariates describe is a difference between
+manufacturers, and in the model with the random intercept this difference
+goes into the random intercept.
+
+As for the smooth, we fix the intercept and the random effects at their
+fitted values. The lasso block then solves a lasso problem with an offset,
+and we compare it with `glmnet`:
+
+```{r}
+#| label: glmnet-cars
+X_c <- as.matrix(model.matrix(fit_c))
+is_c <- startsWith(colnames(X_c), "lasso.")
+off_c <- drop(X_c[, !is_c] %*% coef(fit_c)$mu[!is_c])
+n_c <- nrow(Cars93)
+lam_c <- hyper(fit_c)$estimate[1] * exp(2 * coef(fit_c)$sigma[[1]]) /
+  sqrt(n_c * (n_c - 1))
+g_c <- glmnet::glmnet(x = model.matrix(cx, data = Cars93)[, -1],
+                      y = Cars93$lprice, offset = off_c, lambda = lam_c,
+                      intercept = FALSE, control = list(thresh = 1e-14))
+max(abs(as.numeric(coef(g_c))[-1] - coef(fit_c)$mu[is_c]))
+```
+
+## Shared hyperparameters {#sec-penalized-id}
+
+The argument `id` of @sec-gamm-id works for every penalized term. Terms with
+the same `id` share one value of the hyperparameter. We split the 15
+covariates of `UScrime` into two blocks. The first block contains the
+economy and the police expenditure, and the second contains the population
+and the justice system. We put a ridge on each block:
+
+```{r}
+#| label: fit-id
+xa <- ~ Po1 + Po2 + LF + U1 + U2 + GDP + Ineq
+xb <- ~ M + So + Ed + M.F + Pop + NW + Prob + Time
+fit_id <- statmod(lrate ~ ridge(xa, standardize = TRUE, label = "econ", id = "R") +
+                    ridge(xb, standardize = TRUE, label = "pop", id = "R"),
+                  distrib = gaussian1_distrib(), data = UScrime)
+fit_two <- statmod(lrate ~ ridge(xa, standardize = TRUE, label = "econ") +
+                     ridge(xb, standardize = TRUE, label = "pop"),
+                   distrib = gaussian1_distrib(), data = UScrime)
+hyper(fit_id)[, c("term", "estimate")]
+hyper(fit_two)[, c("term", "estimate")]
+```
+
+Two ridges with one $\lambda$ are the same model as the ridge of
+@sec-penalized-basic on all 15 covariates:
+
+```{r}
+#| label: id-same
+max(abs(fitted(fit_id) - fitted(fit_ridge)))
+c(shared = fit_id@criterion, one = fit_ridge@criterion)
+```
+
+With two values of $\lambda$, the block of the police and the economy is
+shrunk less than the other block. The model with one $\lambda$ is the model
+with two values under one equality constraint, inside the range of the
+parameters. The two models also have the same coefficients without a
+penalty. We can therefore compare their restricted log-likelihoods:
+
+```{r}
+#| label: lr-id
+lr_id <- 2 * (as.numeric(logLik(fit_two, type = "marginal")) -
+                as.numeric(logLik(fit_id, type = "marginal")))
+lr_id
+pchisq(lr_id, df = 1, lower.tail = FALSE)
+```
+
+The data do not reject one $\lambda$ for the two blocks. For a lasso, one
+`id` gives one $\lambda$ on one path. The path starts at the value that sets
+the coefficients of all the terms with this `id` to zero. Two blocks with one
+`id` therefore visit the same values as one block that contains both, and
+they choose the same $\lambda$:
+
+```{r}
+#| label: fit-lasso-id
+fit_lid <- statmod(lrate ~ lasso(xa, standardize = TRUE, label = "econ", id = "L") +
+                     lasso(xb, standardize = TRUE, label = "pop", id = "L"),
+                   distrib = gaussian1_distrib(), data = UScrime)
+c(one = hyper(fit_lasso)$estimate, shared = hyper(fit_lid)$estimate[1])
+max(abs(fit_lasso@history$outer$value - fit_lid@history$outer$value))
+```
+
+Two lassos without an `id` have two paths. `statmod()` runs them in turn,
+each with the other $\lambda$ fixed, until neither value changes:
+
+```{r}
+#| label: fit-lasso-two
+fit_l2 <- statmod(lrate ~ lasso(xa, standardize = TRUE, label = "econ") +
+                    lasso(xb, standardize = TRUE, label = "pop"),
+                  distrib = gaussian1_distrib(), data = UScrime)
+hyper(fit_l2)[, c("term", "estimate")]
+c(one = BIC(fit_lasso), two = BIC(fit_l2))
+```
+
+Terms with one `id` can also be in different equations. On the simulated
+data of @sec-penalized-sigma, we give the lasso of the mean and the lasso of
+$\log\sigma$ one $\lambda$:
+
+```{r}
+#| label: fit-id-sigma
+fit_sid <- statmod(y ~ lasso(xx, id = "L") | sigma ~ lasso(xx, id = "L"),
+                   distrib = gaussian1_distrib(), data = sim)
+hyper(fit_sid)[, c("parameter", "estimate")]
+c(shared = BIC(fit_sid), separate = BIC(fit_sig1))
+```
+
+The path starts at the larger of the two values that set each block to zero,
+so at its first value both blocks are zero. The scores of the two equations
+have different sizes, so one $\lambda$ for both equations is a strong
+constraint. On these data the model with two values of $\lambda$ has the
+smaller BIC.
+
+## Choosing the value of lambda {#sec-penalized-choose}
+
+The argument `sparse_criterion` of `statmod()` sets the criterion of the
+path. It can be `bic()`, the default, `aic()`, or `cv()`, which computes a
+ten-fold cross-validated deviance. AIC and BIC are $-2\ell + \kappa\tau$,
+where $\ell$ is the log-likelihood, $\tau$ is the effective number of
+parameters, and $\kappa$ is 2 for AIC and $\log n$ for BIC. We fit the lasso
+of @sec-penalized-basic with the other two criteria:
+
+```{r}
+#| label: fit-crit
+fit_aic <- statmod(lrate ~ lasso(xs, standardize = TRUE),
+                   distrib = gaussian1_distrib(), data = UScrime,
+                   sparse_criterion = aic())
+set.seed(1)
+fit_cv <- statmod(lrate ~ lasso(xs, standardize = TRUE),
+                  distrib = gaussian1_distrib(), data = UScrime,
+                  sparse_criterion = cv())
+c(bic = hyper(fit_lasso)$estimate, aic = hyper(fit_aic)$estimate,
+  cv = hyper(fit_cv)$estimate)
+c(bic = sum(coef(fit_lasso)$mu[-1] != 0), aic = sum(coef(fit_aic)$mu[-1] != 0),
+  cv = sum(coef(fit_cv)$mu[-1] != 0))
+```
+
+```{r}
+#| label: crit-numbers
+#| include: false
+path_b <- fit_lasso@history$outer
+path_a <- fit_aic@history$outer
+path_c <- fit_cv@history$outer
+ok_c <- is.finite(path_c$criterion)
+i_min <- which.min(ifelse(ok_c, path_c$criterion, Inf))
+n_within <- sum(ok_c & path_c$criterion <= path_c$criterion[i_min] +
+                  path_c$se[i_min])
+keep_cv <- colnames(X)[coef(fit_cv)$mu[-1] != 0]
+ordinal <- function(i) c("first", "second", "third", "fourth", "fifth",
+                         "sixth")[i]
+```
+
+BIC adds $\log n = `r fmt(log(n), 2)`$ for each parameter and AIC adds 2. The
+minimum of AIC therefore lies at a smaller $\lambda$, and AIC keeps more
+covariates. Cross-validation chooses the `r ordinal(i_min)` value of the path, and at
+this value the model keeps only `r code(keep_cv)`. @fig-crit shows the three
+criteria along the path. With `r n` observations, the cross-validated
+deviance has a large standard error, and its minimum is poorly determined:
+at `r n_within` of the `r nrow(path_c)` values of $\lambda$, the deviance
+lies within one standard error of the minimum. The path also contains the
+standard errors. The rule of one standard error keeps the largest $\lambda$
+whose deviance lies within one standard error of the minimum, and we can
+compute it from the path:
+
+```{r}
+#| label: one-se
+cv_path <- fit_cv@history$outer
+best <- which.min(cv_path$criterion)
+within <- cv_path$criterion <= cv_path$criterion[best] + cv_path$se[best]
+lam_1se <- max(cv_path$value[within])
+lam_1se
+```
+
+Here the rule gives the `r ordinal(match(lam_1se, cv_path$value))` value of
+the path, $\lambda = `r fmt(lam_1se, 2)`$, which is larger than the minimum
+at $\lambda = `r fmt(cv_path$value[best], 2)`$: its deviance lies within one
+standard error of the minimum, so the rule prefers the simpler model. The
+argument `cv(rule = "1se")` applies this rule during the fit.
+
+```{r}
+#| label: fig-crit
+#| fig-cap: "The three criteria along the path of values of $\\lambda$ for the lasso on the `UScrime` data. Left: BIC and AIC. Right: the cross-validated deviance with a band of one standard error. The vertical lines mark the chosen values."
+#| echo: false
+#| fig-height: 3.6
+ok_b <- is.finite(path_b$criterion); ok_a <- is.finite(path_a$criterion)
+x_c <- log(path_c$value[ok_c]); y_c <- path_c$criterion[ok_c]
+s_c <- path_c$se[ok_c]
+pan_crit <- c("criterion", "cross-validated deviance")
+crit_names <- c("BIC", "AIC", "deviance")
+n_crit <- c(sum(ok_b), sum(ok_a), length(x_c))
+crit_df <- data.frame(
+  panel = factor(rep(pan_crit[c(1, 1, 2)], times = n_crit), levels = pan_crit),
+  criterion = factor(rep(crit_names, times = n_crit), levels = crit_names),
+  x = c(log(path_b$value[ok_b]), log(path_a$value[ok_a]), x_c),
+  y = c(path_b$criterion[ok_b], path_a$criterion[ok_a], y_c))
+se_df <- data.frame(panel = factor(pan_crit[2], levels = pan_crit), x = x_c,
+                    lower = y_c - s_c, upper = y_c + s_c)
+chosen <- data.frame(
+  panel = factor(pan_crit[c(1, 1, 2)], levels = pan_crit),
+  criterion = factor(crit_names, levels = crit_names),
+  x = log(c(hyper(fit_lasso)$estimate, hyper(fit_aic)$estimate,
+            hyper(fit_cv)$estimate)))
+ggplot(crit_df, aes(x = x, y = y)) +
+  geom_ribbon(data = se_df, aes(x = x, ymin = lower, ymax = upper,
+                                fill = "one standard error"),
+              inherit.aes = FALSE, alpha = 0.2) +
+  geom_vline(data = chosen, aes(xintercept = x, colour = criterion),
+             linetype = 2, show.legend = FALSE) +
+  geom_line(aes(colour = criterion)) +
+  geom_point(aes(colour = criterion, shape = criterion), size = 1.2) +
+  facet_wrap(~panel, nrow = 1, scales = "free_y", strip.position = "left") +
+  scale_colour_manual(values = c(chalk, rust, ink)) +
+  scale_shape_manual(values = c(16, 17, 16)) +
+  scale_fill_manual(values = ink) +
+  guides(colour = guide_legend(order = 1), shape = guide_legend(order = 1),
+         fill = guide_legend(order = 2)) +
+  labs(x = expression(log(lambda)), y = NULL) +
+  theme(strip.placement = "outside", strip.background = element_blank(),
+        strip.text = element_text(size = rel(1)))
+```
+
+The three criteria answer different questions, and @sec-choosing compares
+them on other models. A prediction criterion treats the chosen $\lambda$ as
+known. The standard errors of the coefficients that are not zero do the same.
+
+```{r}
+#| label: gate-10
+#| include: false
+assert_penalized_ok(
+  fits = list(ridge = fit_ridge, lasso = fit_lasso, enet = fit_enet,
+              mat = fit_mat, s1 = fit_s1, s2 = fit_s2, r1 = fit_r1, r2 = fit_r2,
+              scad = fit_scad, mcp = fit_mcp, scad_a = fit_scad_a,
+              lasso_100 = fit_lasso_100, held = fit_held, grid = fit_grid,
+              enet_c = fit_enet_c, sig0 = fit_sig0, sig1 = fit_sig1, nu = fit_nu,
+              boston = fit_b, id = fit_id, two = fit_two, l2 = fit_l2,
+              lid = fit_lid, sid = fit_sid, aic = fit_aic, cv = fit_cv,
+              cars = fit_c, cars0 = fit_c0),
+  ref = list(g_ridge = g_ridge, g_lasso = g_lasso, ncv_scad = ncv_scad,
+             ncv_path = ncv_path, ncv_zero = ncv_zero, g_b = g_b, g_c = g_c),
+  data = list(UScrime = UScrime, X = X, sim = sim,
+              Boston = Boston, xs = xs, bx = bx, Cars93 = Cars93, cx = cx),
+  claims = list(keep_l = keep_l, same_e = same_e, keep_s = keep_s,
+                n_path = n_path, i_jump = i_jump, lam_eff = lam_eff,
+                o_ours = o_ours, o_zero = o_zero, lr_id = lr_id,
+                n_within = n_within, path_c = path_c, drop_c = drop_c,
+                lam_1se = lam_1se,
+                edf_s = edf_s, edf_m = edf_m, lam_100 = lam_100,
+                lams_100 = lams_100))
+```

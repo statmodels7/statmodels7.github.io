@@ -156,7 +156,7 @@ assert_fit_ok <- function() {
 # the same fit fail.
 .certify_starting_values <- function() {
   out <- character()
-  d <- mvgaussian_distrib(4)
+  d <- mvgaussian1_distrib(4)
   y <- as.matrix(datasets::iris[, 1:4])
 
   st <- distrib_start(d, y)[[1]]

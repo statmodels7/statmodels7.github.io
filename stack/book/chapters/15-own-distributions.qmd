@@ -1,0 +1,651 @@
+# Writing a distribution and a link {#sec-own}
+
+```{r}
+#| label: setup-15
+#| include: false
+source("R/_setup.R")
+source("R/own-certificates.R")
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+sci <- function(x, d = 1) {
+  e <- floor(log10(abs(x)))
+  sprintf("%.*f \\times 10^{%d}", d, x / 10^e, e)
+}
+data(rent, package = "gamlss.data")
+data(menarche, package = "MASS")
+elapsed <- function(expr) {
+  t0 <- proc.time()[[3]]
+  force(expr)
+  proc.time()[[3]] - t0
+}
+```
+
+The distributions and the links of the previous chapters are objects of
+`distributions7` and `linkfunctions7`. A distribution or a link that these
+packages do not provide is written by the user as an object of the same
+kind, and `statmod()` then uses it as it uses the built-in ones: every
+parameter can have an equation with smooth terms, random effects and
+penalties. @sec-distribs-own and @sec-glm-links showed the shortest case, a
+density and a pair of functions. This chapter shows the complete case. We
+write a discrete distribution and a continuous one, first with the density
+alone and then with the cdf, the quantile function and the score in closed
+form, and we write a link whose shape is set by a parameter.
+
+## The structure of a distribution {#sec-own-structure}
+
+A distribution is an S7 class that inherits from `continuous_distrib` or
+from `discrete_distrib`, with a method for `distrib_pdf()`. The method
+receives the response `y`, a list `theta` with one element for each
+parameter, and the argument `log`; it returns the density or its logarithm
+at each observation. A constructor then creates the object with the names
+of the parameters, their bounds and their links.
+
+Every other function of a distribution has a numerical fallback, which
+`distributions7` uses when the class has no method of its own. The cdf of a
+continuous distribution is a quadrature of the density, and the cdf of a
+discrete one is a sum over the support. The quantile function inverts the
+cdf, by root finding for a continuous distribution and by a search in the
+table of cumulative probabilities for a discrete one. The random numbers
+of a discrete distribution are quantiles of uniform numbers, and those of a
+continuous distribution come from a ratio-of-uniforms generator. The mean and
+the variance are integrals or sums of the density. The score and the
+Hessian of the log-likelihood in the parameters are finite differences of
+the log-density, and the derivatives of order three and four are computed
+by one tensor stencil applied to the highest order that the class
+implements itself: the log-density if the class has only the density, the
+score if it has the score. A difference is never taken of another
+difference in the same parameter, because the error of a nested difference
+grows with each level.
+
+A method written by the user replaces the fallback for that function and,
+through it, every quantity computed from it. A method must accept `...`,
+because `distributions7` passes arguments such as the number of threads
+through it. A method for a derivative in the parameters must also accept
+`scale = c("parameter", "link")`: it returns the derivative in the
+parameters, and the generic converts it to the scale of the link. The
+function `statmod()` checks these signatures before the fit and signals an
+error that names the method.
+
+## A discrete distribution: the generalized Poisson {#sec-own-genpois}
+
+The generalized Poisson distribution of @consul1973 has the probability
+function
+$$
+P(Y = y) = \frac{\theta\,(\theta + \lambda y)^{y - 1}\, e^{-\theta - \lambda y}}{y!},
+\qquad y = 0, 1, 2, \ldots,
+$$
+with $\theta > 0$ and $0 \le \lambda < 1$. Its mean is $\theta/(1 - \lambda)$
+and its variance is $\theta/(1 - \lambda)^3$. For regression we use the
+parametrization of @consul1992 in the mean $\mu$ and a dispersion $\phi$,
+with
+$$
+\theta = \frac{\mu}{\sqrt{\phi}}, \qquad \lambda = 1 - \frac{1}{\sqrt{\phi}},
+$$
+so that the mean is $\mu$ and the variance is $\phi\,\mu$. The variance
+is proportional to the mean, as in the quasi-Poisson model, and
+$\phi = 1$ gives the Poisson distribution. The parametrization requires
+$\phi \ge 1$, the overdispersed case; we write the density for every
+$\phi > 0$ and set it to zero where $\theta + \lambda y \le 0$. The class,
+its density and its constructor are:
+
+```{r}
+#| label: genpois-class
+GenPois <- S7::new_class("GenPois", parent = discrete_distrib)
+S7::method(distrib_pdf, GenPois) <- function(distrib, y, theta, log = FALSE,
+                                             ...) {
+  mu <- theta[[1]]
+  phi <- theta[[2]]
+  s <- sqrt(phi)
+  th <- mu / s
+  la <- 1 - 1 / s
+  a <- th + la * y
+  ld <- ifelse(a > 0, log(th) + (y - 1) * log(a) - a - lgamma(y + 1), -Inf)
+  if (log) ld else exp(ld)
+}
+genpois_distrib <- function(link_mu = log_link(), link_phi = log_link()) {
+  GenPois(distrib_name = "generalized Poisson", dimension = "univariate",
+          bounds = c(0, Inf), params = c("mu", "phi"),
+          params_interpretation = c(mu = "mean", phi = "dispersion"),
+          n_params = 2,
+          params_bounds = list(mu = c(0, Inf), phi = c(0, Inf)),
+          link_params = list(mu = link_mu, phi = link_phi))
+}
+gp <- genpois_distrib()
+c(mean = mean(gp, theta = list(mu = 4, phi = 2.5)),
+  variance = variance(gp, theta = list(mu = 4, phi = 2.5)))
+```
+
+The mean and the variance come from sums over the support, and they are
+$\mu = 4$ and $\phi\mu = 10$. The function `check_distrib()` tests the
+fallbacks against each other at one value of the parameters:
+
+```{r}
+#| label: genpois-check
+chk_gp <- check_distrib(gp, theta = list(mu = 4, phi = 2.5))
+```
+
+The `r nrow(chk_gp)` checks pass, and the checks of the derivatives in the
+parameters are not run, for the reason given in @sec-distribs-own.
+
+### The model for the warp breaks
+
+The data frame `warpbreaks` gives the number of breaks of the warp on a loom
+for 54 pieces of yarn, of two wools (`A` and `B`) and three tensions (`L`,
+`M` and `H`). We fit the generalized Poisson model with the interaction of
+the two factors for the mean and the wool for the dispersion, and we
+compare it with `glmmTMB()` [@brooks2017], whose family `genpois()` is the
+same distribution in the same parametrization. The criterion is `ml()`,
+which estimates the coefficients of $\phi$ by maximum likelihood, as
+`glmmTMB()` does:
+
+```{r}
+#| label: fit-genpois
+t_gp_density <- elapsed(
+  fit_gp <- statmod(breaks ~ wool * tension | phi ~ wool, distrib = gp,
+                    data = warpbreaks, outer_criterion = ml()))
+summary(fit_gp)
+tmb_gp <- glmmTMB::glmmTMB(breaks ~ wool * tension, dispformula = ~ wool,
+                           family = glmmTMB::genpois(), data = warpbreaks)
+rbind(statmod = c(coef(fit_gp)$mu, coef(fit_gp)$phi),
+      glmmTMB = c(glmmTMB::fixef(tmb_gp)$cond, glmmTMB::fixef(tmb_gp)$disp))
+c(statmod = as.numeric(logLik(fit_gp)), glmmTMB = as.numeric(logLik(tmb_gp)))
+```
+
+The two fits give the same coefficients and the same log-likelihood. The
+dispersion of wool `A` is $\exp(`r fmt(coef(fit_gp)$phi[[1]], 3)`) =
+`r fmt(exp(coef(fit_gp)$phi[[1]]), 2)`$, so its variance is about
+`r fmt(exp(coef(fit_gp)$phi[[1]]), 1)` times its mean, and the dispersion
+of wool `B` is smaller. @fig-genpois shows the fitted means with an
+interval of two standard deviations, $\mu \pm 2\sqrt{\phi\mu}$.
+
+```{r}
+#| label: fig-genpois
+#| fig-cap: "Number of warp breaks for each wool and tension. The lines join the fitted means of the generalized Poisson model, and the bars span two standard deviations on either side."
+#| echo: false
+#| fig-height: 3.8
+cells <- unique(warpbreaks[, c("wool", "tension")])
+cells$mu <- predict(fit_gp, what = "mu", newdata = cells)
+cells$phi <- predict(fit_gp, what = "phi", newdata = cells)
+op <- par(mar = c(4, 4, 1, 1))
+xpos <- as.integer(warpbreaks$tension) + ifelse(warpbreaks$wool == "A", -0.12, 0.12)
+plot(xpos, warpbreaks$breaks, pch = ifelse(warpbreaks$wool == "A", 1, 2),
+     col = "grey45", xaxt = "n", xlab = "tension", ylab = "breaks",
+     xlim = c(0.6, 3.4), ylim = c(0, max(warpbreaks$breaks)))
+axis(1, at = 1:3, labels = levels(warpbreaks$tension))
+for (w in c("A", "B")) {
+  cw <- cells[cells$wool == w, ]
+  cw <- cw[order(cw$tension), ]
+  xx <- as.integer(cw$tension) + if (w == "A") -0.12 else 0.12
+  sdv <- sqrt(cw$phi * cw$mu)
+  segments(xx, cw$mu - 2 * sdv, xx, cw$mu + 2 * sdv, lwd = 1.5)
+  lines(xx, cw$mu, lwd = 2, lty = if (w == "A") 1 else 2)
+}
+legend("topright", legend = c("wool A", "wool B"), pch = 1:2,
+       lty = 1:2, bty = "n")
+par(op)
+```
+
+The negative binomial distribution of @sec-glm-overdispersion has a
+variance that grows with the square of the mean. The AIC compares the two
+assumptions on these data:
+
+```{r}
+#| label: genpois-negbin
+fit_gp_nb <- statmod(breaks ~ wool * tension | theta ~ wool,
+                     distrib = negbin2_distrib(), data = warpbreaks,
+                     outer_criterion = ml())
+c(generalized_poisson = AIC(fit_gp), negative_binomial = AIC(fit_gp_nb))
+```
+
+The difference is `r fmt(abs(AIC(fit_gp) - AIC(fit_gp_nb)), 1)`, too
+small to prefer one variance function to the other with 54 observations.
+
+### The score in closed form
+
+The fit above computes the score by finite differences of the
+log-density. The score in closed form is short. With
+$a = \theta + \lambda y$, the log-probability is
+$\log\theta + (y - 1)\log a - a - \log y!$, and its derivatives in
+$\theta$ and $\lambda$ are
+$$
+\frac{\partial \ell}{\partial \theta} = \frac{1}{\theta} + \frac{y - 1}{a} - 1,
+\qquad
+\frac{\partial \ell}{\partial \lambda} = \frac{y\,(y - 1)}{a} - y .
+$$
+The chain rule through $\theta = \mu/\sqrt\phi$ and
+$\lambda = 1 - 1/\sqrt\phi$ gives the score in $(\mu, \phi)$:
+$$
+\frac{\partial \ell}{\partial \mu} = \frac{1}{\sqrt\phi}\,\frac{\partial \ell}{\partial \theta},
+\qquad
+\frac{\partial \ell}{\partial \phi} = \frac{1}{2\phi\sqrt\phi}
+\left(\frac{\partial \ell}{\partial \lambda} - \mu\,\frac{\partial \ell}{\partial \theta}\right).
+$$
+We register it as the method of `distrib_gradient()`. The method returns a
+list with one vector for each parameter, on the scale of the parameters:
+
+```{r}
+#| label: genpois-score
+S7::method(distrib_gradient, GenPois) <- function(distrib, y, theta,
+                                                  scale = c("parameter", "link"),
+                                                  ...) {
+  mu <- theta[[1]]
+  phi <- theta[[2]]
+  s <- sqrt(phi)
+  th <- mu / s
+  la <- 1 - 1 / s
+  a <- th + la * y
+  d_th <- 1 / th + (y - 1) / a - 1
+  d_la <- y * (y - 1) / a - y
+  list(mu = d_th / s, phi = (d_la - mu * d_th) / (2 * phi * s))
+}
+score_gap <- max(abs(
+  unlist(distrib_gradient(gp, y = 0:12, theta = list(mu = 4, phi = 2.5))) -
+  unlist(numerical_gradient(gp, y = 0:12, theta = list(mu = 4, phi = 2.5)))))
+score_gap
+```
+
+The closed form and the finite differences agree to
+$`r sci(score_gap, 0)`$. With the score registered, the Hessian
+is one difference of the score, and the derivatives of order three and four
+are one stencil on the score, which is more accurate than a stencil on the
+log-density. The same model, fitted again, reaches the same point in less
+time:
+
+```{r}
+#| label: fit-genpois-score
+t_gp_score <- elapsed(
+  fit_gp_s <- statmod(breaks ~ wool * tension | phi ~ wool, distrib = gp,
+                      data = warpbreaks, outer_criterion = ml()))
+c(logLik_density = as.numeric(logLik(fit_gp)),
+  logLik_score = as.numeric(logLik(fit_gp_s)),
+  seconds_density = t_gp_density, seconds_score = t_gp_score)
+```
+
+### A random effect
+
+A distribution written by the user takes random effects as a built-in one
+does. We treat the three tensions as a sample of groups, with a random
+intercept in the equation of $\mu$, and compare the fit with `glmmTMB()`:
+
+```{r}
+#| label: fit-genpois-random
+fit_gp_r <- statmod(breaks ~ wool + random(~ 1 | tension) | phi ~ wool,
+                    distrib = gp, data = warpbreaks, outer_criterion = ml())
+summary(fit_gp_r)
+fit_gp_ra <- statmod(breaks ~ wool + random(~ 1 | tension) | phi ~ wool,
+                     distrib = gp, data = warpbreaks,
+                     outer_criterion = ml(marginal = "all"))
+tmb_gp_r <- glmmTMB::glmmTMB(breaks ~ wool + (1 | tension),
+                             dispformula = ~ wool,
+                             family = glmmTMB::genpois(), data = warpbreaks)
+data.frame(
+  fit = c("ml()", "ml(marginal = \"all\")", "glmmTMB"),
+  intercept = c(coef(fit_gp_r)$mu[[1]], coef(fit_gp_ra)$mu[[1]],
+                glmmTMB::fixef(tmb_gp_r)$cond[[1]]),
+  sd = c(hyper(fit_gp_r)$estimate, hyper(fit_gp_ra)$estimate,
+         attr(glmmTMB::VarCorr(tmb_gp_r)$cond$tension, "stddev")),
+  logLik = c(logLik(fit_gp_r, type = "marginal"),
+             logLik(fit_gp_ra, type = "marginal"), logLik(tmb_gp_r)))
+```
+
+The criterion `ml()` holds the fixed effects of $\mu$ at the joint mode of
+the fixed and the random effects, and `glmmTMB()` chooses them to maximize
+the Laplace approximation of the likelihood. For a count response the two
+differ slightly, as @sec-glmm-poisson explains, and `ml(marginal = "all")`
+reproduces `glmmTMB()`.
+
+## A continuous distribution: the Burr XII {#sec-own-burr}
+
+The Burr XII distribution [@burr1942] with scale $\mu$ and shapes $c$ and $k$
+has the density
+$$
+f(y) = \frac{c\,k}{\mu}\left(\frac{y}{\mu}\right)^{c - 1}
+\left\{1 + \left(\frac{y}{\mu}\right)^{c}\right\}^{-k - 1}, \qquad y > 0 .
+$$
+The shape $c$ governs the lower tail and the product $ck$ the upper tail,
+which decays as $y^{-ck - 1}$; the log-logistic distribution of
+@sec-distribs-own is the case $k = 1$. It is also the generalized beta
+distribution of the second kind of @mcdonald1984 with its third parameter
+equal to one, which is how `gamlss` provides it (the family `GB2()` with
+$\nu = 1$). We write the class with the density alone:
+
+```{r}
+#| label: burr-class
+Burr <- S7::new_class("Burr", parent = continuous_distrib)
+S7::method(distrib_pdf, Burr) <- function(distrib, y, theta, log = FALSE, ...) {
+  mu <- theta[[1]]
+  cc <- theta[[2]]
+  k <- theta[[3]]
+  z <- y / mu
+  ld <- log(cc) + log(k) - log(mu) + (cc - 1) * log(z) - (k + 1) * log1p(z^cc)
+  if (log) ld else exp(ld)
+}
+burr_distrib <- function(link_mu = log_link(), link_c = log_link(),
+                         link_k = log_link()) {
+  Burr(distrib_name = "Burr XII", dimension = "univariate",
+       bounds = c(0, Inf), params = c("mu", "c", "k"),
+       params_interpretation = c(mu = "scale", c = "shape", k = "shape"),
+       n_params = 3,
+       params_bounds = list(mu = c(0, Inf), c = c(0, Inf), k = c(0, Inf)),
+       link_params = list(mu = link_mu, c = link_c, k = link_k))
+}
+bd <- burr_distrib()
+chk_burr <- check_distrib(bd, theta = list(mu = 800, c = 3, k = 1.5))
+```
+
+The data frame `rent` of the `gamlss.data` package gives the monthly rent
+`R` of 1969 flats in Munich, with the floor space `Fl` in square meters,
+the year of construction `A` and the location `loc` in three classes
+[@stasinopoulos2017]. A first model has a linear effect of the floor space
+and of the location on the scale, the location on $c$, and $k$ constant. We
+fit it with `ml()` and compare it with `gamlss()`:
+
+```{r}
+#| label: fit-burr-linear
+fit_burr_lin <- statmod(R ~ Fl + loc | c ~ loc, distrib = bd, data = rent,
+                        outer_criterion = ml())
+summary(fit_burr_lin)
+gl_burr <- gamlss::gamlss(R ~ Fl + loc, sigma.formula = ~ loc,
+                          nu.formula = ~ 1, tau.formula = ~ 1,
+                          family = gamlss.dist::GB2(), data = rent,
+                          nu.start = 1, nu.fix = TRUE, n.cyc = 200,
+                          trace = FALSE)
+c(statmod = as.numeric(logLik(fit_burr_lin)),
+  gamlss = as.numeric(logLik(gl_burr)))
+```
+
+The log-likelihood of `statmod()` is
+`r fmt(as.numeric(logLik(fit_burr_lin)) - as.numeric(logLik(gl_burr)), 2)`
+higher. The algorithm of `gamlss()` updates one parameter at a time and
+stops when the global deviance changes by less than its tolerance, here
+before the maximum; its estimate of $\log k$ is
+`r fmt(coef(gl_burr, what = "tau")[[1]], 2)` against
+`r fmt(coef(fit_burr_lin)$k[[1]], 2)`.
+
+### Smooth effects
+
+The rent grows with the floor space and with the year of construction, and
+neither effect is linear. We give both a smooth term in the equation of the
+scale, and we compare the Burr XII model with a gamma model that has the
+same equation for the mean and the location for the dispersion:
+
+```{r}
+#| label: fit-burr-smooth
+t_burr_density <- elapsed(
+  fit_burr <- statmod(R ~ s(Fl) + s(A) + loc | c ~ loc, distrib = bd,
+                      data = rent))
+summary(fit_burr)
+fit_rent_gamma <- statmod(R ~ s(Fl) + s(A) + loc | phi ~ loc,
+                          distrib = gamma1_distrib(), data = rent)
+c(burr = summary(fit_burr)@aic, gamma = summary(fit_rent_gamma)@aic)
+```
+
+The two cAIC are close, and the Burr XII model is slightly better. The
+quantile residuals of @sec-model-resid need the cdf, which for this class
+is a quadrature of the density at each observation:
+
+```{r}
+#| label: burr-resid-density
+t_resid_density <- elapsed(r_burr <- residuals(fit_burr))
+c(sd = sd(r_burr), seconds = t_resid_density)
+```
+
+### The cdf, the quantile function and the score
+
+The Burr XII distribution has a cdf and a quantile function in closed form,
+$$
+F(y) = 1 - \left\{1 + \left(\frac{y}{\mu}\right)^{c}\right\}^{-k},
+\qquad
+F^{-1}(p) = \mu\left\{(1 - p)^{-1/k} - 1\right\}^{1/c},
+$$
+and with $z = y/\mu$ and $r = z^c/(1 + z^c)$ the score is
+$$
+\frac{\partial \ell}{\partial \mu} = \frac{c\,\{(k + 1)\,r - 1\}}{\mu},
+\qquad
+\frac{\partial \ell}{\partial c} = \frac{1}{c} + \log z\,\{1 - (k + 1)\,r\},
+\qquad
+\frac{\partial \ell}{\partial k} = \frac{1}{k} - \log(1 + z^c).
+$$
+We register the three methods. The cdf is computed from the logarithm of
+the survival function, $-k\log(1 + z^c)$, with `expm1()`, so that it keeps
+its precision where $F$ is small:
+
+```{r}
+#| label: burr-closed
+S7::method(distrib_cdf, Burr) <- function(distrib, q, theta, lower.tail = TRUE,
+                                          log.p = FALSE, ...) {
+  mu <- theta[[1]]
+  cc <- theta[[2]]
+  k <- theta[[3]]
+  log_s <- -k * log1p((pmax(q, 0) / mu)^cc)
+  p <- if (lower.tail) -expm1(log_s) else exp(log_s)
+  if (log.p) log(p) else p
+}
+S7::method(distrib_quantile, Burr) <- function(distrib, p, theta,
+                                               lower.tail = TRUE,
+                                               log.p = FALSE, ...) {
+  mu <- theta[[1]]
+  cc <- theta[[2]]
+  k <- theta[[3]]
+  if (log.p) p <- exp(p)
+  if (!lower.tail) p <- 1 - p
+  mu * ((1 - p)^(-1 / k) - 1)^(1 / cc)
+}
+S7::method(distrib_gradient, Burr) <- function(distrib, y, theta,
+                                               scale = c("parameter", "link"),
+                                               ...) {
+  mu <- theta[[1]]
+  cc <- theta[[2]]
+  k <- theta[[3]]
+  z <- y / mu
+  lz <- log(z)
+  r <- z^cc / (1 + z^cc)
+  list(mu = cc * ((k + 1) * r - 1) / mu,
+       c = 1 / cc + lz * (1 - (k + 1) * r),
+       k = 1 / k - log1p(z^cc))
+}
+chk_burr_closed <- check_distrib(bd, theta = list(mu = 800, c = 3, k = 1.5))
+```
+
+The table now has a row for the score, because the score is the class's
+own method and finite differences of the log-density are an independent
+check of it. We fit the same model again and compute the residuals with the
+closed cdf:
+
+```{r}
+#| label: fit-burr-closed
+t_burr_closed <- elapsed(
+  fit_burr_c <- statmod(R ~ s(Fl) + s(A) + loc | c ~ loc, distrib = bd,
+                        data = rent))
+t_resid_closed <- elapsed(r_burr_c <- residuals(fit_burr_c))
+data.frame(
+  methods = c("density", "density, cdf, quantile, score"),
+  logLik = c(logLik(fit_burr), logLik(fit_burr_c)),
+  fit_seconds = c(t_burr_density, t_burr_closed),
+  residual_seconds = c(t_resid_density, t_resid_closed))
+```
+
+The fit reaches the same point, and the residuals, which needed one
+quadrature for each of the 1969 observations, now cost one evaluation of a
+formula. @fig-burr-qq compares the quantile residuals of the Burr XII model
+and of the gamma model.
+
+```{r}
+#| label: fig-burr-qq
+#| fig-cap: "Normal quantile plots of the quantile residuals of the Burr XII model (left) and of the gamma model (right) for the Munich rents."
+#| echo: false
+#| fig-height: 3.6
+r_gamma <- residuals(fit_rent_gamma)
+op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+qqnorm(r_burr_c, main = "Burr XII", pch = 20, col = "grey40", cex = 0.5)
+abline(0, 1)
+qqnorm(r_gamma, main = "gamma", pch = 20, col = "grey40", cex = 0.5)
+abline(0, 1)
+par(op)
+```
+
+## A link with a parameter: Aranda-Ordaz {#sec-own-link}
+
+A link is an S7 class that inherits from `link`, with the two methods
+`linkfun()` and `linkinv()` (@sec-glm-links). The property `link_params`
+holds the parameters of the link, so one class describes a whole family of
+links. The asymmetric family of @arandaordaz1981 for a probability $\mu$ is
+$$
+\eta = \log\frac{(1 - \mu)^{-\alpha} - 1}{\alpha},
+\qquad
+\mu = 1 - (1 + \alpha e^{\eta})^{-1/\alpha},
+\qquad \alpha > 0 .
+$$
+With $\alpha = 1$ it is the logit link, and as $\alpha$ tends to zero it
+tends to the complementary log-log link. The class reads $\alpha$ from
+`link_params`, and a constructor sets it:
+
+```{r}
+#| label: ao-class
+ArandaOrdaz <- S7::new_class("ArandaOrdaz", parent = link)
+S7::method(linkfun, ArandaOrdaz) <- function(x, theta) {
+  a <- x@link_params$alpha
+  log(((1 - theta)^(-a) - 1) / a)
+}
+S7::method(linkinv, ArandaOrdaz) <- function(x, eta) {
+  a <- x@link_params$alpha
+  1 - (1 + a * exp(eta))^(-1 / a)
+}
+ao_link <- function(alpha) {
+  ArandaOrdaz(link_name = sprintf("aranda-ordaz(%g)", alpha),
+              link_bounds = c(0, 1), link_params = list(alpha = alpha))
+}
+link_fallback_orders(ao_link(0.5))
+chk_ao <- check_link(ao_link(0.5))
+```
+
+The derivatives of both directions are numerical, and `check_link()` marks
+them so. The data frame `menarche` of the `MASS` package gives, for 25
+groups of girls of increasing mean age, the number of girls who had reached
+menarche. The parameter $\alpha$ is not estimated by `statmod()`, because a
+link is fixed during a fit. We profile the log-likelihood over $\alpha$ and
+maximize it with `optimize()`:
+
+```{r}
+#| label: ao-profile
+ao_loglik <- function(alpha) {
+  f <- statmod(cbind(Menarche, Total - Menarche) ~ Age,
+               distrib = binomial_distrib(link_mu = ao_link(alpha)),
+               data = menarche)
+  as.numeric(logLik(f))
+}
+ao_opt <- optimize(ao_loglik, interval = c(0.05, 5), maximum = TRUE)
+alpha_hat <- ao_opt$maximum
+fit_ao <- statmod(cbind(Menarche, Total - Menarche) ~ Age,
+                  distrib = binomial_distrib(link_mu = ao_link(alpha_hat)),
+                  data = menarche)
+summary(fit_ao)
+```
+
+The estimate is $\hat\alpha = `r fmt(alpha_hat, 3)`$. The function `glm()`
+accepts a link written by the user as an object of class `link-glm`, with
+the link, its inverse and the derivative of the inverse. We write it for
+the same $\alpha$, and we fit the logit and the complementary log-log links
+for comparison:
+
+```{r}
+#| label: ao-glm
+ao_glm <- function(a) {
+  structure(list(
+    linkfun = function(mu) log(((1 - mu)^(-a) - 1) / a),
+    linkinv = function(eta) 1 - (1 + a * exp(eta))^(-1 / a),
+    mu.eta = function(eta) exp(eta) * (1 + a * exp(eta))^(-1 / a - 1),
+    valideta = function(eta) TRUE, name = "aranda-ordaz"), class = "link-glm")
+}
+glm_ao <- glm(cbind(Menarche, Total - Menarche) ~ Age,
+              family = binomial(link = ao_glm(alpha_hat)), data = menarche)
+rbind(statmod = coef(fit_ao)$mu, glm = coef(glm_ao))
+fit_logit <- statmod(cbind(Menarche, Total - Menarche) ~ Age,
+                     distrib = binomial_distrib(link_mu = logit_link()),
+                     data = menarche)
+fit_cloglog <- statmod(cbind(Menarche, Total - Menarche) ~ Age,
+                       distrib = binomial_distrib(link_mu = cloglog_link()),
+                       data = menarche)
+c(aranda_ordaz = as.numeric(logLik(fit_ao)), glm = as.numeric(logLik(glm_ao)),
+  logit = as.numeric(logLik(fit_logit)),
+  cloglog = as.numeric(logLik(fit_cloglog)))
+```
+
+The two fits with the Aranda-Ordaz link agree. The estimate of $\alpha$
+lies above one, on the other side of the logit link from the complementary
+log-log link, and the log-likelihood rises by
+`r fmt(as.numeric(logLik(fit_ao)) - as.numeric(logLik(fit_logit)), 2)`
+over the logit link, which is the special case $\alpha = 1$. The
+likelihood ratio statistic for $\alpha = 1$ is therefore
+`r fmt(2 * (as.numeric(logLik(fit_ao)) - as.numeric(logLik(fit_logit))), 2)`
+on one degree of freedom. @fig-ao shows the three fitted curves.
+
+```{r}
+#| label: fig-ao
+#| fig-cap: "Proportion of girls who had reached menarche against the mean age of each group, with the fitted probability under the Aranda-Ordaz link at the estimated alpha (solid), the logit link (dashed) and the complementary log-log link (dotted)."
+#| echo: false
+#| fig-height: 3.8
+ages <- data.frame(Age = seq(min(menarche$Age), max(menarche$Age),
+                             length.out = 200), Total = 1)
+op <- par(mar = c(4, 4, 1, 1))
+plot(menarche$Age, menarche$Menarche / menarche$Total, pch = 1,
+     col = "grey40", xlab = "mean age (years)",
+     ylab = "proportion reached menarche")
+lines(ages$Age, predict(fit_ao, what = "mu", newdata = ages), lwd = 2)
+lines(ages$Age, predict(fit_logit, what = "mu", newdata = ages), lwd = 1.5,
+      lty = 2)
+lines(ages$Age, predict(fit_cloglog, what = "mu", newdata = ages), lwd = 1.5,
+      lty = 3)
+legend("bottomright", lty = 1:3, lwd = c(2, 1.5, 1.5), bty = "n",
+       legend = c(sprintf("Aranda-Ordaz, alpha = %.2f", alpha_hat), "logit",
+                  "complementary log-log"))
+par(op)
+```
+
+### Analytic derivatives of a link
+
+A method for one of the eight derivative generics replaces its fallback, as
+a method of a distribution does. The derivative of the inverse link is
+$$
+\frac{d\mu}{d\eta} = e^{\eta}\,(1 + \alpha e^{\eta})^{-1/\alpha - 1}.
+$$
+We register it as the method of `dlinkinv()`. The fallbacks of the higher
+orders of the inverse link then take one central difference of this
+analytic first derivative, and `check_link()` compares it with a finite
+difference of `linkinv()`:
+
+```{r}
+#| label: ao-dlinkinv
+S7::method(dlinkinv, ArandaOrdaz) <- function(x, eta) {
+  a <- x@link_params$alpha
+  exp(eta) * (1 + a * exp(eta))^(-1 / a - 1)
+}
+link_fallback_orders(ao_link(0.5))
+chk_ao_d <- check_link(ao_link(0.5))
+```
+
+The first order of the inverse link is now analytic and passes the check,
+and the four orders above it are reported as numerical.
+
+```{r}
+#| label: gate-15
+#| include: false
+assert_own_ok(
+  fits = list(gp = fit_gp, gp_s = fit_gp_s, gp_nb = fit_gp_nb,
+              gp_r = fit_gp_r, gp_ra = fit_gp_ra,
+              burr_lin = fit_burr_lin, burr = fit_burr, burr_c = fit_burr_c,
+              rent_gamma = fit_rent_gamma, ao = fit_ao, logit = fit_logit,
+              cloglog = fit_cloglog),
+  ref = list(tmb_gp = tmb_gp, tmb_gp_r = tmb_gp_r, gl_burr = gl_burr,
+             glm_ao = glm_ao),
+  data = list(warpbreaks = warpbreaks, rent = rent, menarche = menarche),
+  claims = list(gp = gp, bd = bd, chk_gp = chk_gp, chk_burr = chk_burr,
+                chk_burr_closed = chk_burr_closed, chk_ao = chk_ao,
+                chk_ao_d = chk_ao_d, score_gap = score_gap,
+                alpha_hat = alpha_hat, ao_loglik = ao_loglik,
+                r_burr = r_burr, r_burr_c = r_burr_c,
+                t = c(gp_density = t_gp_density, gp_score = t_gp_score,
+                      burr_density = t_burr_density,
+                      burr_closed = t_burr_closed,
+                      resid_density = t_resid_density,
+                      resid_closed = t_resid_closed)))
+```

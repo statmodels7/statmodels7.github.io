@@ -140,7 +140,7 @@
 
   # eq-penalty-structured-grad transcribed against parameters7 directly,
   # and independently against numDeriv on the value
-  s <- parameters7::ar1(4, role = "precision")
+  s <- parameters7::ar1(4)
   pen <- structured_penalty(s)
   theta <- list(log_scale = 0.2, z_rho = 0.5)
   beta <- c(0.3, -0.1, 0.4, 0.2)
@@ -168,7 +168,7 @@
 
   # the collapse: log-Cholesky at zero is the plain ridge at lambda = 1
   q <- 3
-  sc <- parameters7::log_cholesky(q, role = "precision")
+  sc <- parameters7::log_cholesky(q)
   penS <- structured_penalty(sc)
   th0 <- stats::setNames(as.list(rep(0, sc@n_free)), sc@free_names)
   penR <- quadratic_penalty(diag(q))

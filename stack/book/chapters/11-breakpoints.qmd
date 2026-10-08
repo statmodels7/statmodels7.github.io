@@ -1,0 +1,1627 @@
+# Break-points {#sec-breakpoints}
+
+```{r}
+#| label: setup-11
+#| include: false
+source("R/_setup.R")
+source("R/breakpoint-certificates.R")
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+yr <- function(x, d = 1) formatC(x, format = "f", digits = d)
+```
+
+A break-point is a value of a covariate at which a regression changes. The
+change can be in the slope, in the level, or in both. The position of the
+break-point is a parameter of the model and is estimated with the other
+coefficients. In `statmodels7` a break-point is a term of the formula, and
+three terms cover the three kinds of change: `seg()` changes the slope,
+`jump()` changes the level, and `jseg()` changes both. Like every other term,
+a break-point term can sit in the equation of any parameter of the
+distribution, and each of its coefficients, the position included, can have
+covariates and random effects of its own.
+
+The package `segmented` fits changes of slope in linear, generalized linear
+and linear mixed models, and changes of level in linear and generalized
+linear models [@muggeo2003; @muggeo2014; @fasola2018]. We compare our fits
+with it throughout the chapter.
+
+## A change of slope: seg() {#sec-breakpoints-seg}
+
+The data frame `GAGurine` gives the concentration of the chemical GAG in the
+urine of 314 children aged from 0 to 17 years [@venables2002]. The
+concentration falls steeply in the first years of life and slowly afterwards.
+Let $y_i$ be the logarithm of the concentration and $a_i$ the age. A model with
+one change of slope at the age $\psi$ is
+$$
+y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
+\mu_i = \beta_0 + \beta_1 a_i + \gamma\, (a_i - \psi)_+ ,
+$$
+where $(u)_+$ is $u$ when $u > 0$ and zero otherwise. The slope is $\beta_1$
+before $\psi$ and $\beta_1 + \gamma$ after it. The mean is a continuous
+function of $\psi$, and it has a derivative in $\psi$ everywhere except at
+the observed ages, so $\psi$ is estimated like any other coefficient and has a
+standard error [@muggeo2003].
+
+```{r}
+#| label: fit-gag
+data(GAGurine, package = "MASS")
+GAGurine$lGAG <- log(GAGurine$GAG)
+fit_gag <- statmod(lGAG ~ seg(Age), distrib = gaussian1_distrib(),
+                   data = GAGurine)
+summary(fit_gag)
+```
+
+The term `seg(Age)` carries the linear effect $\beta_1 a$ itself, so the
+formula does not write `Age` again. The summary gives the slope `beta`, the
+change of slope `gamma1` and the position `psi1` with its standard error. We
+fit the same model with `segmented`:
+
+```{r}
+#| label: segmented-gag
+lm_gag <- lm(lGAG ~ Age, data = GAGurine)
+s_gag <- segmented::segmented(lm_gag, seg.Z = ~ Age)
+s_gag$psi
+rss_gag <- sum((GAGurine$lGAG - fitted(fit_gag, what = "mu"))^2)
+c(statmod = rss_gag, segmented = sum(residuals(s_gag)^2))
+```
+
+```{r}
+#| label: gag-numbers
+#| include: false
+ci_gag <- confint(fit_gag)
+psi_gag <- ci_gag["mu:seg.psi1", ]
+cf_gag <- coef(fit_gag)$mu
+```
+
+The two fits give the same position, $\hat\psi = `r fmt(psi_gag$estimate, 4)`$
+years, with the same standard error, `r fmt(psi_gag$se, 4)`, and the same
+residual sum of squares. The logarithm of the concentration falls by
+`r fmt(-cf_gag[["seg.beta"]], 3)` per year before the break-point and by
+`r fmt(-(cf_gag[["seg.beta"]] + cf_gag[["seg.gamma1"]]), 3)` per year after
+it. The two log-likelihoods differ slightly, because `statmodels7` estimates
+$\sigma$ by REML, as `lm()` does, and `logLik()` of `segmented` reads the
+maximum likelihood estimate. @fig-gag-seg shows the fitted lines.
+
+```{r}
+#| label: fig-gag-seg
+#| fig-cap: "Logarithm of the GAG concentration against age, with the fitted model of one break-point. The vertical line marks the estimated position."
+#| echo: false
+#| fig-height: 3.8
+ga2 <- data.frame(Age = seq(min(GAGurine$Age), max(GAGurine$Age),
+                            length.out = 400))
+ga2$mu <- predict(fit_gag, what = "mu", newdata = ga2)
+ggplot(GAGurine, aes(x = Age, y = lGAG)) +
+  geom_point(colour = book_grey, size = 0.9) +
+  geom_line(data = ga2, aes(y = mu, colour = "fitted mean"), linewidth = 0.9) +
+  geom_vline(data = data.frame(psi = psi_gag$estimate),
+             aes(xintercept = psi, colour = "fitted mean"), linetype = 3) +
+  labs(x = "age (years)", y = "log GAG")
+```
+
+### Is there a break-point?
+
+The standard error of $\psi$ says how precisely the position is located if
+there is a break-point. Whether there is one at all is a different question.
+Its null hypothesis is $\gamma = 0$, and under it the position does not enter
+the model: $\psi$ is a parameter that exists only under the alternative, so
+the usual tests of $\gamma = 0$ have no fixed reference distribution
+[@davies1987]. Davies' approach fixes the position at a value $q$, computes
+the statistic of $\gamma = 0$ for that $q$, and reads the supremum of the
+resulting process over $q$. The function `statmod_breakpoint_test()` uses
+Rao's score statistic
+$$
+S(q) = U_\gamma(q)^2 \, \big[K(q)^{-1}\big]_{\gamma\gamma},
+$$
+where $U_\gamma(q)$ is the score of $\gamma$ in the model with the break-point
+at $q$, evaluated at the fit of the model without the break-point, and
+$K(q)$ is the information of that model. One fit of the model without the
+break-point serves every $q$, so the process costs one gradient and one
+Hessian per position. For a change of slope $S(q)$ is a smooth function of
+$q$, and the p-value of $M = \sup_q S(q)$ has the upper bound of
+@davies1987,
+$$
+P\Big(\sup_q S(q) > M\Big) \le P(\chi^2_1 > M) +
+V \, \frac{e^{-M/2}}{\sqrt{2\pi}}, \qquad
+V = \sum_j \big|S(q_{j+1})^{1/2} - S(q_j)^{1/2}\big| ,
+$$
+with the sum over the grid of positions at which the process is read (ten
+by default). The test reads the score of whatever model carries the term,
+so it works for any family, in the equation of any parameter, and inside a
+parameter of `nl()`.
+
+```{r}
+#| label: test-gag
+test_gag <- statmod_breakpoint_test(fit_gag)
+test_gag
+segmented::davies.test(lm_gag, seg.Z = ~ Age)
+```
+
+Both tests reject the model without a break-point. The function
+`davies.test()` of `segmented` reads the likelihood ratio on its own grid
+for a linear or generalized linear model; our score process gives the same
+conclusion. @fig-gag-test shows the process: it is largest near the age at
+which the slope changes most, and it is far above the quantiles of a
+$\chi^2_1$ everywhere in the middle of the range.
+
+```{r}
+#| label: fig-gag-test
+#| fig-cap: "Score statistic of the change of slope with the position held at each of ten ages, for the GAG data. The dashed line is the 0.95 quantile of a chi-squared with one degree of freedom."
+#| echo: false
+#| fig-height: 3.2
+ggplot(test_gag$process, aes(x = psi, y = score)) +
+  geom_line(colour = book_palette[1]) +
+  geom_point(colour = book_palette[1]) +
+  geom_hline(yintercept = qchisq(0.95, df = 1), linetype = 2) +
+  labs(x = "position q (years)", y = "score statistic S(q)")
+```
+
+### Several break-points
+
+The argument `npsi` sets the number of break-points. With two of them the
+model has two changes of slope, $\gamma_1$ at $\psi_1$ and $\gamma_2$ at
+$\psi_2$:
+
+```{r}
+#| label: fit-gag2
+fit_gag2 <- statmod(lGAG ~ seg(Age, npsi = 2), distrib = gaussian1_distrib(),
+                    data = GAGurine)
+summary(fit_gag2)
+s_gag2 <- segmented::segmented(lm_gag, seg.Z = ~ Age, npsi = 2)
+s_gag2$psi
+rss_gag2 <- sum((GAGurine$lGAG - fitted(fit_gag2, what = "mu"))^2)
+c(statmod = rss_gag2, segmented = sum(residuals(s_gag2)^2))
+```
+
+```{r}
+#| label: gag2-numbers
+#| include: false
+cf_gag2 <- coef(fit_gag2)$mu
+```
+
+The second break-point is the same in the two fits, at
+`r fmt(cf_gag2[["seg.psi2"]], 2)` years. The first one is at
+`r fmt(cf_gag2[["seg.psi1"]], 2)` years in our fit, which is one of the
+observed ages, and at `r fmt(s_gag2$psi[1, "Est."], 3)` years in the fit of
+`segmented`. Our residual sum of squares is the smaller of the two. The mean
+has no derivative in $\psi$ at an observed value of the covariate, and the
+minimum of the residual sum of squares can fall exactly there
+(@sec-breakpoints-locate explains how the positions are found).
+@fig-gag-two compares the two models.
+
+```{r}
+#| label: fig-gag-two
+#| fig-cap: "Logarithm of the GAG concentration against age, with the fitted models of one and two break-points. The vertical lines mark the estimated positions."
+#| echo: false
+#| fig-height: 3.8
+ga2_long <- rbind(
+  data.frame(Age = ga2$Age, mu = ga2$mu, model = "one break-point"),
+  data.frame(Age = ga2$Age, model = "two break-points",
+             mu = predict(fit_gag2, what = "mu", newdata = ga2[, "Age", drop = FALSE])))
+vl_gag <- data.frame(
+  psi = c(psi_gag$estimate, cf_gag2[c("seg.psi1", "seg.psi2")]),
+  model = c("one break-point", "two break-points", "two break-points"))
+ggplot(GAGurine, aes(x = Age, y = lGAG)) +
+  geom_point(colour = book_grey, size = 0.9) +
+  geom_line(data = ga2_long, aes(y = mu, colour = model, linetype = model),
+            linewidth = 0.9) +
+  geom_vline(data = vl_gag, aes(xintercept = psi, colour = model),
+             linetype = 3) +
+  labs(x = "age (years)", y = "log GAG")
+```
+
+The choice between one and two break-points is a choice of the number of
+break-points, and @sec-breakpoints-number makes it by an information
+criterion.
+
+### A Poisson model
+
+A break-point term goes into any family. The data frame `down` of the package
+`segmented` gives the number of babies born with Down syndrome (`cases`) and
+the number of births (`births`) for mothers of each age from 17 to 47. We
+model the rate of cases per birth on the logarithmic scale, with a change of
+slope at the age $\psi$:
+$$
+y_i \sim \mathrm{Poisson}(\mu_i), \qquad
+\log\mu_i = \log b_i + \beta_0 + \beta_1 a_i + \gamma\,(a_i - \psi)_+ .
+$$
+
+```{r}
+#| label: fit-down
+data(down, package = "segmented")
+fit_down <- statmod(cases ~ seg(age) + offset(log(births)),
+                    distrib = poisson_distrib(), data = down)
+summary(fit_down)
+glm_down <- glm(cases ~ age + offset(log(births)), family = poisson,
+                data = down)
+s_down <- segmented::segmented(glm_down, seg.Z = ~ age)
+s_down$psi
+c(statmod = logLik(fit_down), segmented = logLik(s_down))
+```
+
+```{r}
+#| label: down-numbers
+#| include: false
+cf_down <- coef(fit_down)$mu
+```
+
+The two fits agree. Before the age of `r fmt(cf_down[["seg.psi1"]], 1)`
+years the rate changes by
+`r fmt(100 * (exp(cf_down[["seg.beta"]]) - 1), 1)` per cent a year, which is
+almost constant, and after it the rate grows by
+`r fmt(100 * (exp(cf_down[["seg.beta"]] + cf_down[["seg.gamma1"]]) - 1), 1)`
+per cent a year. @fig-down shows the observed rates per 1,000 births with the
+fitted rate, which we obtain from `predict()` with `births = 1000` in
+`newdata`, so that the offset gives the rate per 1,000 births.
+
+```{r}
+#| label: fig-down
+#| fig-cap: "Cases of Down syndrome per 1,000 births against the age of the mother, on the logarithmic scale, with the fitted rate. The vertical line marks the estimated break-point."
+#| echo: false
+#| fig-height: 3.6
+ag <- data.frame(age = seq(min(down$age), max(down$age), length.out = 300),
+                 births = 1000)
+ag$rate <- predict(fit_down, what = "mu", newdata = ag)
+ggplot(down, aes(x = age, y = 1000 * cases / births)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = ag, aes(y = rate, colour = "fitted rate"), linewidth = 0.9) +
+  geom_vline(data = data.frame(psi = cf_down[["seg.psi1"]]),
+             aes(xintercept = psi, colour = "fitted rate"), linetype = 3) +
+  scale_y_log10() +
+  labs(x = "age of the mother (years)", y = "cases per 1,000 births")
+```
+
+## A change of level: jump() and jseg() {#sec-breakpoints-jump}
+
+The series `Nile` gives the annual flow of the river Nile at Aswan, in units
+of $10^8$ cubic meters, from 1871 to 1970 [@cobb1978]. The flow drops at the
+end of the nineteenth century. We model the mean as a step function of the
+year $t$:
+$$
+y_t \sim \mathrm{N}(\mu_t, \sigma), \qquad
+\mu_t = \beta_0 + \delta\, \mathbb{1}(t > \psi) .
+$$
+
+```{r}
+#| label: fit-nile
+nile <- data.frame(year = 1871:1970, flow = as.numeric(Nile))
+fit_nile <- statmod(flow ~ jump(year), distrib = gaussian1_distrib(),
+                    data = nile)
+summary(fit_nile)
+```
+
+The mean is now a step function of $\psi$: it does not change while $\psi$
+moves between two consecutive years. So the log-likelihood has no curvature
+in $\psi$, and $\psi$ has no standard error. The position is the minimum of
+the residual sum of squares over the intervals between consecutive years
+(@sec-breakpoints-locate), and it is held there while the other
+coefficients are fitted. With the position held, the model is linear in
+$\beta_0$ and $\delta$, and their standard errors are those of `lm()` with
+the indicator written as a column. They are conditional on the position.
+The position counts one degree of freedom.
+
+The function `stepmented()` of `segmented` fits the same model:
+
+```{r}
+#| label: stepmented-nile
+s_nile <- segmented::stepmented(lm(flow ~ 1, data = nile), ~ year)
+s_nile$psi
+rss_nile <- sum((nile$flow - fitted(fit_nile, what = "mu"))^2)
+c(statmod = rss_nile, stepmented = sum(residuals(s_nile)^2))
+```
+
+```{r}
+#| label: nile-numbers
+#| include: false
+cf_nile <- coef(fit_nile)$mu
+ci_nile <- confint(fit_nile)
+```
+
+Both fits put the step between 1898 and 1899, and they have the same residual
+sum of squares. We compare the residual sums of squares and not the
+log-likelihoods, because our $\sigma$ is the REML estimate
+$\sqrt{\mathrm{RSS}/(n-3)}$ and `stepmented()` reports the maximum likelihood
+one. The mean flow is `r fmt(cf_nile[["(Intercept)"]], 0)` before the step
+and `r fmt(cf_nile[["(Intercept)"]] + cf_nile[["jump.delta1"]], 0)` after it,
+a drop of `r fmt(-cf_nile[["jump.delta1"]], 0)` with a standard error of
+`r fmt(ci_nile["mu:jump.delta1", "se"], 1)`. @fig-nile-step shows the series with
+the fitted step.
+
+```{r}
+#| label: fig-nile-step
+#| fig-cap: "Annual flow of the Nile at Aswan, with the fitted step."
+#| echo: false
+#| fig-height: 3.4
+nile$step <- predict(fit_nile, what = "mu", newdata = nile)
+ggplot(nile, aes(x = year)) +
+  geom_line(aes(y = flow), colour = book_grey) +
+  geom_step(aes(y = step, colour = "fitted step"), linewidth = 0.9) +
+  labs(x = "year", y = expression(flow ~ (10^8 ~ m^3)))
+```
+
+### A bootstrap for the position {#sec-breakpoints-bootstrap}
+
+The parametric bootstrap gives the uncertainty of the position of a step
+[@efron1993]. We draw new data sets from the fitted model with `simulate()`,
+fit the model again to each of them, and look at the spread of the new
+positions:
+
+```{r}
+#| label: boot-nile
+set.seed(1)
+sims <- simulate(fit_nile, nsim = 100)
+psi_star <- numeric(100)
+for (k in 1:100) {
+  nile_k <- nile
+  nile_k$flow <- sims[, k]
+  fit_k <- statmod(flow ~ jump(year), distrib = gaussian1_distrib(),
+                   data = nile_k)
+  psi_star[k] <- coef(fit_k)$mu[["jump.psi1"]]
+}
+quantile(psi_star, probs = c(0.025, 0.975))
+mean(floor(psi_star) == 1898)
+```
+
+```{r}
+#| label: boot-numbers
+#| include: false
+q_psi <- stats::quantile(psi_star, c(0.025, 0.975))
+share <- mean(floor(psi_star) == 1898)
+```
+
+In `r fmt(100 * share, 0)` per cent of the simulated data sets the step falls
+between 1898 and 1899, as in the original fit, and 95 per cent of the
+positions lie between `r yr(q_psi[1])` and `r yr(q_psi[2])`.
+
+### Is there a step?
+
+The test of @sec-breakpoints-seg applies to a change of level too, with one
+difference. The score process of a step is constant between consecutive
+years and jumps at each of them, and Davies' bound, which adds up those
+jumps, is then too wide to be useful. `statmod_breakpoint_test()` therefore
+reads the supremum over every interval between consecutive years, and
+estimates its distribution under the null hypothesis by a parametric
+bootstrap: it draws new responses from the fit without a step, fits that
+model again to each, and computes the supremum of each new process. The
+p-value is the share of bootstrap suprema at least as large as the observed
+one, counting the observed one. We use 99 replicates:
+
+```{r}
+#| label: test-nile
+test_nile <- statmod_breakpoint_test(fit_nile, n_boot = 99, seed = 1)
+test_nile
+```
+
+The p-value is `r test_nile$p.value`, the smallest that 99 replicates can
+give: none of the bootstrap suprema reaches the observed one.
+
+### A change of level in a Poisson model
+
+A change of level goes into any family, as a change of slope does. The data
+frame `coal` of the package `boot` gives the dates of the explosions in
+British coal mines that killed ten or more people, from 1851 to 1962
+[@jarrett1979; @davison1997]. We count the disasters of each year and model
+the count as a Poisson variable whose mean drops once:
+$$
+y_t \sim \mathrm{Poisson}(\mu_t), \qquad
+\log\mu_t = \beta_0 + \delta\,\mathbb{1}(t > \psi) .
+$$
+
+```{r}
+#| label: fit-coal
+data(coal, package = "boot")
+coal_y <- data.frame(year = 1851:1962)
+coal_y$count <- as.numeric(table(factor(floor(coal$date), levels = 1851:1962)))
+fit_coal <- statmod(count ~ jump(year), distrib = poisson_distrib(),
+                    data = coal_y)
+summary(fit_coal)
+s_coal <- segmented::stepmented(glm(count ~ 1, family = poisson, data = coal_y),
+                                ~ year)
+s_coal$psi
+c(statmod = logLik(fit_coal), stepmented = logLik(s_coal))
+```
+
+```{r}
+#| label: coal-numbers
+#| include: false
+cf_coal <- coef(fit_coal)$mu
+```
+
+The two fits have the same log-likelihood, and both put the change between
+1891 and 1892. The expected number of disasters falls from
+`r fmt(exp(cf_coal[["(Intercept)"]]), 2)` a year to
+`r fmt(exp(cf_coal[["(Intercept)"]] + cf_coal[["jump.delta1"]]), 2)`, a ratio
+of `r fmt(exp(cf_coal[["jump.delta1"]]), 2)`. @fig-coal shows the counts with
+the fitted mean.
+
+```{r}
+#| label: fig-coal
+#| fig-cap: "Number of coal-mining disasters in Britain in each year, with the fitted mean of the Poisson model with one change of level."
+#| echo: false
+#| fig-height: 3.4
+coal_y$mu <- predict(fit_coal, what = "mu", newdata = coal_y)
+ggplot(coal_y, aes(x = year)) +
+  geom_segment(aes(xend = year, y = 0, yend = count), colour = book_grey,
+               linewidth = 0.8) +
+  geom_step(aes(y = mu, colour = "fitted mean"), linewidth = 0.9) +
+  labs(x = "year", y = "disasters")
+```
+
+### A change of level and of slope
+
+The term `jseg()` changes both the level and the slope at the same position:
+$$
+\mu_i = \beta_0 + \beta_1 x_i + \gamma\,(x_i - \psi)_+ + \delta\,\mathbb{1}(x_i > \psi) .
+$$
+We simulate 200 observations from this model with $\psi = 6$, a jump of 1.5
+and a change of slope of $-0.6$, and we fit the three terms:
+
+```{r}
+#| label: fit-jseg
+set.seed(11)
+x <- sort(runif(200, 0, 10))
+y <- 1 + 0.3 * x + ifelse(x > 6, 1.5 - 0.6 * (x - 6), 0) +
+  rnorm(200, sd = 0.5)
+sim <- data.frame(x = x, y = y)
+fit_jseg <- statmod(y ~ jseg(x), distrib = gaussian1_distrib(), data = sim)
+summary(fit_jseg)
+```
+
+The summary gives the slope `beta`, the change of slope `gamma1`, the change
+of level `delta1` and the position `psi1`, which, as for `jump()`, has no
+standard error. We also fit the model with a change of slope only and the
+model with a change of level only. In `y ~ x + jump(x)` the formula writes `x`
+for the linear effect, because `jump()` carries no slope of its own.
+
+```{r}
+#| label: fit-jseg-others
+fit_seg0 <- statmod(y ~ seg(x), distrib = gaussian1_distrib(), data = sim)
+summary(fit_seg0)
+fit_jump0 <- statmod(y ~ x + jump(x), distrib = gaussian1_distrib(), data = sim)
+summary(fit_jump0)
+c(jseg = BIC(fit_jseg), seg = BIC(fit_seg0), jump = BIC(fit_jump0))
+```
+
+The BIC is smallest for `jseg()`, whose position is
+`r fmt(coef(fit_jseg)$mu[["jseg.psi1"]], 2)` against the true 6. @fig-jseg
+shows the three fits. The model with a change of slope only joins the two
+lines at the break-point and so misses the jump; the model with a change of
+level only keeps one slope on both sides.
+
+```{r}
+#| label: fig-jseg
+#| fig-cap: "Simulated data with a change of level and of slope at 6, and the fitted means of jseg(), seg() and x + jump()."
+#| echo: false
+#| fig-height: 3.6
+xg <- data.frame(x = seq(0, 10, length.out = 500))
+jseg_fits <- rbind(
+  data.frame(x = xg$x, model = "jseg()",
+             mu = predict(fit_jseg, what = "mu", newdata = xg)),
+  data.frame(x = xg$x, model = "seg()",
+             mu = predict(fit_seg0, what = "mu", newdata = xg)),
+  data.frame(x = xg$x, model = "x + jump()",
+             mu = predict(fit_jump0, what = "mu", newdata = xg)))
+jseg_fits$model <- factor(jseg_fits$model, levels = c("jseg()", "seg()",
+                                                      "x + jump()"))
+ggplot(sim, aes(x = x, y = y)) +
+  geom_point(colour = book_grey, size = 0.9) +
+  geom_line(data = jseg_fits, aes(y = mu, colour = model, linetype = model),
+            linewidth = 0.9) +
+  labs(x = "x", y = "y")
+```
+
+### A change of level and of slope in a Gamma model
+
+For a positive response with a variance that grows with the mean we use the
+Gamma family with a logarithmic link. We simulate 300 observations whose mean
+has a change of level of 0.8 and a change of slope of $-0.15$ at $x = 4$ on
+the log scale:
+$$
+y_i \sim \mathrm{Gamma}(\mu_i, \phi), \qquad
+\log\mu_i = \beta_0 + \beta_1 x_i + \gamma\,(x_i - \psi)_+ +
+\delta\,\mathbb{1}(x_i > \psi) .
+$$
+
+```{r}
+#| label: fit-gamma-jseg
+set.seed(4)
+x_g <- runif(300, 0, 10)
+mu_g <- exp(0.5 + 0.1 * x_g + ifelse(x_g > 4, 0.8 - 0.15 * (x_g - 4), 0))
+sim_g <- data.frame(x = x_g, y = rgamma(300, shape = 4, rate = 4 / mu_g))
+fit_gj <- statmod(y ~ jseg(x), distrib = gamma1_distrib(), data = sim_g)
+summary(fit_gj)
+fit_gs <- statmod(y ~ seg(x), distrib = gamma1_distrib(), data = sim_g)
+summary(fit_gs)
+c(jseg = BIC(fit_gj), seg = BIC(fit_gs))
+```
+
+```{r}
+#| label: gamma-jseg-numbers
+#| include: false
+cf_gj <- coef(fit_gj)$mu
+```
+
+The estimates are close to the values of the simulation: the position is
+`r fmt(cf_gj[["jseg.psi1"]], 2)` against 4, the change of level
+`r fmt(cf_gj[["jseg.delta1"]], 2)` against 0.8 and the change of slope
+`r fmt(cf_gj[["jseg.gamma1"]], 3)` against $-0.15$. The model without the
+change of level has the larger BIC. As in the gaussian case, the position has
+no standard error, and the other coefficients have standard errors
+conditional on it. @fig-gamma-jseg shows the two fits.
+
+```{r}
+#| label: fig-gamma-jseg
+#| fig-cap: "Simulated Gamma responses with a change of level and of slope of the log mean at 4, with the fitted means of jseg() and seg()."
+#| echo: false
+#| fig-height: 3.6
+gam_fits <- rbind(
+  data.frame(x = xg$x, model = "jseg()",
+             mu = predict(fit_gj, what = "mu", newdata = xg)),
+  data.frame(x = xg$x, model = "seg()",
+             mu = predict(fit_gs, what = "mu", newdata = xg)))
+ggplot(sim_g, aes(x = x, y = y)) +
+  geom_point(colour = book_grey, size = 0.9) +
+  geom_line(data = gam_fits, aes(y = mu, colour = model, linetype = model),
+            linewidth = 0.9) +
+  labs(x = "x", y = "y")
+```
+
+## Locating the break-points {#sec-breakpoints-locate}
+
+The position of a break-point enters the model through the columns
+$(x - \psi)_+$ and $\mathbb{1}(x > \psi)$, which are not differentiable in
+$\psi$ at the observed values of $x$. `statmod()` finds the positions in two
+stages. It first runs an iteration that moves the positions together with
+the other coefficients: the linearization of @muggeo2003 for a change of
+slope, and the working construction of @fasola2018 for a change of level.
+It then polishes the positions on the exact profile of the objective, which
+this section describes, and refits the other coefficients there.
+
+### The profile over every interval
+
+Hold every position but one, $\psi_k = q$, and write $F$ for the columns that
+do not depend on $q$: the intercept, the covariate if the term carries a
+slope, the columns of the other break-points and the columns of the other
+terms. Write $A(q)$ for the columns that do depend on $q$: $(x - q)_+$ for
+`seg()`, $\mathbb{1}(x > q)$ for `jump()`, and both for `jseg()`. By the
+theorem of Frisch, Waugh and Lovell, the residual sum of squares of the
+response on $F$ and $A(q)$ is the residual sum of squares on $F$ alone,
+$\mathrm{RSS}_F$, less what $A(q)$ explains of the residuals $r = M_F y$:
+$$
+\mathrm{RSS}(q) = \mathrm{RSS}_F - c(q)' S(q)^{-1} c(q), \qquad
+c(q) = A(q)' M_F\, y, \qquad S(q) = A(q)' M_F\, A(q),
+$$
+where $M_F = I - F(F'F)^{-1}F'$. The profile $\mathrm{RSS}(q)$ is what the
+polish minimizes.
+
+For a change of level, $A(q)$ changes only when $q$ crosses an observed value
+of $x$. So $\mathrm{RSS}(q)$ is constant between consecutive observed values,
+and its minimum over all $q$ is found by evaluating it once in each interval.
+Every cross product in $c(q)$ and $S(q)$ is a sum over the observations above
+$q$, of a fixed quantity or of a fixed quantity minus $q$ times another.
+After sorting the observations once, these sums are cumulative sums read
+from the top, so all the intervals together cost $O(np^2)$ operations, $p$
+being the number of columns of $F$, rather than one regression each. The
+position is placed at the midpoint of the best interval.
+
+For a change of slope the profile is not constant inside an interval, but it
+has a simple form there. Between the consecutive observed values
+$u_j < u_{j+1}$ the column is $(x - q)\, s$ with $s = \mathbb{1}(x > u_j)$
+fixed, so with $t = x\, s$ it is $t - q\, s$, and
+$$
+\mathrm{RSS}(q) = \mathrm{RSS}_F -
+\frac{(c_t - q\, c_s)^2}{a_{tt} - 2q\, a_{ts} + q^2 a_{ss}} ,
+$$
+where $c_t = t' M_F y$, $c_s = s' M_F y$ and the $a$ are the cross products
+of $t$ and $s$ after $M_F$. The ratio has one stationary point,
+$q^* = -b/g$, where $g$ and $b$ are the coefficients of $t$ and $s$ in the
+regression of $r$ on the two columns. The minimum over the interval is at
+$q^*$ when $q^*$ falls inside it, and at one of its ends otherwise, which is
+an observed value. This is why the first position of the GAG model with two
+break-points is exactly one of the observed ages.
+
+With several break-points the polish minimizes the profile over one position
+at a time, with the others held, and cycles through the positions until none
+of them moves. Each step searches every interval, so a position can move
+from one local minimum to another however far apart they are.
+
+In a model whose objective is not a residual sum of squares (another
+family, or the equation of a parameter other than a gaussian mean), the
+same profile is computed on the working response of a scoring step,
+$$
+z_i = \eta_i + \frac{\partial \ell_i / \partial \eta_i}{h_i}, \qquad
+h_i = -\mathbb{E}\Big(\frac{\partial^2 \ell_i}{\partial \eta_i^2}\Big),
+$$
+with weights $h_i$, which is the quadratic approximation of the
+log-likelihood around the current fit. Since the approximation is not the
+objective, a polished position is kept only when the refit there improves
+the objective, and the five deepest local minima of the working profile are
+also refitted and compared on the objective itself.
+
+When the position has covariates, $\psi_i = w_i' p$, the polish moves the
+coefficients $p$ along a line, $p + \lambda v$. The position of observation
+$i$ crosses $x_i$ at $\lambda_i = (x_i - \psi_i)/(w_i' v)$, so the profile is
+again evaluated once between consecutive crossings. With `psi ~ 0 + g` the
+lines move the position of one group at a time, which is a search over every
+interval of that group. With a continuous covariate in the formula of the
+position, the lines follow a fixed set of directions, and the result is the
+best point along those lines, not a guaranteed global minimum.
+
+### Starting values
+
+The data frame `globTempAnom` of the package `segmented` gives the yearly
+anomaly of the global temperature from 1850 to 2023. We fit two changes of
+slope with the default starting values, and from $\psi = (1880, 1950)$
+without the bootstrap restarts of @muggeo2003 (`n_boot = 0`):
+
+```{r}
+#| label: fit-glob
+data(globTempAnom, package = "segmented")
+fit_glob <- statmod(Anomaly ~ seg(Year, npsi = 2),
+                    distrib = gaussian1_distrib(), data = globTempAnom)
+summary(fit_glob)
+fit_glob_0 <- statmod(Anomaly ~ seg(Year, npsi = 2, psi = c(1880, 1950),
+                                    n_boot = 0),
+                      distrib = gaussian1_distrib(), data = globTempAnom)
+rss <- function(fit) {
+  sum((globTempAnom$Anomaly - fitted(fit, what = "mu"))^2)
+}
+lm_glob <- lm(Anomaly ~ Year, data = globTempAnom)
+s_glob <- segmented::segmented(lm_glob, seg.Z = ~ Year, npsi = 2)
+rbind(default = coef(fit_glob)$mu[c("seg.psi1", "seg.psi2")],
+      start = coef(fit_glob_0)$mu[c("seg.psi1", "seg.psi2")],
+      segmented = s_glob$psi[, "Est."])
+c(default = rss(fit_glob), start = rss(fit_glob_0),
+  segmented = sum(residuals(s_glob)^2))
+```
+
+The two fits reach the same positions as `segmented`. @fig-glob shows why
+the start matters for the iteration and not for the polish: with the first
+position held at 1910, the profile in the second position has two minima,
+and an iteration that starts from 1950 can stop at the one near 2014, where
+the second change of slope rests on a handful of years. The polish evaluates
+every interval and moves the position to the deeper minimum.
+
+```{r}
+#| label: fig-glob
+#| fig-cap: "Residual sum of squares of the model with two changes of slope as a function of the second break-point, with the first held at 1910. The vertical line marks the second break-point of the fit."
+#| echo: false
+#| fig-height: 3.4
+prof_glob <- data.frame(psi2 = seq(1930, 2015, by = 0.5))
+prof_glob$rss <- vapply(prof_glob$psi2, function(q) {
+  X2 <- cbind(1, globTempAnom$Year, pmax(globTempAnom$Year - 1910, 0),
+              pmax(globTempAnom$Year - q, 0))
+  sum(lm.fit(X2, globTempAnom$Anomaly)$residuals^2)
+}, numeric(1))
+ggplot(prof_glob, aes(x = psi2, y = rss)) +
+  geom_line(colour = book_palette[4]) +
+  geom_vline(xintercept = coef(fit_glob)$mu[["seg.psi2"]],
+             colour = book_palette[1], linetype = 2) +
+  labs(x = expression(psi[2]), y = "residual sum of squares")
+```
+
+The function `seg_start()` returns the starting positions that `statmod()`
+computes by default, so they can be inspected before a fit:
+
+```{r}
+#| label: seg-start
+seg_start(seg(Year, npsi = 2), data = globTempAnom,
+          y = globTempAnom$Anomaly)@spec$psi
+```
+
+### The number of break-points {#sec-breakpoints-number}
+
+The number of break-points is a choice between models, and we make it with
+an information criterion. Each position counts one degree of freedom, as
+does each change of slope. We fit from none to five changes of slope to the
+temperature anomalies:
+
+```{r}
+#| label: fit-glob-npsi
+fits_glob <- list(statmod(Anomaly ~ Year, distrib = gaussian1_distrib(),
+                          data = globTempAnom))
+for (k in 1:5) {
+  fits_glob[[k + 1]] <- statmod(Anomaly ~ seg(Year, npsi = k),
+                                distrib = gaussian1_distrib(),
+                                data = globTempAnom)
+}
+tab_npsi <- data.frame(
+  npsi = 0:5,
+  rss = vapply(fits_glob, rss, numeric(1)),
+  edf = vapply(fits_glob, function(f) sum(f@edf$edf), numeric(1)),
+  AIC = vapply(fits_glob, AIC, numeric(1)),
+  BIC = vapply(fits_glob, BIC, numeric(1)))
+tab_npsi
+```
+
+```{r}
+#| label: glob-npsi-numbers
+#| include: false
+k_bic <- tab_npsi$npsi[which.min(tab_npsi$BIC)]
+k_aic <- tab_npsi$npsi[which.min(tab_npsi$AIC)]
+fit_bic <- fits_glob[[k_bic + 1]]
+psi_bic <- coef(fit_bic)$mu[grepl("psi", names(coef(fit_bic)$mu))]
+```
+
+The BIC is smallest with `r k_bic` break-points, at
+`r paste(yr(psi_bic, 0), collapse = ", ")`, and the AIC, which penalizes
+each degree of freedom less, keeps adding break-points up to `r k_aic`. The
+function `selgmented()` of `segmented` makes the choice by the BIC with its
+own fits:
+
+```{r}
+#| label: selgmented-glob
+s_sel <- segmented::selgmented(lm_glob, seg.Z = ~ Year, type = "bic",
+                               Kmax = 5, msg = FALSE)
+s_sel$psi
+s_glob4 <- segmented::segmented(lm_glob, seg.Z = ~ Year, npsi = 4)
+c(statmod = rss(fits_glob[[5]]), segmented = sum(residuals(s_glob4)^2))
+```
+
+It chooses `r nrow(s_sel$psi)` break-points, because its fit with four
+stops at a local minimum whose residual sum of squares is larger than ours,
+as the last line shows. The search over every interval of @sec-breakpoints-locate matters
+most where the number of break-points grows, because the profile of each
+position then has more local minima. @fig-glob-npsi shows the fit chosen by
+the BIC.
+
+```{r}
+#| label: fig-glob-npsi
+#| fig-cap: "Yearly anomaly of the global temperature, with the fit of the number of changes of slope chosen by the BIC. The vertical lines mark the estimated positions."
+#| echo: false
+#| fig-height: 3.6
+yg <- data.frame(Year = seq(min(globTempAnom$Year), max(globTempAnom$Year),
+                            length.out = 500))
+yg$mu <- predict(fit_bic, what = "mu", newdata = yg)
+ggplot(globTempAnom, aes(x = Year, y = Anomaly)) +
+  geom_point(colour = book_grey, size = 0.9) +
+  geom_line(data = yg, aes(y = mu, colour = "fitted mean"), linewidth = 0.9) +
+  geom_vline(xintercept = psi_bic, colour = book_palette[1], linetype = 3) +
+  labs(x = "year", y = "anomaly (degrees C)")
+```
+
+## Covariates on the coefficients {#sec-breakpoints-by}
+
+Every coefficient of a break-point term can depend on covariates through a
+formula with the coefficient on the left. The argument `by = ~ 0 + g` gives
+every coefficient one value for each level of the factor `g`, and
+`psi ~ 0 + g` gives only the position one value per level. The data frame
+`plant` of the package `segmented` gives a measurement `y` of three plants
+(`group`) at several times `time`. We fit a model with one change of slope
+for each plant, and a model in which the three plants share the slopes but not
+the position:
+
+```{r}
+#| label: fit-plant
+data(plant, package = "segmented")
+fit_by <- statmod(y ~ group + seg(time, by = ~ 0 + group),
+                  distrib = gaussian1_distrib(), data = plant)
+summary(fit_by)
+fit_psi <- statmod(y ~ group + seg(time, psi ~ 0 + group),
+                   distrib = gaussian1_distrib(), data = plant)
+summary(fit_psi)
+```
+
+In the summary each developed coefficient has a compartment headed by its
+formula, with one value per level of `group`. The function `segreg()` of
+`segmented` fits the first model with the term `seg(time, by = group)` of
+its own formula language. Our `seg()` has the same name, so we evaluate
+`segmented`'s inside a local environment:
+
+```{r}
+#| label: segreg-plant
+s_plant <- local({
+  seg <- segmented::seg
+  segmented::segreg(y ~ group + seg(time, by = group), data = plant)
+})
+s_plant$psi
+c(statmod = sum((plant$y - fitted(fit_by, what = "mu"))^2),
+  segreg = sum(residuals(s_plant)^2))
+```
+
+The two fits have the same positions and the same residual sum of squares.
+@fig-plant shows the data of the three plants with the two fits.
+
+```{r}
+#| label: fig-plant
+#| fig-cap: "The measurement of each plant against time, with the fit that gives every coefficient one value per plant and the fit with common slopes and one position per plant. The vertical lines mark the positions of the first fit."
+#| echo: false
+#| fig-height: 3.8
+#| fig-width: 9
+cb_plant <- coef(fit_by)$mu
+tg_plant <- expand.grid(time = seq(min(plant$time), max(plant$time),
+                                   length.out = 300),
+                        group = levels(plant$group))
+tg_plant$group <- factor(tg_plant$group, levels = levels(plant$group))
+plant_fits <- rbind(
+  data.frame(tg_plant, model = "by = ~ 0 + group",
+             mu = predict(fit_by, what = "mu", newdata = tg_plant)),
+  data.frame(tg_plant, model = "psi ~ 0 + group",
+             mu = predict(fit_psi, what = "mu", newdata = tg_plant)))
+vl_plant <- data.frame(
+  group = factor(levels(plant$group), levels = levels(plant$group)),
+  psi = cb_plant[paste0("seg.psi1.group", levels(plant$group))],
+  model = "by = ~ 0 + group")
+ggplot(plant, aes(x = time, y = y)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = plant_fits, aes(y = mu, colour = model, linetype = model),
+            linewidth = 0.9) +
+  geom_vline(data = vl_plant, aes(xintercept = psi, colour = model),
+             linetype = 3) +
+  facet_wrap(~ group) +
+  labs(x = "time", y = "y")
+```
+
+The second model is nested in the first: it has one slope and one change of
+slope where the first has three of each, so it has four coefficients fewer.
+We compare the two with the likelihood ratio test:
+
+```{r}
+#| label: lr-plant
+l0 <- logLik(fit_psi)
+l1 <- logLik(fit_by)
+lr <- 2 * (as.numeric(l1) - as.numeric(l0))
+lr
+pchisq(lr, df = 4, lower.tail = FALSE)
+```
+
+The common slopes are rejected. The test treats the positions as known in
+both models, which is the usual practice for nested break-point models with
+the same number of break-points [@muggeo2003]. The same formulas work in
+`jump()` and `jseg()`, whose positions are then located as
+@sec-breakpoints-locate describes.
+
+## A random break-point {#sec-breakpoints-random}
+
+In a panel each subject can have its own break-point. The model with a random
+position [@muggeo2014] is
+$$
+\mu_{ij} = \beta_0 + b_i + \beta_1 t_{ij} + \gamma\,(t_{ij} - \psi_i)_+ ,
+\qquad \psi_i = \psi + u_i, \quad u_i \sim \mathrm{N}(0, \tau),
+$$
+with a random intercept $b_i \sim \mathrm{N}(0, \sigma_b)$. We simulate 20
+subjects observed at 15 times, with $\psi = 5$ and $\tau = 0.8$, and write the
+random position as a formula on `psi`:
+
+```{r}
+#| label: fit-panel
+set.seed(3)
+id <- factor(rep(1:20, each = 15))
+t <- rep(seq(0, 10, length.out = 15), 20)
+psi_i <- 5 + rnorm(20, sd = 0.8)
+b0 <- 2 + rnorm(20, sd = 0.5)
+y <- b0[id] + 0.8 * t - 1.2 * pmax(t - psi_i[id], 0) + rnorm(300, sd = 0.4)
+panel <- data.frame(id = id, t = t, y = y)
+fit_pan <- statmod(y ~ random(~ 1 | id) + seg(t, psi ~ random(~ 1 | id)),
+                   distrib = gaussian1_distrib(), data = panel)
+summary(fit_pan)
+```
+
+The compartment of `psi1` gives the fixed effect of its formula, the
+population position, and then its random part, headed by the `random()`
+term: the standard deviation $\tau$ of the positions, `sigma`, and a
+summary of the predicted deviations of the twenty subjects. @muggeo2014 estimate the same model by
+maximum likelihood, linearizing the model in the positions of the subjects
+and fitting the resulting linear mixed model with `nlme`, and `segmented`
+implements their method in `segmented.lme()`:
+
+```{r}
+#| label: segmented-lme
+lme_pan <- nlme::lme(y ~ t, random = ~ 1 | id, data = panel)
+s_pan <- segmented::segmented.lme(lme_pan, seg.Z = ~ t,
+                                  random = list(id = nlme::pdDiag(~ 1 + G0)))
+cf_pan <- coef(fit_pan)$mu
+h_pan <- hyper(fit_pan)
+sd_lme <- as.numeric(nlme::VarCorr(s_pan$lme.fit)[, "StdDev"])
+cbind(statmod = c(position = cf_pan[["seg.psi1.(Intercept)"]],
+                  gamma = cf_pan[["seg.gamma1"]],
+                  sd_position = h_pan$estimate[grepl("seg", h_pan$term)],
+                  sd_intercept = h_pan$estimate[!grepl("seg", h_pan$term)]),
+      segmented.lme = c(nlme::fixef(s_pan$lme.fit)[c("G0", "U")],
+                        sd_lme[2:1]))
+```
+
+The two fits give the same population position and change of slope, and
+standard deviations that agree within one per cent. The positions of the subjects
+are the population position plus each subject's random effect, and we
+compare them with those of `segmented.lme()` and with the positions used in
+the simulation:
+
+```{r}
+#| label: panel-psi
+psi_hat <- cf_pan[["seg.psi1.(Intercept)"]] +
+  cf_pan[paste0("seg.psi1.random.", 1:20)]
+round(cbind(statmod = psi_hat, segmented.lme = s_pan$psi.i,
+            true = psi_i), 3)[1:6, ]
+cor(psi_hat, psi_i)
+```
+
+@fig-panel shows three subjects, the one with the earliest true position,
+one in the middle and the one with the latest, each with the curve that the
+model fits to it.
+
+```{r}
+#| label: fig-panel
+#| fig-cap: "Three subjects of the simulated panel, each with the curve that the model fits to it, the estimated position of its break-point (dashed) and the position used in the simulation (dotted)."
+#| echo: false
+#| fig-height: 3.8
+#| fig-width: 9
+sel <- sort(c(which.min(psi_i), order(psi_i)[10], which.max(psi_i)))
+lab_sel <- paste("subject", sel)
+tg_pan <- expand.grid(t = seq(0, 10, length.out = 200), id = sel)
+tg_pan$id <- factor(tg_pan$id, levels = levels(panel$id))
+tg_pan$mu <- predict(fit_pan, what = "mu", newdata = tg_pan)
+tg_pan$subject <- factor(paste("subject", tg_pan$id), levels = lab_sel)
+pts_pan <- panel[panel$id %in% sel, ]
+pts_pan$subject <- factor(paste("subject", pts_pan$id), levels = lab_sel)
+vl_pan <- rbind(
+  data.frame(subject = factor(lab_sel, levels = lab_sel),
+             psi = psi_hat[sel], what = "estimated position"),
+  data.frame(subject = factor(lab_sel, levels = lab_sel),
+             psi = psi_i[sel], what = "true position"))
+ggplot(pts_pan, aes(x = t, y = y)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = tg_pan, aes(y = mu, colour = "fitted curve"),
+            linewidth = 0.9) +
+  geom_vline(data = vl_pan, aes(xintercept = psi, linetype = what)) +
+  scale_linetype_manual(values = c(2, 3)) +
+  facet_wrap(~ subject) +
+  labs(x = "t", y = "y")
+```
+
+### Random effects on the other coefficients
+
+The position is not the only coefficient that can vary between subjects.
+Each coefficient of the term takes a formula of its own, so the change of
+slope can have a random effect too:
+$$
+\mu_{ij} = \beta_0 + b_i + \beta_1 t_{ij} + \gamma_i\,(t_{ij} - \psi_i)_+ ,
+\qquad \psi_i = \psi + u_i, \qquad \gamma_i = \gamma + v_i ,
+$$
+with $u_i \sim \mathrm{N}(0, \tau_\psi)$ and
+$v_i \sim \mathrm{N}(0, \tau_\gamma)$. We simulate a new panel in which the
+change of slope varies between subjects with standard deviation 0.3, and we
+fit it:
+
+```{r}
+#| label: fit-panel-gamma
+set.seed(6)
+g_i <- -1.2 + rnorm(20, sd = 0.3)
+y_g <- b0[id] + 0.8 * t + g_i[id] * pmax(t - psi_i[id], 0) +
+  rnorm(300, sd = 0.4)
+panel_g <- data.frame(id = id, t = t, y = y_g)
+fit_pg <- statmod(y ~ random(~ 1 | id) +
+                    seg(t, psi ~ random(~ 1 | id), gamma1 ~ random(~ 1 | id)),
+                  distrib = gaussian1_distrib(), data = panel_g)
+summary(fit_pg)
+```
+
+The block of the term now has two compartments, one for `psi1` and one for
+`gamma1`. Each gives the fixed effect of its formula and then the standard
+deviation of its random effects. Every `random()` term has its own variance,
+so $\tau_\psi$ and $\tau_\gamma$ are estimated separately, by REML, together
+with the standard deviation of the random intercept.
+
+To give two random effects the same variance we write the same label in the
+argument `id` of the two `random()` terms. Here this means
+$\tau_\psi = \tau_\gamma$:
+
+```{r}
+#| label: fit-panel-gamma-id
+fit_pg_id <- statmod(y ~ random(~ 1 | id) +
+                       seg(t, psi ~ random(~ 1 | id, id = "re"),
+                           gamma1 ~ random(~ 1 | id, id = "re")),
+                     distrib = gaussian1_distrib(), data = panel_g)
+summary(fit_pg_id)
+hyper(fit_pg_id)
+```
+
+The two models differ by one variance parameter, and we compare them with the
+likelihood ratio of their REML criteria:
+
+```{r}
+#| label: lr-panel-gamma
+l0 <- logLik(fit_pg_id, type = "marginal")
+l1 <- logLik(fit_pg, type = "marginal")
+lr_g <- 2 * (as.numeric(l1) - as.numeric(l0))
+lr_g
+pchisq(lr_g, df = 1, lower.tail = FALSE)
+```
+
+The common variance is rejected. This is what we expect, because the two
+standard deviations are in different units: $\tau_\psi$ is a length of time
+and $\tau_\gamma$ a change of slope, so they are equal only by accident. A
+common variance is natural when the coefficients are on the same scale, for
+example the changes of level of two break-points, `delta1` and `delta2`.
+The hypothesis $\tau_\psi = \tau_\gamma$ does not put either standard
+deviation at zero, so the usual $\chi^2_1$ reference applies.
+@fig-panel-gamma shows three subjects with the curves of the model with two
+separate variances.
+
+```{r}
+#| label: fig-panel-gamma
+#| fig-cap: "Three subjects of the panel in which the change of slope varies between subjects (the smallest, a middle and the largest true change of slope), with the curve that the model with random position and random change of slope fits to each of them."
+#| echo: false
+#| fig-height: 3.8
+#| fig-width: 9
+sel_g <- sort(c(which.min(g_i), order(g_i)[10], which.max(g_i)))
+lab_g <- sprintf("subject %d, change of slope %.2f", sel_g, g_i[sel_g])
+tg_pg <- expand.grid(t = seq(0, 10, length.out = 200), id = sel_g)
+tg_pg$id <- factor(tg_pg$id, levels = levels(panel_g$id))
+tg_pg$mu <- predict(fit_pg, what = "mu", newdata = tg_pg)
+tg_pg$subject <- factor(lab_g[match(tg_pg$id, sel_g)], levels = lab_g)
+pts_pg <- panel_g[panel_g$id %in% sel_g, ]
+pts_pg$subject <- factor(lab_g[match(pts_pg$id, sel_g)], levels = lab_g)
+ggplot(pts_pg, aes(x = t, y = y)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = tg_pg, aes(y = mu, colour = "fitted curve"),
+            linewidth = 0.9) +
+  facet_wrap(~ subject) +
+  labs(x = "t", y = "y")
+```
+
+### Heavy-tailed random positions
+
+The random effects need not be gaussian. The argument `distrib` of
+`random()` takes any distribution of `distributions7` with location zero, and
+a Student $t$ gives positions whose distribution has heavier tails, so that a
+few subjects whose break-point lies far from the others do not inflate the
+spread of all the rest. We move the break-points of two subjects of the
+first panel to 1.5 and 8.8, and fit the model with gaussian random positions
+and with $t$ random positions whose degrees of freedom are estimated with the
+scale:
+
+```{r}
+#| label: fit-panel-t
+psi_o <- psi_i
+psi_o[c(4, 17)] <- c(1.5, 8.8)
+set.seed(7)
+y_o <- b0[id] + 0.8 * t - 1.2 * pmax(t - psi_o[id], 0) + rnorm(300, sd = 0.4)
+panel_o <- data.frame(id = id, t = t, y = y_o)
+fit_og <- statmod(y ~ random(~ 1 | id) + seg(t, psi ~ random(~ 1 | id)),
+                  distrib = gaussian1_distrib(), data = panel_o)
+t_prior <- fixed(student_t1_distrib(), mu = 0)
+fit_ot <- statmod(y ~ random(~ 1 | id) +
+                    seg(t, psi ~ random(~ 1 | id, distrib = t_prior)),
+                  distrib = gaussian1_distrib(), data = panel_o)
+summary(fit_ot)
+```
+
+```{r}
+#| label: panel-t-numbers
+psi_of <- function(fit) {
+  cf <- coef(fit)$mu
+  cf[["seg.psi1.(Intercept)"]] + cf[paste0("seg.psi1.random.", 1:20)]
+}
+h_og <- hyper(fit_og)
+h_ot <- hyper(fit_ot)
+rbind(gaussian = c(scale = h_og$estimate[h_og$name == "sigma" &
+                                           grepl("seg", h_og$term)],
+                   rmse = sqrt(mean((psi_of(fit_og) - psi_o)^2)),
+                   rmse_others = sqrt(mean((psi_of(fit_og) - psi_o)[-c(4, 17)]^2))),
+      t = c(scale = h_ot$estimate[h_ot$name == "sigma" &
+                                    grepl("seg", h_ot$term)],
+            rmse = sqrt(mean((psi_of(fit_ot) - psi_o)^2)),
+            rmse_others = sqrt(mean((psi_of(fit_ot) - psi_o)[-c(4, 17)]^2))))
+```
+
+```{r}
+#| label: panel-t-inline
+#| include: false
+nu_ot <- h_ot$estimate[h_ot$name == "nu"]
+sc_og <- h_og$estimate[h_og$name == "sigma" & grepl("seg", h_og$term)]
+sc_ot <- h_ot$estimate[h_ot$name == "sigma" & grepl("seg", h_ot$term)]
+```
+
+The compartment of `psi1` now reports the two parameters of the $t$
+distribution under its random part, the scale and the degrees of freedom.
+The degrees of freedom are estimated at `r fmt(nu_ot, 2)`, which gives tails
+about as heavy as those of a Cauchy distribution. The gaussian model
+inflates its standard deviation to `r fmt(sc_og, 2)` to cover the two
+distant subjects, while the scale of the $t$, `r fmt(sc_ot, 2)`, describes
+the spread of the other eighteen. The positions of the subjects are
+estimated about equally well by the two models, overall and for the
+eighteen subjects that were not moved.
+
+## Smoothed break-points {#sec-breakpoints-smooth}
+
+A change of level has no derivative in its position, and so no standard
+error. One way to obtain one replaces the step by a smooth function that
+rises from 0 to 1 over a small width around the position. The construction
+starts from two identities. With $u = x - \psi$,
+$$
+(u)_+ = \frac{u + \lvert u\rvert}{2}, \qquad
+\mathbb{1}(u > 0) = \frac{1 + \operatorname{sgn} u}{2}
+= \frac{1}{2}\Big(1 + \frac{d\lvert u\rvert}{du}\Big) \quad (u \ne 0),
+$$
+so the truncated line and the step are algebraic sums of $u$, of the
+absolute value $\lvert u\rvert$ and of its derivative. The absolute value is
+the one non-smooth ingredient. Replacing it by a smooth function $s_h(u)$
+with $s_h(u) \to \lvert u\rvert$ as $h \to 0$ gives
+$$
+(u)_+ \approx \frac{u + s_h(u)}{2}, \qquad
+\mathbb{1}(u > 0) \approx \frac{1 + s_h'(u)}{2},
+$$
+a smoothed truncated line and a smoothed step. Their derivatives in $\psi$
+are $-\{1 + s_h'(u)\}/2$ and $-s_h''(u)/2$, and the second is not zero near
+the position, so the likelihood has a curvature in $\psi$ and $\psi$ has a
+standard error. The argument `smoothed` of `jump()` and `jseg()` chooses the
+function, and `statmodels7` has three of them:
+
+* `smooth_probit(h)` takes $s_h(u) = \mathbb{E}\lvert u + hZ\rvert =
+  u\{2\Phi(u/h) - 1\} + 2h\,\phi(u/h)$ with $Z$ standard normal, whose
+  derivative is $2\Phi(u/h) - 1$, so the step is the gaussian distribution
+  function $\Phi(u/h)$. It differs from the sharp step only within a few
+  widths of $\psi$, because the difference has gaussian tails.
+* `smooth_quintic(h)` uses a polynomial on $[-h, h]$, equal to
+  $\lvert u\rvert$ outside it, so the step is 0 below $\psi - h$ and 1 above
+  $\psi + h$ exactly. Outside that window the model is the sharp model.
+* `smooth_hyperbolic(c)` takes $s_h(u) = \sqrt{u^2 + c}$, so the step is
+  $\{1 + u/\sqrt{u^2 + c}\}/2$. It is the simplest of the three, but it
+  approaches 0 and 1 only as $1/u^2$, so it moves the fitted mean far from
+  $\psi$ as well.
+
+We fit the three smoothed steps to the Nile with their default widths:
+
+```{r}
+#| label: fit-nile-smooth
+fit_np <- statmod(flow ~ jump(year, smoothed = smooth_probit()),
+                  distrib = gaussian1_distrib(), data = nile)
+summary(fit_np)
+fit_nq <- statmod(flow ~ jump(year, smoothed = smooth_quintic()),
+                  distrib = gaussian1_distrib(), data = nile)
+summary(fit_nq)
+fit_nh <- statmod(flow ~ jump(year, smoothed = smooth_hyperbolic()),
+                  distrib = gaussian1_distrib(), data = nile)
+summary(fit_nh)
+```
+
+We put the estimates of the sharp step of @sec-breakpoints-jump beside those
+of the three smoothed models, with their log-likelihoods:
+
+```{r}
+#| label: smooth-compare
+ci_n <- confint(fit_nile)
+ci_np <- confint(fit_np)
+ci_nq <- confint(fit_nq)
+ci_nh <- confint(fit_nh)
+est <- cbind(sharp = ci_n$estimate, probit = ci_np$estimate,
+             quintic = ci_nq$estimate, hyperbolic = ci_nh$estimate)
+se <- cbind(sharp = ci_n$se, probit = ci_np$se, quintic = ci_nq$se,
+            hyperbolic = ci_nh$se)
+rownames(est) <- rownames(ci_n)
+rownames(se) <- rownames(ci_n)
+round(est, 2)
+round(se, 2)
+c(sharp = logLik(fit_nile), probit = logLik(fit_np), quintic = logLik(fit_nq),
+  hyperbolic = logLik(fit_nh))
+```
+
+The three smoothed models put the step at
+`r yr(ci_np["mu:jump.psi1", "estimate"], 2)`,
+`r yr(ci_nq["mu:jump.psi1", "estimate"], 2)` and
+`r yr(ci_nh["mu:jump.psi1", "estimate"], 2)`, with standard errors of
+`r fmt(ci_np["mu:jump.psi1", "se"], 2)`,
+`r fmt(ci_nq["mu:jump.psi1", "se"], 2)` and
+`r fmt(ci_nh["mu:jump.psi1", "se"], 2)` years. The sharp step sits in the
+same interval, between 1898 and 1899, and has no standard error. The levels
+and the drop change by a few units, and their standard errors are a little
+larger in the smoothed models, which add the uncertainty of the position. The
+log-likelihood of the sharp step is the highest, and the smoothed ones are
+lower by less than one unit: the smoothed mean moves from one level to the
+other over a year or two, and with yearly data this is almost the same model.
+@fig-nile-smooth shows the four fitted means around the break-point.
+
+```{r}
+#| label: fig-nile-smooth
+#| fig-cap: "Annual flow of the Nile from 1880 to 1920, with the fitted means of the sharp step and of the three smoothed steps."
+#| echo: false
+#| fig-height: 3.8
+yw <- data.frame(year = seq(1880, 1920, length.out = 801))
+nile_smooth <- rbind(
+  data.frame(year = yw$year, model = "sharp step",
+             mu = predict(fit_nile, what = "mu", newdata = yw)),
+  data.frame(year = yw$year, model = "probit",
+             mu = predict(fit_np, what = "mu", newdata = yw)),
+  data.frame(year = yw$year, model = "quintic",
+             mu = predict(fit_nq, what = "mu", newdata = yw)),
+  data.frame(year = yw$year, model = "hyperbolic",
+             mu = predict(fit_nh, what = "mu", newdata = yw)))
+nile_smooth$model <- factor(nile_smooth$model,
+                            levels = c("sharp step", "probit", "quintic",
+                                       "hyperbolic"))
+ggplot(nile[nile$year >= 1880 & nile$year <= 1920, ], aes(x = year, y = flow)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = nile_smooth, aes(y = mu, colour = model, linetype = model),
+            linewidth = 0.8) +
+  labs(x = "year", y = expression(flow ~ (10^8 ~ m^3)))
+```
+
+### The width of the smoothing
+
+The width $h$ is a constant of the model, chosen before the fit and not
+estimated. When it is not given, it is computed from the spacing of the
+covariate: $h$ is the spacing for the probit, 3.61 times the spacing for the
+quintic, so that about five observations fall inside $[-h, h]$, and $c$ is
+the square of the spacing for the hyperbolic. The choice matters because the
+standard error of $\psi$ belongs to the smoothed model at that width. We fit
+the probit step to the Nile with widths from a tenth of a year to eight
+years:
+
+```{r}
+#| label: nile-width
+widths <- c(0.1, 0.25, 0.5, 1, 2, 4, 8)
+tab_h <- t(vapply(widths, function(h) {
+  f <- statmod(flow ~ jump(year, smoothed = smooth_probit(h)),
+               distrib = gaussian1_distrib(), data = nile)
+  ci <- confint(f)
+  c(h = h, psi = ci["mu:jump.psi1", "estimate"], se_psi = ci["mu:jump.psi1", "se"],
+    delta = ci["mu:jump.delta1", "estimate"], se_delta = ci["mu:jump.delta1", "se"],
+    logLik = as.numeric(logLik(f)),
+    converged = statmod_certificate(f)$state == "converged")
+}, numeric(7)))
+round(tab_h, 3)
+```
+
+As $h$ decreases the smoothed model approaches the sharp step and its
+log-likelihood rises towards that of the sharp step, so the likelihood
+cannot choose $h$: it would always choose the sharp step. The curvature in
+$\psi$ comes from the observations within a few widths of $\psi$. With
+$h = 0.1$ there is hardly any observation there, the curvature is close to
+zero, the fit does not converge and the standard error of $\psi$ is
+meaningless. From $h = 0.5$ on, the transition from one level to the other
+spreads over more years as $h$ grows, the fit gets worse, and the standard
+error of $\psi$ grows with $h$, from less than a year to several years. A width close to the
+spacing of the covariate is the smallest one that gives every position a
+curvature from a few observations, and it keeps the model close to the sharp
+step; this is the default.
+
+With random positions the width also changes the variance of the positions.
+On the panel of @sec-breakpoints-marginal, which has a change of level, the
+estimated standard deviation of the positions grows with $h$, and the change
+of level is estimated too large when the width is wide:
+
+```{r}
+#| label: panel-width
+#| echo: false
+set.seed(4)
+y_j <- b0[id] + 1.5 * (t > psi_i[id]) + rnorm(300, sd = 0.4)
+panel_j <- data.frame(id = id, t = t, y = y_j)
+tab_hr <- t(vapply(c(0.25, 0.71, 2), function(h) {
+  f <- statmod(y ~ random(~ 1 | id) +
+                 jump(t, psi ~ random(~ 1 | id), smoothed = smooth_probit(h)),
+               distrib = gaussian1_distrib(), data = panel_j)
+  hp <- hyper(f)
+  c(h = h, position = coef(f)$mu[["jump.psi1.(Intercept)"]],
+    sd_position = hp$estimate[grepl("jump", hp$term)],
+    delta = coef(f)$mu[["jump.delta1"]])
+}, numeric(4)))
+round(tab_hr, 3)
+```
+
+The positions were drawn with a standard deviation of 0.8 (the sample
+standard deviation of the twenty positions is `r fmt(sd(psi_i), 2)`) and the
+change of level is 1.5. The width 0.71 is the default, the spacing of the
+times.
+
+### Which smoother to use
+
+On the Nile the three smoothers give almost the same fit, because the width
+is about one year and the series has one observation a year. They differ in
+three properties, and these decide the choice.
+
+* **How far from $\psi$ the fit is changed.** The probit step differs from
+  the sharp step by a gaussian tail, so a few widths away from $\psi$ the two
+  agree to rounding. The quintic step equals the sharp step exactly outside
+  $[\psi - h, \psi + h]$. The hyperbolic step differs from the sharp step by
+  a term that decays only as $c/u^2$, so it moves the fitted mean at every
+  observation, also far from the break-point.
+* **Whether $\psi$ always has a curvature.** The curvature in $\psi$ comes
+  from observations inside the window of the smoother. The probit and the
+  hyperbolic windows never end, so every observation contributes a little.
+  The quintic window ends at $\pm h$, and if no observation falls inside it,
+  $\psi$ has no curvature and is not identified; this is why its default
+  width is wider, 3.61 spacings, which puts about five observations inside
+  the window of a uniform covariate.
+* **Whether a criterion over the hyperparameters is smooth.** The probit is
+  an analytic function, so a REML criterion with a smoothed break-point, for
+  example the standard deviation of random positions, has exact derivatives
+  everywhere. The quintic has a fourth derivative that jumps at $\pm h$, and
+  the criterion has small jumps in its gradient whenever an observation
+  crosses $\psi \pm h$.
+
+So `smooth_probit()` is the default to use: it changes the model only near
+$\psi$, it always gives $\psi$ a curvature, and it keeps the REML criterion
+smooth. Use `smooth_quintic()` when the model should be the sharp model away
+from the break-point, for example when the observations near $\psi$ are few
+and the fit elsewhere must not change, and there is no hyperparameter to
+estimate by REML. `smooth_hyperbolic()` is the simplest form and has the
+cheapest derivatives, but it changes the fit everywhere; it is rarely the
+right choice for a break-point.
+
+## The marginal likelihood of a random break-point {#sec-breakpoints-marginal}
+
+The random positions of @sec-breakpoints-random are estimated as penalized
+coefficients, one for each subject, and $\tau$ comes from the Laplace
+approximation of REML. For a change of level this is not available, because
+the indicator gives the log-likelihood no curvature in $\psi_i$. The argument
+`marginal = TRUE` integrates each subject's position out of the likelihood
+instead:
+$$
+L_i = \int \prod_j p\{y_{ij} \mid \mu_{ij}(\psi_i)\}\,
+\frac{1}{\tau}\phi\!\left(\frac{\psi_i - m}{\tau}\right) d\psi_i .
+$$
+For `jump()` the integrand is constant between consecutive times, so the
+integral is a finite sum over the intervals, each weighted by the normal
+probability of the interval. For `seg()` and `jseg()` it is computed by
+quadrature. The term then has the parameters $m$, $\tau$ and $\delta$ of the
+population, and no coefficient per subject. The panel with a change of level
+of the previous section, with $\psi_i$ drawn from $\mathrm{N}(5, 0.8)$ and
+$\delta = 1.5$, is fitted with:
+
+```{r}
+#| label: fit-marginal
+fit_marg <- statmod(y ~ random(~ 1 | id) +
+                      jump(t, psi ~ random(~ 1 | id), marginal = TRUE),
+                    distrib = gaussian1_distrib(), data = panel_j)
+summary(fit_marg)
+statmod_certificate(fit_marg)
+```
+
+The block of the term has three parameters, and they are the parameters of
+the population of positions, not of any one subject. The positions of the
+subjects follow $\psi_i \sim \mathrm{N}(m, \tau)$, and:
+
+* `psi1.mean` is $m$, the mean of the positions in the population. It is
+  the population position, the same quantity as `psi1.(Intercept)` in the
+  model with a random position of @sec-breakpoints-random;
+* `psi1.sd` is $\tau$, the standard deviation of the positions between
+  subjects, the same quantity as the `sigma` of the random part of that
+  model;
+* `delta1` is $\delta$, the change of level, common to all subjects.
+
+The number 1 refers to the first break-point; with `npsi = 2` the block also
+has `psi2.mean` and `psi2.sd`. The summary has no row for the position of
+each subject, because the model has no coefficient for it: each
+$\psi_i$ has been integrated out of the likelihood. What the data say about
+the position of subject $i$ is its posterior distribution given that
+subject's observations and the fitted $m$, $\tau$, $\delta$ and $\sigma$. The
+function `statmod_latent()` returns its mean and standard deviation, one row
+per subject and break-point: the column `group` names the subject, `psi`
+says which break-point the row is about (here always the first), and `mean`
+and `sd` are the posterior mean and standard deviation of that subject's
+position:
+
+```{r}
+#| label: marginal-latent
+lat <- statmod_latent(fit_marg)
+head(lat)
+psi_post <- lat$mean[match(levels(panel_j$id), as.character(lat$group))]
+cbind(posterior_mean = psi_post, true = psi_i)[1:6, ]
+cor(psi_post, psi_i)
+```
+
+The posterior mean of $\psi_i$ is a weighted average of the intervals
+between consecutive times, each interval weighted by how well a step there
+fits the observations of subject $i$ and by its probability under
+$\mathrm{N}(m, \tau)$. A subject whose step is clear in the data has a
+small posterior standard deviation; a subject whose step is hidden by noise
+has a posterior mean pulled towards $m$ and a larger standard deviation.
+
+The fitted values of the marginal model are the posterior means of the
+predictor at the observed times: for subject $i$ at time $t_{ij}$,
+$$
+\mathbb{E}(\mu_{ij} \mid y_i) = \beta_0 + b_i +
+\delta\, P(\psi_i < t_{ij} \mid y_i),
+$$
+which rises from one level to the other over the times where the posterior
+of $\psi_i$ has its mass. @fig-marginal-subjects shows six subjects with
+their observations, these fitted values, and the posterior mean and
+standard deviation of their positions.
+
+```{r}
+#| label: fig-marginal-subjects
+#| fig-cap: "Six subjects of the panel with a change of level, with the fitted values of the marginal model (the posterior mean of the predictor), the posterior mean of the position (dashed) with one posterior standard deviation on each side (shaded), and the position used in the simulation (dotted)."
+#| echo: false
+#| fig-height: 5
+#| fig-width: 9
+sel_m <- sort(order(psi_i)[c(1, 4, 8, 12, 16, 20)])
+lab_m <- paste("subject", sel_m)
+pj <- panel_j
+pj$fitted <- fitted(fit_marg, what = "mu")
+pj <- pj[pj$id %in% sel_m, ]
+pj$subject <- factor(paste("subject", pj$id), levels = lab_m)
+post_m <- data.frame(subject = factor(lab_m, levels = lab_m),
+                     mean = psi_post[sel_m],
+                     sd = lat$sd[match(as.character(sel_m), as.character(lat$group))],
+                     true = psi_i[sel_m])
+ggplot(pj, aes(x = t)) +
+  geom_rect(data = post_m, aes(xmin = mean - sd, xmax = mean + sd,
+                               ymin = -Inf, ymax = Inf),
+            inherit.aes = FALSE, fill = book_palette[1], alpha = 0.15) +
+  geom_point(aes(y = y), colour = book_grey) +
+  geom_line(aes(y = fitted, colour = "fitted values"), linewidth = 0.9) +
+  geom_vline(data = post_m, aes(xintercept = mean, linetype = "posterior mean")) +
+  geom_vline(data = post_m, aes(xintercept = true, linetype = "true position")) +
+  scale_linetype_manual(values = c(2, 3)) +
+  facet_wrap(~ subject) +
+  labs(x = "t", y = "y")
+```
+
+The smoothed step of @sec-breakpoints-smooth gives the other route: with
+`smoothed = smooth_probit()` the positions of the subjects are penalized
+coefficients again, as for `seg()` in @sec-breakpoints-random.
+
+```{r}
+#| label: fit-smooth-random
+fit_srand <- statmod(y ~ random(~ 1 | id) +
+                       jump(t, psi ~ random(~ 1 | id),
+                            smoothed = smooth_probit()),
+                     distrib = gaussian1_distrib(), data = panel_j)
+summary(fit_srand)
+cf_sr <- coef(fit_srand)$mu
+h_sr <- hyper(fit_srand)
+cf_mg <- coef(fit_marg)$mu
+cbind(marginal = c(position = cf_mg[["jump.psi1.mean"]], sd = cf_mg[["jump.psi1.sd"]],
+                   delta = cf_mg[["jump.delta1"]]),
+      smoothed = c(position = cf_sr[["jump.psi1.(Intercept)"]],
+                   sd = h_sr$estimate[grepl("jump", h_sr$term)],
+                   delta = cf_sr[["jump.delta1"]]),
+      true = c(5, 0.8, 1.5))
+```
+
+```{r}
+#| label: marginal-numbers
+#| include: false
+cf_marg <- coef(fit_marg)$mu
+ce_marg <- statmod_certificate(fit_marg)
+```
+
+The population position is `r fmt(cf_marg[["jump.psi1.mean"]], 2)`, the standard
+deviation of the positions `r fmt(cf_marg[["jump.psi1.sd"]], 2)` and the change
+of level `r fmt(cf_marg[["jump.delta1"]], 2)`. The criterion of this model
+has no exact derivative in the standard deviation of the random intercept.
+`statmod()` therefore searches over that one hyperparameter with Brent's
+method, and `statmod_certificate()` reads the gradient and the curvature of
+the criterion by refitting the model at nearby values, which gives the
+`curvature` reported above.
+
+The two routes give similar estimates. The standard deviation of the
+smoothed model is larger, because the smoothing spreads each step over a
+width $h$, and a step spread in this way looks like extra variation in the
+positions (@sec-breakpoints-smooth measured how this grows with $h$). The
+marginal fit costs more: the integral is computed for every subject at every
+evaluation. @fig-marginal shows the mean of the responses at each time with
+the population mean of the marginal model,
+$\beta_0 + \delta\,\Phi\{(t - m)/\tau\}$, and the average of the subject
+curves of the smoothed model.
+
+```{r}
+#| label: fig-marginal
+#| fig-cap: "Mean of the twenty responses at each time, with the population mean of the marginal model and the average of the subject curves of the smoothed model."
+#| echo: false
+#| fig-height: 3.6
+tgrid <- seq(0, 10, length.out = 300)
+pop_m <- cf_mg[["(Intercept)"]] +
+  cf_mg[["jump.delta1"]] * pnorm((tgrid - cf_mg[["jump.psi1.mean"]]) /
+                                   cf_mg[["jump.psi1.sd"]])
+avg_s <- numeric(length(tgrid))
+for (i in levels(panel_j$id)) {
+  nd <- data.frame(t = tgrid, id = factor(i, levels = levels(panel_j$id)))
+  avg_s <- avg_s + predict(fit_srand, what = "mu", newdata = nd) / 20
+}
+ybar <- data.frame(t = sort(unique(panel_j$t)),
+                   y = as.numeric(tapply(panel_j$y, panel_j$t, mean)))
+marg_lines <- rbind(data.frame(t = tgrid, mu = pop_m, model = "marginal model"),
+                    data.frame(t = tgrid, mu = avg_s, model = "smoothed model"))
+ggplot(ybar, aes(x = t, y = y)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = marg_lines, aes(y = mu, colour = model, linetype = model),
+            linewidth = 0.9) +
+  labs(x = "t", y = "mean response")
+```
+
+## A break-point in the standard deviation {#sec-breakpoints-sigma}
+
+A break-point term can sit in the equation of $\sigma$. The data frame
+`mcycle` gives the acceleration of the head of a crash-test dummy against the
+time after impact [@silverman1985]. The variance is small before the impact
+and large after it. We keep a smooth for the mean and try the three
+break-point terms for $\log\sigma$:
+
+```{r}
+#| label: fit-mcycle-sigma
+data(mcycle, package = "MASS")
+fit_ss <- statmod(accel ~ s(times, bspline_smooth(k = 20)) | sigma ~ seg(times),
+                  distrib = gaussian1_distrib(), data = mcycle)
+summary(fit_ss)
+fit_sj <- statmod(accel ~ s(times, bspline_smooth(k = 20)) | sigma ~ jump(times),
+                  distrib = gaussian1_distrib(), data = mcycle)
+summary(fit_sj)
+fit_sjs <- statmod(accel ~ s(times, bspline_smooth(k = 20)) | sigma ~ jseg(times),
+                   distrib = gaussian1_distrib(), data = mcycle)
+summary(fit_sjs)
+c(seg = AIC(fit_ss), jump = AIC(fit_sj), jseg = AIC(fit_sjs))
+```
+
+```{r}
+#| label: mcycle-numbers
+#| include: false
+cf_sjs <- coef(fit_sjs)$sigma
+```
+
+The AIC is smallest for `jseg()`: at `r fmt(cf_sjs[["jseg.psi1"]], 1)` ms the
+logarithm of $\sigma$ jumps by `r fmt(cf_sjs[["jseg.delta1"]], 2)`, and its
+slope changes from `r fmt(cf_sjs[["jseg.beta"]], 3)` to
+`r fmt(cf_sjs[["jseg.beta"]] + cf_sjs[["jseg.gamma1"]], 3)` per ms. In the
+equation of $\sigma$ the residual sum of squares is not the objective, so the
+positions are located on the working response of that equation and then
+compared on the REML criterion itself (@sec-breakpoints-locate). The test of
+@sec-breakpoints-seg reads the score of the equation of $\sigma$ in the same
+way, and it confirms that the standard deviation changes its slope:
+
+```{r}
+#| label: test-mcycle
+statmod_breakpoint_test(fit_ss)
+```
+
+@fig-mcycle shows the data with the fitted mean and the band of two standard
+deviations of the `jseg()` model, and the fitted standard deviation of the
+three models.
+
+```{r}
+#| label: fig-mcycle
+#| fig-cap: "Left: acceleration against time, with the fitted mean and the band of plus or minus two fitted standard deviations of the jseg() model. Right: fitted standard deviation of the acceleration against time for the three break-point terms in the equation of sigma."
+#| echo: false
+#| fig-height: 3.8
+#| fig-width: 9
+tt <- data.frame(times = seq(min(mcycle$times), max(mcycle$times), length.out = 400))
+m_sjs <- predict(fit_sjs, what = "mu", newdata = tt)
+sd_sjs <- predict(fit_sjs, what = "sigma", newdata = tt)
+p_mean <- ggplot(mcycle, aes(x = times, y = accel)) +
+  geom_point(colour = book_grey, size = 0.9) +
+  geom_ribbon(data = data.frame(times = tt$times, lo = m_sjs - 2 * sd_sjs,
+                                hi = m_sjs + 2 * sd_sjs),
+              aes(x = times, ymin = lo, ymax = hi), inherit.aes = FALSE,
+              fill = book_palette[1], alpha = 0.15) +
+  geom_line(data = data.frame(times = tt$times, mu = m_sjs),
+            aes(y = mu), colour = book_palette[1], linewidth = 0.9) +
+  labs(x = "time (ms)", y = "acceleration (g)")
+sd_lines <- rbind(
+  data.frame(times = tt$times, model = "jseg()", sd = sd_sjs),
+  data.frame(times = tt$times, model = "seg()",
+             sd = predict(fit_ss, what = "sigma", newdata = tt)),
+  data.frame(times = tt$times, model = "jump()",
+             sd = predict(fit_sj, what = "sigma", newdata = tt)))
+sd_lines$model <- factor(sd_lines$model, levels = c("jseg()", "seg()", "jump()"))
+p_sd <- ggplot(sd_lines, aes(x = times, y = sd, colour = model,
+                             linetype = model)) +
+  geom_line(linewidth = 0.9) +
+  labs(x = "time (ms)", y = expression(hat(sigma)))
+patchwork::wrap_plots(p_mean, p_sd, ncol = 2)
+```
+
+```{r}
+#| label: gate-11
+#| include: false
+assert_breakpoint_ok(
+  fits = list(gag = fit_gag, gag2 = fit_gag2, down = fit_down, nile = fit_nile,
+              jseg = fit_jseg, seg0 = fit_seg0, jump0 = fit_jump0,
+              coal = fit_coal, gj = fit_gj, gs = fit_gs,
+              glob = fit_glob, glob_0 = fit_glob_0, glob_k = fits_glob,
+              by = fit_by, psi = fit_psi, pan = fit_pan, np = fit_np,
+              nq = fit_nq, nh = fit_nh, pg = fit_pg, pg_id = fit_pg_id,
+              og = fit_og, ot = fit_ot,
+              marg = fit_marg, srand = fit_srand, ss = fit_ss,
+              sj = fit_sj, sjs = fit_sjs),
+  ref = list(s_gag = s_gag, s_gag2 = s_gag2, s_down = s_down, s_nile = s_nile,
+             s_coal = s_coal, s_glob = s_glob, s_glob4 = s_glob4,
+             s_sel = s_sel, s_plant = s_plant, s_pan = s_pan),
+  data = list(GAGurine = GAGurine, nile = nile, globTempAnom = globTempAnom,
+              plant = plant, mcycle = mcycle, panel = panel,
+              panel_j = panel_j),
+  claims = list(lr = lr, rss_gag = rss_gag, rss_gag2 = rss_gag2,
+                rss_nile = rss_nile, psi_star = psi_star, share = share,
+                lr_g = lr_g, test_gag = test_gag, tab_npsi = tab_npsi,
+                k_bic = k_bic, k_aic = k_aic, tab_h = tab_h, tab_hr = tab_hr,
+                psi_hat = psi_hat, psi_o = psi_o, nu_ot = nu_ot,
+                test_nile = test_nile))
+```

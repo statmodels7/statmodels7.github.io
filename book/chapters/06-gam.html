@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>6&nbsp; Generalized additive models – statmodels7</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/07-lmm.html" rel="next">
+<link href="../chapters/05-distributions.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e986b704c747e817427b29ebc19a759e.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a2ce0b05719297c8ab99eac5b5b92eaa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/01-model.html">Using statmod()</a></li><li class="breadcrumb-item"><a href="../chapters/06-gam.html"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Generalized additive models</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="../index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">statmodels7</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Using statmod()</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-model.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">A first model</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-beyond.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Beyond the basics</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-lm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Linear models and beyond</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-glm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Generalized linear models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Distributions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/06-gam.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Generalized additive models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/07-lmm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Linear mixed models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/08-glmm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Generalized linear mixed models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/09-gamm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Generalized additive mixed models</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Special model terms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/10-penalized.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Penalized regression</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/11-breakpoints.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Break-points</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/12-nonlinear.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Nonlinear models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/13-timeseries.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Time series</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Choosing</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/14-choosing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Choosing</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Extending the toolkit</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/15-own-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Writing a distribution and a link</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/16-own-terms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A2-references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active" data-toc-expanded="99">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-gam-bspline" id="toc-sec-gam-bspline" class="nav-link active" data-scroll-target="#sec-gam-bspline"><span class="header-section-number">6.1</span> B-spline smooths</a>
+  <ul>
+  <li><a href="#the-number-of-basis-functions" id="toc-the-number-of-basis-functions" class="nav-link" data-scroll-target="#the-number-of-basis-functions">The number of basis functions</a></li>
+  <li><a href="#the-order-of-the-penalty" id="toc-the-order-of-the-penalty" class="nav-link" data-scroll-target="#the-order-of-the-penalty">The order of the penalty</a></li>
+  <li><a href="#the-null-space" id="toc-the-null-space" class="nav-link" data-scroll-target="#the-null-space">The null space</a></li>
+  </ul></li>
+  <li><a href="#sec-gam-families" id="toc-sec-gam-families" class="nav-link" data-scroll-target="#sec-gam-families"><span class="header-section-number">6.2</span> Other smoothers</a>
+  <ul>
+  <li><a href="#p-splines" id="toc-p-splines" class="nav-link" data-scroll-target="#p-splines">P-splines</a></li>
+  <li><a href="#global-polynomials" id="toc-global-polynomials" class="nav-link" data-scroll-target="#global-polynomials">Global polynomials</a></li>
+  <li><a href="#adaptive-smooths" id="toc-adaptive-smooths" class="nav-link" data-scroll-target="#adaptive-smooths">Adaptive smooths</a></li>
+  <li><a href="#periodic-smooths" id="toc-periodic-smooths" class="nav-link" data-scroll-target="#periodic-smooths">Periodic smooths</a></li>
+  <li><a href="#fourier-smooths" id="toc-fourier-smooths" class="nav-link" data-scroll-target="#fourier-smooths">Fourier smooths</a></li>
+  </ul></li>
+  <li><a href="#sec-gam-operators" id="toc-sec-gam-operators" class="nav-link" data-scroll-target="#sec-gam-operators"><span class="header-section-number">6.3</span> Penalties from differential operators</a>
+  <ul>
+  <li><a href="#the-harmonic-operator-on-a-fourier-basis" id="toc-the-harmonic-operator-on-a-fourier-basis" class="nav-link" data-scroll-target="#the-harmonic-operator-on-a-fourier-basis">The harmonic operator on a Fourier basis</a></li>
+  <li><a href="#a-yearly-cycle-on-a-b-spline-basis" id="toc-a-yearly-cycle-on-a-b-spline-basis" class="nav-link" data-scroll-target="#a-yearly-cycle-on-a-b-spline-basis">A yearly cycle on a B-spline basis</a></li>
+  <li><a href="#an-exponential-decay" id="toc-an-exponential-decay" class="nav-link" data-scroll-target="#an-exponential-decay">An exponential decay</a></li>
+  <li><a href="#a-trend-with-a-yearly-cycle" id="toc-a-trend-with-a-yearly-cycle" class="nav-link" data-scroll-target="#a-trend-with-a-yearly-cycle">A trend with a yearly cycle</a></li>
+  </ul></li>
+  <li><a href="#sec-gam-by" id="toc-sec-gam-by" class="nav-link" data-scroll-target="#sec-gam-by"><span class="header-section-number">6.4</span> Smooths that change with another variable</a>
+  <ul>
+  <li><a href="#one-curve-for-each-level-of-a-factor" id="toc-one-curve-for-each-level-of-a-factor" class="nav-link" data-scroll-target="#one-curve-for-each-level-of-a-factor">One curve for each level of a factor</a></li>
+  <li><a href="#a-coefficient-that-changes-with-a-covariate" id="toc-a-coefficient-that-changes-with-a-covariate" class="nav-link" data-scroll-target="#a-coefficient-that-changes-with-a-covariate">A coefficient that changes with a covariate</a></li>
+  </ul></li>
+  <li><a href="#sec-gam-te" id="toc-sec-gam-te" class="nav-link" data-scroll-target="#sec-gam-te"><span class="header-section-number">6.5</span> Smooths of two covariates</a>
+  <ul>
+  <li><a href="#the-same-model-in-mgcv" id="toc-the-same-model-in-mgcv" class="nav-link" data-scroll-target="#the-same-model-in-mgcv">The same model in <code>mgcv</code></a></li>
+  </ul></li>
+  <li><a href="#sec-gam-sigma" id="toc-sec-gam-sigma" class="nav-link" data-scroll-target="#sec-gam-sigma"><span class="header-section-number">6.6</span> Smooths in the other parameters</a></li>
+  <li><a href="#sec-gam-counts" id="toc-sec-gam-counts" class="nav-link" data-scroll-target="#sec-gam-counts"><span class="header-section-number">6.7</span> Smooths with other distributions</a></li>
+  <li><a href="#sec-gam-lasso" id="toc-sec-gam-lasso" class="nav-link" data-scroll-target="#sec-gam-lasso"><span class="header-section-number">6.8</span> A lasso on the coefficients of a smooth</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/01-model.html">Using statmod()</a></li><li class="breadcrumb-item"><a href="../chapters/06-gam.html"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Generalized additive models</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span id="sec-gam" class="quarto-section-identifier"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Generalized additive models</span></span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>A generalized additive model writes the predictor of a parameter as a sum of smooth functions of the covariates <span class="citation" data-cites="wood2017">(<a href="A2-references.html#ref-wood2017" role="doc-biblioref">Wood 2017</a>)</span>. In the previous chapters the smooth term <code>s()</code> appeared with its default construction, a basis of cubic B-splines with a penalty on the second derivative. This chapter shows the other constructions. The second argument of <code>s()</code> is a <em>smoother</em>, an object of the <code>basis7</code> package that fixes four things: the basis, the penalty, the treatment of the functions that the penalty leaves free (the null space), and the coordinates of the coefficients. The chapter first varies these choices for the B-spline smoother, then shows the other families of smoothers and the penalties built from differential operators. It then shows smooths that change with another variable (<code>by =</code>), smooths of two covariates (<code>te()</code>), smooths in the equations of the other parameters, smooths with non-gaussian responses, and a smooth with a lasso penalty in place of the penalty on the roughness.</p>
+<p>The package <code>mgcv</code> fits the same models <span class="citation" data-cites="wood2017">(<a href="A2-references.html#ref-wood2017" role="doc-biblioref">Wood 2017</a>)</span>, and we compare the two packages in each section. We call it as <code>mgcv::gam()</code> without attaching <code>mgcv</code>, because <code>mgcv</code> has functions called <code>s()</code> and <code>te()</code> too. Both packages choose the smoothing parameters by REML.</p>
+<section id="sec-gam-bspline" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="sec-gam-bspline"><span class="header-section-number">6.1</span> B-spline smooths</h2>
+<p>The data frame <code>Boston</code> of the <code>MASS</code> package has, for 506 census tracts of Boston in 1970, the median value of the owner-occupied homes (<code>medv</code>, in thousands of dollars) and the percentage of the population with a lower status (<code>lstat</code>) <span class="citation" data-cites="harrison1978">(<a href="A2-references.html#ref-harrison1978" role="doc-biblioref">Harrison and Rubinfeld 1978</a>)</span>. The value falls quickly with <code>lstat</code> at the left and slowly at the right. We fit a smooth function of <code>lstat</code> with the default smoother, and with 20 basis functions in place of the default 10:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(Boston, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>fit_b20 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">20</span>)),</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> Boston)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_b20)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = medv ~ s(lstat, bspline_smooth(k = 20)), distrib = gaussian1_distrib(), </span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = Boston)</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gaussian1     Observations: 506</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se     z       p lower upper</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     22.53 0.2308 97.64 &lt; 1e-16 22.08 22.99</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; s(lstat, bspline_smooth(k = 20))   [19 coefficients, edf 8.35]</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  estimate      se      z       p    lower   upper</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lambda [reml]   0.02754 0.01777                0.007775 0.09754</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lin              -6.784   0.231 -29.37 &lt; 1e-16   -7.237  -6.332</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z       p lower upper</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.647 0.03181 51.77 &lt; 1e-16 1.585 1.709</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -1546.677892    effective df 10.35</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 3114.063    cBIC 3157.822</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.69 s</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.9e-15   min eigen 1</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.9e-09   min eigen 0.95</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The function <code>bspline_smooth()</code> builds the smoother. Its argument <code>k</code> is the number of B-splines, <code>degree</code> is their degree (3 by default), and <code>order</code> is the order <span class="math inline">\(m\)</span> of the derivative in the penalty <span class="math inline">\(\lambda \int f^{(m)}(x)^2\,dx\)</span> (2 by default). The same model in <code>mgcv</code> is the smooth with <code>bs = "bs"</code>. We compare the effective degrees of freedom of the mean equation, the estimate of <span class="math inline">\(\sigma\)</span> and the fitted values:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>g_b20 <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">20</span>), <span class="at">data =</span> Boston,</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>edf_mu <span class="ot">&lt;-</span> <span class="cf">function</span>(fit) <span class="fu">sum</span>(fit<span class="sc">@</span>edf<span class="sc">$</span>edf[fit<span class="sc">@</span>edf<span class="sc">$</span>parameter <span class="sc">==</span> <span class="st">"mu"</span>])</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">edf_mu</span>(fit_b20), <span class="at">mgcv =</span> <span class="fu">sum</span>(g_b20<span class="sc">$</span>edf))</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9.353485 9.353485</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">exp</span>(<span class="fu">coef</span>(fit_b20)<span class="sc">$</span>sigma[[<span class="dv">1</span>]]), <span class="at">mgcv =</span> <span class="fu">sqrt</span>(g_b20<span class="sc">$</span>sig2))</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5.191277 5.191277</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_b20) <span class="sc">-</span> <span class="fu">fitted</span>(g_b20)))</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 8.92868e-11</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The two fits are the same. They use the same basis and the same penalty, and both estimate <span class="math inline">\(\sigma\)</span> on the REML criterion, which integrates the coefficients of the mean (<a href="02-beyond.html#sec-beyond-outer" class="quarto-xref"><span>Section 2.8</span></a>).</p>
+<section id="the-number-of-basis-functions" class="level3">
+<h3 class="anchored" data-anchor-id="the-number-of-basis-functions">The number of basis functions</h3>
+<p>The number <code>k</code> sets the largest number of degrees of freedom that the smooth can have, and the smoothing parameter sets how many of them the fit uses. We fit the model with 10, 20 and 40 basis functions:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fit_b10 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)),</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> Boston)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>fit_b40 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">40</span>)),</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> Boston)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>k_table <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">k =</span> <span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">40</span>),</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">edf =</span> <span class="fu">c</span>(<span class="fu">edf_mu</span>(fit_b10), <span class="fu">edf_mu</span>(fit_b20), <span class="fu">edf_mu</span>(fit_b40)),</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">lambda =</span> <span class="fu">c</span>(<span class="fu">hyper</span>(fit_b10)<span class="sc">$</span>estimate, <span class="fu">hyper</span>(fit_b20)<span class="sc">$</span>estimate,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>             <span class="fu">hyper</span>(fit_b40)<span class="sc">$</span>estimate),</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_b10), <span class="fu">AIC</span>(fit_b20), <span class="fu">AIC</span>(fit_b40)))</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>k_table</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    k      edf     lambda      AIC</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 10 7.233379 0.03336944 3117.739</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 20 9.353485 0.02753843 3114.063</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 40 9.703654 0.02785940 3114.076</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>From 10 to 20 basis functions the effective degrees of freedom grow from 7.23 to 9.35, so with 10 functions the basis limited the curve. From 20 to 40 they grow only to 9.70: the penalty holds the curve, and a larger basis changes little. A basis larger than the curve needs is therefore safe, and it costs only computing time.</p>
+</section>
+<section id="the-order-of-the-penalty" class="level3">
+<h3 class="anchored" data-anchor-id="the-order-of-the-penalty">The order of the penalty</h3>
+<p>The penalty <span class="math inline">\(\int f^{(m)}(x)^2\,dx\)</span> is zero for the polynomials of degree below <span class="math inline">\(m\)</span>. These polynomials form the null space of the penalty, and the smooth estimates them without a penalty. With <span class="math inline">\(m = 1\)</span> the null space holds the constants, and a large <span class="math inline">\(\lambda\)</span> makes <span class="math inline">\(f\)</span> flat. With <span class="math inline">\(m = 2\)</span> it holds the straight lines, and with <span class="math inline">\(m = 3\)</span> the parabolas. The intercept of the equation already represents the constant, so the smooth has one free coefficient for <span class="math inline">\(m = 2\)</span> (<code>lin</code>) and two for <span class="math inline">\(m = 3\)</span> (<code>lin</code> and <code>poly2</code>):</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fit_o1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">20</span>, <span class="at">order =</span> <span class="dv">1</span>)),</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> Boston)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>fit_o3 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">20</span>, <span class="at">order =</span> <span class="dv">3</span>)),</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> Boston)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(<span class="fu">coef</span>(fit_o3)<span class="sc">$</span>mu)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>]</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "(Intercept)"    "s(lstat).lin"   "s(lstat).poly2" "s(lstat).z1"</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>g_o1 <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">20</span>, <span class="at">m =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">1</span>)),</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> Boston, <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>g_o3 <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">20</span>, <span class="at">m =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">3</span>)),</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> Boston, <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">order =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>,</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>           <span class="at">edf =</span> <span class="fu">c</span>(<span class="fu">edf_mu</span>(fit_o1), <span class="fu">edf_mu</span>(fit_b20), <span class="fu">edf_mu</span>(fit_o3)),</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>           <span class="at">mgcv =</span> <span class="fu">c</span>(<span class="fu">sum</span>(g_o1<span class="sc">$</span>edf), <span class="fu">sum</span>(g_b20<span class="sc">$</span>edf), <span class="fu">sum</span>(g_o3<span class="sc">$</span>edf)))</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   order       edf      mgcv</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     1 14.004836 14.004836</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2     2  9.353485  9.353485</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3     3  7.103893  7.103893</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>In <code>mgcv</code> the order is the second element of <code>m</code>. The fits agree again. On these data the penalty on the first derivative gives the most effective degrees of freedom and the most wiggly curve, and the penalty on the third derivative the fewest. <a href="#fig-boston-order" class="quarto-xref">Figure&nbsp;<span>6.1</span></a> shows the three curves.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-boston-order" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-boston-order-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-boston-order-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-boston-order-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.1: Median value of the homes against the percentage of lower-status population, with the smooths fitted with a penalty on the first, second and third derivative.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="the-null-space" class="level3">
+<h3 class="anchored" data-anchor-id="the-null-space">The null space</h3>
+<p>The argument <code>null_space</code> decides what happens to the functions that the penalty leaves free. With <code>"keep"</code>, the default, they have no penalty. With <code>"shrink"</code> they get a small penalty of their own <span class="citation" data-cites="marra2012">(<a href="A2-references.html#ref-marra2012" role="doc-biblioref">Marra and Wood 2012</a>)</span>, so a large <span class="math inline">\(\lambda\)</span> can remove the whole term, the straight line included. This is useful when a model has many smooths and some covariates may have no effect. We add to the model the number of rooms per dwelling (<code>rm</code>) and the proportion of the town’s area used by non-retail business (<code>indus</code>), and we fit it with both settings:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fit_sk <span class="ot">&lt;-</span> <span class="fu">statmod</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)) <span class="sc">+</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">s</span>(rm, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)) <span class="sc">+</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">s</span>(indus, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)),</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> Boston)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>shr <span class="ot">&lt;-</span> <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>, <span class="at">null_space =</span> <span class="st">"shrink"</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>fit_ss <span class="ot">&lt;-</span> <span class="fu">statmod</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, shr) <span class="sc">+</span> <span class="fu">s</span>(rm, shr) <span class="sc">+</span> <span class="fu">s</span>(indus, shr),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> Boston)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>fit_sk<span class="sc">@</span>edf</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter                             term coefficients      edf</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1        mu                           linpar            1 1.000000</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2        mu s(lstat, bspline_smooth(k = 10))            9 4.915210</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3        mu    s(rm, bspline_smooth(k = 10))            9 5.903492</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4        mu s(indus, bspline_smooth(k = 10))            9 1.000001</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5     sigma                           linpar            1 1.000000</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>fit_ss<span class="sc">@</span>edf</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   parameter          term coefficients          edf</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1        mu        linpar            1 1.000000e+00</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2        mu s(lstat, shr)            9 4.797128e+00</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3        mu    s(rm, shr)            9 5.739746e+00</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4        mu s(indus, shr)            9 6.140185e-07</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5     sigma        linpar            1 1.000000e+00</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">keep =</span> <span class="fu">AIC</span>(fit_sk), <span class="at">shrink =</span> <span class="fu">AIC</span>(fit_ss))</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     keep   shrink </span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2929.294 2927.499</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>With <code>"keep"</code> the smooth of <code>indus</code> keeps its straight line and uses one effective degree of freedom. With <code>"shrink"</code> its effective degrees of freedom fall to 0.000, so the term has left the model, while the smooths of <code>lstat</code> and <code>rm</code> change little. The AIC is smaller with the shrinkage.</p>
+</section>
+</section>
+<section id="sec-gam-families" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="sec-gam-families"><span class="header-section-number">6.2</span> Other smoothers</h2>
+<p>The package <code>basis7</code> has five more families of smoothers: <code>pspline_smooth()</code>, <code>legendre_smooth()</code>, <code>adaptive_smooth()</code>, <code>cyclic_smooth()</code> and <code>fourier_smooth()</code>. Each one goes in the same place as <code>bspline_smooth()</code>, as the second argument of <code>s()</code>.</p>
+<section id="p-splines" class="level3">
+<h3 class="anchored" data-anchor-id="p-splines">P-splines</h3>
+<p>A P-spline has a B-spline basis and a penalty on the differences of the coefficients in place of the integral of a derivative <span class="citation" data-cites="eilers1996">(<a href="A2-references.html#ref-eilers1996" role="doc-biblioref">Eilers and Marx 1996</a>)</span>: <span class="math display">\[
+\lambda \sum_j \bigl(\Delta^d b_j\bigr)^2 ,
+\]</span> where <span class="math inline">\(\Delta^d\)</span> is the difference of order <span class="math inline">\(d\)</span> (2 by default). The differences are taken on the coefficients of the basis whose knots are equally spaced also outside the range of the data, which is the construction of <span class="citation" data-cites="eilers1996">Eilers and Marx (<a href="A2-references.html#ref-eilers1996" role="doc-biblioref">1996</a>)</span>. The penalty is zero for the coefficients that are a polynomial of degree below <span class="math inline">\(d\)</span> in their index, and these give a polynomial of degree below <span class="math inline">\(d\)</span> in <span class="math inline">\(x\)</span>. The same model in <code>mgcv</code> has <code>bs = "ps"</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>fit_ps <span class="ot">&lt;-</span> <span class="fu">statmod</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="fu">pspline_smooth</span>(<span class="at">k =</span> <span class="dv">20</span>)),</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> Boston)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>g_ps <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="at">bs =</span> <span class="st">"ps"</span>, <span class="at">k =</span> <span class="dv">20</span>), <span class="at">data =</span> Boston,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">edf_mu</span>(fit_ps), <span class="at">mgcv =</span> <span class="fu">sum</span>(g_ps<span class="sc">$</span>edf))</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8.757835 8.757835</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_ps) <span class="sc">-</span> <span class="fu">fitted</span>(g_ps)))</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 4.664309e-08</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">bspline =</span> <span class="fu">AIC</span>(fit_b20), <span class="at">pspline =</span> <span class="fu">AIC</span>(fit_ps))</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  bspline  pspline </span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3114.063 3114.950</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The P-spline gives almost the same fit as the B-spline smooth with the penalty on the second derivative. The two penalties are different, but both are zero for straight lines and both grow with the curvature of the function.</p>
+</section>
+<section id="global-polynomials" class="level3">
+<h3 class="anchored" data-anchor-id="global-polynomials">Global polynomials</h3>
+<p>The smoother <code>legendre_smooth()</code> has a basis of Legendre polynomials, which are polynomials over the whole range of the covariate. Each function of a B-spline basis is zero outside a short interval, and each Legendre polynomial changes over the whole range. A penalized polynomial suits a function that is smooth everywhere. On the <code>Boston</code> data the B-spline smooth has the smaller AIC:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fit_lg <span class="ot">&lt;-</span> <span class="fu">statmod</span>(medv <span class="sc">~</span> <span class="fu">s</span>(lstat, <span class="fu">legendre_smooth</span>(<span class="at">k =</span> <span class="dv">8</span>)),</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> Boston)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">bspline =</span> <span class="fu">edf_mu</span>(fit_b20), <span class="at">legendre =</span> <span class="fu">edf_mu</span>(fit_lg))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  bspline legendre </span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9.353485 6.344188</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">bspline =</span> <span class="fu">AIC</span>(fit_b20), <span class="at">legendre =</span> <span class="fu">AIC</span>(fit_lg))</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  bspline legendre </span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3114.063 3116.973</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="adaptive-smooths" class="level3">
+<h3 class="anchored" data-anchor-id="adaptive-smooths">Adaptive smooths</h3>
+<p>A single smoothing parameter smooths the curve by the same amount over the whole range of <span class="math inline">\(x\)</span>. The acceleration of the <code>mcycle</code> data of <a href="01-model.html" class="quarto-xref"><span>Chapter 1</span></a> is close to zero for the first 14 milliseconds and changes quickly afterwards. The smoother <code>adaptive_smooth()</code> gives the differences of the P-spline penalty a weight that changes along <span class="math inline">\(x\)</span>: <span class="math display">\[
+\sum_j w_j \bigl(\Delta^d b_j\bigr)^2, \qquad
+w_j = \sum_{i=1}^{m} \lambda_i v_i(j),
+\]</span> where <span class="math inline">\(v_1, \dots, v_m\)</span> are B-splines over the index <span class="math inline">\(j\)</span> <span class="citation" data-cites="wood2017">(<a href="A2-references.html#ref-wood2017" role="doc-biblioref">Wood 2017</a>)</span>. The smooth has <span class="math inline">\(m\)</span> smoothing parameters (5 by default), and REML estimates all of them:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(mcycle, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>fit_ad <span class="ot">&lt;-</span> <span class="fu">statmod</span>(accel <span class="sc">~</span> <span class="fu">s</span>(times, <span class="fu">adaptive_smooth</span>(<span class="at">k =</span> <span class="dv">40</span>, <span class="at">m =</span> <span class="dv">5</span>)),</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> mcycle)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>fit_p40 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(accel <span class="sc">~</span> <span class="fu">s</span>(times, <span class="fu">pspline_smooth</span>(<span class="at">k =</span> <span class="dv">40</span>)),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> mcycle)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="fu">hyper</span>(fit_ad)[, <span class="fu">c</span>(<span class="st">"name"</span>, <span class="st">"estimate"</span>)]</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      name     estimate</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 lambda1 2.860696e-02</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 lambda2 9.976097e-13</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 lambda3 4.762178e-06</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4 lambda4 1.418526e-02</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5 lambda5 6.276673e+00</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>g_ad <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(accel <span class="sc">~</span> <span class="fu">s</span>(times, <span class="at">bs =</span> <span class="st">"ad"</span>, <span class="at">k =</span> <span class="dv">40</span>, <span class="at">m =</span> <span class="dv">5</span>), <span class="at">data =</span> mcycle,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>                  <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">edf_mu</span>(fit_ad), <span class="at">mgcv =</span> <span class="fu">sum</span>(g_ad<span class="sc">$</span>edf))</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 10.33526 10.33429</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_ad) <span class="sc">-</span> <span class="fu">fitted</span>(g_ad)))</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.006078489</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">edf =</span> <span class="fu">c</span>(<span class="fu">edf_mu</span>(fit_p40), <span class="fu">edf_mu</span>(fit_ad)),</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>           <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_p40), <span class="fu">AIC</span>(fit_ad)),</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>           <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"pspline"</span>, <span class="st">"adaptive"</span>))</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;               edf      AIC</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; pspline  13.25200 1221.992</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; adaptive 10.33526 1217.296</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The adaptive smooth agrees with <code>mgcv</code>’s <code>bs = "ad"</code>. The five smoothing parameters span many orders of magnitude: the curve is smoothed strongly where the weight is large and little where it is small. The adaptive smooth uses fewer effective degrees of freedom than the P-spline and has the smaller AIC. <a href="#fig-adaptive" class="quarto-xref">Figure&nbsp;<span>6.2</span></a> shows that the P-spline curve wiggles after about 40 milliseconds, where the data are noisy around zero, and the adaptive curve is flat there.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-adaptive" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-adaptive-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-adaptive-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-adaptive-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.2: Head acceleration against time, with the P-spline smooth and the adaptive smooth, both with 40 basis functions.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="periodic-smooths" class="level3">
+<h3 class="anchored" data-anchor-id="periodic-smooths">Periodic smooths</h3>
+<p>The data frame <code>chicagoNMMAPS</code> of the <code>dlnm</code> package <span class="citation" data-cites="gasparrini2011">(<a href="A2-references.html#ref-gasparrini2011" role="doc-biblioref">Gasparrini 2011</a>)</span> has, for each day from 1987 to 2000 in Chicago, the mean temperature in degrees Celsius, the number of deaths and other variables <span class="citation" data-cites="peng2008">(<a href="A2-references.html#ref-peng2008" role="doc-biblioref">Peng and Dominici 2008</a>)</span>. The column <code>doy</code> is the day of the year, from 1 to 366. We keep the six years from 1995 to 2000, and we model the temperature as a smooth function of the day of the year. The temperature on 31 December and on 1 January should be close, since the two days are adjacent. A B-spline smooth has no constraint that joins the two ends of the year. The smoother <code>cyclic_smooth()</code> has a periodic basis of B-splines, whose functions and first two derivatives take the same value at <code>lower</code> and at <code>upper</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(chicagoNMMAPS, <span class="at">package =</span> <span class="st">"dlnm"</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>chic <span class="ot">&lt;-</span> chicagoNMMAPS[chicagoNMMAPS<span class="sc">$</span>year <span class="sc">&gt;=</span> <span class="dv">1995</span>, ]</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>fit_tb <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>fit_tc <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="fu">cyclic_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>, <span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">366</span>)),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>ends <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">doy =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">366</span>))</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">bspline =</span> <span class="fu">predict</span>(fit_tb, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> ends),</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">cyclic =</span> <span class="fu">predict</span>(fit_tc, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> ends))</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              [,1]      [,2]</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; bspline -4.128622 -6.375766</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cyclic  -4.650308 -4.587816</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The B-spline smooth gives a temperature of -4.13 degrees on the first day of the year and -6.38 on the last. The two ends of its curve are estimated from the observations near each end separately, and the difference is 2.25 degrees. The cyclic smooth joins the two ends. <a href="#fig-cyclic" class="quarto-xref">Figure&nbsp;<span>6.3</span></a> shows the curves near the end of the year and near its beginning.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-cyclic" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-cyclic-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-cyclic-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cyclic-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.3: Mean daily temperature in Chicago from 1995 to 2000 against the day of the year, with the B-spline and the cyclic smooth. The right panel repeats the last 60 days of the year before the first 60 days, so the two ends of the year are adjacent.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The package <code>mgcv</code> has a cyclic cubic regression spline, <code>bs = "cc"</code>. Its functions are the same periodic cubic splines as those of <code>cyclic_smooth()</code>, but the argument <code>k</code> counts a different thing in the two packages. In <code>cyclic_smooth()</code>, <code>k</code> is the number of periodic basis functions, and the knots of the B-splines divide the period into <code>k</code> intervals of equal length. In <code>bs = "cc"</code>, <code>k</code> is the number of knots, and the first and the last knot are the two ends of the period, so the knots divide the period into <code>k - 1</code> intervals. The two packages then remove the constant, which the intercept of the model carries. With <code>k = 10</code>, <code>cyclic_smooth()</code> therefore has 9 coefficients and <code>bs = "cc"</code> has 8. The penalty is the same in the two packages: the integral of the squared second derivative over one period. The coefficients of <code>bs = "cc"</code> are the values of the function at the knots, and the coefficients of <code>cyclic_smooth()</code> are in the Demmler-Reinsch coordinates, but a change of coordinates does not change the fit. With <code>k = 11</code> and eleven knots at equal distances from 0 to 366, <code>bs = "cc"</code> has the same functions and the same penalty as <code>cyclic_smooth(k = 10)</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>g_cc <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(temp <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="at">bs =</span> <span class="st">"cc"</span>, <span class="at">k =</span> <span class="dv">11</span>), <span class="at">data =</span> chic,</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">method =</span> <span class="st">"REML"</span>,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">knots =</span> <span class="fu">list</span>(<span class="at">doy =</span> <span class="fu">seq</span>(<span class="at">from =</span> <span class="dv">0</span>, <span class="at">to =</span> <span class="dv">366</span>, <span class="at">length.out =</span> <span class="dv">11</span>)))</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">length</span>(<span class="fu">coef</span>(fit_tc)<span class="sc">$</span>mu) <span class="sc">-</span> <span class="dv">1</span>, <span class="at">mgcv =</span> <span class="fu">length</span>(<span class="fu">coef</span>(g_cc)) <span class="sc">-</span> <span class="dv">1</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod    mgcv </span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       9       9</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">edf_mu</span>(fit_tc), <span class="at">mgcv =</span> <span class="fu">sum</span>(g_cc<span class="sc">$</span>edf))</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9.214645 9.214641</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_tc) <span class="sc">-</span> <span class="fu">fitted</span>(g_cc)))</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 6.262576e-07</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The two fits are the same model. Their fitted values differ only by the precision with which REML locates the smoothing parameter. The package <code>mgcv</code> also has a cyclic P-spline, <code>bs = "cp"</code>, which we use in <a href="#sec-gam-sigma" class="quarto-xref"><span>Section 6.6</span></a>. Its penalty is on the differences of the coefficients, as for <code>pspline_smooth()</code>, and it is a different smooth.</p>
+</section>
+<section id="fourier-smooths" class="level3">
+<h3 class="anchored" data-anchor-id="fourier-smooths">Fourier smooths</h3>
+<p>The smoother <code>fourier_smooth()</code> has a basis of sines and cosines. With <span class="math inline">\(T\)</span> = <code>upper - lower</code> the period and <span class="math inline">\(\nu = 2\pi/T\)</span>, the basis functions are the constant and the pairs <span class="math inline">\(\sin(j\nu x)\)</span>, <span class="math inline">\(\cos(j\nu x)\)</span> for <span class="math inline">\(j = 1, 2, \dots\)</span>. The argument <code>k</code> is the number of basis functions, and with <code>k = 9</code> the basis has the constant and the first four pairs. The smooth removes the constant, which the intercept carries, and it has 8 coefficients. Every basis function takes the same value and has the same derivatives at <code>lower</code> and at <code>upper</code>, so the fitted curve is periodic. Like the Legendre polynomials, the sines and the cosines change over the whole range of the covariate, while each periodic B-spline of <code>cyclic_smooth()</code> is zero outside a short interval:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fit_tf <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="fu">fourier_smooth</span>(<span class="at">k =</span> <span class="dv">9</span>, <span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">366</span>)),</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit_tf, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> ends)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] -4.420384 -4.355398</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">edf =</span> <span class="fu">c</span>(<span class="fu">edf_mu</span>(fit_tc), <span class="fu">edf_mu</span>(fit_tf)),</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>           <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_tc), <span class="fu">AIC</span>(fit_tf)),</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>           <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"cyclic"</span>, <span class="st">"Fourier"</span>))</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              edf      AIC</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cyclic  9.214645 13195.49</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Fourier 7.833522 13194.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The two periodic smooths have almost the same AIC. The yearly temperature changes slowly over the year, and a few harmonics describe it well. The Fourier smooth uses fewer effective degrees of freedom than the cyclic one. A local basis is better for a seasonal pattern with a narrow peak, which the first harmonics of a Fourier basis cannot follow. The penalty of <code>fourier_smooth()</code> is not the integral of the squared second derivative. It is built from a differential operator, which is the subject of the next section.</p>
+</section>
+</section>
+<section id="sec-gam-operators" class="level2" data-number="6.3">
+<h2 data-number="6.3" class="anchored" data-anchor-id="sec-gam-operators"><span class="header-section-number">6.3</span> Penalties from differential operators</h2>
+<p>The penalty of a smooth measures how far the function is from the functions of its null space. The penalty on the derivative of order <span class="math inline">\(m\)</span> measures the distance from the polynomials of degree below <span class="math inline">\(m\)</span>. A linear differential operator <span class="math display">\[
+L f = w_0 f + w_1 f' + \dots + w_{m-1} f^{(m-1)} + f^{(m)}
+\]</span> gives the penalty <span class="math inline">\(\lambda \int (Lf)^2\,dx\)</span>, whose null space is the set of the solutions of <span class="math inline">\(Lf = 0\)</span> <span class="citation" data-cites="ramsay2005">(<a href="A2-references.html#ref-ramsay2005" role="doc-biblioref">Ramsay and Silverman 2005</a>)</span>. The argument <code>order</code> of a smoother takes such an operator, and a number <code>m</code> is the operator <code>deriv_operator(m)</code>, with <span class="math inline">\(Lf = f^{(m)}\)</span>. The package <code>basis7</code> has three other operators:</p>
+<ul>
+<li><code>harmonic_operator(period)</code> is <span class="math inline">\(L f = \nu^2 f' + f'''\)</span>, with <span class="math inline">\(\nu = 2\pi/T\)</span> and <span class="math inline">\(T\)</span> the period. Its null space holds the constant, <span class="math inline">\(\sin(\nu x)\)</span> and <span class="math inline">\(\cos(\nu x)\)</span>;</li>
+<li><code>oscillator_operator(period)</code> is <span class="math inline">\(L f = \nu^2 f + f''\)</span>, the equation of a harmonic oscillator. Its null space holds <span class="math inline">\(\sin(\nu x)\)</span> and <span class="math inline">\(\cos(\nu x)\)</span>, without the constant;</li>
+<li><code>linear_operator(w)</code> is the operator with the weights <span class="math inline">\(w = (w_0, \dots, w_{m-1})\)</span>.</li>
+</ul>
+<p>The function <code>operator_null()</code> returns the null space of an operator:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">operator_null</span>(<span class="fu">deriv_operator</span>(<span class="dv">2</span>))</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   label rate freq degree part</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     1    0    0      0     </span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2     t    0    0      1</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="fu">operator_null</span>(<span class="fu">harmonic_operator</span>(<span class="at">period =</span> <span class="dv">366</span>))</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              label          rate       freq degree part</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 sin(0.0171672 t) -1.577722e-30 0.01716717      0  sin</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 cos(0.0171672 t) -1.577722e-30 0.01716717      0  cos</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3                1  0.000000e+00 0.00000000      0</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="fu">operator_null</span>(<span class="fu">oscillator_operator</span>(<span class="at">period =</span> <span class="dv">366</span>))</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              label          rate       freq degree part</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 sin(0.0171672 t) -1.577722e-30 0.01716717      0  sin</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 cos(0.0171672 t) -1.577722e-30 0.01716717      0  cos</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>When <span class="math inline">\(\lambda\)</span> is large the penalty forces <span class="math inline">\(Lf\)</span> close to zero, and the fitted curve is close to a function of the null space. The functions of the null space are free coefficients of the smooth, which the penalty does not shrink.</p>
+<section id="the-harmonic-operator-on-a-fourier-basis" class="level3">
+<h3 class="anchored" data-anchor-id="the-harmonic-operator-on-a-fourier-basis">The harmonic operator on a Fourier basis</h3>
+<p>The harmonic operator, with the period <code>upper - lower</code>, is the default penalty of <code>fourier_smooth()</code>. The fit <code>fit_tf</code> has two free coefficients, <code>sin1</code> and <code>cos1</code>, and a large <span class="math inline">\(\lambda\)</span> makes its curve the constant plus one sine wave of the period, which is the simplest periodic function. The penalty on the second derivative (<code>order = 2</code>) has only the constant in its null space on a Fourier basis, because a straight line is not periodic. With this penalty a large <span class="math inline">\(\lambda\)</span> makes the curve a constant. The argument <code>harmonics</code> of <code>harmonic_operator()</code> gives the number of harmonics in the null space, and with <code>harmonics = 2</code> the smooth has four free coefficients:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(<span class="fu">coef</span>(fit_tf)<span class="sc">$</span>mu)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "(Intercept)" "s(doy).sin1" "s(doy).cos1" "s(doy).z1"   "s(doy).z2"  </span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [6] "s(doy).z3"   "s(doy).z4"   "s(doy).z5"   "s(doy).z6"</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>fit_tf2 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="fu">fourier_smooth</span>(<span class="at">k =</span> <span class="dv">9</span>, <span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">366</span>,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>                                                <span class="at">order =</span> <span class="dv">2</span>)),</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>op_h2 <span class="ot">&lt;-</span> <span class="fu">harmonic_operator</span>(<span class="at">period =</span> <span class="dv">366</span>, <span class="at">harmonics =</span> <span class="dv">2</span>)</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>fit_tf3 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="fu">fourier_smooth</span>(<span class="at">k =</span> <span class="dv">9</span>, <span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">366</span>,</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>                                                <span class="at">order =</span> op_h2)),</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(<span class="fu">coef</span>(fit_tf3)<span class="sc">$</span>mu)[<span class="dv">2</span><span class="sc">:</span><span class="dv">5</span>]</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "s(doy).sin1" "s(doy).cos1" "s(doy).sin2" "s(doy).cos2"</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">edf =</span> <span class="fu">c</span>(<span class="fu">edf_mu</span>(fit_tf), <span class="fu">edf_mu</span>(fit_tf2), <span class="fu">edf_mu</span>(fit_tf3)),</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>           <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_tf), <span class="fu">AIC</span>(fit_tf2), <span class="fu">AIC</span>(fit_tf3)),</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>           <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"harmonic"</span>, <span class="st">"second derivative"</span>, <span class="st">"two harmonics"</span>))</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                        edf      AIC</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; harmonic          7.833522 13194.25</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; second derivative 8.588472 13195.07</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; two harmonics     8.258330 13194.58</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The three penalties give close fits. The yearly temperature is close to one sine wave, and the harmonic operator shrinks the curve toward that wave, while the penalty on the second derivative shrinks it toward a constant. The harmonic operator with one harmonic has the smallest AIC and the fewest effective degrees of freedom.</p>
+</section>
+<section id="a-yearly-cycle-on-a-b-spline-basis" class="level3">
+<h3 class="anchored" data-anchor-id="a-yearly-cycle-on-a-b-spline-basis">A yearly cycle on a B-spline basis</h3>
+<p>An operator can penalize a basis that is not periodic. We write the temperature as a function of the day since 1 January 1995, over the six years, and we penalize a B-spline smooth by <code>harmonic_operator(period = 365.25)</code>. The smoother builds the null space of the operator from its exact functions: the smooth has a free sine and a free cosine of period 365.25 days beside the B-splines, and the penalized B-splines are made orthogonal to them. We fit the smooth with 20 and with 60 B-splines, and we compare it with the penalty on the second derivative:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>chic<span class="sc">$</span>day <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(chic<span class="sc">$</span>date <span class="sc">-</span> <span class="fu">min</span>(chic<span class="sc">$</span>date))</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>op_year <span class="ot">&lt;-</span> <span class="fu">harmonic_operator</span>(<span class="at">period =</span> <span class="fl">365.25</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>fit_d20 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(day, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">20</span>)),</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>fit_h20 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(day, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">20</span>, <span class="at">order =</span> op_year)),</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>fit_d60 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(day, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">60</span>)),</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>fit_h60 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(day, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">60</span>, <span class="at">order =</span> op_year)),</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(<span class="fu">coef</span>(fit_h20)<span class="sc">$</span>mu)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>]</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "(Intercept)" "s(day).sin1" "s(day).cos1" "s(day).z1"</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>dfs <span class="ot">&lt;-</span> <span class="fu">list</span>(fit_d20, fit_h20, fit_d60, fit_h60)</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">edf =</span> <span class="fu">sapply</span>(dfs, edf_mu),</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>           <span class="at">sigma =</span> <span class="fu">sapply</span>(dfs, <span class="cf">function</span>(f) <span class="fu">exp</span>(<span class="fu">coef</span>(f)<span class="sc">$</span>sigma[[<span class="dv">1</span>]])),</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>           <span class="at">AIC =</span> <span class="fu">sapply</span>(dfs, AIC),</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>           <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"second derivative, k = 20"</span>, <span class="st">"harmonic, k = 20"</span>,</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>                         <span class="st">"second derivative, k = 60"</span>, <span class="st">"harmonic, k = 60"</span>))</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                                edf    sigma      AIC</span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; second derivative, k = 20 19.84434 4.824846 13141.92</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; harmonic, k = 20          19.19107 4.710910 13036.50</span></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; second derivative, k = 60 51.08578 4.509030 12876.38</span></span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; harmonic, k = 60          28.82723 4.635978 12975.84</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Twenty B-splines over six years are fewer than four for each year. With the penalty on the second derivative the smooth uses 19.84 effective degrees of freedom of 20, so the penalty is almost zero, and the basis alone cannot follow the yearly cycle. With the harmonic operator the exact sine and cosine of the year are in the smooth, and its AIC is lower by 105.4. With 60 B-splines, ten for each year, the basis can follow the cycle, and the smooth with the penalty on the second derivative has the smallest AIC of the four fits. Each year differs a little from the average year, and this smooth follows those differences. The harmonic operator shrinks the curve toward one sine wave that repeats over the six years, and it removes part of the differences between the years.</p>
+</section>
+<section id="an-exponential-decay" class="level3">
+<h3 class="anchored" data-anchor-id="an-exponential-decay">An exponential decay</h3>
+<p>The data frame <code>wtloss</code> of the <code>MASS</code> package has the weight in kilograms of an obese patient on 52 days of a diet of 246 days <span class="citation" data-cites="venables2002">(<a href="A2-references.html#ref-venables2002" role="doc-biblioref">Venables and Ripley 2002</a>)</span>. The weight falls quickly at first and then more slowly, and <span class="citation" data-cites="venables2002">Venables and Ripley (<a href="A2-references.html#ref-venables2002" role="doc-biblioref">2002</a>)</span> fit it with the model <span class="math display">\[
+W(t) = \beta_0 + \beta_1\, 2^{-t/\theta},
+\]</span> a decay toward the weight <span class="math inline">\(\beta_0\)</span>, in which <span class="math inline">\(\theta\)</span> is the time the excess weight takes to halve. With <span class="math inline">\(a = \log(2)/\theta\)</span> the function <span class="math inline">\(2^{-t/\theta}\)</span> is <span class="math inline">\(e^{-a t}\)</span>. The operator <span class="math inline">\(L f = a f' + f''\)</span> has in its null space the constant and <span class="math inline">\(e^{-a t}\)</span>, so the operator <code>linear_operator(c(0, a))</code> shrinks a smooth toward the curves of this model. We estimate <span class="math inline">\(\theta\)</span> with <code>nls()</code> and we use the rate <span class="math inline">\(a\)</span> from that fit:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(wtloss, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>fit_nls <span class="ot">&lt;-</span> <span class="fu">nls</span>(Weight <span class="sc">~</span> b0 <span class="sc">+</span> b1 <span class="sc">*</span> <span class="dv">2</span><span class="sc">^</span>(<span class="sc">-</span>Days <span class="sc">/</span> th), <span class="at">data =</span> wtloss,</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>               <span class="at">start =</span> <span class="fu">c</span>(<span class="at">b0 =</span> <span class="dv">90</span>, <span class="at">b1 =</span> <span class="dv">95</span>, <span class="at">th =</span> <span class="dv">120</span>))</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_nls)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        b0        b1        th </span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  81.37375 102.68417 141.91052</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">log</span>(<span class="dv">2</span>) <span class="sc">/</span> <span class="fu">coef</span>(fit_nls)[[<span class="st">"th"</span>]]</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>op_exp <span class="ot">&lt;-</span> <span class="fu">linear_operator</span>(<span class="at">w =</span> <span class="fu">c</span>(<span class="dv">0</span>, a))</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="fu">operator_null</span>(op_exp)</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;               label         rate freq degree part</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 exp(-0.0048844 t) -0.004884396    0      0     </span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2                 1  0.000000000    0      0</span></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>fit_w2 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Weight <span class="sc">~</span> <span class="fu">s</span>(Days, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)),</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> wtloss)</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>fit_we <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Weight <span class="sc">~</span> <span class="fu">s</span>(Days, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>, <span class="at">order =</span> op_exp)),</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> wtloss)</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">edf =</span> <span class="fu">c</span>(<span class="fu">edf_mu</span>(fit_w2), <span class="fu">edf_mu</span>(fit_we)),</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>           <span class="at">lambda =</span> <span class="fu">c</span>(<span class="fu">hyper</span>(fit_w2)<span class="sc">$</span>estimate, <span class="fu">hyper</span>(fit_we)<span class="sc">$</span>estimate),</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>           <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_w2), <span class="fu">AIC</span>(fit_we)),</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>           <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"second derivative"</span>, <span class="st">"exponential"</span>))</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                        edf       lambda      AIC</span></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; second derivative 6.716870 1.907707e-01 145.2708</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; exponential       2.000001 6.170672e+07 138.9749</span></span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_we) <span class="sc">-</span> <span class="fu">fitted</span>(fit_nls)))</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 8.104143e-07</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>REML makes the smoothing parameter of the exponential operator very large, and the smooth uses 2.00 effective degrees of freedom, the intercept and the coefficient of <span class="math inline">\(e^{-at}\)</span>. Its fitted curve is the curve of <code>nls()</code> to 0.00000081 kilograms. The data are close to the model, and REML keeps no departure from it. The smooth with the penalty on the second derivative uses 6.72 effective degrees of freedom and has the larger AIC. We took the rate from <code>nls()</code>, so the AIC of the exponential smooth does not count the estimation of <span class="math inline">\(\theta\)</span>.</p>
+</section>
+<section id="a-trend-with-a-yearly-cycle" class="level3">
+<h3 class="anchored" data-anchor-id="a-trend-with-a-yearly-cycle">A trend with a yearly cycle</h3>
+<p>Operators can be multiplied, and the product has the null spaces of both factors. The data set <code>co2</code> of R gives the monthly concentration of carbon dioxide at Mauna Loa from 1959 to 1997, in parts per million. The series has a trend and a yearly cycle. The product of <code>deriv_operator(2)</code> and <code>oscillator_operator(period = 1)</code> has a null space with the straight lines and the sine and cosine of period one year:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>op_co2 <span class="ot">&lt;-</span> <span class="fu">deriv_operator</span>(<span class="dv">2</span>) <span class="sc">*</span> <span class="fu">oscillator_operator</span>(<span class="at">period =</span> <span class="dv">1</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>op_co2</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; &lt;linear differential operator&gt;  order 4</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   L x = 39.48 D^2 x + D^4 x</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   null space: 1, t, sin(6.28319 t), cos(6.28319 t)</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>co2d <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">t =</span> <span class="fu">as.numeric</span>(<span class="fu">time</span>(co2)), <span class="at">y =</span> <span class="fu">as.numeric</span>(co2))</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>fit_c1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> <span class="fu">s</span>(t, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">40</span>)),</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> co2d)</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>fit_c3 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> <span class="fu">s</span>(t, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">120</span>)),</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> co2d)</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>fit_c2 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> <span class="fu">s</span>(t, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">40</span>, <span class="at">degree =</span> <span class="dv">5</span>, <span class="at">order =</span> op_co2)),</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> co2d)</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">edf =</span> <span class="fu">c</span>(<span class="fu">edf_mu</span>(fit_c1), <span class="fu">edf_mu</span>(fit_c3), <span class="fu">edf_mu</span>(fit_c2)),</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>           <span class="at">sigma =</span> <span class="fu">c</span>(<span class="fu">exp</span>(<span class="fu">coef</span>(fit_c1)<span class="sc">$</span>sigma[[<span class="dv">1</span>]]), <span class="fu">exp</span>(<span class="fu">coef</span>(fit_c3)<span class="sc">$</span>sigma[[<span class="dv">1</span>]]),</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">exp</span>(<span class="fu">coef</span>(fit_c2)<span class="sc">$</span>sigma[[<span class="dv">1</span>]])),</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>           <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_c1), <span class="fu">AIC</span>(fit_c3), <span class="fu">AIC</span>(fit_c2)),</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>           <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"second derivative, k = 40"</span>,</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>                         <span class="st">"second derivative, k = 120"</span>, <span class="st">"trend and cycle"</span>))</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                                  edf     sigma       AIC</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; second derivative, k = 40   6.643260 2.1087172 2035.1004</span></span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; second derivative, k = 120  6.650342 2.1086945 2035.0974</span></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; trend and cycle            26.515021 0.6522648  956.6843</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The operator has order 4, and the B-splines of degree 3 have a fourth derivative equal to zero, so the smoother needs <code>degree = 5</code>. With the penalty on the second derivative the smooth follows the trend and misses the cycle, also with 120 basis functions, which are three for each year: the cycle has a large second derivative, and this penalty removes it. With the operator, the sine and the cosine of the year are free coefficients of the smooth, and the residual standard deviation falls from 2.11 to 0.65 parts per million. <a href="#fig-co2" class="quarto-xref">Figure&nbsp;<span>6.4</span></a> shows the last five years.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-co2" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-co2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-co2-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-co2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.4: Monthly CO2 concentration at Mauna Loa from 1993 to 1997, with the smooth penalized on the second derivative and the smooth penalized by the operator whose null space holds a trend and a yearly cycle.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-gam-by" class="level2" data-number="6.4">
+<h2 data-number="6.4" class="anchored" data-anchor-id="sec-gam-by"><span class="header-section-number">6.4</span> Smooths that change with another variable</h2>
+<section id="one-curve-for-each-level-of-a-factor" class="level3">
+<h3 class="anchored" data-anchor-id="one-curve-for-each-level-of-a-factor">One curve for each level of a factor</h3>
+<p>The data frame <code>ChickWeight</code> gives the weight, in grams, of 50 chicks from birth to day 21 <span class="citation" data-cites="crowder1990">(<a href="A2-references.html#ref-crowder1990" role="doc-biblioref">Crowder and Hand 1990</a>)</span>. The chicks were weighed every second day, and each chick received one of four diets. The argument <code>by = Diet</code> of <code>s()</code> builds one smooth curve of time for each diet. The curves of a factor <code>by</code> are centered, so the formula also has the main effect <code>Diet</code>. The spread of the weights grows with the age of the chicks, so we give <code>sigma</code> a linear equation in time:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fit_cs <span class="ot">&lt;-</span> <span class="fu">statmod</span>(weight <span class="sc">~</span> Diet <span class="sc">+</span> <span class="fu">s</span>(Time, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">8</span>), <span class="at">by =</span> Diet) <span class="sc">|</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>                    sigma <span class="sc">~</span> Time,</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> ChickWeight)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>fit_cl <span class="ot">&lt;-</span> <span class="fu">statmod</span>(weight <span class="sc">~</span> Diet <span class="sc">+</span> <span class="fu">s</span>(Time, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">8</span>), <span class="at">by =</span> Diet,</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">by_hyper =</span> <span class="st">"level"</span>) <span class="sc">|</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>                    sigma <span class="sc">~</span> Time,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> ChickWeight)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="fu">hyper</span>(fit_cs)[, <span class="fu">c</span>(<span class="st">"name"</span>, <span class="st">"estimate"</span>)]</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     name  estimate</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 lambda 0.0208051</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="fu">hyper</span>(fit_cl)[, <span class="fu">c</span>(<span class="st">"name"</span>, <span class="st">"estimate"</span>)]</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     name   estimate</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 lambda 0.03700374</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 lambda 0.02632035</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 lambda 0.01445844</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4 lambda 0.01657621</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>With <code>by_hyper = "shared"</code>, the default, the four curves share one smoothing parameter. With <code>by_hyper = "level"</code> each curve has its own. In <code>mgcv</code> the curves of a factor <code>by</code> have one smoothing parameter each, and the argument <code>id</code> makes them share one. The family <code>gaussian()</code> of <code>mgcv</code> has a constant <span class="math inline">\(\sigma\)</span>, so we compare the two packages on the model with a constant <span class="math inline">\(\sigma\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>fit_cs0 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(weight <span class="sc">~</span> Diet <span class="sc">+</span> <span class="fu">s</span>(Time, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">8</span>), <span class="at">by =</span> Diet),</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> ChickWeight)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>g_cs0 <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(weight <span class="sc">~</span> Diet <span class="sc">+</span> <span class="fu">s</span>(Time, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">8</span>, <span class="at">by =</span> Diet, <span class="at">id =</span> <span class="dv">1</span>),</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> ChickWeight, <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">edf_mu</span>(fit_cs0), <span class="at">mgcv =</span> <span class="fu">sum</span>(g_cs0<span class="sc">$</span>edf))</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 12.64661 12.64661</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_cs0) <span class="sc">-</span> <span class="fu">fitted</span>(g_cs0)))</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.540493e-06</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><a href="#fig-chick" class="quarto-xref">Figure&nbsp;<span>6.5</span></a> shows the four curves of the model with the shared smoothing parameter and an equation for <span class="math inline">\(\sigma\)</span>. On diet 3 the chicks grow fastest.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-chick" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-chick-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-chick-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-chick-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.5: Weight of the chicks against time, with the fitted mean curve of each diet (shared smoothing parameter, sigma linear in time).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="a-coefficient-that-changes-with-a-covariate" class="level3">
+<h3 class="anchored" data-anchor-id="a-coefficient-that-changes-with-a-covariate">A coefficient that changes with a covariate</h3>
+<p>With a numeric variable <span class="math inline">\(z\)</span> as <code>by</code>, the term <code>s(x, by = z)</code> is <span class="math inline">\(f(x)\,z\)</span>: the coefficient of <span class="math inline">\(z\)</span> is a smooth function of <span class="math inline">\(x\)</span> <span class="citation" data-cites="hastie1993">(<a href="A2-references.html#ref-hastie1993" role="doc-biblioref">Hastie and Tibshirani 1993</a>)</span>. The term is not centered, because the constant part of <span class="math inline">\(f\)</span> is the main effect of <span class="math inline">\(z\)</span>, and its first coefficient, <code>const</code>, has no penalty. We simulate 400 observations from <span class="math display">\[
+y_i = \sin(2\pi x_i) + (1 + 2x_i^2)\, z_i + \varepsilon_i,
+\qquad \varepsilon_i \sim \mathrm{N}(0, 0.5),
+\]</span> with <span class="math inline">\(x\)</span> uniform on <span class="math inline">\((0, 1)\)</span> and <span class="math inline">\(z\)</span> standard normal, and we fit the model with a smooth of <span class="math inline">\(x\)</span> and a smooth of <span class="math inline">\(x\)</span> multiplied by <span class="math inline">\(z\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">3</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>vc <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">runif</span>(<span class="at">n =</span> <span class="dv">400</span>), <span class="at">z =</span> <span class="fu">rnorm</span>(<span class="at">n =</span> <span class="dv">400</span>))</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>vc<span class="sc">$</span>y <span class="ot">&lt;-</span> <span class="fu">sin</span>(<span class="dv">2</span> <span class="sc">*</span> pi <span class="sc">*</span> vc<span class="sc">$</span>x) <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> vc<span class="sc">$</span>x<span class="sc">^</span><span class="dv">2</span>) <span class="sc">*</span> vc<span class="sc">$</span>z <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="at">n =</span> <span class="dv">400</span>, <span class="at">sd =</span> <span class="fl">0.5</span>)</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>fit_vc <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> <span class="fu">s</span>(x, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)) <span class="sc">+</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">s</span>(x, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>), <span class="at">by =</span> z),</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> vc)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(<span class="fu">coef</span>(fit_vc)<span class="sc">$</span>mu)[<span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">11</span><span class="sc">:</span><span class="dv">13</span>)]</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "(Intercept)"  "s(x).lin"     "s(x).z1"      "s(x):z.const" "s(x):z.lin"  </span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [6] "s(x):z.z1"</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>g_vc <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(y <span class="sc">~</span> <span class="fu">s</span>(x, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">10</span>) <span class="sc">+</span> <span class="fu">s</span>(x, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">10</span>, <span class="at">by =</span> z),</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> vc, <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">edf_mu</span>(fit_vc), <span class="at">mgcv =</span> <span class="fu">sum</span>(g_vc<span class="sc">$</span>edf))</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 11.64085 11.64085</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_vc) <span class="sc">-</span> <span class="fu">fitted</span>(g_vc)))</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 9.39677e-08</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The coefficients of the second term have the prefix <code>s(x):z</code>, the name that <code>mgcv</code> gives the term too. The fitted coefficient of <span class="math inline">\(z\)</span> at a value of <span class="math inline">\(x\)</span> is the difference between the predictions at <span class="math inline">\(z = 1\)</span> and at <span class="math inline">\(z = 0\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>xv <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">seq</span>(<span class="at">from =</span> <span class="fu">min</span>(vc<span class="sc">$</span>x), <span class="at">to =</span> <span class="fu">max</span>(vc<span class="sc">$</span>x), <span class="at">length.out =</span> <span class="dv">100</span>), <span class="at">z =</span> <span class="dv">1</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>xv0 <span class="ot">&lt;-</span> xv</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>xv0<span class="sc">$</span>z <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>beta_vc <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_vc, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> xv) <span class="sc">-</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">predict</span>(fit_vc, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> xv0)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><a href="#fig-vc" class="quarto-xref">Figure&nbsp;<span>6.6</span></a> shows the data against <span class="math inline">\(x\)</span>, and the fitted coefficient of <span class="math inline">\(z\)</span> against the true one.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-vc" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-vc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-vc-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-vc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.6: Left: the simulated response against x. Right: the fitted coefficient of z as a function of x, and the true coefficient.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="sec-gam-te" class="level2" data-number="6.5">
+<h2 data-number="6.5" class="anchored" data-anchor-id="sec-gam-te"><span class="header-section-number">6.5</span> Smooths of two covariates</h2>
+<p>The data frame <code>topo</code> of the <code>MASS</code> package gives the elevation, in feet, of 52 points of a piece of land <span class="citation" data-cites="davis1973 venables2002">(<a href="A2-references.html#ref-davis1973" role="doc-biblioref">Davis 1973</a>; <a href="A2-references.html#ref-venables2002" role="doc-biblioref">Venables and Ripley 2002</a>)</span>. The coordinates <code>x</code> and <code>y</code> are in units of 50 feet. The term <code>te(x, y)</code> builds a smooth function of the two coordinates as a tensor product: it takes a basis for <span class="math inline">\(x\)</span> and a basis for <span class="math inline">\(y\)</span>, and it uses all the products of one function from each basis <span class="citation" data-cites="wood2006">(<a href="A2-references.html#ref-wood2006" role="doc-biblioref">Wood 2006</a>)</span>. Its argument <code>smooths</code> gives the smoother of each margin, <code>bspline_smooth(k = 5)</code> by default. The penalty is the sum of one penalty for each direction, <span class="math display">\[
+\lambda_1\, b^\top (P_x \otimes I)\, b + \lambda_2\, b^\top (I \otimes P_y)\, b ,
+\]</span> where <span class="math inline">\(P_x\)</span> and <span class="math inline">\(P_y\)</span> are the penalties of the margins. With <code>anisotropic = TRUE</code>, the default, each direction has its own smoothing parameter, so the surface can be smoother along one direction than along the other. With <code>anisotropic = FALSE</code> the two share one. We fit both, and a model with a separate smooth for each coordinate:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(topo, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>fit_te <span class="ot">&lt;-</span> <span class="fu">statmod</span>(z <span class="sc">~</span> <span class="fu">te</span>(x, y), <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> topo)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>fit_ti <span class="ot">&lt;-</span> <span class="fu">statmod</span>(z <span class="sc">~</span> <span class="fu">te</span>(x, y, <span class="at">anisotropic =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> topo)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>fit_ta <span class="ot">&lt;-</span> <span class="fu">statmod</span>(z <span class="sc">~</span> <span class="fu">s</span>(x, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">5</span>)) <span class="sc">+</span> <span class="fu">s</span>(y, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">5</span>)),</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> topo)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="fu">hyper</span>(fit_te)[, <span class="fu">c</span>(<span class="st">"name"</span>, <span class="st">"estimate"</span>)]</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      name     estimate</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 lambda1 0.0009259238</span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 lambda2 0.0001991496</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">edf =</span> <span class="fu">c</span>(<span class="fu">edf_mu</span>(fit_te), <span class="fu">edf_mu</span>(fit_ti), <span class="fu">edf_mu</span>(fit_ta)),</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>           <span class="at">sigma =</span> <span class="fu">c</span>(<span class="fu">exp</span>(<span class="fu">coef</span>(fit_te)<span class="sc">$</span>sigma[[<span class="dv">1</span>]]), <span class="fu">exp</span>(<span class="fu">coef</span>(fit_ti)<span class="sc">$</span>sigma[[<span class="dv">1</span>]]),</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">exp</span>(<span class="fu">coef</span>(fit_ta)<span class="sc">$</span>sigma[[<span class="dv">1</span>]])),</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>           <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_te), <span class="fu">AIC</span>(fit_ti), <span class="fu">AIC</span>(fit_ta)),</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>           <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"anisotropic"</span>, <span class="st">"isotropic"</span>, <span class="st">"additive"</span>))</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                   edf    sigma      AIC</span></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; anisotropic 13.196841 19.73965 472.9599</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; isotropic   14.602189 19.04928 470.6628</span></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; additive     4.772078 28.88151 504.1146</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The additive model has a much larger AIC: the elevation is not a sum of a function of <span class="math inline">\(x\)</span> and a function of <span class="math inline">\(y\)</span>. The two tensor products are close. <a href="#fig-topo" class="quarto-xref">Figure&nbsp;<span>6.7</span></a> shows the fitted surface of the anisotropic model as a map.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-topo" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-topo-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-topo-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-topo-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.7: The fitted elevation of the <code>topo</code> data, in feet. The points are the 52 measured locations.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<section id="the-same-model-in-mgcv" class="level3">
+<h3 class="anchored" data-anchor-id="the-same-model-in-mgcv">The same model in <code>mgcv</code></h3>
+<p>The function <code>te()</code> of <code>mgcv</code> builds the tensor product from the same margins with <code>bs = "bs"</code>, and the two surfaces are not the same:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>g_te <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(z <span class="sc">~</span> <span class="fu">te</span>(x, y, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">5</span>, <span class="at">np =</span> <span class="cn">FALSE</span>), <span class="at">data =</span> topo,</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">edf_mu</span>(fit_te), <span class="at">mgcv =</span> <span class="fu">sum</span>(g_te<span class="sc">$</span>edf))</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 13.19684 13.03832</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_te) <span class="sc">-</span> <span class="fu">fitted</span>(g_te)))</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 8.531315</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The two packages use B-spline margins with the same functions and the same penalties, and the tensor products span the same functions. The difference is the identity matrix <span class="math inline">\(I\)</span> in the penalty above. The penalty <span class="math inline">\(P_x\)</span> is an integral, so it does not depend on how the basis of <span class="math inline">\(x\)</span> is written, but <span class="math inline">\(P_x \otimes I\)</span> also penalizes each coefficient of the <span class="math inline">\(y\)</span> basis with weight one, and this weight depends on which basis of <span class="math inline">\(y\)</span> we use. The B-splines of <code>basis7</code> have knots that repeat at the ends of the range, while those of <code>mgcv</code> have knots equally spaced beyond the range. The two bases span the same functions with different coefficients, so the two penalties are different and give different surfaces. The argument <code>np = TRUE</code>, the default of <code>mgcv</code>, writes each margin in yet another basis. Neither choice is more correct than the other.</p>
+</section>
+</section>
+<section id="sec-gam-sigma" class="level2" data-number="6.6">
+<h2 data-number="6.6" class="anchored" data-anchor-id="sec-gam-sigma"><span class="header-section-number">6.6</span> Smooths in the other parameters</h2>
+<p>Every parameter of the distribution can have smooth terms, as <code>sigma</code> had in <a href="01-model.html#sec-model-sigma" class="quarto-xref"><span>Section 1.8</span></a>. The temperatures in Chicago vary more in winter than in summer. We give <code>sigma</code> a cyclic smooth of the day of the year:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>fit_ts <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="fu">cyclic_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>, <span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">366</span>)) <span class="sc">|</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>                    sigma <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="fu">cyclic_smooth</span>(<span class="at">k =</span> <span class="dv">8</span>, <span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">366</span>)),</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">constant_sigma =</span> <span class="fu">AIC</span>(fit_tc), <span class="at">smooth_sigma =</span> <span class="fu">AIC</span>(fit_ts))</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; constant_sigma   smooth_sigma </span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       13195.49       12969.01</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>days <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">doy =</span> <span class="fu">c</span>(<span class="dv">15</span>, <span class="dv">105</span>, <span class="dv">196</span>, <span class="dv">288</span>))</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit_ts, <span class="at">what =</span> <span class="st">"sigma"</span>, <span class="at">newdata =</span> days)</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 6.396647 4.794093 3.371068 4.580009</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The standard deviation is 6.4 degrees in mid January and 3.4 in mid July. The family <code>gaulss()</code> of <code>mgcv</code> fits a gaussian model with an equation for the standard deviation. Its second equation is for <span class="math inline">\(\log(1/\sigma - 0.01)\)</span>, and the prediction on the scale of the response gives <span class="math inline">\(1/\sigma\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>g_ts <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(<span class="fu">list</span>(temp <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="at">bs =</span> <span class="st">"cp"</span>, <span class="at">k =</span> <span class="dv">10</span>), <span class="sc">~</span> <span class="fu">s</span>(doy, <span class="at">bs =</span> <span class="st">"cp"</span>, <span class="at">k =</span> <span class="dv">8</span>)),</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">family =</span> mgcv<span class="sc">::</span><span class="fu">gaulss</span>(), <span class="at">data =</span> chic,</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">knots =</span> <span class="fu">list</span>(<span class="at">doy =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">366</span>)))</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span> <span class="sc">/</span> <span class="fu">predict</span>(g_ts, <span class="at">newdata =</span> days, <span class="at">type =</span> <span class="st">"response"</span>)[, <span class="dv">2</span>]</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        1        2        3        4 </span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6.379270 4.799999 3.349778 4.528992</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The smooths differ (the cyclic P-spline of <code>mgcv</code> has a penalty on the differences of the coefficients), and the fitted standard deviations agree to about 0.05 degrees. <a href="#fig-chic-sigma" class="quarto-xref">Figure&nbsp;<span>6.8</span></a> shows the band of two standard deviations around the mean.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-chic-sigma" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-chic-sigma-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-chic-sigma-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-chic-sigma-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.8: Mean daily temperature in Chicago against the day of the year, with the fitted mean and the band of plus and minus two fitted standard deviations.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="sec-gam-counts" class="level2" data-number="6.7">
+<h2 data-number="6.7" class="anchored" data-anchor-id="sec-gam-counts"><span class="header-section-number">6.7</span> Smooths with other distributions</h2>
+<p>The number of deaths in a day is a count. A common model of the daily deaths has a smooth function of time for the long-term trend and the seasons, a smooth function of the temperature, and the day of the week <span class="citation" data-cites="peng2008">(<a href="A2-references.html#ref-peng2008" role="doc-biblioref">Peng and Dominici 2008</a>)</span>. We fit it with a Poisson response to the six years of data, and we compare it with <code>mgcv</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>fit_dp <span class="ot">&lt;-</span> <span class="fu">statmod</span>(death <span class="sc">~</span> <span class="fu">s</span>(time, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">12</span>)) <span class="sc">+</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">s</span>(temp, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)) <span class="sc">+</span> dow,</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">poisson_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>g_dp <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(death <span class="sc">~</span> <span class="fu">s</span>(time, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">12</span>) <span class="sc">+</span> <span class="fu">s</span>(temp, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">10</span>) <span class="sc">+</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>                    dow, <span class="at">family =</span> poisson, <span class="at">data =</span> chic, <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">edf_mu</span>(fit_dp), <span class="at">mgcv =</span> <span class="fu">sum</span>(g_dp<span class="sc">$</span>edf))</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 22.53764 22.53763</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(fit_dp) <span class="sc">-</span> <span class="fu">fitted</span>(g_dp)))</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 6.740962e-06</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The ratio of the Pearson statistic to the residual degrees of freedom measures the overdispersion (<a href="04-glm.html#sec-glm-overdispersion" class="quarto-xref"><span>Section 4.4</span></a>). We compute it and fit the negative binomial model:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>mu_dp <span class="ot">&lt;-</span> <span class="fu">fitted</span>(fit_dp)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>((chic<span class="sc">$</span>death <span class="sc">-</span> mu_dp)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> mu_dp) <span class="sc">/</span> (<span class="fu">nrow</span>(chic) <span class="sc">-</span> <span class="fu">edf_mu</span>(fit_dp))</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.824903</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>fit_dn <span class="ot">&lt;-</span> <span class="fu">statmod</span>(death <span class="sc">~</span> <span class="fu">s</span>(time, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">12</span>)) <span class="sc">+</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">s</span>(temp, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)) <span class="sc">+</span> dow,</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> chic)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>g_dn <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">gam</span>(death <span class="sc">~</span> <span class="fu">s</span>(time, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">12</span>) <span class="sc">+</span> <span class="fu">s</span>(temp, <span class="at">bs =</span> <span class="st">"bs"</span>, <span class="at">k =</span> <span class="dv">10</span>) <span class="sc">+</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>                    dow, <span class="at">family =</span> mgcv<span class="sc">::</span><span class="fu">nb</span>(), <span class="at">data =</span> chic, <span class="at">method =</span> <span class="st">"REML"</span>)</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">exp</span>(<span class="fu">coef</span>(fit_dn)<span class="sc">$</span>theta[[<span class="dv">1</span>]]), <span class="at">mgcv =</span> g_dn<span class="sc">$</span>family<span class="sc">$</span><span class="fu">getTheta</span>(<span class="cn">TRUE</span>))</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod     mgcv </span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 163.9771 163.9771</span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">Poisson =</span> <span class="fu">AIC</span>(fit_dp), <span class="at">negbin2 =</span> <span class="fu">AIC</span>(fit_dn))</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Poisson  negbin2 </span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 18067.98 17653.81</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The ratio is 1.82, so the deaths vary more than a Poisson distribution allows. The dispersion <span class="math inline">\(\theta\)</span> of the negative binomial model is the same in the two packages, and the negative binomial model has the smaller AIC. <a href="#fig-deaths" class="quarto-xref">Figure&nbsp;<span>6.9</span></a> shows the fitted ratio of the death rate at each temperature to the rate at 20 degrees, with the other covariates held fixed.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-deaths" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-deaths-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-deaths-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-deaths-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.9: Ratio of the daily death rate at each temperature to the rate at 20 degrees Celsius, from the negative binomial model, with a 95% pointwise interval.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="sec-gam-lasso" class="level2" data-number="6.8">
+<h2 data-number="6.8" class="anchored" data-anchor-id="sec-gam-lasso"><span class="header-section-number">6.8</span> A lasso on the coefficients of a smooth</h2>
+<p>The argument <code>penalty</code> of a smoother replaces the penalty on the roughness with another penalty on the same coefficients. It takes a function of the number of coefficients that returns a penalty of the <code>penalties7</code> package, such as <code>penalties7::lasso_penalty</code>. The coefficients of the smooth are written in the Demmler-Reinsch basis <span class="citation" data-cites="demmler1975">(<a href="A2-references.html#ref-demmler1975" role="doc-biblioref">Demmler and Reinsch 1975</a>)</span>, in which the roughness penalty is diagonal and the coordinates are ordered from the smoothest function to the most wiggly one. A lasso on these coordinates sets some of them to zero, and so chooses how many directions of wiggliness the curve keeps. The lasso does not act on the free coefficient <code>lin</code>. We fit it to the <code>mcycle</code> data:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>fit_ls <span class="ot">&lt;-</span> <span class="fu">statmod</span>(accel <span class="sc">~</span> <span class="fu">s</span>(times, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">20</span>,</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>                                                 <span class="at">penalty =</span> penalties7<span class="sc">::</span>lasso_penalty)),</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> mcycle)</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_ls)<span class="sc">$</span>mu</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  (Intercept) s(times).lin  s(times).z1  s(times).z2  s(times).z3  s(times).z4 </span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    -25.54586     14.32282    -12.87032    -68.56040      0.00000    206.98898 </span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  s(times).z5  s(times).z6  s(times).z7  s(times).z8  s(times).z9 s(times).z10 </span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   -153.88531   -183.42259    247.74222      0.00000      0.00000      0.00000 </span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; s(times).z11 s(times).z12 s(times).z13 s(times).z14 s(times).z15 s(times).z16 </span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      0.00000      0.00000      0.00000      0.00000      0.00000      0.00000 </span></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; s(times).z17 s(times).z18 </span></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      0.00000      0.00000</span></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a><span class="fu">hyper</span>(fit_ls)[, <span class="fu">c</span>(<span class="st">"name"</span>, <span class="st">"estimate"</span>, <span class="st">"source"</span>)]</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     name    estimate source</span></span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 lambda 0.008115017    bic</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The lasso keeps 6 of the 18 penalized coefficients. A lasso penalty has a kink at zero, so REML does not apply, and <code>statmod()</code> chooses <span class="math inline">\(\lambda\)</span> by BIC on a path of values. We compare the fit with the smooth penalized on the second derivative:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>fit_r20 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(accel <span class="sc">~</span> <span class="fu">s</span>(times, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">20</span>)),</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> mcycle)</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">edf =</span> <span class="fu">c</span>(<span class="fu">edf_mu</span>(fit_r20), <span class="fu">edf_mu</span>(fit_ls)),</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>           <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_r20), <span class="fu">AIC</span>(fit_ls)),</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>           <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"roughness"</span>, <span class="st">"lasso"</span>))</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                edf      AIC</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; roughness 12.69755 1222.351</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; lasso      8.00000 1213.151</span></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="fu">statmod_certificate</span>(fit_ls)<span class="sc">$</span>state</span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "unknown"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The effective degrees of freedom of the lasso are the number of coefficients that it keeps, plus the intercept and <code>lin</code> <span class="citation" data-cites="zou2007">(<a href="A2-references.html#ref-zou2007" role="doc-biblioref">Zou, Hastie, and Tibshirani 2007</a>)</span>. On these data the lasso smooth has the smaller AIC. The certificate is <code>unknown</code>: it reads the derivative of the criterion in the smoothing parameter, and the BIC along the path of a penalty with a kink has no derivative. <a href="#fig-lasso" class="quarto-xref">Figure&nbsp;<span>6.10</span></a> shows the two curves.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-lasso" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-lasso-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="06-gam_files/figure-html/fig-lasso-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lasso-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6.10: Head acceleration against time, with the smooth penalized on the second derivative and the smooth with a lasso penalty on its Demmler-Reinsch coefficients.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+
+
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-crowder1990" class="csl-entry" role="listitem">
+Crowder, Martin J., and David J. Hand. 1990. <em>Analysis of Repeated Measures</em>. London: Chapman; Hall.
+</div>
+<div id="ref-davis1973" class="csl-entry" role="listitem">
+Davis, John C. 1973. <em>Statistics and Data Analysis in Geology</em>. New York: Wiley.
+</div>
+<div id="ref-demmler1975" class="csl-entry" role="listitem">
+Demmler, A., and C. Reinsch. 1975. <span>“Oscillation Matrices with Spline Smoothing.”</span> <em>Numerische Mathematik</em> 24 (5): 375–82.
+</div>
+<div id="ref-eilers1996" class="csl-entry" role="listitem">
+Eilers, Paul H. C., and Brian D. Marx. 1996. <span>“Flexible Smoothing with <span>B</span>-Splines and Penalties.”</span> <em>Statistical Science</em> 11 (2): 89–121.
+</div>
+<div id="ref-gasparrini2011" class="csl-entry" role="listitem">
+Gasparrini, Antonio. 2011. <span>“Distributed Lag Linear and Non-Linear Models in <span>R</span>: The Package Dlnm.”</span> <em>Journal of Statistical Software</em> 43 (8): 1–20.
+</div>
+<div id="ref-harrison1978" class="csl-entry" role="listitem">
+Harrison, David, and Daniel L. Rubinfeld. 1978. <span>“Hedonic Housing Prices and the Demand for Clean Air.”</span> <em>Journal of Environmental Economics and Management</em> 5 (1): 81–102.
+</div>
+<div id="ref-hastie1993" class="csl-entry" role="listitem">
+Hastie, Trevor, and Robert Tibshirani. 1993. <span>“Varying-Coefficient Models.”</span> <em>Journal of the Royal Statistical Society, Series B</em> 55 (4): 757–96.
+</div>
+<div id="ref-marra2012" class="csl-entry" role="listitem">
+Marra, Giampiero, and Simon N. Wood. 2012. <span>“Coverage Properties of Confidence Intervals for Generalized Additive Model Components.”</span> <em>Scandinavian Journal of Statistics</em> 39 (1): 53–74.
+</div>
+<div id="ref-peng2008" class="csl-entry" role="listitem">
+Peng, Roger D., and Francesca Dominici. 2008. <em>Statistical Methods for Environmental Epidemiology with <span>R</span>: A Case Study in Air Pollution and Health</em>. New York: Springer.
+</div>
+<div id="ref-ramsay2005" class="csl-entry" role="listitem">
+Ramsay, James O., and Bernard W. Silverman. 2005. <em>Functional Data Analysis</em>. 2nd ed. New York: Springer.
+</div>
+<div id="ref-venables2002" class="csl-entry" role="listitem">
+Venables, William N., and Brian D. Ripley. 2002. <em>Modern Applied Statistics with <span>S</span></em>. 4th ed. New York: Springer.
+</div>
+<div id="ref-wood2006" class="csl-entry" role="listitem">
+Wood, Simon N. 2006. <span>“Low-Rank Scale-Invariant Tensor Product Smooths for Generalized Additive Mixed Models.”</span> <em>Biometrics</em> 62 (4): 1025–36.
+</div>
+<div id="ref-wood2017" class="csl-entry" role="listitem">
+———. 2017. <em>Generalized Additive Models: An Introduction with r</em>. 2nd ed. Boca Raton: Chapman; Hall/CRC.
+</div>
+<div id="ref-zou2007" class="csl-entry" role="listitem">
+Zou, Hui, Trevor Hastie, and Robert Tibshirani. 2007. <span>“On the <span>‘Degrees of Freedom’</span> of the Lasso.”</span> <em>The Annals of Statistics</em> 35 (5): 2173–92.
+</div>
+</div>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/05-distributions.html" class="pagination-link" aria-label="Distributions">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Distributions</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/07-lmm.html" class="pagination-link" aria-label="Linear mixed models">
+        <span class="nav-page-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Linear mixed models</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>statmodels7</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

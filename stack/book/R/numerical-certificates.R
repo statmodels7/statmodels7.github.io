@@ -167,22 +167,27 @@
   }
   # A' = 1 - A/k - A^2, transcribed, and the inverse function rule
   k0 <- 2.7
-  ad <- numericals7::bessel_i_ratio_derivs(k0)
-  if (abs(ad$d1 - (1 - ad$A / k0 - ad$A^2)) > 1e-14) {
+  A0 <- numericals7::bessel_i_ratio(k0)
+  if (abs(numericals7::bessel_i_ratio_d1(k0) - (1 - A0 / k0 - A0^2)) > 1e-14) {
     out <- c(out, "A' is not 1 - A/kappa - A^2")
   }
-  inv <- numericals7::bessel_i_ratio_inverse(0.7)
-  ai <- numericals7::bessel_i_ratio_derivs(inv$kappa)
-  if (abs(inv$d1 - 1 / ai$d1) > 1e-12 * abs(inv$d1)) {
+  ki <- numericals7::bessel_i_ratio_inverse(0.7)
+  a1 <- numericals7::bessel_i_ratio_d1(ki)
+  a2 <- numericals7::bessel_i_ratio_d2(ki)
+  a3 <- numericals7::bessel_i_ratio_d3(ki)
+  i1 <- numericals7::bessel_i_ratio_inverse_d1(ki)
+  i2 <- numericals7::bessel_i_ratio_inverse_d2(ki)
+  i3 <- numericals7::bessel_i_ratio_inverse_d3(ki)
+  if (abs(i1 - 1 / a1) > 1e-12 * abs(i1)) {
     out <- c(out, "kappa' is not 1/A'")
   }
-  if (abs(inv$d2 - (-ai$d2 / ai$d1^3)) > 1e-10 * abs(inv$d2)) {
+  if (abs(i2 - (-a2 / a1^3)) > 1e-10 * abs(i2)) {
     out <- c(out, "kappa'' is not -A''/(A')^3")
   }
-  if (abs(inv$d3 - (3 * ai$d2^2 - ai$d1 * ai$d3) / ai$d1^5) > 1e-9 * abs(inv$d3)) {
+  if (abs(i3 - (3 * a2^2 - a1 * a3) / a1^5) > 1e-9 * abs(i3)) {
     out <- c(out, "kappa''' is not (3 A''^2 - A' A''')/(A')^5")
   }
-  if (abs(numericals7::bessel_i_ratio(inv$kappa) - 0.7) > 1e-10) {
+  if (abs(numericals7::bessel_i_ratio(ki) - 0.7) > 1e-10) {
     out <- c(out, "the inverse does not round-trip at rho = 0.7")
   }
 

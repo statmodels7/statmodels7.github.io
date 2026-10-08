@@ -1,0 +1,767 @@
+# A first model {#sec-model}
+
+```{r}
+#| label: setup-01
+#| include: false
+source("R/_setup.R")
+source("R/model-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
+sci <- function(x, d = 1) {
+  e <- floor(log10(abs(x)))
+  sprintf("%.*f \\times 10^{%d}", d, x / 10^e, e)
+}
+```
+
+This chapter fits one model and reads everything that `statmod()` returns
+for it. We fit a smooth curve to a data set with a single covariate, print
+the fit and its summary, extract the estimates and their variances, look at
+the residuals, and compute predictions. Then we add a second equation for
+the spread of the data, compare the two models, check that the fit
+converged, and simulate new data from the fitted model.
+
+## The data {#sec-model-data}
+
+The data come from a simulated motorcycle accident that was used to test
+crash helmets. They are measurements of the acceleration of the head after
+the impact. For each observation we know the time after the impact, in
+milliseconds, and the acceleration of the head, in units of $g$.
+@silverman1985 analyzed these data, and they are distributed with the `MASS`
+package [@venables2002].
+
+```{r}
+#| label: data
+data(mcycle, package = "MASS")
+nrow(mcycle)
+head(mcycle, n = 3)
+mcycle[which.min(mcycle$accel), ]
+```
+
+```{r}
+#| label: data-numbers
+#| include: false
+i_min <- which.min(mcycle$accel)
+t_imp <- min(mcycle$times[mcycle$accel < -10])
+```
+
+@fig-mcycle-data shows the `r nrow(mcycle)` observations. For the first
+`r fmt(t_imp, 1)` milliseconds the acceleration stays within a few units of
+zero. Then it drops sharply, reaches its minimum of
+$`r fmt(mcycle$accel[i_min], 0)`\,g$ at `r fmt(mcycle$times[i_min], 1)`
+milliseconds, rises above zero, and finally levels off. A polynomial of low
+degree cannot follow this shape. The spread of the observations around the
+mean also changes with time: it is small at the start, large during the
+drop and the rebound, and smaller again at the end.
+
+```{r}
+#| label: fig-mcycle-data
+#| fig-cap: "Head acceleration against time after impact in the `mcycle` data."
+#| echo: false
+ggplot(mcycle, aes(x = times, y = accel)) +
+  geom_point(colour = book_grey, size = 1.3) +
+  labs(x = "time after impact (ms)", y = "acceleration (g)")
+```
+
+## The first fit {#sec-model-fit}
+
+We start with a model in which the acceleration $y_i$ at time $t_i$ has a
+gaussian distribution. The mean changes smoothly with time, and the standard
+deviation is the same for all observations:
+$$
+y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
+\mu_i = \beta_0 + f(t_i).
+$$
+We write $\mathrm{N}(\mu, \sigma)$ for the gaussian distribution with mean
+$\mu$ and standard deviation $\sigma$, the two parameters of
+`gaussian1_distrib()`, and we use this notation throughout the book.
+We write the function $f$ as a combination of $k = 20$ cubic B-splines,
+$f(t) = \sum_{r=1}^{20} b_r B_r(t)$. To keep $f$ smooth, we subtract from the
+log-likelihood a penalty on its curvature. We measure the curvature by the
+integral of the squared second derivative:
+$$
+\tfrac{1}{2}\lambda \int f''(t)^2\,dt = \tfrac{1}{2}\lambda\, b^\top P b ,
+$$
+where $P$ is the matrix with entries $P_{rs} = \int B_r''(t)\,B_s''(t)\,dt$.
+The smoothing parameter $\lambda$ controls how much the curve can bend. A
+large $\lambda$ gives a curve close to a straight line, and a small $\lambda$
+lets the curve follow the data closely.
+
+For a given $\lambda$, `statmod()` estimates the coefficients by maximizing
+the penalized log-likelihood, which is the log-likelihood minus the penalty.
+It estimates $\lambda$ by restricted maximum likelihood (REML). For REML we
+read the penalty as a prior distribution on the coefficients, integrate the
+coefficients out of the likelihood, and maximize the result over $\lambda$
+[@wood2011; @wood2017]. In `statmodels7` we write the model like this:
+
+```{r}
+#| label: fit0
+library(statmodels7)
+fit0 <- statmod(accel ~ s(times, bspline_smooth(k = 20)),
+                distrib = gaussian1_distrib(), data = mcycle)
+```
+
+The term `s(times, bspline_smooth(k = 20))` is a penalized smooth function of
+`times`. Its second argument, `bspline_smooth(k = 20)`, defines how the
+function is built: from a basis of 20 cubic B-splines, with a penalty on the second
+derivative. The distribution `gaussian1_distrib()` is the gaussian
+distribution with two parameters, the mean `mu` and the standard deviation
+`sigma`. The formula has an equation only for the mean, so `statmod()`
+estimates `sigma` as a single constant. Printing the fit gives a short
+description of it:
+
+```{r}
+#| label: print-fit0
+fit0
+```
+
+The printout lists the equation of each parameter of the distribution and
+the terms in it. The equation of `mu` has two terms: `linpar`, which holds
+the intercept, and the smooth. The smooth has 19 coefficients, one fewer than
+the number of B-splines, and we explain why in the next section. The number
+`edf` is its effective degrees of freedom, which we define in
+@sec-model-compare. The equation of `sigma` contains only an intercept. The
+line that starts with `REML` gives the value of the REML criterion at the
+estimate and the number of values of $\lambda$ that the search evaluated.
+The last line gives the time the fit took.
+
+## The summary {#sec-model-summary}
+
+The function `summary()` prints the estimates one equation at a time.
+
+```{r}
+#| label: summary-fit0
+summary(fit0)
+```
+
+```{r}
+#| label: summary-numbers
+#| include: false
+cf0 <- confint(fit0, "sigma")
+```
+
+The block of each equation starts with the name of the parameter and its
+link function. The mean uses the identity link, so its equation describes
+$\mu_i$ directly. The standard deviation uses the log link, so its equation
+describes $\log\sigma$.
+
+The table `Parametric terms` holds the coefficients without a penalty, here
+the intercepts. For each of them it gives the estimate, the standard error,
+the Wald statistic $z$ (the estimate divided by its standard error), the
+p-value of the test that the coefficient is zero, and a 95% confidence
+interval. The intercept of `sigma` is on the log scale: $\log\hat\sigma =
+`r fmt(cf0$estimate, 3)`$, so $\hat\sigma = `r fmt(exp(cf0$estimate))`$.
+
+Each smooth term has a block of its own. The heading of the block gives the
+number of coefficients of the term and its effective degrees of freedom. The
+smooth has 19 coefficients, one fewer than the 20 B-splines. The B-splines
+add up to one at every time, so together they contain the constant function,
+and the intercept of the equation already represents the constant. For this
+reason `statmod()` constrains the smooth to sum to zero over the observed
+times, and this removes one coefficient.
+
+The first row of the block is the smoothing parameter. The label `[reml]`
+means that REML estimated it. Its interval is computed on the log scale and
+then transformed back, so it contains only positive values. The second row,
+`lin`, is the linear part of the smooth. The penalty on the second
+derivative is zero for a straight line, so this coefficient is not
+penalized, and we can test it like any other coefficient. It multiplies the
+time standardized to mean zero and standard deviation one, so its value is
+the slope of the linear part of $f$ per standard deviation of time:
+
+```{r}
+#| label: sd-times
+sd(mcycle$times)
+```
+
+The other 18 coefficients of the smooth are not printed. Their values depend
+on how the basis is written, so one by one they have no meaning.
+
+The lines at the bottom are about the fit as a whole. The log-likelihood is
+the *conditional* log-likelihood, which is computed at the estimated
+coefficients. cAIC is minus twice this value plus twice the effective
+degrees of freedom [@vaida2005], and cBIC uses $\log n$ in place of the
+factor 2. @sec-model-compare computes both.
+
+The lines `inner` and `outer` describe the point where the fit stopped. We
+call curvature the negative of the matrix of second derivatives. The line
+`inner` is about the coefficients. Its first number is the largest component
+of the gradient of the penalized log-likelihood, where each component is
+divided by the standard error that its coefficient would have if the other
+coefficients were known. Its second number is the smallest eigenvalue of the
+curvature of the penalized log-likelihood, after the curvature is rescaled to
+have ones on its diagonal. The line `outer` gives the same two numbers for
+the REML criterion as a function of the smoothing parameter. At a maximum the
+first number is close to zero and the second is positive. In this fit both
+lines meet these two conditions. @sec-model-certificate checks the same thing
+with another function.
+
+The last line gives the command that prints the notes of the summary. For
+this fit there is one note. It states that the interval of the smoothing
+parameter is built on the log scale and mapped back, and that the other
+estimates are conditional on the estimated value of $\lambda$.
+
+## Coefficients and their variances {#sec-model-coef}
+
+The function `coef()` returns a list with one element for each parameter of
+the distribution. Each element holds the coefficients of that parameter's
+equation, on the scale of its link function.
+
+```{r}
+#| label: coef-fit0
+coef(fit0)
+```
+
+The coefficients named `s(times).z1` to `s(times).z18` are the penalized
+coefficients of the smooth. As we said above, they have no meaning one by
+one. The function `vcov()` returns the variance matrix of all the
+coefficients, here a matrix with `r nrow(vcov(fit0))` rows and columns. We
+print the rows and columns of the two intercepts and of the linear part of
+the smooth:
+
+```{r}
+#| label: vcov-fit0
+V <- vcov(fit0)
+dim(V)
+keep <- c("mu:(Intercept)", "mu:s(times).lin", "sigma:(Intercept)")
+V[keep, keep]
+```
+
+The covariances between the coefficients of `mu` and the coefficient of
+`sigma` are exactly zero. For the gaussian distribution the mean and the
+standard deviation carry separate information, so the block of the Fisher
+information that connects the two equations is zero, and so is the
+corresponding block of the variance matrix. The covariance between the
+intercept of `mu` and the linear part of the smooth is zero up to rounding,
+because the linear column has mean zero.
+
+The function `confint()` returns a data frame with one row for each
+coefficient: the estimate, the standard error and the two ends of a 95%
+interval. With the argument `parm` we choose the coefficients:
+
+```{r}
+#| label: confint-fit0
+ci0 <- confint(fit0, parm = keep)
+ci0
+```
+
+The standard errors are the square roots of the diagonal of `V`, and each
+interval is the estimate plus or minus 1.96 standard errors:
+
+```{r}
+#| label: confint-by-hand
+sqrt(diag(V[keep, keep]))
+ci0$estimate - qnorm(p = 0.975) * ci0$se
+ci0$estimate + qnorm(p = 0.975) * ci0$se
+```
+
+## The smoothing parameter {#sec-model-hyper}
+
+The smoothing parameter is not a coefficient of an equation, so `coef()`
+does not return it. The function `hyper()` returns the hyperparameters of the
+model, which here are the one smoothing parameter.
+
+```{r}
+#| label: hyper-fit0
+hyper(fit0)
+```
+
+The column `estimate` holds the value, and the column `source` records how
+it was estimated, here by REML. The column `held` is `TRUE` for a value that we
+fix in the formula instead of estimating it. For example,
+`s(times, bspline_smooth(k = 20), hyper = c(lambda = 1))` holds $\lambda$ at
+1. The column `id` names a group of terms that share one hyperparameter, and
+it is empty here.
+
+## Fitted values and residuals {#sec-model-resid}
+
+The function `fitted()` returns the fitted mean $\hat\mu_i$ of each
+observation:
+
+```{r}
+#| label: fitted-fit0
+head(fitted(fit0))
+```
+
+The function `residuals()` returns quantile residuals [@dunn1996]. For
+observation $i$ with fitted distribution function $\hat F_i$, the quantile
+residual is
+$$
+r_i = \Phi^{-1}\big(\hat F_i(y_i)\big),
+$$
+where $\Phi$ is the standard gaussian distribution function. If the model is
+right, $\hat F_i(y_i)$ is close to a uniform variable, so $r_i$ is close to
+a standard gaussian variable, whatever the distribution of the response. For
+a gaussian response $r_i$ equals $(y_i - \hat\mu_i)/\hat\sigma_i$:
+
+```{r}
+#| label: residuals-fit0
+r0 <- residuals(fit0)
+head(r0)
+s0 <- exp(coef(fit0)$sigma)
+head((mcycle$accel - fitted(fit0)) / s0)
+```
+
+If the model is right, the residuals should have a standard deviation close
+to 1 in every part of the time range. We compute it separately for the early
+phase before 15 milliseconds, for the drop and rebound between 15 and 40
+milliseconds, and for the late phase:
+
+```{r}
+#| label: residuals-phases
+early <- mcycle$times < 15
+middle <- mcycle$times >= 15 & mcycle$times < 40
+late <- mcycle$times >= 40
+sd(r0[early])
+sd(r0[middle])
+sd(r0[late])
+sum(abs(r0) > 2)
+```
+
+The standard deviation is `r fmt(sd(r0[early]))` in the early phase,
+`r fmt(sd(r0[middle]))` in the middle and `r fmt(sd(r0[late]))` at the end.
+The model uses one value of $\sigma$ for all times, so it overstates the
+spread at the start and understates it in the middle. @fig-resid0 shows the
+same thing: the residuals are small at the start, large in the middle and
+moderate at the end. Of the `r nrow(mcycle)` residuals, `r sum(abs(r0) > 2)`
+lie outside $\pm 2$, and they all fall in the middle phase.
+
+```{r}
+#| label: fig-resid0
+#| fig-cap: "Quantile residuals of the model with a constant standard deviation, against time."
+#| echo: false
+ref0 <- data.frame(y = c(0, -2, 2),
+                   line = factor(c("zero", "-2 and 2", "-2 and 2"),
+                                 levels = c("zero", "-2 and 2")))
+ggplot(data.frame(times = mcycle$times, r = r0), aes(x = times, y = r)) +
+  geom_point(aes(shape = "quantile residual"), colour = book_grey,
+             size = 1.3) +
+  geom_hline(aes(yintercept = y, linetype = line), data = ref0,
+             colour = rust) +
+  scale_shape_manual(values = 16) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  guides(shape = guide_legend(order = 1),
+         linetype = guide_legend(order = 2)) +
+  labs(x = "time after impact (ms)", y = "quantile residual")
+```
+
+## Predictions {#sec-model-predict}
+
+The function `predict()` computes a parameter of the fitted distribution at
+new values of the covariates. Its second argument names the parameter, and
+`newdata` holds the covariates. With `se = TRUE` it also gives a standard
+error and a 95% interval:
+
+```{r}
+#| label: predict-fit0
+new <- data.frame(times = c(5, 20, 30, 50))
+predict(fit0, what = "mu", newdata = new, se = TRUE)
+```
+
+For the mean, the interval is the prediction plus or minus 1.96 standard
+errors. For a parameter with a link function, the interval is computed on
+the scale of the link and then transformed back. For $\sigma$ this is the
+log scale, so the interval for $\sigma$ contains only positive values. In
+this model $\sigma$ is the same at every time:
+
+```{r}
+#| label: predict-sigma-fit0
+predict(fit0, what = "sigma", newdata = new, se = TRUE)
+```
+
+@fig-band0 shows the fitted mean on a grid of 200 times, with two bands. The
+dark band is the 95% interval of the mean from `predict(se = TRUE)`. It
+describes the uncertainty of the estimated curve. The light band is
+$\hat\mu(t) \pm 2\hat\sigma$, the range where about 95% of the observations
+should fall if the model is right.
+
+```{r}
+#| label: band-fit0
+grid <- data.frame(times = seq(from = min(mcycle$times),
+                               to = max(mcycle$times), length.out = 200))
+p0 <- predict(fit0, what = "mu", newdata = grid, se = TRUE)
+head(p0, n = 3)
+```
+
+```{r}
+#| label: fig-band0
+#| fig-cap: "The model with a constant standard deviation. The line is the fitted mean, the dark band is its 95% confidence interval, and the light band is the fitted mean plus or minus two fitted standard deviations."
+#| echo: false
+bands0 <- data.frame(
+  times = rep(grid$times, times = 2),
+  lower = c(p0$lower, p0$fit - 2 * s0),
+  upper = c(p0$upper, p0$fit + 2 * s0),
+  band = factor(rep(c("95% interval of the mean",
+                      "mean plus or minus 2 sigma"), each = nrow(grid)),
+                levels = c("95% interval of the mean",
+                           "mean plus or minus 2 sigma")))
+ggplot(mcycle, aes(x = times)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = band), data = bands0) +
+  geom_point(aes(y = accel, shape = "data"), colour = book_grey, size = 1.2) +
+  geom_line(aes(y = fit, colour = "fitted mean"),
+            data = data.frame(times = grid$times, fit = p0$fit),
+            linewidth = 0.8) +
+  scale_shape_manual(values = 16) +
+  scale_colour_manual(values = chalk) +
+  scale_fill_manual(values = c(adjustcolor(chalk, 0.5),
+                               adjustcolor(chalk, 0.15))) +
+  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
+         fill = guide_legend(order = 3)) +
+  labs(x = "time after impact (ms)", y = "acceleration (g)")
+```
+
+The fitted mean follows the data closely, but the light band has the same
+width everywhere. It is far too wide in the first milliseconds and too narrow
+during the drop and the rebound. Changing $\lambda$ does not help, because
+the problem is the assumption of a constant standard deviation.
+
+## An equation for the standard deviation {#sec-model-sigma}
+
+To fix this, we let the standard deviation change smoothly with time as
+well:
+$$
+y_i \sim \mathrm{N}(\mu_i, \sigma_i), \qquad
+\mu_i = \beta_0 + f(t_i), \qquad
+\log \sigma_i = \gamma_0 + g(t_i).
+$$
+Here $g$ is a second penalized smooth function, with its own smoothing
+parameter. We model $\log\sigma_i$ rather than $\sigma_i$ so that $\sigma_i$
+is always positive. A model with an equation for each parameter of the
+distribution is called a generalized additive model for location, scale and
+shape [@rigby2005]. In `statmodels7` we write it like this:
+
+```{r}
+#| label: fit1
+fit1 <- statmod(accel ~ s(times, bspline_smooth(k = 20)) |
+                  sigma ~ s(times, bspline_smooth(k = 10)),
+                distrib = gaussian1_distrib(), data = mcycle)
+fit1
+```
+
+The formula now contains two equations, separated by a vertical bar. The
+equation before the bar has the response on the left, and it describes the
+first parameter of the distribution, which is `mu`. The equation after the
+bar has the name of a parameter on the left, `sigma`, and it describes that
+parameter. In general there is one equation for each parameter that we want
+to model. If the formula has no equation for a parameter, `statmod()`
+estimates that parameter as a constant, as it did for `sigma` in the first
+model. The link functions are those of the distribution, so the right-hand
+side of the second equation describes $\log\sigma_i$.
+
+The summary now has a smooth block in each equation:
+
+```{r}
+#| label: summary-fit1
+summary(fit1)
+```
+
+The two smoothing parameters are estimated by REML together. The linear
+part of the smooth of $\log\sigma$ has a positive estimate with a p-value
+well below 0.001, so the standard deviation grows with time on average. The
+smooth adds curvature to this trend. We compute $\hat\sigma(t)$ at four
+times with its interval:
+
+```{r}
+#| label: predict-sigma-fit1
+predict(fit1, what = "sigma", newdata = new, se = TRUE)
+```
+
+```{r}
+#| label: sigma-numbers
+#| include: false
+ps <- predict(fit1, what = "sigma", newdata = grid, se = TRUE)
+sv <- predict(fit1, what = "sigma", newdata = new)
+smax <- max(ps$fit)
+tmax <- grid$times[which.max(ps$fit)]
+```
+
+@fig-sigma1 shows $\hat\sigma(t)$ over the whole time range. It is
+`r fmt(sv[1])` $g$ at `r new$times[1]` milliseconds, in the early flat phase.
+It reaches a maximum of `r fmt(smax, 1)` $g$ at `r fmt(tmax, 1)` milliseconds
+and falls to `r fmt(sv[4], 1)` $g$ at `r new$times[4]` milliseconds. The
+constant estimate of the first model, `r fmt(s0)` $g$, is too large at the
+start and at the end, and too small in the middle.
+
+```{r}
+#| label: fig-sigma1
+#| fig-cap: "The fitted standard deviation of the second model with its pointwise 95% interval, and the constant standard deviation of the first model."
+#| echo: false
+sig1 <- data.frame(
+  times = rep(grid$times, times = 2),
+  sigma = c(ps$fit, rep(s0, times = nrow(grid))),
+  curve = factor(rep(c("sigma(t), second model", "sigma, first model"),
+                     each = nrow(grid)),
+                 levels = c("sigma(t), second model", "sigma, first model")))
+ggplot(sig1, aes(x = times)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = "95% interval"),
+              data = data.frame(times = grid$times, lower = ps$lower,
+                                upper = ps$upper)) +
+  geom_line(aes(y = sigma, colour = curve, linetype = curve),
+            linewidth = 0.8) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_fill_manual(values = adjustcolor(chalk, 0.25)) +
+  expand_limits(y = 0) +
+  guides(colour = guide_legend(order = 1),
+         linetype = guide_legend(order = 1),
+         fill = guide_legend(order = 2)) +
+  labs(x = "time after impact (ms)", y = "standard deviation (g)")
+```
+
+The quantile residuals of the second model divide each observation by its
+own $\hat\sigma_i$. We compute their standard deviation in the same three
+phases as before:
+
+```{r}
+#| label: residuals-fit1
+r1 <- residuals(fit1)
+sd(r1[early])
+sd(r1[middle])
+sd(r1[late])
+sum(abs(r1) > 2)
+```
+
+The three values are now `r fmt(sd(r1[early]))`, `r fmt(sd(r1[middle]))` and
+`r fmt(sd(r1[late]))`, all close to 1, and `r sum(abs(r1) > 2)` residuals
+lie outside $\pm 2$, against the `r fmt(nrow(mcycle) * 2 * pnorm(-2), 1)`
+that a standard gaussian sample of `r nrow(mcycle)` values gives on average.
+@fig-resid01 shows the residuals of the two models side by side.
+
+```{r}
+#| label: fig-resid01
+#| fig-cap: "Quantile residuals against time. Left: the model with a constant standard deviation. Right: the model with an equation for the standard deviation."
+#| echo: false
+#| fig-height: 3.8
+#| fig-width: 9
+res01 <- data.frame(
+  times = rep(mcycle$times, times = 2),
+  r = c(r0, r1),
+  model = factor(rep(c("constant sigma", "sigma ~ s(times)"),
+                     each = nrow(mcycle)),
+                 levels = c("constant sigma", "sigma ~ s(times)")))
+ggplot(res01, aes(x = times, y = r)) +
+  geom_point(aes(shape = "quantile residual"), colour = book_grey,
+             size = 1.1) +
+  geom_hline(aes(yintercept = y, linetype = "-2 and 2"),
+             data = data.frame(y = c(-2, 2)), colour = rust) +
+  facet_wrap(facets = vars(model)) +
+  scale_shape_manual(values = 16) +
+  scale_linetype_manual(values = "dashed") +
+  guides(shape = guide_legend(order = 1),
+         linetype = guide_legend(order = 2)) +
+  labs(x = "time after impact (ms)", y = "quantile residual")
+```
+
+## Comparing the two models {#sec-model-compare}
+
+A penalized coefficient does not count as a whole parameter, because the
+penalty limits how far it can move. So we need another way to count the
+parameters of a penalized fit. Let $\tilde\beta$ be the estimate without the
+penalty, let $H$ be the Fisher information of the coefficients at the fit,
+and let $S$ be the matrix of second derivatives of the penalty. One Newton
+step from $\tilde\beta$ towards the penalized estimate gives
+$$
+\hat\beta = (H+S)^{-1} H \tilde\beta .
+$$
+The matrix $F = (H+S)^{-1}H$ turns the unpenalized estimate into the
+penalized one. Without a penalty, $S = 0$ and $F$ is the identity matrix, so
+its trace is the number of coefficients. As the smoothing parameters grow,
+the trace falls towards the number of unpenalized coefficients. For this
+reason we use the trace of $F$ as the number of parameters that the fit
+uses, and we call it the effective degrees of freedom. The share of one term
+is the trace of the diagonal block of $F$ that belongs to that term. The fit
+stores the shares in the slot `edf`:
+
+```{r}
+#| label: edf
+fit0@edf
+fit1@edf
+```
+
+```{r}
+#| label: edf-numbers
+#| include: false
+e0 <- sum(fit0@edf$edf)
+e1 <- sum(fit1@edf$edf)
+```
+
+The smooth of the mean uses `r fmt(fit0@edf$edf[2])` effective degrees of
+freedom in the first model and `r fmt(fit1@edf$edf[2])` in the second, where
+the smooth of the standard deviation uses `r fmt(fit1@edf$edf[4])` more. The
+share of the smooth of the mean changes between the two models because the
+information of the mean weights each observation by $1/\sigma_i^2$. In the
+first model all the weights are equal, and in the second they change with
+time.
+
+The function `logLik()` returns the conditional log-likelihood, with the
+total effective degrees of freedom as its attribute `df`. The functions
+`AIC()` and `BIC()` return cAIC and cBIC:
+
+```{r}
+#| label: loglik
+logLik(fit0)
+logLik(fit1)
+AIC(fit0)
+AIC(fit1)
+BIC(fit0)
+BIC(fit1)
+```
+
+cAIC is $-2\ell + 2\tau$, where $\ell$ is the conditional log-likelihood and
+$\tau$ the total effective degrees of freedom, and cBIC uses $\log n$ in
+place of 2. We compute both for the second model:
+
+```{r}
+#| label: aic-by-hand
+l1 <- as.numeric(logLik(fit1))
+tau1 <- sum(fit1@edf$edf)
+-2 * l1 + 2 * tau1
+-2 * l1 + log(nrow(mcycle)) * tau1
+```
+
+When we model the standard deviation, the conditional log-likelihood
+increases by `r fmt(as.numeric(logLik(fit1)) - as.numeric(logLik(fit0)))`,
+and the model uses `r fmt(e1 - e0)` more effective degrees of freedom. cAIC
+goes down from `r fmt(AIC(fit0), 1)` to `r fmt(AIC(fit1), 1)` and cBIC from
+`r fmt(BIC(fit0), 1)` to `r fmt(BIC(fit1), 1)`, so by both criteria the
+second model is better.
+
+The effective degrees of freedom also give the estimate of $\sigma$ in the
+first model. REML estimates $\sigma$ as $\sqrt{\mathrm{RSS}/(n - \tau_\mu)}$,
+where RSS is the residual sum of squares and $\tau_\mu$ is the effective
+degrees of freedom of the equation of the mean. This is the value that
+`lme()` and `mgcv` report. The maximum likelihood estimate
+$\sqrt{\mathrm{RSS}/n}$ is smaller, because the residuals of a fitted mean
+are smaller than the errors:
+
+```{r}
+#| label: sigma-reml
+rss <- sum((mcycle$accel - fitted(fit0))^2)
+tau_mu <- sum(fit0@edf$edf[fit0@edf$parameter == "mu"])
+sqrt(rss / (nrow(mcycle) - tau_mu))
+sqrt(rss / nrow(mcycle))
+s0
+```
+
+## Did the fit converge? {#sec-model-certificate}
+
+An optimizer reports whether its own stopping rule was met. This is a
+statement about the search, not about the returned point. The function
+`statmod_certificate()` checks the returned point itself.
+
+```{r}
+#| label: certificate-fit0
+statmod_certificate(fit0)
+```
+
+```{r}
+#| label: certificate-numbers
+#| include: false
+c0 <- statmod_certificate(fit0)
+c1 <- statmod_certificate(fit1)
+```
+
+The certificate reads two quantities. The first, `mode_error`, is about the
+coefficients. Let $g$ be the gradient of the penalized log-likelihood at the
+returned coefficients and let $K$ be its curvature. The quantity
+$\tfrac{1}{2} g^\top K^{-1} g$ is the increase of the penalized
+log-likelihood that one more Newton step would give, so it measures, in
+log-likelihood units, how far the coefficients are from their maximum. Here
+it is $`r sci(c0$mode_error)`$. The second, `decrement`, is the same
+quantity for the REML criterion as a function of the smoothing parameter.
+Here it is $`r sci(c0$decrement)`$. The field `curvature` is `analytic`,
+so the curvature of the criterion was computed from exact derivatives. The fields
+`inner` and `outer` are the two lines of the summary. The fields `boundary`
+and `reason` are empty: no smoothing parameter sits at the edge of its
+range, and nothing prevented the check.
+
+The field `state` summarizes the result. It is `converged` when the
+decrement is below its tolerance. It is `boundary` when the same holds with
+a smoothing parameter at the edge of its range, where the criterion no
+longer changes with it. It is `not converged` when the criterion would still
+increase, and `unknown` when the model has no criterion with derivatives to
+check. For the second model we print only the state:
+
+```{r}
+#| label: certificate-fit1
+statmod_certificate(fit1)$state
+```
+
+## Simulating from the fitted model {#sec-model-simulate}
+
+The fitted model gives, for each observation, a distribution for the
+response: here a gaussian distribution with mean $\hat\mu_i$ and standard
+deviation $\hat\sigma_i$. If the model describes the data well, data drawn
+from these distributions should look like the observed data. The function
+`rstatmod()` draws data from a model that we write, with a formula, a
+distribution and the covariates. The argument `par` gives the coefficients of
+each equation. When we pass the estimated coefficients, the model is the
+fitted one:
+
+```{r}
+#| label: rstatmod
+set.seed(1)
+sim <- rstatmod(accel ~ s(times, bspline_smooth(k = 20)) |
+                  sigma ~ s(times, bspline_smooth(k = 10)),
+                distrib = gaussian1_distrib(), data = mcycle,
+                par = coef(fit1), n_sim = 3)
+sim
+```
+
+The result holds the simulated data sets in `sim$data`, one data frame for
+each of the `n_sim = 3` replicates, and the true value of every parameter at
+every observation in `sim$theta`. Here the true values are the fitted ones:
+
+```{r}
+#| label: rstatmod-truth
+head(sim$data[[1]])
+all.equal(target = sim$theta[[1]]$sigma,
+          current = predict(fit1, what = "sigma", newdata = mcycle))
+```
+
+The function `simulate()` draws from a fitted model directly, and it returns
+the simulated responses as the columns of a data frame:
+
+```{r}
+#| label: simulate
+set.seed(1)
+sims <- simulate(fit1, nsim = 3)
+head(sims, n = 3)
+```
+
+With `rstatmod()` we can also change the model. For example, we can keep the
+estimated coefficients of the mean and write other coefficients for the
+standard deviation, or leave out `par` and let `rstatmod()` draw every
+coefficient. A simulation study with a known truth starts in this way.
+
+```{r}
+#| label: fig-sims
+#| fig-cap: "The observed data (top left) and three data sets simulated from the second model with `rstatmod()`."
+#| echo: false
+#| fig-height: 5.6
+panels <- c("observed", "simulated 1", "simulated 2", "simulated 3")
+sim_df <- data.frame(
+  times = rep(mcycle$times, times = 4),
+  accel = c(mcycle$accel, sim$data[[1]]$accel, sim$data[[2]]$accel,
+            sim$data[[3]]$accel),
+  panel = factor(rep(panels, each = nrow(mcycle)), levels = panels))
+sim_df$kind <- ifelse(sim_df$panel == "observed", "observed", "simulated")
+ggplot(sim_df, aes(x = times, y = accel, colour = kind)) +
+  geom_point(size = 1.1) +
+  facet_wrap(facets = vars(panel), ncol = 2) +
+  scale_colour_manual(values = c(observed = rust, simulated = book_grey),
+                      guide = "none") +
+  labs(x = "time (ms)", y = "acceleration (g)")
+```
+
+In @fig-sims the simulated data look like the observed data. They are flat
+in the first milliseconds, they drop and come back up at the same times, and
+their spread changes with time in the same way.
+
+```{r}
+#| label: gate-01
+#| include: false
+assert_model_ok(fit0, fit1, mcycle,
+                claims = list(ci0 = ci0, keep = keep, p0 = p0, grid = grid,
+                              new = new, sim = sim, sims = sims))
+```

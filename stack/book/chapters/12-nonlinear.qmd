@@ -1,0 +1,950 @@
+# Nonlinear models {#sec-nonlinear}
+
+```{r}
+#| label: setup-12
+#| include: false
+source("R/_setup.R")
+source("R/nonlinear-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+```
+
+In a nonlinear model a parameter of the distribution, on the scale of its
+link, is a nonlinear function of the coefficients. The parameter is often the
+mean, but it can be any of them: a standard deviation that decays with time,
+or a probability that approaches an asymptote. Many models of this kind come
+from a mechanism: the rate of an enzymatic reaction, the growth of a tree, the
+concentration of a drug in the blood. Their coefficients have a meaning of
+their own, such as a maximum rate or a final size, and the form of the
+function is fixed by the mechanism. In `statmodels7` such a function is a term
+of the formula, `nl()`, which takes the formula of the curve as a function of
+its parameters. Like every other term, `nl()` can sit in the equation of any
+parameter of the distribution, and each of its parameters can have a link,
+covariates, random effects and penalties of its own. The examples of this
+chapter put `nl()` in the equation of the mean.
+
+We compare our fits with `nls()` of the package `stats` and with `nlme()` of
+the package `nlme` [@bates1988; @pinheiro2000].
+
+## A nonlinear mean: nl() {#sec-nonlinear-nl}
+
+The data frame `Puromycin` gives the initial rate of an enzymatic reaction,
+in counts per minute per minute, against the concentration of the substrate,
+in parts per million [@bates1988]. We use the
+`r sum(Puromycin$state == "treated")` measurements on cells treated with the
+antibiotic puromycin. The Michaelis–Menten model describes the rate as
+$$
+y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
+\mu_i = \frac{V_m\, c_i}{K + c_i},
+$$
+where $c_i$ is the concentration. The parameter $V_m$ is the largest rate,
+which the reaction approaches as the concentration grows, and $K$ is the
+concentration at which the rate reaches half of $V_m$.
+
+```{r}
+#| label: nl-fit-mm
+puro <- Puromycin[Puromycin$state == "treated", ]
+fit_mm <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc)),
+                  distrib = gaussian1_distrib(), data = puro)
+summary(fit_mm)
+```
+
+The first argument of `nl()` is a one-sided formula. The names in it that are
+not columns of the data, here `Vm` and `K`, are the parameters of the curve,
+and their coefficients are called `nl.Vm` and `nl.K`. The formula of the model
+starts with `0` because the curve has no intercept. The derivatives of the
+curve in its parameters come from `deriv()`, which differentiates the formula
+symbolically.
+
+We give no starting values, and `statmod()` computes them from the data. It
+takes the response on the scale of the predictor, which here is the rate
+itself because the link of $\mu$ is the identity. The curve is linear in
+$V_m$ when $K$ is fixed, so for every value of $K$ the best $V_m$ is a least
+squares solution. The parameters in which the curve is not linear, here $K$,
+are searched on a grid of about 600 points on the scale of their links. The
+grid covers a range built from the quantiles, the standard deviation and the
+range of the response and of the covariates. The twelve best points of the
+grid are refined by a one-dimensional search, or by the Nelder–Mead method
+when there are several such parameters, and the best of them is the start.
+A value written in the argument `start` is kept as it is, and only the other
+parameters are searched.
+
+The function `nls()` fits the same model by least squares:
+
+```{r}
+#| label: nl-nls-mm
+nls_mm <- nls(rate ~ Vm * conc / (K + conc), data = puro,
+              start = list(Vm = 200, K = 0.05))
+summary(nls_mm)
+```
+
+We put the estimates, the standard errors and the two estimates of $\sigma$
+side by side:
+
+```{r}
+#| label: nl-compare-mm
+ci_mm <- confint(fit_mm)
+cbind(statmod = ci_mm[c("mu:nl.Vm", "mu:nl.K"), "estimate"],
+      nls = coef(nls_mm),
+      se_statmod = ci_mm[c("mu:nl.Vm", "mu:nl.K"), "se"],
+      se_nls = summary(nls_mm)$coefficients[, "Std. Error"])
+c(statmod = exp(coef(fit_mm)$sigma[["(Intercept)"]]), nls = sigma(nls_mm))
+c(statmod = logLik(fit_mm), nls = logLik(nls_mm))
+```
+
+```{r}
+#| label: nl-mm-numbers
+#| include: false
+cf_mm <- coef(fit_mm)$mu
+sig_mm <- exp(coef(fit_mm)$sigma[["(Intercept)"]])
+```
+
+The estimates and the standard errors agree with those of `nls()` to four
+significant digits. The rate approaches $\hat V_m = `r fmt(cf_mm[["nl.Vm"]], 1)`$
+counts per minute per minute, and it is half of that at
+$\hat K = `r fmt(cf_mm[["nl.K"]], 4)`$ parts per million. The two estimates
+of $\sigma$, `r fmt(sig_mm, 5)` and `r fmt(sigma(nls_mm), 5)`, differ in the
+fourth decimal place. Both are the restricted maximum
+likelihood estimate, which for a gaussian model with $p = 2$ coefficients is
+$\{\sum_i (y_i - \hat\mu_i)^2/(n - p)\}^{1/2}$. `nls()` computes it in closed
+form, while `statmod()` maximizes the restricted likelihood numerically and
+stops when the criterion no longer changes beyond its tolerance, which leaves
+the last digits of $\hat\sigma$ approximate. The two log-likelihoods differ
+for another reason: ours is evaluated at $\hat\sigma = `r fmt(sig_mm, 3)`$,
+and `logLik()` of `nls()` is evaluated at the maximum likelihood estimate
+$\{\sum_i (y_i - \hat\mu_i)^2/n\}^{1/2}$.
+@fig-nl-mm shows the fitted curve with a 95% confidence band, which we obtain
+from `predict()` with `se = TRUE`.
+
+```{r}
+#| label: fig-nl-mm
+#| fig-cap: "Initial rate against the concentration of the substrate for treated cells, with the fitted Michaelis–Menten curve and its 95% confidence band."
+#| echo: false
+#| fig-height: 3.8
+gc <- data.frame(conc = seq(0, max(puro$conc), length.out = 200))
+band_mm <- predict(fit_mm, what = "mu", newdata = gc, se = TRUE)
+band_df <- data.frame(conc = gc$conc, fit = band_mm$fit,
+                      lower = band_mm$lower, upper = band_mm$upper)
+ggplot(puro, aes(x = conc, y = rate)) +
+  geom_ribbon(data = band_df, aes(x = conc, ymin = lower, ymax = upper,
+                                  fill = "95% band"),
+              inherit.aes = FALSE, alpha = 0.2) +
+  geom_point(colour = book_grey) +
+  geom_line(data = band_df, aes(x = conc, y = fit, colour = "fitted curve"),
+            linewidth = 0.9) +
+  scale_colour_manual(values = chalk) +
+  scale_fill_manual(values = chalk) +
+  coord_cartesian(ylim = c(0, 230)) +
+  labs(x = "concentration (ppm)", y = "rate (counts/min/min)")
+```
+
+## Links on the parameters {#sec-nonlinear-links}
+
+Both parameters of the Michaelis–Menten curve are positive. The argument
+`links` of `nl()` gives each parameter a link from `linkfunctions7`, so that
+the coefficient is the parameter on the scale of the link. With the
+logarithm, the coefficient can take any real value and the parameter stays
+positive:
+
+```{r}
+#| label: nl-fit-mm-log
+fit_mm_log <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc),
+                                    links = list(Vm = log_link(),
+                                                 K = log_link())),
+                      distrib = gaussian1_distrib(), data = puro)
+summary(fit_mm_log)
+exp(coef(fit_mm_log)$mu)
+c(identity = logLik(fit_mm), log = logLik(fit_mm_log))
+```
+
+The fitted curve is the same, so the log-likelihood is the same, and the
+exponentials of the two coefficients are the estimates of the previous
+section. What changes is the scale on which the standard errors and the
+intervals are computed. An interval for $\log K$, carried back with the
+exponential, is not symmetric about $\hat K$ and contains only positive
+values:
+
+```{r}
+#| label: nl-ci-mm-log
+ci_log <- confint(fit_mm_log)
+exp(ci_log["mu:nl.K", c("estimate", "lower", "upper")])
+ci_mm["mu:nl.K", c("estimate", "lower", "upper")]
+```
+
+A parameter without a link keeps the identity. A link also helps the fit
+itself, because the optimizer cannot propose a negative value for a
+parameter that must be positive.
+
+### A gamma response
+
+The gaussian model gives every observation the same variance. For a rate it
+is often more natural to have a constant coefficient of variation, that is a
+standard deviation proportional to the mean. The family `gamma1_distrib()`
+has mean $\mu$ and variance $\phi\mu^2$. The curve gives the mean itself, so
+we set the link of $\mu$ to the identity. The identity link does not keep
+$\mu$ positive by itself, but the curve does: with $V_m > 0$ and $K > 0$, the
+mean is positive at every positive concentration. We keep $K$ on the
+logarithmic scale, so that it stays positive whatever its coefficient:
+$$
+y_i \sim \mathrm{Gamma}(\mu_i, \phi), \qquad
+\mu_i = \frac{V_m\, c_i}{K + c_i}.
+$$
+
+```{r}
+#| label: nl-fit-mm-gamma
+fit_mm_gam <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc),
+                                    links = list(K = log_link())),
+                      distrib = gamma1_distrib(link_mu = identity_link()),
+                      data = puro, outer_criterion = ml())
+summary(fit_mm_gam)
+```
+
+This model is also a generalized linear model. The inverse of the mean is
+$1/\mu_i = 1/V_m + (K/V_m)(1/c_i)$, which is linear in $1/c_i$, so `glm()`
+with the gamma family and the inverse link fits it, and its two coefficients
+give $V_m$ and $K$ [@mccullagh1989]:
+
+```{r}
+#| label: nl-glm-mm-gamma
+glm_mm <- glm(rate ~ I(1 / conc), family = Gamma(link = "inverse"),
+              data = puro)
+summary(glm_mm)
+b_glm <- coef(glm_mm)
+cbind(statmod = c(Vm = coef(fit_mm_gam)$mu[["nl.Vm"]],
+                  K = exp(coef(fit_mm_gam)$mu[["nl.K"]])),
+      glm = c(Vm = 1 / b_glm[[1]], K = b_glm[[2]] / b_glm[[1]]))
+c(statmod = logLik(fit_mm_gam), glm = logLik(glm_mm))
+```
+
+```{r}
+#| label: nl-gamma-numbers
+#| include: false
+phi_gam <- exp(coef(fit_mm_gam)$phi[["(Intercept)"]])
+```
+
+The estimates of $V_m$ and $K$ are the same. We fit the model under `ml()`,
+so $\hat\phi = `r fmt(phi_gam, 5)`$ is the maximum likelihood estimate.
+`logLik()` of `glm()` evaluates the log-likelihood at the deviance divided by
+$n$, `r fmt(deviance(glm_mm) / nrow(puro), 5)`, which is close to it, and the
+two log-likelihoods agree to four decimals. @fig-nl-gamma compares the
+gaussian and the gamma fits.
+
+```{r}
+#| label: fig-nl-gamma
+#| fig-cap: "Initial rate against the concentration for treated cells, with the Michaelis–Menten curves fitted with a gaussian response and with a gamma response."
+#| echo: false
+#| fig-height: 3.8
+curves_gam <- data.frame(
+  conc = rep(gc$conc, times = 2),
+  rate = c(predict(fit_mm, what = "mu", newdata = gc),
+           predict(fit_mm_gam, what = "mu", newdata = gc)),
+  curve = factor(rep(c("gaussian", "gamma"), each = nrow(gc)),
+                 levels = c("gaussian", "gamma")))
+ggplot(puro, aes(x = conc, y = rate)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = curves_gam, aes(colour = curve, linetype = curve),
+            linewidth = 0.9) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c(1, 2)) +
+  coord_cartesian(ylim = c(0, 230)) +
+  labs(x = "concentration (ppm)", y = "rate (counts/min/min)")
+```
+
+## Parameters with covariates {#sec-nonlinear-covariates}
+
+The data frame `Puromycin` also has `r sum(Puromycin$state == "untreated")`
+measurements on untreated cells. Each parameter of the curve can depend on
+covariates through a formula of its own, written as a further argument of
+`nl()` with the parameter on the left-hand side. With `Vm ~ state` and
+`K ~ state` each parameter has an intercept, the value for treated cells, and
+a difference for untreated cells:
+$$
+\mu_i = \frac{V_{m,i}\, c_i}{K_i + c_i}, \qquad
+V_{m,i} = v_0 + v_1 u_i, \qquad K_i = k_0 + k_1 u_i,
+$$
+where $u_i$ is 1 for untreated cells and 0 otherwise.
+
+```{r}
+#| label: nl-fit-state
+fit_st <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc), Vm ~ state,
+                                K ~ state),
+                  distrib = gaussian1_distrib(), data = Puromycin,
+                  outer_criterion = ml())
+summary(fit_st)
+```
+
+We fit the model under `ml()`, because below we compare it with a smaller
+model by the likelihood ratio, which needs the maximized log-likelihood of
+both. Under `ml()` the estimate of $\sigma$ is the maximum likelihood
+estimate. The function `nls()` fits the same model when each parameter is
+indexed by the factor:
+
+```{r}
+#| label: nl-nls-state
+nls_st <- nls(rate ~ Vm[state] * conc / (K[state] + conc), data = Puromycin,
+              start = list(Vm = c(200, 160), K = c(0.05, 0.05)))
+summary(nls_st)
+cf_st <- coef(fit_st)$mu
+cbind(statmod = c(cf_st[["nl.Vm.(Intercept)"]],
+                  cf_st[["nl.Vm.(Intercept)"]] + cf_st[["nl.Vm.stateuntreated"]],
+                  cf_st[["nl.K.(Intercept)"]],
+                  cf_st[["nl.K.(Intercept)"]] + cf_st[["nl.K.stateuntreated"]]),
+      nls = coef(nls_st))
+c(statmod = logLik(fit_st), nls = logLik(nls_st))
+```
+
+The two fits agree, and so do the log-likelihoods, which are both maximized
+over $\sigma$. The summary suggests that $K$ does not depend on the
+treatment. The smaller model has `K` without a formula, so $K$ is the same
+for the two states:
+
+```{r}
+#| label: nl-fit-state0
+fit_st0 <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc), Vm ~ state),
+                   distrib = gaussian1_distrib(), data = Puromycin,
+                   outer_criterion = ml())
+summary(fit_st0)
+l0 <- logLik(fit_st0)
+l1 <- logLik(fit_st)
+lr_st <- 2 * (as.numeric(l1) - as.numeric(l0))
+lr_st
+pchisq(lr_st, df = 1, lower.tail = FALSE)
+```
+
+```{r}
+#| label: nl-state-numbers
+#| include: false
+p_st <- pchisq(lr_st, df = 1, lower.tail = FALSE)
+cf_st0 <- coef(fit_st0)$mu
+```
+
+The likelihood ratio is `r fmt(lr_st, 3)`, with a p-value of
+`r fmt(p_st, 3)`, so the data are compatible with a common $K$. In the
+smaller model the treatment raises the largest rate from
+`r fmt(cf_st0[["nl.Vm.(Intercept)"]] + cf_st0[["nl.Vm.stateuntreated"]], 1)`
+to `r fmt(cf_st0[["nl.Vm.(Intercept)"]], 1)`, and the common $K$ is
+`r fmt(cf_st0[["nl.K"]], 4)`. @fig-nl-state shows the two models, one panel
+for each state.
+
+```{r}
+#| label: fig-nl-state
+#| fig-cap: "Initial rate against the concentration, one panel for each state of the cells, with the curves of the model in which both parameters depend on the state and of the model with a common K."
+#| echo: false
+#| fig-height: 3.6
+#| fig-width: 8
+gs <- expand.grid(conc = gc$conc, state = levels(Puromycin$state))
+gs$state <- factor(gs$state, levels = levels(Puromycin$state))
+st_names <- c("Vm and K by state", "common K")
+curves_st <- data.frame(
+  conc = rep(gs$conc, times = 2), state = rep(gs$state, times = 2),
+  rate = c(predict(fit_st, what = "mu", newdata = gs),
+           predict(fit_st0, what = "mu", newdata = gs)),
+  curve = factor(rep(st_names, each = nrow(gs)), levels = st_names))
+ggplot(Puromycin, aes(x = conc, y = rate)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = curves_st, aes(colour = curve, linetype = curve),
+            linewidth = 0.9) +
+  facet_wrap(~state, nrow = 1) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c(1, 2)) +
+  coord_cartesian(ylim = c(0, 230)) +
+  labs(x = "concentration (ppm)", y = "rate (counts/min/min)")
+```
+
+The formula of a parameter takes any term of the package, not only factors:
+`K ~ x` for a continuous covariate, `K ~ s(x)` for a smooth function of it.
+The formula acts on the scale of the parameter's link, so with a logarithmic
+link each covariate multiplies the parameter.
+
+## Random effects on the parameters {#sec-nonlinear-random}
+
+In data with groups, a parameter of the curve can vary from group to group.
+The data frame `Orange` gives the circumference of the trunk, in millimeters,
+of five orange trees at seven ages, in days [@draper1998; @pinheiro2000]. The
+logistic growth curve describes the circumference as
+$$
+\mu_{ij} = \frac{A_i}{1 + \exp\{(x_m - a_{ij})/s\}} ,
+$$
+where $a_{ij}$ is the age of tree $i$ at its $j$-th measurement. The
+parameter $A_i$ is the final circumference of tree $i$, $x_m$ is the age at
+which a tree reaches half of it, and $s$ sets how fast it grows. We let each
+tree have its own final circumference, $A_i = A + b_i$, with
+$b_i \sim \mathrm{N}(0, \tau)$. In the formula of `Asym` we write the
+random effect with `random()`:
+
+```{r}
+#| label: nl-fit-orange
+fit_or <- statmod(circumference ~ 0 +
+                    nl(~ Asym / (1 + exp((xmid - age) / scal)),
+                       Asym ~ 1 + random(~ 1 | Tree)),
+                  distrib = gaussian1_distrib(), data = Orange)
+summary(fit_or)
+```
+
+The summary has a compartment for `Asym`. It gives the population value $A$,
+the `(Intercept)` of its formula, and the standard deviation $\tau$ of the
+random effects, which `statmod()` estimates by restricted maximum likelihood
+with the other variance parameters. The function `nlme()` fits the same model
+[@lindstrom1990; @pinheiro2000]:
+
+```{r}
+#| label: nl-nlme-orange
+nlme_or <- nlme::nlme(circumference ~ SSlogis(age, Asym, xmid, scal),
+                      data = Orange, fixed = Asym + xmid + scal ~ 1,
+                      random = Asym ~ 1 | Tree,
+                      start = c(Asym = 190, xmid = 700, scal = 350),
+                      method = "REML")
+summary(nlme_or)
+cbind(statmod = c(coef(fit_or)$mu[c("nl.Asym.(Intercept)", "nl.xmid",
+                                    "nl.scal")],
+                  tau = hyper(fit_or)$estimate,
+                  sigma = exp(coef(fit_or)$sigma[["(Intercept)"]])),
+      nlme = c(nlme::fixef(nlme_or),
+               as.numeric(nlme::VarCorr(nlme_or)[, "StdDev"])))
+c(statmod = logLik(fit_or, type = "marginal"), nlme = logLik(nlme_or))
+```
+
+```{r}
+#| label: nl-orange-numbers
+#| include: false
+tau_or <- hyper(fit_or)$estimate
+tau_nlme <- as.numeric(nlme::VarCorr(nlme_or)[1, "StdDev"])
+ll_or <- as.numeric(logLik(fit_or, type = "marginal"))
+ll_nlme <- as.numeric(logLik(nlme_or))
+```
+
+The fixed parameters are close, and the standard deviation of the trees is
+`r fmt(tau_or, 2)` in our fit against `r fmt(tau_nlme, 2)` in that of
+`nlme()`. The two packages maximize the same approximation to the restricted
+likelihood: the restricted likelihood of the linear mixed model obtained by
+replacing the curve with its first-order expansion in the coefficients and in
+the random effects [@lindstrom1990]. The algorithm of `nlme()` alternates a
+penalized nonlinear least squares step and a step on the linear mixed model,
+and it stops at a point where the criterion is
+`r fmt(ll_nlme, 3)`. Our estimates give `r fmt(ll_or, 3)`, a larger value.
+The criterion changes little with $\tau$, so a small difference in its value
+goes with a visible difference in $\tau$. With five trees the data carry
+little information about the variance between trees.
+
+The curve is linear in the random effects $b_i$, so for given $x_m$ and $s$
+the likelihood integrated over the $b_i$ has a closed form, and maximum
+likelihood involves no approximation. We fit the model by maximum
+likelihood with both packages:
+
+```{r}
+#| label: nl-ml-orange
+fit_or_ml <- statmod(circumference ~ 0 +
+                       nl(~ Asym / (1 + exp((xmid - age) / scal)),
+                          Asym ~ 1 + random(~ 1 | Tree)),
+                     distrib = gaussian1_distrib(), data = Orange,
+                     outer_criterion = ml())
+summary(fit_or_ml)
+nlme_or_ml <- nlme::nlme(circumference ~ SSlogis(age, Asym, xmid, scal),
+                         data = Orange, fixed = Asym + xmid + scal ~ 1,
+                         random = Asym ~ 1 | Tree,
+                         start = c(Asym = 190, xmid = 700, scal = 350),
+                         method = "ML")
+summary(nlme_or_ml)
+cbind(statmod = c(coef(fit_or_ml)$mu[c("nl.Asym.(Intercept)", "nl.xmid",
+                                       "nl.scal")],
+                  tau = hyper(fit_or_ml)$estimate,
+                  sigma = exp(coef(fit_or_ml)$sigma[["(Intercept)"]])),
+      nlme = c(nlme::fixef(nlme_or_ml),
+               as.numeric(nlme::VarCorr(nlme_or_ml)[, "StdDev"])))
+c(statmod = logLik(fit_or_ml, type = "marginal"), nlme = logLik(nlme_or_ml))
+```
+
+The two maxima differ by less than 0.001, ours being the larger, and the
+estimates agree to three significant digits.
+
+The argument `random` of `predict()` sets the random effects aside. With
+`random = "zero"` every tree is given $b_i = 0$, which is the curve of a
+typical tree, also for a tree that the fit never saw. @fig-nl-orange shows
+three trees, the one with the smallest final circumference, one in the
+middle and the one with the largest, each with its own curve and with the
+curve of the typical tree.
+
+```{r}
+#| label: fig-nl-orange
+#| fig-cap: "Trunk circumference against age for three orange trees, each with the curve that the model fits to it and with the curve of a typical tree, which has the random effect at zero."
+#| echo: false
+#| fig-height: 3.6
+#| fig-width: 9
+b_or <- coef(fit_or)$mu[paste0("nl.Asym.random.", levels(Orange$Tree))]
+names(b_or) <- levels(Orange$Tree)
+sel_or <- names(sort(b_or))[c(1, 3, 5)]
+sel_or <- sel_or[order(as.numeric(sel_or))]
+ag <- seq(100, 1600, length.out = 200)
+or_names <- c("this tree", "typical tree")
+curves_or <- do.call(rbind, lapply(sel_or, function(tr) {
+  nd <- data.frame(age = ag, Tree = factor(tr, levels = levels(Orange$Tree)))
+  data.frame(age = rep(ag, times = 2), tree = tr,
+             circumference = c(predict(fit_or, what = "mu", newdata = nd),
+                               predict(fit_or, what = "mu", newdata = nd,
+                                       random = "zero")),
+             curve = rep(or_names, each = length(ag)))
+}))
+curves_or$curve <- factor(curves_or$curve, levels = or_names)
+obs_or <- data.frame(age = Orange$age, tree = as.character(Orange$Tree),
+                     circumference = Orange$circumference)
+obs_or <- obs_or[obs_or$tree %in% sel_or, ]
+curves_or$panel <- factor(paste("tree", curves_or$tree),
+                          levels = paste("tree", sel_or))
+obs_or$panel <- factor(paste("tree", obs_or$tree),
+                       levels = paste("tree", sel_or))
+ggplot(obs_or, aes(x = age, y = circumference)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = curves_or, aes(colour = curve, linetype = curve),
+            linewidth = 0.9) +
+  facet_wrap(~panel, nrow = 1) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c(1, 2)) +
+  coord_cartesian(xlim = range(ag), ylim = range(Orange$circumference)) +
+  labs(x = "age (days)", y = "circumference (mm)")
+```
+
+### Random effects on two parameters
+
+The data frame `Theoph` gives the concentration of theophylline in the blood,
+in milligrams per liter, of twelve subjects at eleven times after an oral
+dose, in hours [@pinheiro2000]. The dose, in milligrams per kilogram of body
+weight, varies between subjects. The one-compartment model with first-order
+absorption describes the concentration at time $t$ after a dose $D$ as
+$$
+\mu = \frac{D\, k_e k_a}{C (k_a - k_e)}
+      \left(e^{-k_e t} - e^{-k_a t}\right),
+$$
+where $k_a$ is the rate of absorption, $k_e$ the rate of elimination and $C$
+the clearance. The three are positive, so we write the curve in their
+logarithms, `lKa`, `lKe` and `lCl`, as `SSfol()` of the package `stats` does.
+We give the absorption and the clearance a random effect for each subject,
+with two separate variances:
+
+```{r}
+#| label: nl-fit-theoph
+fit_th <- statmod(conc ~ 0 +
+                    nl(~ Dose * exp(lKe + lKa - lCl) *
+                         (exp(-exp(lKe) * Time) - exp(-exp(lKa) * Time)) /
+                         (exp(lKa) - exp(lKe)),
+                       lKa ~ 1 + random(~ 1 | Subject),
+                       lCl ~ 1 + random(~ 1 | Subject),
+                       start = list(lKe = -2.5, lKa = 0.5, lCl = -3)),
+                  distrib = gaussian1_distrib(), data = Theoph)
+summary(fit_th)
+```
+
+Here we give starting values through the argument `start`, on the scale of
+the parameters. The random effects enter the curve through the exponential
+of `lKa` and `lCl`, so the curve is not linear in them. We fit the same model
+with `nlme()`:
+
+```{r}
+#| label: nl-nlme-theoph
+nlme_th <- nlme::nlme(conc ~ SSfol(Dose, Time, lKe, lKa, lCl),
+                      data = Theoph, fixed = lKe + lKa + lCl ~ 1,
+                      random = nlme::pdDiag(lKa + lCl ~ 1),
+                      groups = ~ Subject,
+                      start = c(lKe = -2.5, lKa = 0.5, lCl = -3),
+                      method = "REML")
+summary(nlme_th)
+h_th <- hyper(fit_th)
+cbind(statmod = c(coef(fit_th)$mu[c("nl.lKe", "nl.lKa.(Intercept)",
+                                    "nl.lCl.(Intercept)")],
+                  tau_lKa = h_th$estimate[1], tau_lCl = h_th$estimate[2],
+                  sigma = exp(coef(fit_th)$sigma[["(Intercept)"]])),
+      nlme = c(nlme::fixef(nlme_th),
+               as.numeric(nlme::VarCorr(nlme_th)[, "StdDev"])))
+c(statmod = logLik(fit_th, type = "marginal"), nlme = logLik(nlme_th))
+```
+
+```{r}
+#| label: nl-theoph-numbers
+#| include: false
+ll_th <- as.numeric(logLik(fit_th, type = "marginal"))
+ll_th_nlme <- as.numeric(logLik(nlme_th))
+```
+
+The comparison is the one of the orange trees: the estimates are close, and
+our restricted criterion, `r fmt(ll_th, 3)`, is larger than the one at the
+estimates of `nlme()`, `r fmt(ll_th_nlme, 3)`.
+
+When the curve is not linear in the random effects, the curve of the typical
+subject, with the effects at zero, is not the average curve over the
+subjects. With `random = "marginal"`, `predict()` averages the curve over
+the distribution of the random effects, with a Gauss–Hermite rule on a grid
+of values of the two effects. @fig-nl-theoph shows three subjects, each
+with its own curve, the curve of the typical subject and the average curve.
+
+```{r}
+#| label: fig-nl-theoph
+#| fig-cap: "Concentration of theophylline against time for three subjects, each with the curve that the model fits to it, the curve of a typical subject (random effects at zero) and the curve averaged over the distribution of the random effects, all at the dose of that subject."
+#| echo: false
+#| fig-height: 3.6
+#| fig-width: 9
+cl_th <- coef(fit_th)$mu[paste0("nl.lCl.random.", levels(Theoph$Subject))]
+names(cl_th) <- levels(Theoph$Subject)
+sel_th <- names(sort(cl_th))[c(1, 6, 12)]
+sel_th <- sel_th[order(as.numeric(sel_th))]
+tt <- seq(0, 25, length.out = 200)
+th_names <- c("this subject", "typical subject", "average")
+curves_th <- do.call(rbind, lapply(sel_th, function(s) {
+  rows <- Theoph$Subject == s
+  nd <- data.frame(Time = tt, Dose = Theoph$Dose[rows][1],
+                   Subject = factor(s, levels = levels(Theoph$Subject)))
+  data.frame(Time = rep(tt, times = 3), subject = s,
+             conc = c(predict(fit_th, what = "mu", newdata = nd),
+                      predict(fit_th, what = "mu", newdata = nd,
+                              random = "zero"),
+                      predict(fit_th, what = "mu", newdata = nd,
+                              random = "marginal")),
+             curve = rep(th_names, each = length(tt)))
+}))
+curves_th$curve <- factor(curves_th$curve, levels = th_names)
+obs_th <- data.frame(Time = Theoph$Time, subject = as.character(Theoph$Subject),
+                     conc = Theoph$conc)
+obs_th <- obs_th[obs_th$subject %in% sel_th, ]
+curves_th$panel <- factor(paste("subject", curves_th$subject),
+                          levels = paste("subject", sel_th))
+obs_th$panel <- factor(paste("subject", obs_th$subject),
+                       levels = paste("subject", sel_th))
+ggplot(obs_th, aes(x = Time, y = conc)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = curves_th, aes(colour = curve, linetype = curve,
+                                  linewidth = curve)) +
+  facet_wrap(~panel, nrow = 1) +
+  scale_colour_manual(values = c(chalk, rust, ink)) +
+  scale_linetype_manual(values = c(1, 2, 3)) +
+  scale_linewidth_manual(values = c(0.9, 0.9, 0.7)) +
+  coord_cartesian(ylim = c(0, 12)) +
+  labs(x = "time (hours)", y = "concentration (mg/L)")
+```
+
+## A lasso on the levels of a parameter {#sec-nonlinear-lasso}
+
+A random effect shrinks every group towards the population value, and every
+group keeps a departure from it. When most groups share one value of a
+parameter and only a few differ, a lasso on the levels can set some of the
+departures exactly to zero. We simulate the initial rates of eight enzymes, each
+measured twice at six concentrations, with a common $K = 0.07$ and with
+$V_m = 200$ for six of them, 260 for enzyme C and 150 for enzyme F:
+
+```{r}
+#| label: nl-sim-lasso
+set.seed(1)
+enzyme <- factor(rep(LETTERS[1:8], each = 12))
+conc <- rep(c(0.02, 0.06, 0.11, 0.22, 0.56, 1.10), 16)
+vm_true <- c(A = 200, B = 200, C = 260, D = 200, E = 200, F = 150, G = 200,
+             H = 200)
+rate <- vm_true[enzyme] * conc / (0.07 + conc) + rnorm(96, sd = 10)
+enz <- data.frame(enzyme = enzyme, conc = conc, rate = rate)
+```
+
+In the formula of `Vm` we write an intercept and a lasso on the levels of
+`enzyme`. The term `lasso(~ enzyme)` has one coefficient for every level,
+and the intercept is the value of the levels whose departure is zero:
+
+```{r}
+#| label: nl-fit-lasso
+fit_las <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc),
+                                 Vm ~ 1 + lasso(~ enzyme)),
+                   distrib = gaussian1_distrib(), data = enz)
+summary(fit_las)
+```
+
+The penalty is $\lambda\sum_g \lvert d_g\rvert$ on the departures $d_g$, and
+$\lambda$ is chosen along a path by the BIC, as in @sec-penalized. We fit the
+same model with a random effect in place of the lasso:
+
+```{r}
+#| label: nl-fit-lasso-random
+fit_ran <- statmod(rate ~ 0 + nl(~ Vm * conc / (K + conc),
+                                 Vm ~ 1 + random(~ 1 | enzyme)),
+                   distrib = gaussian1_distrib(), data = enz)
+summary(fit_ran)
+d_las <- coef(fit_las)$mu[paste0("nl.Vm.lasso.enzyme", LETTERS[1:8])]
+d_ran <- coef(fit_ran)$mu[paste0("nl.Vm.random.", LETTERS[1:8])]
+round(cbind(true = vm_true - 200, lasso = d_las, random = d_ran), 2)
+```
+
+```{r}
+#| label: nl-lasso-numbers
+#| include: false
+zero_las <- LETTERS[1:8][d_las == 0]
+kept_las <- LETTERS[1:8][d_las != 0]
+```
+
+The lasso sets exactly to zero the departures of `r length(zero_las)`
+enzymes, `r paste(zero_las, collapse = ", ")`, and keeps those of
+`r paste(kept_las, collapse = ", ")`. The departures of C and F are close to
+the simulated ones, and those of the other enzymes that it keeps are small.
+The random effect gives every enzyme a departure. @fig-nl-lasso shows the eight enzymes, one panel
+each, with the curves of the two models.
+
+```{r}
+#| label: fig-nl-lasso
+#| fig-cap: "Initial rate against the concentration for the eight simulated enzymes, one panel each, with the curves of the model with a lasso on the levels of Vm and of the model with a random effect on Vm."
+#| echo: false
+#| fig-height: 5
+#| fig-width: 9
+las_names <- c("lasso", "random effect")
+curves_las <- do.call(rbind, lapply(LETTERS[1:8], function(e) {
+  ne <- data.frame(conc = gc$conc[gc$conc <= 1.1],
+                   enzyme = factor(e, levels = LETTERS[1:8]))
+  data.frame(conc = rep(ne$conc, times = 2), panel = paste("enzyme", e),
+             rate = c(predict(fit_las, what = "mu", newdata = ne),
+                      predict(fit_ran, what = "mu", newdata = ne)),
+             curve = rep(las_names, each = nrow(ne)))
+}))
+curves_las$curve <- factor(curves_las$curve, levels = las_names)
+curves_las$panel <- factor(curves_las$panel,
+                           levels = paste("enzyme", LETTERS[1:8]))
+obs_las <- data.frame(conc = enz$conc, rate = enz$rate,
+                      panel = factor(paste("enzyme", enz$enzyme),
+                                     levels = paste("enzyme", LETTERS[1:8])))
+ggplot(obs_las, aes(x = conc, y = rate)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = curves_las, aes(colour = curve, linetype = curve),
+            linewidth = 0.9) +
+  facet_wrap(~panel, nrow = 2) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c(1, 2)) +
+  coord_cartesian(ylim = c(0, 270)) +
+  labs(x = "concentration", y = "rate")
+```
+
+## A break-point inside a parameter {#sec-nonlinear-breakpoint}
+
+The formula of a parameter can also contain a break-point term from
+@sec-breakpoints, so that the parameter changes at an estimated value of a
+covariate. We simulate a sequence of 30 daily experiments. In each one a
+count decays over eight times $x$, and from day 18 the decay is faster:
+$$
+y \sim \mathrm{Poisson}(\mu), \qquad \mu = a\, e^{-r x}, \qquad
+\log r = r_0 + \delta\, \mathbb{1}(\text{day} > \psi).
+$$
+
+```{r}
+#| label: nl-sim-decay
+set.seed(2)
+decay <- data.frame(day = rep(1:30, each = 8),
+                    x = rep(seq(0.25, 4, length.out = 8), 30))
+r_true <- exp(log(0.6) + 0.5 * (decay$day > 17))
+decay$y <- rpois(240, 80 * exp(-r_true * decay$x))
+```
+
+Inside `nl()` the break-point term must be smoothed, because its block has to
+be a Jacobian like the rest of the term. We take the smoothed step of
+`smooth_probit()` (@sec-breakpoints-smooth). The counts are Poisson with the
+identity link, since the curve gives the mean itself, and both $a$ and $r$
+are on the logarithmic scale:
+
+```{r}
+#| label: nl-fit-decay
+fit_dec <- statmod(y ~ 0 + nl(~ a * exp(-r * x),
+                              r ~ jump(day, smoothed = smooth_probit()),
+                              links = list(a = log_link(), r = log_link()),
+                              start = list(a = 50, r = 1)),
+                   distrib = poisson_distrib(link_mu = identity_link()),
+                   data = decay)
+summary(fit_dec)
+statmod_certificate(fit_dec)$state
+```
+
+```{r}
+#| label: nl-decay-numbers
+#| include: false
+cf_dec <- coef(fit_dec)$mu
+```
+
+The position of the change is $\hat\psi = `r fmt(cf_dec[["nl.r.jump.psi1"]], 2)`$,
+between day 17 and day 18, and it has a standard error because the step is
+smooth. The logarithm of the rate rises by
+`r fmt(cf_dec[["nl.r.jump.delta1"]], 3)`, against 0.5 in the simulation. We
+compare the model with the one without a change:
+
+```{r}
+#| label: nl-fit-decay0
+fit_dec0 <- statmod(y ~ 0 + nl(~ a * exp(-r * x),
+                               links = list(a = log_link(), r = log_link()),
+                               start = list(a = 50, r = 1)),
+                    distrib = poisson_distrib(link_mu = identity_link()),
+                    data = decay)
+summary(fit_dec0)
+c(no_change = AIC(fit_dec0), change = AIC(fit_dec))
+```
+
+The AIC prefers the model with the change. The likelihood ratio between the
+two models has no $\chi^2$ reference, because the position of the change is
+not defined when there is no change [@davies1987]. @fig-nl-decay shows three
+days, one before the change, the first day after it and one later, and the
+rate of decay estimated for each day. We compute the rate from two
+predictions, because $\mu(1)/\mu(0) = e^{-r}$.
+
+```{r}
+#| label: fig-nl-decay
+#| fig-cap: "Left: the counts of three days with the fitted curves. Right: the rate of decay estimated for each day, with the rate used in the simulation."
+#| echo: false
+#| fig-height: 3.6
+#| fig-width: 10
+xs <- seq(0, 4, length.out = 100)
+days <- seq(1, 30, length.out = 300)
+m0 <- predict(fit_dec, what = "mu", newdata = data.frame(day = days, x = 0))
+m1 <- predict(fit_dec, what = "mu", newdata = data.frame(day = days, x = 1))
+dec_days <- c(10, 18, 28)
+pan_dec <- c(paste("count against x, day", dec_days),
+             "rate of decay r against day")
+dec_names <- c("fitted", "simulated")
+obs_dec <- decay[decay$day %in% dec_days, c("day", "x", "y")]
+obs_dec$panel <- factor(paste("count against x, day", obs_dec$day),
+                        levels = pan_dec)
+curves_dec <- rbind(
+  do.call(rbind, lapply(dec_days, function(dd) {
+    data.frame(panel = paste("count against x, day", dd), x = xs,
+               y = predict(fit_dec, what = "mu",
+                           newdata = data.frame(day = dd, x = xs)),
+               curve = "fitted")
+  })),
+  data.frame(panel = pan_dec[4], x = days, y = log(m0 / m1), curve = "fitted"))
+curves_dec$panel <- factor(curves_dec$panel, levels = pan_dec)
+curves_dec$curve <- factor(curves_dec$curve, levels = dec_names)
+sim_dec <- data.frame(panel = factor(pan_dec[4], levels = pan_dec), x = days,
+                      y = exp(log(0.6) + 0.5 * (days > 17)),
+                      curve = factor("simulated", levels = dec_names))
+lim_dec <- data.frame(panel = factor(rep(pan_dec, each = 2), levels = pan_dec),
+                      x = NA_real_, y = c(rep(c(0, 90), times = 3), 0.5, 1.1))
+ggplot(obs_dec, aes(x = x, y = y)) +
+  geom_blank(data = lim_dec) +
+  geom_point(colour = book_grey) +
+  geom_line(data = curves_dec, aes(colour = curve, linetype = curve),
+            linewidth = 0.9) +
+  geom_step(data = sim_dec, aes(colour = curve, linetype = curve),
+            linewidth = 0.7) +
+  facet_wrap(~panel, nrow = 1, scales = "free") +
+  scale_colour_manual(values = c(chalk, rust), drop = FALSE) +
+  scale_linetype_manual(values = c(1, 2), drop = FALSE) +
+  labs(x = NULL, y = NULL)
+```
+
+The sharp term `jump(day)` is rejected inside `nl()`, with a message that
+names the argument `smoothed`. Its block is a working linearization rather
+than a Jacobian, and it cannot sit inside the Jacobian of another term.
+
+## A function written in R {#sec-nonlinear-function}
+
+When the curve cannot be written as a formula, the first argument of `nl()`
+can be an R function of two arguments, the covariates `x` and a list `theta`
+of the parameters, vectorized in both. The argument `params` names the
+parameters, and the argument `x` gives the expression, evaluated in the data,
+that is passed to the function. A function can be anything that R computes,
+for example a model function of another package. The function `SSfol()` of
+`stats` computes the one-compartment curve of the previous section, and we
+use it as it is:
+
+```{r}
+#| label: nl-fit-function
+fol <- function(x, theta) {
+  as.numeric(SSfol(x[, "Dose"], x[, "Time"], theta$lKe, theta$lKa,
+                   theta$lCl))
+}
+fit_fn <- statmod(conc ~ 0 + nl(fol, params = c("lKe", "lKa", "lCl"),
+                                x = cbind(Dose = Dose, Time = Time),
+                                start = list(lKe = -2.5, lKa = 0.5,
+                                             lCl = -3)),
+                  distrib = gaussian1_distrib(), data = Theoph)
+summary(fit_fn)
+```
+
+This model has no random effects: all subjects share the three parameters.
+Inside a function the place where each parameter enters is not visible to
+`statmod()`, so a parameter of a function cannot have a formula of its own.
+The same model written as a formula, and the fit of `nls()`, give the same
+estimates:
+
+```{r}
+#| label: nl-fit-function-compare
+fit_fm <- statmod(conc ~ 0 +
+                    nl(~ Dose * exp(lKe + lKa - lCl) *
+                         (exp(-exp(lKe) * Time) - exp(-exp(lKa) * Time)) /
+                         (exp(lKa) - exp(lKe)),
+                       start = list(lKe = -2.5, lKa = 0.5, lCl = -3)),
+                  distrib = gaussian1_distrib(), data = Theoph)
+nls_fn <- nls(conc ~ SSfol(Dose, Time, lKe, lKa, lCl), data = Theoph)
+cbind(fn = coef(fit_fn)$mu, formula = coef(fit_fm)$mu, nls = coef(nls_fn))
+```
+
+The derivatives of a function in its parameters are computed by finite
+differences. Where they are known, the argument
+`gradient` supplies the first ones, as a function of `theta` and of `data`,
+the variables of the data, that returns a named list with one vector per
+parameter. `SSfol()` returns its gradient as an attribute when its
+parameters are given as names of variables, so we copy them into three
+variables and read the gradient from there:
+
+```{r}
+#| label: nl-fit-function-gradient
+fol_grad <- function(theta, data) {
+  lKe <- theta$lKe
+  lKa <- theta$lKa
+  lCl <- theta$lCl
+  g <- attr(SSfol(data$Dose, data$Time, lKe, lKa, lCl), "gradient")
+  list(lKe = g[, "lKe"], lKa = g[, "lKa"], lCl = g[, "lCl"])
+}
+fit_fg <- statmod(conc ~ 0 + nl(fol, params = c("lKe", "lKa", "lCl"),
+                                x = cbind(Dose = Dose, Time = Time),
+                                gradient = fol_grad,
+                                start = list(lKe = -2.5, lKa = 0.5,
+                                             lCl = -3)),
+                  distrib = gaussian1_distrib(), data = Theoph)
+coef(fit_fg)$mu
+```
+
+The estimates are the same. With the exact gradient the design block of the
+term is exact, and the higher derivatives are finite differences of the
+gradient rather than of the function itself. @fig-nl-function shows the fitted
+curve for three subjects with different doses.
+
+```{r}
+#| label: fig-nl-function
+#| fig-cap: "Concentration of theophylline against time for three subjects with different doses, with the curve of the model in which all subjects share the three parameters, at the dose of each subject."
+#| echo: false
+#| fig-height: 3.6
+#| fig-width: 9
+dose_s <- tapply(Theoph$Dose, Theoph$Subject, function(v) v[1])
+sel_fn <- names(sort(dose_s))[c(1, 6, 12)]
+sel_fn <- sel_fn[order(as.numeric(sel_fn))]
+pan_fn <- sprintf("subject %s, dose %.2f", sel_fn, dose_s[sel_fn])
+names(pan_fn) <- sel_fn
+curves_fn <- do.call(rbind, lapply(sel_fn, function(s) {
+  nd <- data.frame(Time = tt, Dose = dose_s[[s]])
+  data.frame(Time = tt, panel = pan_fn[[s]],
+             conc = predict(fit_fn, what = "mu", newdata = nd))
+}))
+curves_fn$panel <- factor(curves_fn$panel, levels = pan_fn)
+obs_fn <- data.frame(Time = Theoph$Time, conc = Theoph$conc,
+                     subject = as.character(Theoph$Subject))
+obs_fn <- obs_fn[obs_fn$subject %in% sel_fn, ]
+obs_fn$panel <- factor(unname(pan_fn[obs_fn$subject]), levels = pan_fn)
+ggplot(obs_fn, aes(x = Time, y = conc)) +
+  geom_point(colour = book_grey) +
+  geom_line(data = curves_fn, aes(colour = "fitted curve"), linewidth = 0.9) +
+  facet_wrap(~panel, nrow = 1) +
+  scale_colour_manual(values = chalk) +
+  coord_cartesian(ylim = c(0, 12)) +
+  labs(x = "time (hours)", y = "concentration (mg/L)")
+```
+
+```{r}
+#| label: gate-12
+#| include: false
+assert_nonlinear_ok(
+  fits = list(mm = fit_mm, mm_log = fit_mm_log, mm_gam = fit_mm_gam,
+              st = fit_st, st0 = fit_st0, or = fit_or, or_ml = fit_or_ml,
+              th = fit_th, las = fit_las, ran = fit_ran, dec = fit_dec,
+              dec0 = fit_dec0, fn = fit_fn, fm = fit_fm, fg = fit_fg),
+  ref = list(nls_mm = nls_mm, glm_mm = glm_mm, nls_st = nls_st,
+             nlme_or = nlme_or, nlme_or_ml = nlme_or_ml, nlme_th = nlme_th,
+             nls_fn = nls_fn),
+  data = list(puro = puro, Puromycin = Puromycin, orange = Orange,
+              theoph = Theoph, enz = enz, decay = decay),
+  claims = list(lr_st = lr_st, vm_true = vm_true, zero_las = zero_las))
+```

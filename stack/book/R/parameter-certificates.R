@@ -381,7 +381,7 @@
 
   # a rank-deficient structure is not a density, and the distribution says so
   refused2 <- tryCatch({
-    mvgaussian_distrib(8, sigma = pen)
+    mvgaussian1_distrib(8, pen)
     FALSE
   }, error = function(e) TRUE)
   if (!refused2) {
@@ -449,7 +449,7 @@
   # and the consumer really does flatten it into identity links, which is what
   # makes a label promising a bounded quantity a misreport rather than a
   # cosmetic complaint
-  d <- distributions7::mvgaussian_distrib(3, sigma = parameters7::ar1(3))
+  d <- distributions7::mvgaussian1_distrib(3, parameters7::ar1(3))
   tags <- vapply(d@link_params, function(l) l@link_name, character(1))
   if (!all(tags == "identity")) {
     out <- c(out, "the multivariate parameters do not all carry identity links")
@@ -636,7 +636,7 @@ assert_parameter_rank_ok <- function() {
   s <- parameters7::autoregressive(7, order = 2L)
   eta <- c(log(2), atanh(0.7), atanh(-0.3))
 
-  phi <- parameters7:::ar_taylor(s, eta)$phi[, 1L]
+  phi <- parameters7:::ar_tables(s, eta, 0L)$phi
   if (min(Mod(polyroot(c(1, -phi)))) <= 1) {
     out <- c(out, "the chart of 6.2.6 left the stationary region")
   }

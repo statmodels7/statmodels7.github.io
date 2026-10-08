@@ -1,0 +1,1074 @@
+# Generalized additive mixed models {#sec-gamm}
+
+```{r}
+#| label: setup-09
+#| include: false
+source("R/_setup.R")
+source("R/gamm-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+```
+
+A generalized additive mixed model has smooth functions and random effects in
+the same predictor [@lin1999; @ruppert2003]:
+$$
+\eta_{ij} = x_{ij}^\top\beta + \sum_k f_k(t_{ij}) + z_{ij}^\top b_i ,
+$$
+where $i$ is the group and $j$ the observation. In `statmodels7` the two kinds
+of term are built in the same way. The coefficients of a smooth have the
+penalty $\lambda\,\beta^\top S\beta$ of @sec-gam, and the random effects have
+the penalty $b^\top\Sigma_b^{-1}b$ of @sec-lmm. Both penalties are minus the
+logarithm of a gaussian density, so the REML criterion of the previous
+chapters integrates both kinds of coefficient and estimates $\lambda$ and
+$\Sigma_b$ together. Nothing new is needed to fit the model: a formula with
+`s()` and `random()` is enough.
+
+Two other packages fit these models, and they meet the same idea from the two
+opposite sides. The package `mgcv` writes a random intercept as a smooth whose
+penalty is the identity matrix (`bs = "re"`) [@wood2017]. The package
+`glmmTMB` writes a smooth as a random effect: the part of the smooth that the
+penalty shrinks becomes a vector of random effects with a common variance, and
+the part that the penalty leaves free becomes a fixed effect [@brooks2017]. We
+compare with both throughout the chapter. As in @sec-gam we call `mgcv` as
+`mgcv::gam()` without attaching it.
+
+## A smooth and a random intercept {#sec-gamm-intercept}
+
+The data frame `ChickWeight` of @sec-gam-by gives the weight, in grams, of 50
+chicks from birth to day 21 [@crowder1990]. There we fitted one smooth curve of
+time for each diet and ignored that the observations of one chick are
+correlated. We now give each chick a random intercept and start with one curve
+for all the chicks:
+$$
+\mu_{ij} = \beta_0 + f(t_{ij}) + b_i, \qquad b_i \sim \mathrm{N}(0, \tau).
+$$
+
+```{r}
+#| label: fit-ri
+ChickWeight$Diet <- factor(ChickWeight$Diet, ordered = FALSE)
+fit_ri <- statmod(weight ~ s(Time, bspline_smooth(k = 8)) + random(~ 1 | Chick),
+                  distrib = gaussian1_distrib(), data = ChickWeight)
+summary(fit_ri)
+```
+
+The summary has a block for the smooth and a block for the random intercept.
+The smooth spends `r fmt(fit_ri@edf$edf[2], 2)` effective degrees of
+freedom out of its 7 coefficients. The standard deviation of the chicks'
+intercepts is $\hat\tau = `r fmt(hyper(fit_ri)$estimate[2], 2)`$ grams, about
+as large as the residual standard deviation
+$\hat\sigma = `r fmt(exp(coef(fit_ri)$sigma[[1]]), 2)`$ grams.
+
+In `mgcv` the random intercept is the smooth `s(Chick, bs = "re")`. Its
+penalty is $\lambda_b\, b^\top b$, divided by the residual variance, so the
+standard deviation of the random effects is $\sigma/\sqrt{\lambda_b}$:
+
+```{r}
+#| label: mgcv-ri
+g_ri <- mgcv::gam(weight ~ s(Time, bs = "bs", k = 8) + s(Chick, bs = "re"),
+                  data = ChickWeight, method = "REML")
+c(statmod = hyper(fit_ri)$estimate[2],
+  mgcv = sqrt(g_ri$sig2 / g_ri$sp[2]))
+max(abs(fitted(fit_ri) - fitted(g_ri)))
+```
+
+The two packages give the same standard deviation and the same fitted values.
+
+### A random slope
+
+The chicks grow at different rates, so their weights spread out with time. A
+random slope on time describes this:
+$$
+\mu_{ij} = \beta_0 + f(t_{ij}) + b_{0i} + b_{1i} t_{ij}, \qquad
+(b_{0i}, b_{1i})^\top \sim \mathrm{N}(0, \Sigma_b).
+$$
+
+```{r}
+#| label: fit-rs
+fit_rs <- statmod(weight ~ s(Time, bspline_smooth(k = 8)) + random(~ Time | Chick),
+                  distrib = gaussian1_distrib(), data = ChickWeight)
+summary(fit_rs)
+```
+
+The two models have the same fixed effects, so their restricted
+log-likelihoods can be compared. Under the smaller model the variance of the
+slopes is zero, on the boundary of its range, so the likelihood ratio has the
+distribution $\tfrac12\chi^2_1 + \tfrac12\chi^2_2$ and not $\chi^2_2$
+[@self1987]:
+
+```{r}
+#| label: lr-rs
+l_ri <- as.numeric(logLik(fit_ri, type = "marginal"))
+l_rs <- as.numeric(logLik(fit_rs, type = "marginal"))
+lr_rs <- 2 * (l_rs - l_ri)
+lr_rs
+0.5 * pchisq(lr_rs, df = 1, lower.tail = FALSE) +
+  0.5 * pchisq(lr_rs, df = 2, lower.tail = FALSE)
+```
+
+The random slope is needed. The correlation between the intercepts and the
+slopes is strongly negative. The deviation of a chick from the typical curve
+is $b_{0i} + b_{1i}t$, and its variance
+$\Sigma_{11} + 2t\,\Sigma_{12} + t^2\Sigma_{22}$ is smallest at
+$t = -\Sigma_{12}/\Sigma_{22}$. As in @sec-lmm-slope, `param_value()` turns
+the hyperparameters of the random slope into $\Sigma_b$:
+
+```{r}
+#| label: sigma-rs
+h_rs <- hyper(fit_rs)
+S_rs <- param_value(log_cholesky(2), eta = h_rs$estimate[h_rs$name != "lambda"])
+S_rs
+t_min <- -S_rs[1, 2] / S_rs[2, 2]
+t_min
+```
+
+The correlation is
+`r fmt(S_rs[1, 2] / sqrt(S_rs[1, 1] * S_rs[2, 2]), 3)`, and the chicks are
+closest to each other `r fmt(t_min, 1)` days after birth and spread out
+afterwards.
+
+`glmmTMB()` accepts a smooth in its formula and gives the same estimates:
+
+```{r}
+#| label: tmb-rs
+tmb_rs <- glmmTMB::glmmTMB(weight ~ s(Time, bs = "bs", k = 8) + (Time | Chick),
+                           data = ChickWeight, REML = TRUE)
+glmmTMB::VarCorr(tmb_rs)
+logLik(tmb_rs)
+logLik(fit_rs, type = "marginal")
+```
+
+The group `dummy` of `glmmTMB` is the smooth: its standard deviation measures
+how much the wiggly part of the curve is shrunk, and it plays the role of
+$\lambda$. The two restricted log-likelihoods differ by a constant. REML
+integrates every coefficient without a penalty with a flat prior, and the
+integral depends on the scale of the columns of these coefficients: if a
+column is multiplied by $a$, its coefficient is divided by $a$ and the
+integral changes by $\log\lvert a\rvert$. The free part of the smooth is a
+straight line in time, and the two packages scale its column differently:
+
+```{r}
+#| label: reml-constant
+x_sm <- model.matrix(fit_rs)[, "s(Time).lin"]
+x_tmb <- glmmTMB::getME(tmb_rs, "X")[, "s(Time)1"]
+a_lin <- coef(lm(x_sm ~ x_tmb))[["x_tmb"]]
+log(abs(a_lin))
+as.numeric(logLik(tmb_rs)) - l_rs
+```
+
+The constant is the same for every model with this smooth, so a difference
+between two restricted log-likelihoods, like the likelihood ratio above, is
+the same in both packages.
+
+@fig-chicks shows the curve of a typical chick, with $b_i = 0$, and the
+curves of five chicks.
+
+```{r}
+#| label: fig-chicks
+#| fig-cap: "Weight against time for five chicks, with each chick's fitted curve and the curve of a typical chick (random intercept and slope)."
+#| echo: false
+#| fig-height: 4
+tg <- seq(from = 0, to = 21, length.out = 100)
+pick <- c("1", "13", "16", "18", "35")
+cols <- book_palette[1:5]
+chick_lev <- c(paste("chick", pick), "typical chick")
+in_pick <- ChickWeight$Chick %in% pick
+chick_pts <- data.frame(
+  Time = ChickWeight$Time[in_pick], weight = ChickWeight$weight[in_pick],
+  curve = factor(paste("chick", ChickWeight$Chick[in_pick]), levels = chick_lev))
+chick_fit <- do.call(rbind, lapply(seq_along(pick), function(k) {
+  nd <- data.frame(Time = tg, Chick = factor(pick[k],
+                                             levels = levels(ChickWeight$Chick)))
+  data.frame(Time = tg, weight = predict(fit_rs, what = "mu", newdata = nd),
+             curve = chick_lev[k])
+}))
+nd0 <- data.frame(Time = tg, Chick = factor("1", levels = levels(ChickWeight$Chick)))
+chick_fit <- rbind(chick_fit, data.frame(
+  Time = tg, weight = predict(fit_rs, what = "mu", newdata = nd0, random = "zero"),
+  curve = chick_lev[6]))
+chick_fit$curve <- factor(chick_fit$curve, levels = chick_lev)
+ggplot(ChickWeight, aes(x = Time, y = weight)) +
+  geom_point(colour = book_grey, size = 0.6, alpha = 0.4) +
+  geom_point(data = chick_pts, aes(colour = curve, shape = curve), size = 1.2) +
+  geom_line(data = chick_fit,
+            aes(colour = curve, linetype = curve, linewidth = curve)) +
+  scale_colour_manual(values = c(cols, "black"), limits = chick_lev) +
+  scale_shape_manual(values = c(rep(16, 5), NA), limits = chick_lev) +
+  scale_linetype_manual(values = c(rep("solid", 5), "dashed"),
+                        limits = chick_lev) +
+  scale_linewidth_manual(values = c(rep(0.6, 5), 1.2), limits = chick_lev) +
+  guides(colour = guide_legend(nrow = 1), shape = guide_legend(nrow = 1),
+         linetype = guide_legend(nrow = 1), linewidth = guide_legend(nrow = 1)) +
+  labs(x = "day", y = "weight (g)")
+```
+
+### The band of the typical curve {#sec-gamm-band}
+
+The curve of a typical chick is an estimate, and `predict()` with
+`se = TRUE` gives it a pointwise 95% band. The band depends on the variance
+matrix of @sec-beyond-variances. In a model with random effects the three
+matrices answer three different questions. The matrix $V_f$ treats the
+effects $b_i$ of the 50 chicks as fixed numbers, so it measures how much the
+curve would change if we weighed the same 50 chicks again. The matrix $V_b$
+treats the $b_i$ as draws from their gaussian distribution, so it measures
+how well a sample of 50 chicks determines the curve of the population of
+chicks. The matrix $V_u$ adds to $V_b$ the uncertainty of $\lambda$ and of
+$\Sigma_b$. We compute the three bands at days 0, 10.5 and 21:
+
+```{r}
+#| label: band-types
+tg <- seq(from = 0, to = 21, length.out = 101)
+nd_t <- data.frame(Time = tg, Chick = factor("1", levels = levels(ChickWeight$Chick)))
+types <- c("bayesian", "frequentist", "unconditional")
+bands <- lapply(types, function(ty) {
+  predict(fit_rs, what = "mu", newdata = nd_t, random = "zero", se = TRUE,
+          type = ty)
+})
+names(bands) <- types
+sapply(bands, function(p) p$se[c(1, 51, 101)])
+```
+
+The frequentist standard errors stay between
+`r fmt(min(bands$frequentist$se), 1)` and
+`r fmt(max(bands$frequentist$se), 1)` grams at every age. The
+Bayesian ones grow with age, from `r fmt(bands$bayesian$se[1], 1)` grams at
+birth to `r fmt(bands$bayesian$se[101], 1)` grams at day 21. The growth comes
+from the random slopes: the chicks spread out with age, so the average curve
+of 50 chicks is less certain at day 21 than at birth. The variance of the
+deviation $b_{0i} + b_{1i}t$ of one chick is $(1, t)\,\Sigma_b\,(1, t)^\top$,
+and the mean of 50 such deviations has a standard deviation of
+$\sqrt{(1, t)\,\Sigma_b\,(1, t)^\top / 50}$:
+
+```{r}
+#| label: band-check
+sd_mean <- function(t) sqrt(drop(c(1, t) %*% S_rs %*% c(1, t)) / 50)
+rbind(bayesian = bands$bayesian$se[c(1, 51, 101)],
+      chicks = sapply(c(0, 10.5, 21), sd_mean))
+```
+
+From the first week on, most of the Bayesian standard error is the variation
+among chicks. The
+frequentist band leaves this variation out, so it is the right band only for
+a statement about these 50 chicks. For a statement about chicks in general,
+which is what a curve of a typical chick is for, the Bayesian band is the
+right one. The unconditional band is wider than the Bayesian band by at most
+`r fmt(100 * max(bands$unconditional$se / bands$bayesian$se - 1), 1)` per
+cent: the 50 chicks determine $\lambda$ and $\Sigma_b$ well enough that their
+uncertainty adds little. @fig-band shows the three bands.
+
+```{r}
+#| label: fig-band
+#| fig-cap: "Top: the curve of a typical chick with the 95% band from the Bayesian variance (shaded) and from the frequentist variance (dashed). Bottom: the standard error of the curve under the three variance matrices."
+#| echo: false
+#| fig-height: 6
+pb <- bands$bayesian
+pan <- factor(c("weight (g)", "standard error (g)"),
+              levels = c("weight (g)", "standard error (g)"))
+band_obs <- data.frame(Time = ChickWeight$Time, y = ChickWeight$weight,
+                       panel = pan[1])
+band_rib <- data.frame(Time = tg, lower = pb$lower, upper = pb$upper,
+                       panel = pan[1])
+band_lines <- rbind(
+  data.frame(Time = tg, y = pb$fit, type = "bayesian", piece = "fit"),
+  data.frame(Time = tg, y = bands$frequentist$lower, type = "frequentist",
+             piece = "lower"),
+  data.frame(Time = tg, y = bands$frequentist$upper, type = "frequentist",
+             piece = "upper"))
+band_lines$panel <- pan[1]
+band_se <- data.frame(Time = rep(tg, times = 3),
+                      y = c(pb$se, bands$frequentist$se, bands$unconditional$se),
+                      type = rep(types, each = length(tg)),
+                      piece = "se", panel = pan[2])
+band_lines <- rbind(band_lines, band_se)
+band_lines$type <- factor(band_lines$type, levels = types)
+ggplot(band_lines, aes(x = Time, y = y)) +
+  geom_point(data = band_obs, colour = book_grey, size = 0.6, alpha = 0.4) +
+  geom_ribbon(data = band_rib, aes(y = NULL, ymin = lower, ymax = upper),
+              fill = chalk, alpha = 0.3) +
+  geom_line(aes(colour = type, linetype = type, linewidth = type,
+                group = interaction(type, piece))) +
+  geom_blank(data = data.frame(Time = 0, y = 0, panel = pan[2])) +
+  facet_wrap(~ panel, ncol = 1, scales = "free_y", strip.position = "left") +
+  scale_colour_manual(values = c(chalk, rust, ink)) +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  scale_linewidth_manual(values = c(0.9, 0.6, 0.6)) +
+  labs(x = "day", y = NULL) +
+  theme(strip.placement = "outside", strip.background = element_blank(),
+        strip.text = element_text(size = rel(1)))
+```
+
+In `mgcv` the matrices $V_b$ and $V_f$ are the components `Vp` and `Ve` of
+a fit. On the model with a random intercept the typical curve, which leaves
+out the term `s(Chick)`, has the same two bands in the two packages:
+
+```{r}
+#| label: band-mgcv
+Xg <- predict(g_ri, newdata = nd_t, type = "lpmatrix")
+Xg[, grepl("Chick", colnames(Xg))] <- 0
+se_mgcv <- function(V) sqrt(rowSums((Xg %*% V) * Xg))
+se_sm <- function(ty) {
+  predict(fit_ri, what = "mu", newdata = nd_t, random = "zero", se = TRUE,
+          type = ty)$se
+}
+c(bayesian = max(abs(se_sm("bayesian") / se_mgcv(g_ri$Vp) - 1)),
+  frequentist = max(abs(se_sm("frequentist") / se_mgcv(g_ri$Ve) - 1)))
+```
+
+## A smooth for each group {#sec-gamm-by}
+
+The chicks received four diets. As in @sec-gam-by, the argument `by = Diet`
+of `s()` builds one curve of time for each diet, and the main effect `Diet`
+carries the levels of the curves. We keep the random intercept and slope of
+each chick:
+$$
+\mu_{ij} = \beta_0 + \beta_{d(i)} + f_{d(i)}(t_{ij}) + b_{0i} + b_{1i} t_{ij},
+$$
+where $d(i)$ is the diet of chick $i$. With `by_hyper = "shared"`, the
+default, the four curves have one smoothing parameter; with
+`by_hyper = "level"` each curve has its own.
+
+```{r}
+#| label: fit-by
+fit_sh <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet) +
+                    random(~ Time | Chick),
+                  distrib = gaussian1_distrib(), data = ChickWeight)
+fit_lv <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet,
+                                    by_hyper = "level") +
+                    random(~ Time | Chick),
+                  distrib = gaussian1_distrib(), data = ChickWeight)
+hyper(fit_sh)[, c("name", "estimate")]
+hyper(fit_lv)[, c("name", "estimate")]
+```
+
+The smoothing parameter of diet 3 is about a quarter of those of diets 1 and
+2, so its curve bends more, and that of diet 4 is in between. The model with one parameter is
+the model with four under three equality constraints, and the constrained
+values are inside the range of the parameters, so the likelihood ratio has
+three degrees of freedom:
+
+```{r}
+#| label: lr-by
+l_sh <- as.numeric(logLik(fit_sh, type = "marginal"))
+l_lv <- as.numeric(logLik(fit_lv, type = "marginal"))
+lr_by <- 2 * (l_lv - l_sh)
+lr_by
+pchisq(lr_by, df = 3, lower.tail = FALSE)
+```
+
+The data do not need four smoothing parameters.
+
+In `mgcv` a smooth with a factor `by` has one smoothing parameter for each
+level by default, and the argument `id` makes the levels share one. Its random
+effects are smooths with an identity penalty, so the intercept and the slope of
+a chick cannot be correlated there. With `correlated = FALSE` the two packages
+fit the same model:
+
+```{r}
+#| label: mgcv-by
+fit_shu <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet) +
+                     random(~ Time | Chick, correlated = FALSE),
+                   distrib = gaussian1_distrib(), data = ChickWeight)
+g_shu <- mgcv::gam(weight ~ Diet + s(Time, bs = "bs", k = 8, by = Diet, id = 1) +
+                     s(Chick, bs = "re") + s(Chick, Time, bs = "re"),
+                   data = ChickWeight, method = "REML")
+max(abs(fitted(fit_shu) - fitted(g_shu)))
+edf_mu <- function(fit) sum(fit@edf$edf[fit@edf$parameter == "mu"])
+c(statmod = edf_mu(fit_shu), mgcv = sum(g_shu$edf))
+```
+
+@fig-diets shows the curve of a typical chick of each diet with its 95%
+Bayesian band, and the curve of the model with one smoothing parameter for
+each diet. The two curves of a diet are close to each other and well inside
+the band. The bands of the four diets overlap during the first week, and the
+curves separate in the second and third weeks, when diet 3 gives the heaviest
+chicks and diet 1 the lightest.
+
+```{r}
+#| label: fig-diets
+#| fig-cap: "Weight against time for the chicks of each diet. The solid curve is a typical chick of the diet in the model with one smoothing parameter, with its 95% Bayesian band (shaded); the dashed curve is the model with one smoothing parameter for each diet."
+#| echo: false
+#| fig-height: 6
+diet_lev <- paste("diet", 1:4)
+diet_mod <- c("one smoothing parameter", "one for each diet")
+diet_obs <- data.frame(Time = ChickWeight$Time, weight = ChickWeight$weight,
+                       diet = factor(paste("diet", ChickWeight$Diet),
+                                     levels = diet_lev))
+diet_fit <- do.call(rbind, lapply(1:4, function(d) {
+  nd <- data.frame(Time = tg, Diet = factor(d, levels = levels(ChickWeight$Diet)),
+                   Chick = factor("1", levels = levels(ChickWeight$Chick)))
+  pd <- predict(fit_sh, what = "mu", newdata = nd, random = "zero", se = TRUE)
+  pl <- predict(fit_lv, what = "mu", newdata = nd, random = "zero")
+  data.frame(Time = rep(tg, times = 2), weight = c(pd$fit, pl),
+             lower = c(pd$lower, rep(NA, length(tg))),
+             upper = c(pd$upper, rep(NA, length(tg))),
+             model = rep(diet_mod, each = length(tg)), diet = diet_lev[d])
+}))
+diet_fit$model <- factor(diet_fit$model, levels = diet_mod)
+diet_fit$diet <- factor(diet_fit$diet, levels = diet_lev)
+ggplot(diet_obs, aes(x = Time, y = weight)) +
+  geom_point(colour = book_grey, size = 0.6, alpha = 0.5) +
+  geom_ribbon(data = diet_fit[diet_fit$model == diet_mod[1], ],
+              aes(ymin = lower, ymax = upper), fill = chalk, alpha = 0.3) +
+  geom_line(data = diet_fit, aes(colour = model, linetype = model),
+            linewidth = 0.9) +
+  facet_wrap(~ diet, ncol = 2) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  labs(x = "day", y = "weight (g)")
+```
+
+### A curve for each chick {#sec-gamm-chick}
+
+In the models so far a chick differs from the typical chick of its diet by a
+straight line, $b_{0i} + b_{1i}t$. @fig-chicks shows that some chicks have
+curves of a different shape: some grow fast and then slow down, and others
+start slowly. A model with `s(Time, by = Chick)` alone gives each chick a
+smooth curve of its own. Each chick received one diet, so the curves of the
+chicks then contain the curves of the diets, and the model has nothing left to
+compare the diets. We keep the curves of the diets and add to each chick a
+smooth deviation from the curve of its diet:
+$$
+\mu_{ij} = \beta_0 + \beta_{d(i)} + f_{d(i)}(t_{ij}) + b_{0i} + b_{1i} t_{ij}
+  + g_i(t_{ij}).
+$$
+The 50 deviations $g_i$ have one smoothing parameter, so the data of all the
+chicks determine how much a chick's curve may bend. This is a hierarchical
+additive model in the sense of @pedersen2019, with one curve for each diet in
+place of one curve for all the groups. The straight line of $g_i$ is already
+in the random intercept and slope, so we drop it with
+`null_space = "drop"`; then $g_i$ has no coefficient without a penalty. The
+deviations have 200 coefficients, most of them zero in each row of the design,
+and `sparse = TRUE` stores their block as a sparse matrix. The argument
+`label` gives the coefficients of the deviations the prefix `dev`, because the
+levels `1` to `4` of `Chick` would give them the same names as the curves of
+the four diets.
+
+```{r}
+#| label: fit-gs
+fit_gs <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet) +
+                    random(~ Time | Chick) +
+                    s(Time, bspline_smooth(k = 6, null_space = "drop"), by = Chick,
+                      sparse = TRUE, label = "dev"),
+                  distrib = gaussian1_distrib(), data = ChickWeight)
+summary(fit_gs)
+```
+
+```{r}
+#| label: sigma-gs
+#| include: false
+h_gs <- hyper(fit_gs)
+S_gs <- param_value(log_cholesky(2),
+                    eta = h_gs$estimate[h_gs$name != "lambda"])
+```
+
+The summary has one block for each of the four terms of the mean. The
+parametric terms `Diet2`, `Diet3` and `Diet4` shift the curves of the diets
+up or down. Each curve of a diet also has a level of its own, set by the
+constraint that removes the constant from its basis, so these three
+coefficients are not the differences between the diets on a given day; those
+differences are read from the curves of @fig-diets. The
+block of the diet curves shows the one smoothing parameter of the four curves
+and the free straight line of each of them, `1.lin` to `4.lin`. As in
+@sec-model, each multiplies the time standardized to mean zero and standard
+deviation one over all the observations, so it is the slope of the linear
+part of the diet's curve per standard deviation of time,
+`r fmt(sd(ChickWeight$Time), 2)` days. The slopes are largest for diet 3 and
+smallest for diet 1, as the curves of @fig-diets show. The block spends
+`r fmt(fit_gs@edf$edf[2], 1)` effective degrees of freedom of its 28
+coefficients. The block of the random intercept and slope reports the
+standard deviation of the chicks' intercepts,
+`r fmt(sqrt(S_gs[1, 1]), 1)` grams, and of their slopes,
+`r fmt(sqrt(S_gs[2, 2]), 2)` grams a day, and their correlation,
+`r fmt(S_gs[1, 2] / sqrt(S_gs[1, 1] * S_gs[2, 2]), 2)`. The block `dev` has
+only one row: the smoothing parameter of the 50 deviations, with its
+standard error and interval. Its 200 coefficients are not printed, because
+each of them is the coordinate of one chick's deviation in a basis and has
+no meaning of its own. The equation of $\sigma$ has only an intercept, on the
+log scale, so the residual standard deviation is
+$\exp(`r fmt(coef(fit_gs)$sigma[[1]], 3)`) = `r fmt(exp(coef(fit_gs)$sigma[[1]]), 2)`$
+grams. The last lines give the effective degrees of freedom of the whole
+model, `r fmt(sum(fit_gs@edf$edf), 1)` for 578 observations, and the
+conditional AIC.
+
+With straight deviations the residual standard deviation was larger:
+
+```{r}
+#| label: sigma-compare
+c(straight = exp(coef(fit_sh)$sigma[[1]]), smooth = exp(coef(fit_gs)$sigma[[1]]))
+```
+
+The deviations spend `r fmt(fit_gs@edf$edf[4], 1)` effective degrees of
+freedom of their 200 coefficients, about
+`r fmt(fit_gs@edf$edf[4] / 50, 1)` for each chick. The residual standard
+deviation falls from `r fmt(exp(coef(fit_sh)$sigma[[1]]), 1)` to
+`r fmt(exp(coef(fit_gs)$sigma[[1]]), 1)` grams, so the residual variance
+falls by
+`r fmt(100 * (1 - exp(2 * (coef(fit_gs)$sigma[[1]] - coef(fit_sh)$sigma[[1]]))), 0)`
+per cent. Most of what the model with straight deviations left as noise is
+the shape of the chicks' own curves. The two models have the same coefficients without a penalty, so their
+restricted log-likelihoods can be compared. Under the smaller model the
+variance $1/\lambda$ of the deviations is zero, on the boundary of its range,
+and the likelihood ratio has the distribution
+$\tfrac12\chi^2_0 + \tfrac12\chi^2_1$:
+
+```{r}
+#| label: lr-gs
+l_gs <- as.numeric(logLik(fit_gs, type = "marginal"))
+lr_gs <- 2 * (l_gs - l_sh)
+lr_gs
+0.5 * pchisq(lr_gs, df = 1, lower.tail = FALSE)
+```
+
+The curve of a typical chick of a diet is now
+$\beta_0 + \beta_d + f_d(t)$, without $b_{0i} + b_{1i}t$ and without $g_i$.
+`predict()` with `random = "zero"` sets the random intercept and slope to
+zero, but $g_i$ is a smooth and not a `random()` term, so `predict()` keeps it.
+We build the curve, and any other part of the predictor, from the columns of
+the design and from the same rows and columns of `vcov()`. The function
+`part_band()` takes the prefixes of the columns and the rows of the data where
+the part is wanted:
+
+```{r}
+#| label: part-band
+part_band <- function(fit, prefix, rows = NULL, type = "bayesian") {
+  X <- as.matrix(model.matrix(fit))
+  if (!is.null(rows)) X <- X[rows, , drop = FALSE]
+  keep <- Reduce(`|`, lapply(prefix, function(p) startsWith(colnames(X), p)))
+  nm <- colnames(X)[keep]
+  Xk <- X[, nm, drop = FALSE]
+  V <- as.matrix(vcov(fit, type = type)[paste0("mu:", nm), paste0("mu:", nm)])
+  data.frame(fit = drop(Xk %*% coef(fit)$mu[nm]),
+             se = sqrt(rowSums((Xk %*% V) * Xk)))
+}
+```
+
+On the model of @sec-gamm-intercept the part `s(Time)` is the contribution of
+the smooth, which sums to zero over the data, and it has the value and the
+standard error that `mgcv` reports with `type = "terms"`:
+
+```{r}
+#| label: part-mgcv
+p_ri <- part_band(fit_ri, prefix = "s(Time).")
+t_ri <- predict(g_ri, type = "terms", se.fit = TRUE)
+c(fit = max(abs(p_ri$fit - t_ri$fit[, "s(Time)"])),
+  se = max(abs(p_ri$se - t_ri$se.fit[, "s(Time)"])))
+```
+
+The curve of diet 3 is the part with the prefixes `(Intercept)`, `Diet3` and
+`s(Time).3.`. We read it at the twelve days of chick 33, which received
+diet 3 and was weighed on every day:
+
+```{r}
+#| label: diets-gs
+r33 <- which(ChickWeight$Chick == "33")
+d3 <- c("(Intercept)", "Diet3", "s(Time).3.")
+rbind(day = ChickWeight$Time[r33],
+      straight = part_band(fit_sh, prefix = d3, rows = r33)$fit,
+      smooth = part_band(fit_gs, prefix = d3, rows = r33)$fit)
+rbind(straight = part_band(fit_sh, prefix = d3, rows = r33)$se,
+      smooth = part_band(fit_gs, prefix = d3, rows = r33)$se)
+```
+
+The curve of diet 3 is the same in the two models to within
+`r fmt(max(abs(part_band(fit_sh, prefix = d3, rows = r33)$fit - part_band(fit_gs, prefix = d3, rows = r33)$fit)), 0)`
+grams. Its band is a little wider when the deviations are smooth, although
+the residual standard deviation is three times smaller. As in
+@sec-gamm-band, most of the standard error of a typical curve is the variation
+among chicks, and with smooth deviations the chicks vary in the shape of their
+curves as well as in their intercept and slope.
+
+@fig-gs shows the six chicks whose curves change most between the two models.
+With a straight deviation the curve of a chick has the shape of the curve of
+its diet. With a smooth deviation it follows the chick's own weights: chicks
+33 and 11 stop growing in the last week, and chicks 29 and 7 grow faster than
+the curve of their diet in the third week. The straight deviation cannot
+describe these shapes, and to come close to the late weights of chick 33 it
+puts the weight at birth about 20 grams too high.
+
+```{r}
+#| label: fig-gs
+#| fig-cap: "Six chicks: their weights, the fitted curve with a smooth deviation from the diet's curve (solid) and with a straight deviation (dashed), and the curve of a typical chick of the diet (dotted)."
+#| echo: false
+#| fig-height: 5.5
+cid <- as.character(ChickWeight$Chick)
+full <- names(which(table(cid) == 12))
+gap <- tapply((fitted(fit_gs) - fitted(fit_sh))^2, cid, mean)[full]
+show6 <- names(sort(gap, decreasing = TRUE))[1:6]
+show6 <- show6[order(as.numeric(show6))]
+gs_lev <- c("smooth deviation", "straight deviation", "typical chick of the diet")
+gs_strip <- character(0)
+gs_obs <- list()
+gs_fit <- list()
+for (ck in show6) {
+  rows <- which(cid == ck)
+  d <- ChickWeight$Diet[rows][1]
+  strip <- paste0("chick ", ck, ", diet ", d)
+  gs_strip <- c(gs_strip, strip)
+  nd <- data.frame(Time = tg, Diet = d,
+                   Chick = factor(ck, levels = levels(ChickWeight$Chick)))
+  y_gs <- predict(fit_gs, what = "mu", newdata = nd)
+  y_sh <- predict(fit_sh, what = "mu", newdata = nd)
+  y_d <- part_band(fit_gs, prefix = c("(Intercept)", paste0("Diet", d),
+                                      paste0("s(Time).", d, ".")), rows = rows)$fit
+  gs_obs[[ck]] <- data.frame(Time = ChickWeight$Time[rows],
+                             weight = ChickWeight$weight[rows], chick = strip)
+  gs_fit[[ck]] <- data.frame(
+    Time = c(tg, tg, ChickWeight$Time[rows]), weight = c(y_gs, y_sh, y_d),
+    curve = rep(gs_lev, times = c(length(tg), length(tg), length(rows))),
+    chick = strip)
+}
+gs_obs <- do.call(rbind, gs_obs)
+gs_fit <- do.call(rbind, gs_fit)
+gs_obs$chick <- factor(gs_obs$chick, levels = gs_strip)
+gs_fit$chick <- factor(gs_fit$chick, levels = gs_strip)
+gs_fit$curve <- factor(gs_fit$curve, levels = gs_lev)
+ggplot(gs_obs, aes(x = Time, y = weight)) +
+  geom_point(colour = book_grey, size = 1.2) +
+  geom_line(data = gs_fit, aes(colour = curve, linetype = curve,
+                               linewidth = curve)) +
+  facet_wrap(~ chick, ncol = 3, scales = "free_y") +
+  scale_colour_manual(values = c(chalk, rust, ink)) +
+  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
+  scale_linewidth_manual(values = c(0.9, 0.9, 0.7)) +
+  labs(x = "day", y = "weight (g)")
+```
+
+## Smooths and random effects in sigma {#sec-gamm-sigma}
+
+The spread of the weights around a chick's curve also grows with age, and some
+chicks are more variable than others. We give the equation of $\sigma$ a
+smooth of time and a random intercept of its own:
+$$
+\log\sigma_{ij} = \gamma_0 + g(t_{ij}) + c_i, \qquad
+c_i \sim \mathrm{N}(0, \kappa),
+$$
+independent of the random intercept $b_i$ of the mean.
+
+```{r}
+#| label: fit-sigma
+fit_sg0 <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8)) +
+                     random(~ 1 | Chick) |
+                     sigma ~ s(Time, bspline_smooth(k = 8)),
+                   distrib = gaussian1_distrib(), data = ChickWeight)
+fit_sg <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8)) +
+                    random(~ 1 | Chick) |
+                    sigma ~ s(Time, bspline_smooth(k = 8)) + random(~ 1 | Chick),
+                  distrib = gaussian1_distrib(), data = ChickWeight)
+summary(fit_sg)
+```
+
+The random intercepts of $\log\sigma$ have a standard deviation of
+$\hat\kappa = `r fmt(hyper(fit_sg)$estimate[4], 2)`$: the residual standard
+deviation of one chick can be
+$\exp(1.96\,\hat\kappa) = `r fmt(exp(1.96 * hyper(fit_sg)$estimate[4]), 1)`$
+times larger or smaller than that of a typical chick. The two models have the
+same fixed effects in the mean, and under the smaller one $\kappa^2$ is zero,
+on the boundary of its range, so the likelihood ratio has the distribution
+$\tfrac12\chi^2_0 + \tfrac12\chi^2_1$ [@self1987]:
+
+```{r}
+#| label: lr-sigma
+lr_sg <- 2 * (as.numeric(logLik(fit_sg, type = "marginal")) -
+                as.numeric(logLik(fit_sg0, type = "marginal")))
+lr_sg
+0.5 * pchisq(lr_sg, df = 1, lower.tail = FALSE)
+c(without = hyper(fit_sg0)$estimate[2], with = hyper(fit_sg)$estimate[2])
+```
+
+The last line gives the standard deviation of the chicks' intercepts in the
+mean, without and with the random effects in $\sigma$:
+`r fmt(hyper(fit_sg0)$estimate[2], 2)` and
+`r fmt(hyper(fit_sg)$estimate[2], 2)` grams. In the model of
+@sec-gamm-intercept, with a constant $\sigma$, it was
+`r fmt(hyper(fit_ri)$estimate[2], 1)` grams. A chick that grows faster than
+the others has its weights close to the typical curve at the start and far
+from it at the end. With a constant $\sigma$ the model describes this with a
+large random intercept, which shifts the whole curve of the chick. With a
+$\sigma$ that grows with time it describes it with a residual spread that
+grows, and the random intercept is left with the small differences at birth.
+
+In `glmmTMB()` the equation of $\sigma$ is the argument `dispformula`, which
+accepts a smooth and a random effect:
+
+```{r}
+#| label: tmb-sigma
+tmb_sg <- glmmTMB::glmmTMB(weight ~ Diet + s(Time, bs = "bs", k = 8) + (1 | Chick),
+                           dispformula = ~ s(Time, bs = "bs", k = 8) + (1 | Chick),
+                           data = ChickWeight, REML = TRUE)
+glmmTMB::VarCorr(tmb_sg)
+max(abs(fitted(fit_sg) - fitted(tmb_sg)))
+```
+
+The standard deviations differ by less than 3 per cent, and the fitted means
+differ by up
+to `r fmt(max(abs(fitted(fit_sg) - fitted(tmb_sg))), 2)` grams. The difference
+comes from the smooth of $\sigma$. A smooth with a penalty on the second
+derivative splits into a straight line, which the penalty leaves free, and a
+wiggly part, which the penalty shrinks. The split is not unique, because a
+straight line can be added to the wiggly part, and `statmodels7` and `mgcv`
+(whose smooths `glmmTMB` uses) make different choices. REML integrates the
+straight line of the mean, and then the choice changes the criterion only by
+the constant of @sec-gamm-intercept. The straight line of $\sigma$ is not
+integrated but estimated (@sec-beyond-outer), and then the prior of the wiggly
+part, and so the estimates, depend on the choice. The same happens to the
+smooth of the mean under maximum likelihood, which estimates its straight
+line:
+
+```{r}
+#| label: ml-split
+fit_ml <- statmod(weight ~ s(Time, bspline_smooth(k = 8)),
+                  distrib = gaussian1_distrib(), data = ChickWeight,
+                  outer_criterion = ml(marginal = "all"))
+g_ml <- mgcv::gam(weight ~ s(Time, bs = "bs", k = 8), data = ChickWeight,
+                  method = "ML")
+c(statmod = exp(coef(fit_ml)$sigma[[1]]), mgcv = sqrt(g_ml$sig2))
+c(statmod = as.numeric(logLik(fit_ml, type = "marginal")), mgcv = -g_ml$gcv.ubre)
+```
+
+The two maxima differ: they are maxima of two slightly different models.
+
+@fig-sigma shows the residual standard deviation of a typical chick against
+time, with the interval that holds the standard deviation of 95% of the
+chicks (`interval = "group"`, @sec-glmm-predict).
+
+```{r}
+#| label: fig-sigma
+#| fig-cap: "Residual standard deviation of the weight against time: a typical chick (solid) and the interval that holds 95% of the chicks (dashed)."
+#| echo: false
+#| fig-height: 3.8
+nd_s <- data.frame(Time = tg, Diet = factor(1, levels = levels(ChickWeight$Diet)),
+                   Chick = "new")
+sg <- predict(fit_sg, what = "sigma", newdata = nd_s, random = "zero",
+              interval = "group")
+sg_lev <- c("typical chick", "95% of the chicks")
+sg_df <- data.frame(Time = rep(tg, times = 3),
+                    sigma = c(sg$fit, sg$lower, sg$upper),
+                    curve = factor(rep(sg_lev[c(1, 2, 2)], each = length(tg)),
+                                   levels = sg_lev),
+                    piece = rep(c("fit", "lower", "upper"), each = length(tg)))
+ggplot(sg_df, aes(x = Time, y = sigma)) +
+  geom_line(aes(linetype = curve, linewidth = curve, group = piece),
+            colour = chalk) +
+  expand_limits(y = 0) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_linewidth_manual(values = c(0.9, 0.5)) +
+  labs(x = "day", y = "sigma (g)")
+```
+
+## A model for counts {#sec-gamm-counts}
+
+We return to the barn owls of @sec-glmm-negbin: the number of calls of the
+nestlings in 27 nests before a parent arrived [@roulin2007]. The parents
+arrived between about 21:40 and 5:15, and @zuur2009 found that the number of calls
+changes with the time of arrival. We add a smooth of the arrival time to the
+negative binomial model of @sec-glmm-negbin:
+$$
+\log\mu_{ij} = \log n_{ij} + x_{ij}^\top\beta + f(t_{ij}) + b_i, \qquad
+b_i \sim \mathrm{N}(0, \tau),
+$$
+where $n_{ij}$ is the number of nestlings and $t_{ij}$ the arrival time, in
+hours after midnight of the previous day (25 is 1:00 in the morning).
+
+```{r}
+#| label: fit-owls
+data(Owls, package = "glmmTMB")
+fit_ow <- statmod(SiblingNegotiation ~ FoodTreatment * SexParent +
+                    offset(logBroodSize) + s(ArrivalTime, bspline_smooth(k = 10)) +
+                    random(~ 1 | Nest),
+                  distrib = negbin2_distrib(), data = Owls)
+summary(fit_ow)
+```
+
+The family `nb()` of `mgcv` estimates $\theta$ together with the smoothing
+parameters, and `glmmTMB()` accepts the smooth with the family `nbinom2`:
+
+```{r}
+#| label: ref-owls
+g_ow <- mgcv::gam(SiblingNegotiation ~ FoodTreatment * SexParent +
+                    offset(logBroodSize) + s(ArrivalTime, bs = "bs", k = 10) +
+                    s(Nest, bs = "re"),
+                  family = mgcv::nb(), data = Owls, method = "REML")
+tmb_ow <- glmmTMB::glmmTMB(SiblingNegotiation ~ FoodTreatment * SexParent +
+                             offset(logBroodSize) +
+                             s(ArrivalTime, bs = "bs", k = 10) + (1 | Nest),
+                           family = glmmTMB::nbinom2, data = Owls, REML = TRUE)
+c(statmod = exp(coef(fit_ow)$theta[[1]]),
+  mgcv = g_ow$family$getTheta(TRUE), glmmTMB = glmmTMB::sigma(tmb_ow))
+max(abs(predict(fit_ow, what = "link:mu") - predict(g_ow, type = "link")))
+```
+
+@fig-owls shows the calls per nestling of a typical nest against the arrival
+time. The nestlings call most when a parent arrives at about 22:40, and least
+when it arrives near midnight and near 3:00. The model has no interaction
+between the food treatment and the time, so on the log scale the two curves
+differ by a constant, and the food-deprived nestlings call more at every hour.
+The bands are widest at the two ends of the night, where few parents
+arrived.
+
+```{r}
+#| label: fig-owls
+#| fig-cap: "Calls per nestling against the arrival time of the parent, for a typical nest with a male parent: food-deprived (solid) and satiated (dashed) nestlings, with 95% Bayesian bands (shaded). The points are the observed calls per nestling."
+#| echo: false
+#| fig-height: 3.8
+ag <- seq(from = min(Owls$ArrivalTime), to = max(Owls$ArrivalTime),
+          length.out = 100)
+food <- c("Deprived", "Satiated")
+food_lev <- c("deprived", "satiated")
+owl_fit <- do.call(rbind, lapply(1:2, function(k) {
+  nd <- data.frame(ArrivalTime = ag,
+                   FoodTreatment = factor(food[k], levels(Owls$FoodTreatment)),
+                   SexParent = factor("Male", levels(Owls$SexParent)),
+                   logBroodSize = 0, Nest = "new")
+  po <- predict(fit_ow, what = "mu", newdata = nd, random = "zero", se = TRUE)
+  data.frame(ArrivalTime = ag, fit = po$fit, lower = po$lower,
+             upper = po$upper, food = food_lev[k])
+}))
+owl_fit$food <- factor(owl_fit$food, levels = food_lev)
+owl_obs <- data.frame(ArrivalTime = Owls$ArrivalTime,
+                      calls = Owls$SiblingNegotiation / Owls$BroodSize)
+ggplot(owl_fit, aes(x = ArrivalTime)) +
+  geom_point(data = owl_obs, aes(y = calls), colour = book_grey, size = 0.6,
+             alpha = 0.5) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = food), alpha = 0.25) +
+  geom_line(aes(y = fit, colour = food, linetype = food), linewidth = 0.9) +
+  scale_colour_manual(values = c(rust, chalk)) +
+  scale_fill_manual(values = c(rust, chalk)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  labs(x = "arrival time (hours)", y = "calls per nestling")
+```
+
+### Random effects on the dispersion
+
+As in @sec-glmm-negbin we let $\theta$ depend on the food treatment and on the
+nest:
+
+```{r}
+#| label: fit-owls-theta
+fit_ow2 <- statmod(SiblingNegotiation ~ FoodTreatment * SexParent +
+                     offset(logBroodSize) + s(ArrivalTime, bspline_smooth(k = 10)) +
+                     random(~ 1 | Nest) |
+                     theta ~ FoodTreatment + random(~ 1 | Nest),
+                   distrib = negbin2_distrib(), data = Owls)
+hyper(fit_ow2)[, c("parameter", "name", "estimate")]
+tmb_ow2 <- glmmTMB::glmmTMB(SiblingNegotiation ~ FoodTreatment * SexParent +
+                              offset(logBroodSize) +
+                              s(ArrivalTime, bs = "bs", k = 10) + (1 | Nest),
+                            dispformula = ~ FoodTreatment + (1 | Nest),
+                            family = glmmTMB::nbinom2, data = Owls, REML = TRUE)
+glmmTMB::VarCorr(tmb_ow2)
+```
+
+The two models have the same fixed effects in the mean and the same smooth, so
+the constant of @sec-gamm-intercept cancels in the difference of their
+restricted log-likelihoods, and the two packages give the same likelihood
+ratio:
+
+```{r}
+#| label: lr-owls
+lr_ow <- 2 * (as.numeric(logLik(fit_ow2, type = "marginal")) -
+                as.numeric(logLik(fit_ow, type = "marginal")))
+lr_ow_tmb <- 2 * (as.numeric(logLik(tmb_ow2)) - as.numeric(logLik(tmb_ow)))
+c(statmod = lr_ow, glmmTMB = lr_ow_tmb)
+```
+
+## Shared smoothing parameters {#sec-gamm-id}
+
+The argument `by_hyper` decides whether the curves of one factor share a
+smoothing parameter. The argument `id` of `s()`, `te()`, `random()` and the
+penalized terms is more general: the hyperparameters of all the terms with the
+same `id` are estimated at one value, wherever the terms are in the formula.
+
+### Lagged covariates
+
+A typical use is a covariate that enters the model at several lags. In the
+Chicago data of @sec-gam-counts [@peng2008] the deaths of a day may depend on
+the temperature of that day and of the two days before. The three curves
+describe the same kind of effect, and it is natural to smooth them by the same
+amount:
+$$
+\log\mu_t = x_t^\top\beta + h(t) + f_0(T_t) + f_1(T_{t-1}) + f_2(T_{t-2}),
+$$
+where $h$ is a smooth of the date, $x_t$ is the day of the week and $T_t$ the
+mean temperature of day $t$.
+
+```{r}
+#| label: fit-lags
+data(chicagoNMMAPS, package = "dlnm")
+chicagoNMMAPS <- chicagoNMMAPS[chicagoNMMAPS$year >= 1995 &
+                                 chicagoNMMAPS$year <= 2000, ]
+chicagoNMMAPS$temp1 <- c(NA, head(chicagoNMMAPS$temp, -1))
+chicagoNMMAPS$temp2 <- c(NA, NA, head(chicagoNMMAPS$temp, -2))
+chicagoNMMAPS <- chicagoNMMAPS[-(1:2), ]
+fit_id <- statmod(death ~ dow + s(time, bspline_smooth(k = 24)) +
+                    s(temp, bspline_smooth(k = 8), id = "T") +
+                    s(temp1, bspline_smooth(k = 8), id = "T") +
+                    s(temp2, bspline_smooth(k = 8), id = "T"),
+                  distrib = poisson_distrib(), data = chicagoNMMAPS)
+fit_free <- statmod(death ~ dow + s(time, bspline_smooth(k = 24)) +
+                      s(temp, bspline_smooth(k = 8)) +
+                      s(temp1, bspline_smooth(k = 8)) +
+                      s(temp2, bspline_smooth(k = 8)),
+                    distrib = poisson_distrib(), data = chicagoNMMAPS)
+hyper(fit_id)[, c("term", "estimate")]
+hyper(fit_free)[, c("term", "estimate")]
+```
+
+The `id` of `mgcv` does the same:
+
+```{r}
+#| label: mgcv-lags
+g_id <- mgcv::gam(death ~ dow + s(time, bs = "bs", k = 24) +
+                    s(temp, bs = "bs", k = 8, id = 1) +
+                    s(temp1, bs = "bs", k = 8, id = 1) +
+                    s(temp2, bs = "bs", k = 8, id = 1),
+                  family = poisson, data = chicagoNMMAPS, method = "REML")
+max(abs(predict(fit_id, what = "link:mu") - predict(g_id, type = "link")))
+```
+
+The shared parameter is a constraint on the free ones, inside their range, so
+we compare the two models with a likelihood ratio on two degrees of freedom:
+
+```{r}
+#| label: lr-lags
+lr_id <- 2 * (as.numeric(logLik(fit_free, type = "marginal")) -
+                as.numeric(logLik(fit_id, type = "marginal")))
+lr_id
+pchisq(lr_id, df = 2, lower.tail = FALSE)
+fit_free@edf[3:5, c("term", "edf")]
+```
+
+Here the data reject the shared parameter. With three free parameters the
+curve of the same day's temperature is smoothed much more than the other two:
+it spends `r fmt(fit_free@edf$edf[3], 1)` effective degrees of freedom of its
+7 coefficients, against `r fmt(fit_free@edf$edf[4], 1)` and
+`r fmt(fit_free@edf$edf[5], 1)` for the two previous days.
+
+The function `part_band()` of @sec-gamm-chick gives the contribution
+$f_k(T)$ of each curve with its band. The contribution sums to zero over the
+data, and its band leaves out the uncertainty of the intercept. @fig-lags shows
+the three curves of the two models as ratios of the death rate,
+$\exp\{f_k(T)\}$, with their 95% bands.
+
+```{r}
+#| label: fig-lags
+#| fig-cap: "Ratio of the daily death rate to the rate at the average of the smooth, against the temperature of the same day (lag 0) and of the two days before (lags 1 and 2), with one shared smoothing parameter (solid, band shaded) and one for each lag (dashed, band dashed)."
+#| echo: false
+#| fig-height: 3.6
+labs <- c("s(temp)", "s(temp1)", "s(temp2)")
+vars <- c("temp", "temp1", "temp2")
+lag_lev <- paste("lag", 0:2)
+lag_mod <- c("one shared smoothing parameter", "one for each lag")
+lo <- function(b) exp(b$fit - 1.96 * b$se)
+hi <- function(b) exp(b$fit + 1.96 * b$se)
+lag_df <- do.call(rbind, lapply(1:3, function(k) {
+  x <- chicagoNMMAPS[[vars[k]]]
+  o <- order(x)
+  a <- part_band(fit_id, prefix = paste0(labs[k], "."))[o, ]
+  f <- part_band(fit_free, prefix = paste0(labs[k], "."))[o, ]
+  data.frame(temp = rep(x[o], times = 2),
+             ratio = exp(c(a$fit, f$fit)),
+             lower = c(lo(a), lo(f)), upper = c(hi(a), hi(f)),
+             model = rep(lag_mod, each = length(o)), lag = lag_lev[k])
+}))
+lag_df$model <- factor(lag_df$model, levels = lag_mod)
+lag_df$lag <- factor(lag_df$lag, levels = lag_lev)
+lag_free <- lag_df[lag_df$model == lag_mod[2], ]
+lag_rug <- data.frame(
+  temp = unlist(lapply(vars, function(v) chicagoNMMAPS[[v]]), use.names = FALSE),
+  lag = factor(rep(lag_lev, each = nrow(chicagoNMMAPS)), levels = lag_lev))
+ggplot(lag_df, aes(x = temp)) +
+  geom_hline(yintercept = 1, linetype = "dotted", colour = grey) +
+  geom_ribbon(data = lag_df[lag_df$model == lag_mod[1], ],
+              aes(ymin = lower, ymax = upper), fill = chalk, alpha = 0.3) +
+  geom_line(data = lag_free, aes(y = lower), colour = rust,
+            linetype = "dashed", linewidth = 0.4) +
+  geom_line(data = lag_free, aes(y = upper), colour = rust,
+            linetype = "dashed", linewidth = 0.4) +
+  geom_line(aes(y = ratio, colour = model, linetype = model), linewidth = 0.9) +
+  geom_rug(data = lag_rug, colour = grey, length = unit(0.02, "npc"),
+           alpha = 0.3) +
+  facet_wrap(~ lag, nrow = 1) +
+  scale_y_log10() +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  labs(x = "temperature (C)", y = "rate ratio")
+```
+
+```{r}
+#| label: lags-numbers
+#| include: false
+hot <- which.max(chicagoNMMAPS$temp)
+lag_at <- function(fit, k, i) {
+  exp(part_band(fit, prefix = paste0(labs[k], "."), rows = i)$fit)
+}
+hot1 <- which.max(chicagoNMMAPS$temp1)
+hot2 <- which.max(chicagoNMMAPS$temp2)
+cold2 <- which.min(abs(chicagoNMMAPS$temp2 + 15))
+```
+
+The three temperatures are strongly correlated, so each curve is the effect
+of the temperature of one day with the temperatures of the other two days
+held fixed. On 98 days of 100 the two models give curves that differ by less
+than half a per cent in the rate. The shared parameter changes the curves at
+their ends, where the data are few, and most of all the curve of the same
+day: with its own parameter this curve is smoother, flatter on the coldest
+days and less steep on the hottest. This is the difference that the
+likelihood ratio detects. It does not change what the curves say about the
+effect of temperature on mortality. Heat acts within two days. The highest
+mean temperature in the data, `r fmt(chicagoNMMAPS$temp[hot], 1)` degrees, was
+reached on `r format(chicagoNMMAPS$date[hot], "%d %B %Y")`, during the
+Chicago heat wave of July 1995. At this temperature the rate ratio is
+`r fmt(lag_at(fit_free, 2, hot1), 2)` when it is the temperature of the day
+before and `r fmt(lag_at(fit_free, 3, hot2), 2)` when it is the temperature of
+two days before. Cold acts later: at lag 2 a temperature
+of $-15$ degrees multiplies the rate by `r fmt(lag_at(fit_free, 3, cold2), 2)`,
+while on the same day the cold lowers it a little.
+
+### Levels that share a parameter
+
+`id` also groups some levels of a factor `by`. Under `by_hyper = "level"` the
+hyperparameters of the levels are named `lambda.1`, `lambda.2` and so on, and
+`id` takes one label for each of them. In @sec-gamm-by the smoothing
+parameter of diet 3 was the smallest, so we let diets 1, 2 and 4 share one
+parameter and give diet 3 its own:
+
+```{r}
+#| label: fit-id-levels
+fit_lid <- statmod(weight ~ Diet +
+                     s(Time, bspline_smooth(k = 8), by = Diet, by_hyper = "level",
+                       id = c(lambda.1 = "A", lambda.2 = "A", lambda.3 = "B",
+                              lambda.4 = "A")) +
+                     random(~ Time | Chick),
+                   distrib = gaussian1_distrib(), data = ChickWeight)
+hyper(fit_lid)[, c("name", "estimate")]
+l_lid <- as.numeric(logLik(fit_lid, type = "marginal"))
+lr_lid <- 2 * (l_lv - l_lid)
+lr_lid
+pchisq(lr_lid, df = 2, lower.tail = FALSE)
+```
+
+The model with two smoothing parameters is the model with four under two
+equality constraints, and the likelihood ratio does not reject them: diets 1,
+2 and 4 can share one smoothing parameter, and diet 3 keeps its own.
+
+```{r}
+#| label: gate-09
+#| include: false
+assert_gamm_ok(
+  fits = list(ri = fit_ri, rs = fit_rs, sh = fit_sh, lv = fit_lv, shu = fit_shu,
+              gs = fit_gs,
+              sg0 = fit_sg0, sg = fit_sg, ml = fit_ml, ow = fit_ow, ow2 = fit_ow2,
+              id = fit_id, free = fit_free, lid = fit_lid),
+  ref = list(g_ri = g_ri, tmb_rs = tmb_rs, g_shu = g_shu, tmb_sg = tmb_sg,
+             g_ml = g_ml, g_ow = g_ow, tmb_ow = tmb_ow, tmb_ow2 = tmb_ow2,
+             g_id = g_id),
+  data = list(ChickWeight = ChickWeight, Owls = Owls,
+              chicagoNMMAPS = chicagoNMMAPS),
+  claims = list(lr_rs = lr_rs, lr_by = lr_by, lr_sg = lr_sg, lr_ow = lr_ow,
+                lr_ow_tmb = lr_ow_tmb, lr_id = lr_id, lr_lid = lr_lid,
+                a_lin = a_lin, t_min = t_min, bands = bands, part_ri = p_ri,
+                lr_gs = lr_gs,
+                diet3 = list(straight = part_band(fit_sh, prefix = d3, rows = r33),
+                             smooth = part_band(fit_gs, prefix = d3, rows = r33)),
+                lag_ratios = c(lag_at(fit_free, 2, hot1), lag_at(fit_free, 3, hot2),
+                               lag_at(fit_free, 3, cold2))))
+```

@@ -1,0 +1,756 @@
+# Linear models and beyond {#sec-lm}
+
+```{r}
+#| label: setup-03
+#| include: false
+source("R/_setup.R")
+source("R/lm-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
+sci <- function(x, d = 1) {
+  e <- floor(log10(abs(x)))
+  sprintf("%.*f \\times 10^{%d}", d, x / 10^e, e)
+}
+```
+
+This chapter starts the second part of the book, where each chapter takes one
+class of models. The first class is the gaussian linear model, the model that
+`lm()` fits. We fit it with `statmod()` and compare every number with the
+output of `lm()`, and we explain the few places where the two differ. Then we
+write factors, interactions and contrasts, and we let the variance change
+with a covariate or with a factor. We end with the three ways of writing the
+variance of the gaussian distribution.
+
+## The linear model {#sec-lm-linear}
+
+The data frame `whiteside` from the `MASS` package records the weekly gas
+consumption of a house in south-east England, in thousands of cubic feet,
+and the average outside temperature of the same week, in degrees Celsius
+[@hand1994; @venables2002]. The house was observed for 26 weeks before
+cavity-wall insulation was installed and for 30 weeks after. The factor
+`Insul` records the period.
+
+```{r}
+#| label: whiteside-data
+data(whiteside, package = "MASS")
+head(whiteside, n = 3)
+table(whiteside$Insul)
+```
+
+The consumption falls as the temperature rises, and after the insulation the
+house uses less gas at every temperature. We allow a different straight line
+in each period:
+$$
+y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
+\mu_i = \beta_0 + \beta_1 t_i + \beta_2 a_i + \beta_3 t_i a_i ,
+$$
+where $t_i$ is the temperature and $a_i$ is 1 in the weeks after the
+insulation and 0 before. The formula `Gas ~ Temp * Insul` writes this mean
+in the usual notation of R. We fit the model with `statmod()` and with
+`lm()`:
+
+```{r}
+#| label: fit-lin
+library(statmodels7)
+fit_lin <- statmod(Gas ~ Temp * Insul, distrib = gaussian1_distrib(),
+                   data = whiteside)
+summary(fit_lin)
+lm_lin <- lm(Gas ~ Temp * Insul, data = whiteside)
+summary(lm_lin)
+```
+
+The model has no penalty, so there is no smoothing parameter and no smooth
+block. The coefficients of the mean are the same in the two fits:
+
+```{r}
+#| label: coef-lin
+coef(fit_lin)$mu
+coef(lm_lin)
+```
+
+For a gaussian response the maximum likelihood estimate of the mean is the
+least squares estimate, whatever the value of $\sigma$, so this equality is
+exact.
+
+### The standard deviation
+
+The estimate of $\sigma$ is also the one of `lm()`:
+
+```{r}
+#| label: sigma-lin
+exp(coef(fit_lin)$sigma)
+summary(lm_lin)$sigma
+```
+
+@sec-beyond-outer explained why. By default `statmod()` estimates $\sigma$
+by maximizing the REML criterion, which integrates the $p$ coefficients of
+the mean out of the likelihood. For a linear model this gives
+$\hat\sigma^2 = \mathrm{RSS}/(n - p)$, the estimate of `lm()`, where RSS is
+the residual sum of squares. The maximum likelihood estimate divides by $n$
+and is smaller:
+
+```{r}
+#| label: sigma-by-hand
+n <- nrow(whiteside)
+p <- length(coef(lm_lin))
+rss <- sum(residuals(lm_lin)^2)
+sqrt(rss / (n - p))
+sqrt(rss / n)
+```
+
+### The variance matrix
+
+The variance matrix of the coefficients of the mean is the one of `lm()`,
+$\hat\sigma^2 (X^\top X)^{-1}$:
+
+```{r}
+#| label: vcov-lin
+V <- vcov(fit_lin)
+V_mu <- V[1:4, 1:4]
+V_mu
+vcov(lm_lin)
+all.equal(target = unname(vcov(lm_lin)), current = unname(V_mu))
+```
+
+The matrix `V` has one more row and one more column, for the intercept of
+$\log\sigma$. The estimates of the mean and of $\sigma$ carry separate
+information, so the covariances between that coefficient and the others are
+zero, as in @sec-model-coef:
+
+```{r}
+#| label: vcov-sigma
+V[5, ]
+```
+
+### Tests and intervals
+
+The estimates and the standard errors are the same, so the column `z` of
+`summary(fit_lin)` holds the same numbers as the column `t value` of
+`summary(lm_lin)`. The p-values differ, because the two functions compare the
+statistic with different distributions. `lm()` uses the $t$ distribution with
+$n - p$ degrees of freedom. For a gaussian linear model this distribution is
+exact: the estimate divided by its standard error has exactly this
+distribution when the coefficient is zero. `statmod()` uses the standard
+gaussian distribution for every model. This is the distribution of the
+statistic when $n$ is large, and it is the only reference that holds for
+every family and every penalty that `statmod()` fits. We recompute both
+p-values from the estimates and the standard errors:
+
+```{r}
+#| label: pvalues
+ci_lin <- confint(fit_lin, parm = c("mu:(Intercept)", "mu:Temp",
+                                    "mu:InsulAfter", "mu:Temp:InsulAfter"))
+z <- ci_lin$estimate / ci_lin$se
+z
+2 * pnorm(q = -abs(z))
+2 * pt(q = -abs(z), df = n - p)
+summary(lm_lin)$coefficients[, "Pr(>|t|)"]
+```
+
+With `r n - p` degrees of freedom the two distributions are close, and the
+p-values differ visibly only for the interaction, where they are
+`r format(signif(2 * pnorm(-abs(z[4])), 2), scientific = FALSE)` and
+`r format(signif(2 * pt(-abs(z[4]), df = n - p), 2), scientific = FALSE)`. The same holds for the
+intervals. `confint()` of `statmod()` uses the quantile
+`r fmt(qnorm(0.975), 3)` of the standard gaussian distribution, and
+`confint()` of `lm()` uses the quantile `r fmt(qt(0.975, df = n - p), 3)` of
+the $t$ distribution, so its intervals are wider by the ratio of the two:
+
+```{r}
+#| label: confint-lin
+ci_lin
+confint(lm_lin)
+qt(p = 0.975, df = n - p) / qnorm(p = 0.975)
+```
+
+### The log-likelihood
+
+The log-likelihood is where the two fits differ most. `logLik()` of
+`statmod()` evaluates the gaussian density at the REML estimate of $\sigma$.
+`logLik()` of `lm()` evaluates it at the maximum likelihood estimate
+$\sqrt{\mathrm{RSS}/n}$, where the log-likelihood reaches its maximum. We
+compute both with `dnorm()`:
+
+```{r}
+#| label: loglik-lin
+logLik(fit_lin)
+logLik(lm_lin)
+mu_hat <- fitted(lm_lin)
+sum(dnorm(x = whiteside$Gas, mean = mu_hat, sd = sqrt(rss / (n - p)),
+          log = TRUE))
+sum(dnorm(x = whiteside$Gas, mean = mu_hat, sd = sqrt(rss / n), log = TRUE))
+```
+
+Both values count five parameters, the four coefficients and $\sigma$, so
+`AIC()` gives slightly different values for the two fits:
+
+```{r}
+#| label: aic-lin
+AIC(fit_lin)
+AIC(lm_lin)
+```
+
+The REML criterion that `statmod()` maximized is the restricted
+log-likelihood of `lm()`:
+
+```{r}
+#| label: reml-lin
+logLik(fit_lin, type = "marginal")
+logLik(lm_lin, REML = TRUE)
+```
+
+## Factors, interactions and contrasts {#sec-lm-factors}
+
+A formula in `statmod()` codes factors and interactions in the same way as a
+formula in `lm()`. By default R codes a factor with *treatment contrasts*:
+the first level is the reference, and each other level gets a column that is
+1 for that level and 0 otherwise. In `fit_lin` the reference level of
+`Insul` is `Before`, so the coefficients mean the following. The intercept
+and the coefficient of `Temp` are the intercept and the slope of the line
+before the insulation. The coefficient `InsulAfter` is the change in the
+intercept after the insulation, and `Temp:InsulAfter` is the change in the
+slope.
+
+We can also write the model so that each period gets its own intercept and
+its own slope. The formula `Gas ~ 0 + Insul + Insul:Temp` removes the global
+intercept, so each level of `Insul` gets an intercept column, and it gives
+each level a slope:
+
+```{r}
+#| label: fit-sep
+fit_sep <- statmod(Gas ~ 0 + Insul + Insul:Temp,
+                   distrib = gaussian1_distrib(), data = whiteside)
+coef(fit_sep)$mu
+```
+
+This is the same model written with other coefficients. The intercept after
+the insulation is $\hat\beta_0 + \hat\beta_2$, the slope after the insulation
+is $\hat\beta_1 + \hat\beta_3$, and the fitted values are the same:
+
+```{r}
+#| label: same-model
+b <- coef(fit_lin)$mu
+b[["(Intercept)"]] + b[["InsulAfter"]]
+b[["Temp"]] + b[["Temp:InsulAfter"]]
+max(abs(fitted(fit_lin) - fitted(fit_sep)))
+```
+
+```{r}
+#| label: fig-whiteside
+#| fig-cap: "Weekly gas consumption against the outside temperature, before and after the insulation, with the fitted line of each period."
+#| echo: false
+#| fig-height: 3.8
+bs <- coef(fit_sep)$mu
+periods <- c("before the insulation", "after the insulation")
+ws <- data.frame(Temp = whiteside$Temp, Gas = whiteside$Gas,
+                 period = factor(whiteside$Insul, levels = c("Before", "After"),
+                                 labels = periods))
+ws_lines <- data.frame(
+  intercept = c(bs[["InsulBefore"]], bs[["InsulAfter"]]),
+  slope = c(bs[["InsulBefore:Temp"]], bs[["InsulAfter:Temp"]]),
+  period = factor(periods, levels = periods))
+ggplot(ws, aes(x = Temp, y = Gas, colour = period)) +
+  geom_point(aes(shape = period), size = 1.6) +
+  geom_abline(aes(intercept = intercept, slope = slope, colour = period,
+                  linetype = period),
+              data = ws_lines, linewidth = 0.8, key_glyph = "path") +
+  scale_colour_manual(values = c(rust, chalk)) +
+  scale_shape_manual(values = c(16, 17)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  labs(x = "outside temperature (degrees C)", y = "gas (1000 cubic feet)")
+```
+
+@fig-whiteside shows the two lines. After the insulation the line is lower
+and less steep, so the house saves more gas in cold weeks than in warm ones.
+
+### Other contrasts
+
+Other contrasts give other coefficients for the same model. With *sum
+contrasts* the column of a two-level factor is $+1$ for the first level and
+$-1$ for the second. The intercept and the slope are then the averages of the
+two periods, and the coefficients of `Insul` are half the differences between
+the two periods. In `lm()` we choose the contrasts with the argument
+`contrasts`. In `statmod()` the columns of the formula that are not model
+terms, here `Temp`, `Insul` and their interaction, form one parametric block,
+and we pass its contrasts with the argument `linpar_control`:
+
+```{r}
+#| label: fit-sum
+fit_sum <- statmod(Gas ~ Temp * Insul, distrib = gaussian1_distrib(),
+                   data = whiteside,
+                   linpar_control = linpar_options(
+                     contrasts = list(Insul = "contr.sum")))
+coef(fit_sum)$mu
+lm_sum <- lm(Gas ~ Temp * Insul, data = whiteside,
+             contrasts = list(Insul = "contr.sum"))
+coef(lm_sum)
+```
+
+The intercept `r fmt(coef(fit_sum)$mu[[1]], 4)` is the average of the two
+intercepts of `fit_sep`, and `Insul1` is half their difference:
+
+```{r}
+#| label: sum-by-hand
+(bs[["InsulBefore"]] + bs[["InsulAfter"]]) / 2
+(bs[["InsulBefore"]] - bs[["InsulAfter"]]) / 2
+```
+
+The same block can be written explicitly with the term `linpar()`, which
+takes a one-sided formula and the same two options. The intercept belongs to
+the formula of the model: when the formula has one, `linpar()` drops the
+column `(Intercept)` of its own design after coding the factors. So the next
+model has the columns of `lm(Gas ~ Temp * Insul)`, with sum contrasts:
+
+```{r}
+#| label: fit-linpar
+fit_lp <- statmod(Gas ~ linpar(~ Temp * Insul,
+                               contrasts = list(Insul = "contr.sum")),
+                  distrib = gaussian1_distrib(), data = whiteside)
+coef(fit_lp)$mu
+```
+
+Writing `linpar()` explicitly is useful when a model needs two parametric
+blocks with different options, or to give a block a label with the argument
+`label`.
+
+### Many levels
+
+A factor with many levels gives a design matrix that is mostly zeros: each
+row has a 1 in the column of its level and 0 in all the others. Such a
+matrix can be stored *sparse*, keeping only its nonzero entries, and the
+products that the fit needs then cost much less. We simulate the weekly
+sales of a product in 200 shops, 2000 weeks in all, with a price that changes
+from week to week and a level of its own for each shop:
+
+```{r}
+#| label: shops
+set.seed(3)
+shops <- data.frame(
+  shop = factor(sample(sprintf("s%03d", 1:200), size = 2000, replace = TRUE)),
+  price = runif(n = 2000, min = 1, max = 5))
+shop_level <- rnorm(n = 200)
+shops$sales <- 10 - 1.5 * shops$price + shop_level[as.integer(shops$shop)] +
+  rnorm(n = 2000)
+```
+
+The argument `sparse` of `linpar_options()` chooses the storage of the
+parametric block. We fit the model with a dense and with a sparse design and
+time the two fits:
+
+```{r}
+#| label: fit-shops
+t_dense <- system.time(
+  fit_dense <- statmod(sales ~ price + shop, distrib = gaussian1_distrib(),
+                       data = shops,
+                       linpar_control = linpar_options(sparse = FALSE)))
+t_sparse <- system.time(
+  fit_sparse <- statmod(sales ~ price + shop, distrib = gaussian1_distrib(),
+                        data = shops,
+                        linpar_control = linpar_options(sparse = TRUE)))
+t_dense[["elapsed"]]
+t_sparse[["elapsed"]]
+class(model.matrix(fit_dense))
+class(model.matrix(fit_sparse))
+max(abs(coef(fit_dense)$mu - coef(fit_sparse)$mu))
+```
+
+The two fits give the same coefficients, and the sparse fit is faster. The
+function `model.matrix()` returns the design of an equation, which is a
+`dgCMatrix` of the `Matrix` package in the sparse fit. When we do not set
+`sparse`, `statmod()` chooses the storage from the size of the design: it
+builds the block sparse when the number of rows times the number of columns
+coded from factors exceeds $10^5$. Here that product is about
+$2000 \times 200 = 4 \times 10^5$, so the default fit is sparse too:
+
+```{r}
+#| label: fit-shops-default
+fit_shops <- statmod(sales ~ price + shop, distrib = gaussian1_distrib(),
+                     data = shops)
+class(model.matrix(fit_shops))
+```
+
+## A variance that changes {#sec-lm-spread}
+
+The linear model assumes the same variance for every observation. When the
+spread of the data changes with a covariate, we give $\log\sigma$ an equation
+of its own, as we did with a smooth function in @sec-model-sigma. Here the
+equation is linear. We use two data sets from the `datasets` package of R.
+
+### A variance that changes with a covariate
+
+The data frame `cars` gives the speed of 50 cars, in miles per hour, and the
+distance that each car needed to stop, in feet [@ezekiel1930]. @fig-cars
+shows that the distances spread out as the speed grows. We model the mean and
+the logarithm of the standard deviation as straight lines in the speed $v_i$:
+$$
+y_i \sim \mathrm{N}(\mu_i, \sigma_i), \qquad
+\mu_i = \beta_0 + \beta_1 v_i, \qquad
+\log\sigma_i = \gamma_0 + \gamma_1 v_i .
+$$
+This is the regression with multiplicative heteroscedasticity of
+@harvey1976. We fit it, and for comparison the model with a constant
+standard deviation:
+
+```{r}
+#| label: fit-cars
+fit_c1 <- statmod(dist ~ speed | sigma ~ speed,
+                  distrib = gaussian1_distrib(), data = cars)
+fit_c0 <- statmod(dist ~ speed, distrib = gaussian1_distrib(), data = cars)
+summary(fit_c1)
+```
+
+By default the criterion is REML. It integrates the two coefficients of the
+mean and estimates $\gamma_0$ and $\gamma_1$, which is the REML estimation of
+a variance regression of @verbyla1993. The function `gls()` of the `nlme`
+package fits the same model [@pinheiro2000]. Its variance function
+`varExp(form = ~ speed)` writes the variance as
+$\sigma^2 \exp(2\delta v_i)$, so its standard deviation is
+$\sigma\exp(\delta v_i)$, and its logarithm is our equation with
+$\gamma_0 = \log\sigma$ and $\gamma_1 = \delta$:
+
+```{r}
+#| label: gls-cars
+library(nlme)
+gls_c1 <- gls(dist ~ speed, data = cars, weights = varExp(form = ~ speed),
+              method = "REML")
+coef(gls_c1)
+log(gls_c1$sigma)
+coef(gls_c1$modelStruct$varStruct, unconstrained = FALSE)
+coef(fit_c1)
+```
+
+The two fits agree, and the REML criterion that `statmod()` maximized is the
+restricted log-likelihood of `gls()`:
+
+```{r}
+#| label: gls-cars-loglik
+logLik(fit_c1, type = "marginal")
+logLik(gls_c1)
+```
+
+```{r}
+#| label: cars-numbers
+#| include: false
+sv <- predict(fit_c1, what = "sigma", newdata = data.frame(speed = c(4, 25)))
+```
+
+The estimated standard deviation is `r fmt(sv[1], 1)` feet at 4 miles per
+hour and `r fmt(sv[2], 1)` feet at 25 miles per hour. Each additional mile
+per hour multiplies it by $e^{\gamma_1}$. We compute this factor with its
+interval by transforming the interval of $\gamma_1$:
+
+```{r}
+#| label: cars-factor
+predict(fit_c1, what = "sigma", newdata = data.frame(speed = c(4, 25)))
+ci_g1 <- confint(fit_c1, parm = "sigma:speed")
+exp(c(ci_g1$estimate, ci_g1$lower, ci_g1$upper))
+```
+
+@fig-cars shows the band $\hat\mu \pm 2\hat\sigma$ of the two models. With a
+constant standard deviation the band is too wide at low speeds and too narrow
+at high speeds.
+
+```{r}
+#| label: fig-cars
+#| fig-cap: "Stopping distance against speed. The line is the fitted mean. The shaded band is the fitted mean plus or minus two standard deviations with the modeled standard deviation, and the dashed lines are the same band with a constant standard deviation."
+#| echo: false
+#| fig-height: 4.2
+#| fig-width: 8.5
+gr <- data.frame(speed = seq(from = 4, to = 25, length.out = 100))
+m1 <- predict(fit_c1, what = "mu", newdata = gr)
+s1 <- predict(fit_c1, what = "sigma", newdata = gr)
+m0 <- predict(fit_c0, what = "mu", newdata = gr)
+s0 <- predict(fit_c0, what = "sigma", newdata = gr)
+cars_curves <- c("fitted mean", "mean plus or minus 2 sigma, constant")
+cars_lines <- data.frame(
+  speed = rep(gr$speed, times = 3),
+  value = c(m1, m0 - 2 * s0, m0 + 2 * s0),
+  end = rep(c("fit", "lower", "upper"), each = nrow(gr)),
+  curve = factor(rep(cars_curves[c(1, 2, 2)], each = nrow(gr)),
+                 levels = cars_curves))
+cars_band <- data.frame(speed = gr$speed, lower = m1 - 2 * s1,
+                        upper = m1 + 2 * s1)
+ggplot(cars, aes(x = speed)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper,
+                  fill = "mean plus or minus 2 sigma(v)"),
+              data = cars_band) +
+  geom_point(aes(y = dist, shape = "data"), colour = book_grey, size = 1.5) +
+  geom_line(aes(y = value, colour = curve, linetype = curve, group = end),
+            data = cars_lines, linewidth = 0.8) +
+  scale_shape_manual(values = 16) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_fill_manual(values = adjustcolor(chalk, 0.2)) +
+  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
+         linetype = guide_legend(order = 2), fill = guide_legend(order = 3)) +
+  labs(x = "speed (mph)", y = "stopping distance (ft)")
+```
+
+Is the change of the standard deviation real? The two models have the same
+equation for the mean, so their REML criteria integrate the same coefficients
+out of the likelihood. They are marginal likelihoods of the same data, and we
+can compare them with a likelihood ratio test [@pinheiro2000, sec. 5.2]. This is not the case of @sec-beyond-lr, where the
+two models had different unpenalized terms in the mean. The model with a
+constant standard deviation is the model with $\gamma_1 = 0$:
+
+```{r}
+#| label: lr-cars
+l0 <- logLik(fit_c0, type = "marginal")
+l1 <- logLik(fit_c1, type = "marginal")
+lr <- 2 * (as.numeric(l1) - as.numeric(l0))
+lr
+pchisq(lr, df = 1, lower.tail = FALSE)
+gls_c0 <- gls(dist ~ speed, data = cars, method = "REML")
+anova(gls_c0, gls_c1)
+```
+
+The statistic and the p-value are those of `anova()` of `nlme`. The Wald
+statistic of $\gamma_1$ in the summary is
+$z = `r fmt(ci_g1$estimate / ci_g1$se, 2)`$, with a p-value of
+`r fmt(2 * pnorm(-abs(ci_g1$estimate / ci_g1$se)), 4)`, against
+`r fmt(pchisq(lr, df = 1, lower.tail = FALSE), 4)` for the likelihood ratio.
+Both tests reject a constant standard deviation at the 5% level.
+
+### A variance that changes with a factor
+
+The data frame `InsectSprays` gives the number of insects counted on 72
+agricultural plots treated with six insecticides, A to F, 12 plots for each
+[@beall1942]. The counts spread out more where they are large. We let both
+the mean and the logarithm of the standard deviation depend on the
+insecticide:
+
+```{r}
+#| label: fit-sprays
+fit_s1 <- statmod(count ~ spray | sigma ~ spray,
+                  distrib = gaussian1_distrib(), data = InsectSprays)
+fit_s0 <- statmod(count ~ spray, distrib = gaussian1_distrib(),
+                  data = InsectSprays)
+sprays <- data.frame(spray = factor(LETTERS[1:6]))
+predict(fit_s1, what = "sigma", newdata = sprays)
+tapply(InsectSprays$count, InsectSprays$spray, sd)
+```
+
+The estimated standard deviation of each insecticide is the sample standard
+deviation of its 12 counts. The mean has one free level for each
+insecticide, so its REML criterion splits into one factor for each
+insecticide. Each factor integrates out the mean of its group, and it is
+maximized by the residual sum of squares of the group divided by $12 - 1$.
+The model with a constant standard deviation pools the six groups instead:
+
+```{r}
+#| label: sprays-pooled
+exp(coef(fit_s0)$sigma)
+summary(lm(count ~ spray, data = InsectSprays))$sigma
+```
+
+The function `gls()` with the variance function
+`varIdent(form = ~ 1 | spray)` fits the same model. It reports $\sigma$ for
+the first insecticide and the ratios of the others to it:
+
+```{r}
+#| label: gls-sprays
+gls_s1 <- gls(count ~ spray, data = InsectSprays,
+              weights = varIdent(form = ~ 1 | spray), method = "REML")
+gls_s1$sigma
+coef(gls_s1$modelStruct$varStruct, unconstrained = FALSE)
+logLik(fit_s1, type = "marginal")
+logLik(gls_s1)
+```
+
+The standard deviations change the standard errors of the means. With a
+constant standard deviation every insecticide has the same standard error.
+With the modeled one, the standard error of the mean of insecticide $g$ is
+$\hat\sigma_g/\sqrt{12}$:
+
+```{r}
+#| label: sprays-se
+p_s1 <- predict(fit_s1, what = "mu", newdata = sprays, se = TRUE)
+p_s0 <- predict(fit_s0, what = "mu", newdata = sprays, se = TRUE)
+p_s1$se
+predict(fit_s1, what = "sigma", newdata = sprays) / sqrt(12)
+p_s0$se
+```
+
+@fig-sprays shows the counts with the two sets of 95% intervals of the
+means. The insecticides C, D and E have small counts and small standard
+deviations, and the modeled standard deviation gives them intervals that are
+narrower than the pooled ones.
+
+```{r}
+#| label: fig-sprays
+#| fig-cap: "Insect counts for the six insecticides, with the 95% interval of each mean: modeled standard deviations (solid) and a pooled standard deviation (dashed)."
+#| echo: false
+#| fig-height: 3.8
+xs <- as.integer(InsectSprays$spray)
+set.seed(5)
+sp_what <- c("counts", "mean and interval, modeled sigma",
+             "mean and interval, pooled sigma")
+sp_counts <- data.frame(x = xs + runif(length(xs), -0.15, 0.15),
+                        count = InsectSprays$count,
+                        what = factor(sp_what[1], levels = sp_what))
+sp_means <- data.frame(x = c(1:6 + 0.25, 1:6 + 0.4),
+                       fit = c(p_s1$fit, p_s0$fit),
+                       lower = c(p_s1$lower, p_s0$lower),
+                       upper = c(p_s1$upper, p_s0$upper),
+                       what = factor(rep(sp_what[2:3], each = 6),
+                                     levels = sp_what))
+ggplot(mapping = aes(x = x, colour = what, shape = what, linetype = what)) +
+  geom_point(aes(y = count), data = sp_counts, size = 1.3) +
+  geom_linerange(aes(ymin = lower, ymax = upper), data = sp_means,
+                 linewidth = 0.8) +
+  geom_point(aes(y = fit), data = sp_means, size = 2) +
+  scale_colour_manual(values = setNames(c(book_grey, chalk, rust), sp_what),
+                      breaks = sp_what) +
+  scale_shape_manual(values = setNames(c(16, 15, 17), sp_what),
+                     breaks = sp_what) +
+  scale_linetype_manual(values = setNames(c("blank", "solid", "dashed"),
+                                          sp_what),
+                        breaks = sp_what) +
+  scale_x_continuous(breaks = 1:6, labels = LETTERS[1:6]) +
+  expand_limits(y = 0) +
+  labs(x = "insecticide", y = "insect count")
+```
+
+When the ratios of the variances are known in advance, the equation of
+$\sigma$ has nothing to estimate beyond a constant. This is the case of the
+precision weights of `lm()`, where the variance of observation $i$ is
+$\sigma^2/w_i$. Then $\log\sigma_i = \gamma_0 - \tfrac{1}{2}\log w_i$, and the
+known term enters the equation of $\sigma$ as an offset. @sec-beyond-weights
+writes this model and checks it against `lm(weights = )`.
+
+## Three parametrizations of the gaussian {#sec-lm-param}
+
+The gaussian distribution can be written with its standard deviation, with
+its variance or with its precision, the inverse of the variance.
+`statmodels7` has one distribution for each:
+
+```{r}
+#| label: gaussians
+gaussian1_distrib()@params
+gaussian2_distrib()@params
+gaussian3_distrib()@params
+```
+
+All three use the log link for the second parameter. Since
+$\log\sigma^2 = 2\log\sigma$ and $\log\tau = -2\log\sigma$, a linear equation
+for one of them is a linear equation for the others, with the coefficients
+multiplied by 2 or by $-2$. We fit the model of `cars` with the three
+distributions:
+
+```{r}
+#| label: fit-params
+fit_g1 <- statmod(dist ~ speed | sigma ~ speed,
+                  distrib = gaussian1_distrib(), data = cars)
+fit_g2 <- statmod(dist ~ speed | sigma2 ~ speed,
+                  distrib = gaussian2_distrib(), data = cars)
+fit_g3 <- statmod(dist ~ speed | tau ~ speed,
+                  distrib = gaussian3_distrib(), data = cars)
+coef(fit_g1)$sigma
+coef(fit_g2)$sigma2
+coef(fit_g3)$tau
+```
+
+The three fits are the same model, so they have the same log-likelihood and
+the same REML criterion:
+
+```{r}
+#| label: params-loglik
+logLik(fit_g1)
+logLik(fit_g2)
+logLik(fit_g3)
+logLik(fit_g1, type = "marginal")
+logLik(fit_g2, type = "marginal")
+logLik(fit_g3, type = "marginal")
+```
+
+The REML criterion is the same because it integrates only the coefficients
+of the mean, and the three second parameters do not depend on the mean. Their
+standard errors are also multiplied by 2:
+
+```{r}
+#| label: params-se
+confint(fit_g1, parm = "sigma:speed")$se
+confint(fit_g2, parm = "sigma2:speed")$se
+confint(fit_g3, parm = "tau:speed")$se
+```
+
+### The link changes the interval
+
+The link does matter for the intervals, which `confint()` builds on the scale
+of the link. We fit the model with a constant variance twice, with the
+default log link on $\sigma^2$ and with the identity link:
+
+```{r}
+#| label: fit-var
+fit_v_log <- statmod(dist ~ speed, distrib = gaussian2_distrib(), data = cars)
+fit_v_id <- statmod(dist ~ speed,
+                    distrib = gaussian2_distrib(link_sigma2 = identity_link()),
+                    data = cars)
+ci_v_log <- confint(fit_v_log, parm = "sigma2:(Intercept)")
+ci_v_id <- confint(fit_v_id, parm = "sigma2:(Intercept)")
+ci_v_id
+exp(c(ci_v_log$estimate, ci_v_log$lower, ci_v_log$upper))
+```
+
+Both estimates are the variance $\mathrm{RSS}/(n - p)$ of `lm()`. On the
+identity scale the interval is symmetric around the estimate. On the log
+scale the standard error is $\sqrt{2/(n - p)}$, whatever the variance, and
+the interval is symmetric around $\log\hat\sigma^2$, so it is asymmetric
+around $\hat\sigma^2$. For a linear model the exact interval is also known:
+$(n - p)\hat\sigma^2/\sigma^2$ has a $\chi^2$ distribution with $n - p$
+degrees of freedom, and the interval divides $(n - p)\hat\sigma^2$ by two of
+its quantiles:
+
+```{r}
+#| label: var-exact
+s2 <- summary(lm(dist ~ speed, data = cars))$sigma^2
+df_c <- nrow(cars) - 2
+ci_v_log$se
+sqrt(2 / df_c)
+c(df_c * s2 / qchisq(p = 0.975, df = df_c),
+  df_c * s2 / qchisq(p = 0.025, df = df_c))
+```
+
+```{r}
+#| label: var-numbers
+#| include: false
+ex <- c(df_c * s2 / qchisq(p = 0.975, df = df_c),
+        df_c * s2 / qchisq(p = 0.025, df = df_c))
+lg <- exp(c(ci_v_log$lower, ci_v_log$upper))
+```
+
+The exact interval runs from `r fmt(ex[1], 1)` to `r fmt(ex[2], 1)`. The
+interval on the log scale, from `r fmt(lg[1], 1)` to `r fmt(lg[2], 1)`, is
+closer to it than the interval on the identity scale, from
+`r fmt(ci_v_id$lower, 1)` to `r fmt(ci_v_id$upper, 1)`. The distribution of
+$\hat\sigma^2$ is skewed to the right, and its logarithm is closer to a
+gaussian variable. For this reason the log link is the default for every
+parameter that must be positive.
+
+## Penalized linear regression {#sec-lm-penalized}
+
+A linear model with many covariates can also be fitted with a penalty on its
+coefficients. The term `ridge()` subtracts the penalty
+$\tfrac{1}{2}\lambda\sum_j \beta_j^2$ from the log-likelihood, where the sum
+runs over the coefficients of the covariates that the term holds, and `statmod()` estimates $\lambda$ by REML, as it estimated
+the smoothing parameter in @sec-model. The terms `lasso()`, `enet()`,
+`scad()` and `mcp()` use penalties that can set coefficients exactly to zero.
+@sec-penalized describes all of them.
+
+```{r}
+#| label: gate-03
+#| include: false
+assert_lm_ok(
+  fits = list(lin = fit_lin, sep = fit_sep, sum = fit_sum, lp = fit_lp,
+              dense = fit_dense, sparse = fit_sparse, shops = fit_shops,
+              c1 = fit_c1, c0 = fit_c0, s1 = fit_s1, s0 = fit_s0,
+              g1 = fit_g1, g2 = fit_g2, g3 = fit_g3,
+              v_log = fit_v_log, v_id = fit_v_id),
+  ref = list(lm_lin = lm_lin, lm_sum = lm_sum, gls_c1 = gls_c1,
+             gls_c0 = gls_c0, gls_s1 = gls_s1),
+  data = list(whiteside = whiteside, shops = shops, sprays = sprays),
+  claims = list(ci_lin = ci_lin, lr = lr, p_s1 = p_s1, p_s0 = p_s0,
+                t_dense = t_dense, t_sparse = t_sparse,
+                ci_v_log = ci_v_log, ci_v_id = ci_v_id))
+```

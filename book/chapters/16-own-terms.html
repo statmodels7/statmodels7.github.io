@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>16&nbsp; Writing a model term – statmodels7</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/A2-references.html" rel="next">
+<link href="../chapters/15-own-distributions.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e986b704c747e817427b29ebc19a759e.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-a2ce0b05719297c8ab99eac5b5b92eaa.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/15-own-distributions.html">Extending the toolkit</a></li><li class="breadcrumb-item"><a href="../chapters/16-own-terms.html"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="../index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">statmodels7</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Using statmod()</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-model.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">A first model</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-beyond.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Beyond the basics</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-lm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Linear models and beyond</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-glm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Generalized linear models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Distributions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/06-gam.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Generalized additive models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/07-lmm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Linear mixed models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/08-glmm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Generalized linear mixed models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/09-gamm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Generalized additive mixed models</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Special model terms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/10-penalized.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Penalized regression</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/11-breakpoints.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Break-points</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/12-nonlinear.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Nonlinear models</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/13-timeseries.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Time series</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Choosing</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/14-choosing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Choosing</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Extending the toolkit</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/15-own-distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Writing a distribution and a link</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/16-own-terms.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/A2-references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active" data-toc-expanded="99">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-own-term-structure" id="toc-sec-own-term-structure" class="nav-link active" data-scroll-target="#sec-own-term-structure"><span class="header-section-number">16.1</span> The structure of a model term</a></li>
+  <li><a href="#sec-own-season" id="toc-sec-own-season" class="nav-link" data-scroll-target="#sec-own-season"><span class="header-section-number">16.2</span> A fixed block: a seasonal term</a></li>
+  <li><a href="#sec-own-asym" id="toc-sec-own-asym" class="nav-link" data-scroll-target="#sec-own-asym"><span class="header-section-number">16.3</span> A moving block: an asymptotic growth term</a></li>
+  <li><a href="#sec-own-optim" id="toc-sec-own-optim" class="nav-link" data-scroll-target="#sec-own-optim"><span class="header-section-number">16.4</span> The structure of an optimizer and its stopping rule</a>
+  <ul>
+  <li><a href="#sec-own-tr-sub" id="toc-sec-own-tr-sub" class="nav-link" data-scroll-target="#sec-own-tr-sub">The trust-region subproblem</a></li>
+  <li><a href="#sec-own-tr-method" id="toc-sec-own-tr-method" class="nav-link" data-scroll-target="#sec-own-tr-method">The method and its radius</a></li>
+  </ul></li>
+  <li><a href="#sec-own-optim-fit" id="toc-sec-own-optim-fit" class="nav-link" data-scroll-target="#sec-own-optim-fit"><span class="header-section-number">16.5</span> Using the method in a fit</a></li>
+  <li><a href="#sec-own-optim-outer" id="toc-sec-own-optim-outer" class="nav-link" data-scroll-target="#sec-own-optim-outer"><span class="header-section-number">16.6</span> The same method as an outer optimizer</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/15-own-distributions.html">Extending the toolkit</a></li><li class="breadcrumb-item"><a href="../chapters/16-own-terms.html"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span id="sec-own-terms" class="quarto-section-identifier"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Chapter 14 showed how <code>statmod()</code> uses the terms of <code>modelterms7</code>: a linear term, a smooth, a random effect, a break-point and a few others, each written in the formula and each contributing a block of the design. A term that the package does not provide is written by the user as an S7 object of the same kind, and the formula then accepts it. This chapter writes two. The first is a seasonal term with a fixed block, which uses one of the penalties of <code>penalties7</code>. The second is an asymptotic growth term whose block moves with its own coefficients, which is the case the package handles through a refresh step at each iteration.</p>
+<section id="sec-own-term-structure" class="level2" data-number="16.1">
+<h2 data-number="16.1" class="anchored" data-anchor-id="sec-own-term-structure"><span class="header-section-number">16.1</span> The structure of a model term</h2>
+<p>A term of the additive branch is an S7 class that inherits from <code>additive_term</code>. The class adds four properties to the common ones of every term: the design block <code>X</code>, the names of its coefficients <code>coef_names</code>, a list <code>blueprint</code> that keeps what is needed to rebuild the block at new data, and the penalty <code>penalty</code>, which is <code>NULL</code> for an unpenalized term. The label, the hyperparameters and the variables of the formula are common to all terms.</p>
+<p>Four methods make the term work in a fit. <code>term_build()</code> receives the term and the data, evaluates the variables and returns the term with <code>X</code>, <code>coef_names</code>, <code>blueprint</code> and <code>penalty</code> filled in. <code>term_predict()</code> receives the term and new data and returns the block at those data; <code>predict()</code> and the residuals use it. A term whose block does not depend on the coefficients needs nothing more. A term whose block does depend on them also has <code>term_refresh()</code>, which receives the term and a vector of coefficients and returns the term with the block recomputed at those values, <code>term_value()</code>, which returns the fitted contribution to the predictor, and <code>term_coef_start()</code>, which gives starting values for the coefficients. Section <a href="#sec-own-asym" class="quarto-xref"><span>Section 16.3</span></a> shows these three.</p>
+<p>The function <code>check_term()</code> runs the methods on a data frame and reports six checks. It builds the block, names its columns, counts its parameters, checks the penalty when there is one, reproduces the block at the training data, and gives the matching rows of the block for a subset of the data. A check that fails names the method at fault, so a term that passes is one that <code>statmod()</code> can fit.</p>
+</section>
+<section id="sec-own-season" class="level2" data-number="16.2">
+<h2 data-number="16.2" class="anchored" data-anchor-id="sec-own-season"><span class="header-section-number">16.2</span> A fixed block: a seasonal term</h2>
+<p>A seasonal cycle of period <span class="math inline">\(P\)</span> is a sum of harmonics. With <span class="math inline">\(\omega = 2\pi/P\)</span> and <span class="math inline">\(k\)</span> harmonics, the block has the columns <span class="math inline">\(\cos(j\omega t)\)</span> and <span class="math inline">\(\sin(j\omega t)\)</span> for <span class="math inline">\(j = 1, \ldots, k\)</span>. We write a term <code>season(x, period, k)</code> whose block is this matrix, with the column <span class="math inline">\(x\)</span> taken as the time within the period.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>SeasonTerm <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"SeasonTerm"</span>, <span class="at">parent =</span> additive_term,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                            <span class="at">properties =</span> <span class="fu">list</span>(<span class="at">expr =</span> S7<span class="sc">::</span>class_any,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">spec =</span> S7<span class="sc">::</span>class_list))</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>season <span class="ot">&lt;-</span> <span class="cf">function</span>(x, period, <span class="at">k =</span> <span class="dv">3</span>) {</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  xe <span class="ot">&lt;-</span> <span class="fu">substitute</span>(x)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">SeasonTerm</span>(<span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"season(%s)"</span>, <span class="fu">deparse</span>(xe)), <span class="at">expr =</span> xe,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>             <span class="at">spec =</span> <span class="fu">list</span>(<span class="at">period =</span> period, <span class="at">k =</span> k), <span class="at">hyper =</span> <span class="fu">list</span>(), <span class="at">X =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>             <span class="at">coef_names =</span> <span class="fu">character</span>(<span class="dv">0</span>), <span class="at">blueprint =</span> <span class="fu">list</span>(), <span class="at">penalty =</span> <span class="cn">NULL</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>season_X <span class="ot">&lt;-</span> <span class="cf">function</span>(x, period, k) {</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  w <span class="ot">&lt;-</span> <span class="fu">outer</span>(<span class="dv">2</span> <span class="sc">*</span> pi <span class="sc">*</span> x <span class="sc">/</span> period, <span class="fu">seq_len</span>(k))</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  X <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">cos</span>(w), <span class="fu">sin</span>(w))</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">colnames</span>(X) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">"cos"</span>, <span class="fu">seq_len</span>(k)), <span class="fu">paste0</span>(<span class="st">"sin"</span>, <span class="fu">seq_len</span>(k)))</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  X</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(term_build, SeasonTerm) <span class="ot">&lt;-</span> <span class="cf">function</span>(term, data, ...) {</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">eval</span>(term<span class="sc">@</span>expr, data, <span class="fu">baseenv</span>()))</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  sp <span class="ot">&lt;-</span> term<span class="sc">@</span>spec</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  X <span class="ot">&lt;-</span> <span class="fu">season_X</span>(x, sp<span class="sc">$</span>period, sp<span class="sc">$</span>k)</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  S7<span class="sc">::</span><span class="fu">set_props</span>(term, <span class="at">X =</span> X, <span class="at">coef_names =</span> <span class="fu">colnames</span>(X), <span class="at">blueprint =</span> sp,</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>                <span class="at">penalty =</span> penalties7<span class="sc">::</span><span class="fu">quadratic_penalty</span>(</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>                  <span class="fu">diag</span>(<span class="fu">rep</span>(<span class="fu">seq_len</span>(sp<span class="sc">$</span>k)<span class="sc">^</span><span class="dv">4</span>, <span class="dv">2</span>))))</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(term_predict, SeasonTerm) <span class="ot">&lt;-</span> <span class="cf">function</span>(term, newdata, ...) {</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">eval</span>(term<span class="sc">@</span>expr, newdata, <span class="fu">baseenv</span>()))</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">season_X</span>(x, term<span class="sc">@</span>blueprint<span class="sc">$</span>period, term<span class="sc">@</span>blueprint<span class="sc">$</span>k)</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The penalty is the quadratic penalty with the diagonal matrix whose entries are <span class="math inline">\(j^4\)</span>, each repeated for the cosine and the sine of harmonic <span class="math inline">\(j\)</span>. The reason lies in the derivative of the harmonic. The second derivative of <span class="math inline">\(a\cos(j\omega t) + b\sin(j\omega t)\)</span> has amplitude <span class="math inline">\(j^2\omega^2\)</span>, so the integral of its square over one period is <span class="math display">\[
+\int_0^P f''(t)^2\,dt = \frac{P}{2}\,\omega^4 \sum_{j=1}^{k} j^4\,(a_j^2 + b_j^2).
+\]</span> The penalty <span class="math inline">\(\lambda\,\beta^\top\!\mathrm{diag}(j^4)\,\beta\)</span> is therefore a roughness penalty on the integrated squared second derivative, which is the penalty of the Fourier smoother <code>fourier_smooth(order = 2)</code> in <code>basis7</code>. The constant <span class="math inline">\(\omega^4\)</span> is absorbed by the smoothing parameter.</p>
+<p>We check the term on the monthly temperature of Nottingham, a series of 240 observations from 1920 to 1939 that comes with R.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>nt <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">temp =</span> <span class="fu">as.numeric</span>(nottem), <span class="at">time =</span> <span class="fu">as.numeric</span>(<span class="fu">time</span>(nottem)))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>nt<span class="sc">$</span>month <span class="ot">&lt;-</span> (<span class="fu">seq_len</span>(<span class="fu">nrow</span>(nt)) <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">%%</span> <span class="dv">12</span> <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>chk_season <span class="ot">&lt;-</span> <span class="fu">check_term</span>(<span class="fu">season</span>(month, <span class="at">period =</span> <span class="dv">12</span>, <span class="at">k =</span> <span class="dv">4</span>), nt, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>chk_season</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       check status          info</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     build     OK 240 x 8 block</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2     names     OK              </span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3      npar     OK              </span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4    smooth     OK        smooth</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5 reproduce     OK              </span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6    subset     OK      120 rows</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Every check passes. The model has a linear trend in time and the seasonal term for the mean, with four harmonics and the penalty above:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>f_season <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> time <span class="sc">+</span> <span class="fu">season</span>(month, <span class="at">period =</span> <span class="dv">12</span>, <span class="at">k =</span> <span class="dv">4</span>),</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                    <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> nt)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(f_season)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = temp ~ time + season(month, period = 12, k = 4), </span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             distrib = gaussian1_distrib(), data = nt)</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gaussian1     Observations: 240</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z       p    lower  upper</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -60.32   49.44 -1.22 0.22249   -157.2  36.59</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   time          0.05666 0.02562 2.212 0.02698 0.006451 0.1069</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; season(month, period = 12, k = 4)   [8 coefficients, edf 7.13]</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  estimate      se       z         p    lower  upper</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lambda [reml]   0.03695 0.01937                    0.01323 0.1033</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cos1             -9.231  0.2088  -44.21   &lt; 1e-16    -9.64 -8.822</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cos2            -0.0834  0.2063 -0.4043    0.6860  -0.4878  0.321</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cos3           -0.06093  0.1965   -0.31    0.7565  -0.4461 0.3242</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cos4            0.01199  0.1758 0.06822    0.9456  -0.3325 0.3565</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sin1             -6.912  0.2089  -33.08   &lt; 1e-16   -7.322 -6.503</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sin2              1.468  0.2063   7.117 1.102e-12    1.064  1.873</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sin3             0.3078  0.1965   1.566    0.1172 -0.07733  0.693</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sin4             0.2604  0.1758   1.481    0.1386 -0.08416 0.6049</span></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se    z       p  lower  upper</span></span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    0.8281 0.04652 17.8 &lt; 1e-16 0.7369 0.9193</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -534.716152    effective df 10.13</span></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1089.694    cBIC 1124.955</span></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.42 s</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.2e-05   min eigen 4.5e-06</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 8.1e-07   min eigen 1</span></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The same model written with the smoother of <code>basis7</code> reaches the same solution. The smoother is <code>fourier_smooth()</code> with nine basis functions, which are the constant and the four harmonics, and with the second-derivative penalty on the interval of one period:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>f_season_b <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> time <span class="sc">+</span> <span class="fu">s</span>(month, <span class="at">smoother =</span> basis7<span class="sc">::</span><span class="fu">fourier_smooth</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                                <span class="at">k =</span> <span class="dv">9</span>, <span class="at">order =</span> <span class="dv">2</span>, <span class="at">lower =</span> <span class="dv">0</span>, <span class="at">upper =</span> <span class="dv">12</span>)),</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                      <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> nt)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">season =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f_season)), <span class="at">basis7 =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f_season_b)),</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">max_fitted_difference =</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">fitted</span>(f_season) <span class="sc">-</span> <span class="fu">fitted</span>(f_season_b))))</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                season                basis7 max_fitted_difference </span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         -5.347162e+02         -5.347162e+02          5.484069e-06</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The two fits have the same effective degrees of freedom and the same criterion. Their fitted values differ by less than <span class="math inline">\(10^{-5}\)</span> in the units of the series, which is the agreement one expects from two routes to the same penalized problem that differ in how the basis is built.</p>
+<p>The term works in the equation of the scale as well. A seasonal change of the spread of the temperature is one more equation of the same kind:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>f_season_sd <span class="ot">&lt;-</span> <span class="fu">statmod</span>(temp <span class="sc">~</span> time <span class="sc">+</span> <span class="fu">season</span>(month, <span class="at">period =</span> <span class="dv">12</span>, <span class="at">k =</span> <span class="dv">4</span>) <span class="sc">|</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                         sigma <span class="sc">~</span> <span class="fu">season</span>(month, <span class="at">period =</span> <span class="dv">12</span>, <span class="at">k =</span> <span class="dv">2</span>),</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                       <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> nt)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">logLik =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f_season_sd)),</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> <span class="fu">statmod_certificate</span>(f_season_sd)<span class="sc">$</span>state)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             logLik              state </span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; "-532.44352059268"        "converged"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The fitted values follow the series closely:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(nt<span class="sc">$</span>time, nt<span class="sc">$</span>temp, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">cex =</span> <span class="fl">0.5</span>, <span class="at">col =</span> <span class="st">"grey40"</span>,</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"year"</span>, <span class="at">ylab =</span> <span class="st">"temperature"</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(nt<span class="sc">$</span>time, <span class="fu">fitted</span>(f_season), <span class="at">lwd =</span> <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-season" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-season-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="16-own-terms_files/figure-html/fig-season-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-season-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;16.1: Monthly temperature at Nottingham (points) and the fitted values of the seasonal model (line).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="sec-own-asym" class="level2" data-number="16.3">
+<h2 data-number="16.3" class="anchored" data-anchor-id="sec-own-asym"><span class="header-section-number">16.3</span> A moving block: an asymptotic growth term</h2>
+<p>The asymptotic curve <span class="math inline">\(f(x) = \mathrm{Asym}\,\{1 - \exp(-e^{\mathrm{lrc}}\,x)\}\)</span> has two coefficients, the asymptote and the log of the rate. Its block is the Jacobian of <span class="math inline">\(f\)</span> with respect to them: the column of <span class="math inline">\(\mathrm{Asym}\)</span> is <span class="math inline">\(1 - e^{-e^{\mathrm{lrc}}x}\)</span>, and the column of <span class="math inline">\(\mathrm{lrc}\)</span> is <span class="math inline">\(\mathrm{Asym}\,x\,e^{\mathrm{lrc}}e^{-e^{\mathrm{lrc}}x}\)</span>. The block depends on the coefficients, so it has to be recomputed whenever they move. The term keeps the coefficients in its blueprint, and <code>term_refresh()</code> puts the new values in and rebuilds the block.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>AsymTerm <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"AsymTerm"</span>, <span class="at">parent =</span> additive_term,</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                          <span class="at">properties =</span> <span class="fu">list</span>(<span class="at">expr =</span> S7<span class="sc">::</span>class_any,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>                                            <span class="at">start =</span> S7<span class="sc">::</span>class_numeric))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>asym <span class="ot">&lt;-</span> <span class="cf">function</span>(x, <span class="at">start =</span> <span class="fu">c</span>(<span class="at">Asym =</span> <span class="dv">60</span>, <span class="at">lrc =</span> <span class="sc">-</span><span class="dv">2</span>)) {</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  xe <span class="ot">&lt;-</span> <span class="fu">substitute</span>(x)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">AsymTerm</span>(<span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"asym(%s)"</span>, <span class="fu">deparse</span>(xe)), <span class="at">expr =</span> xe, <span class="at">start =</span> start,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>           <span class="at">hyper =</span> <span class="fu">list</span>(), <span class="at">X =</span> <span class="cn">NULL</span>, <span class="at">coef_names =</span> <span class="fu">character</span>(<span class="dv">0</span>),</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>           <span class="at">blueprint =</span> <span class="fu">list</span>(), <span class="at">penalty =</span> <span class="cn">NULL</span>)</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>asym_parts <span class="ot">&lt;-</span> <span class="cf">function</span>(x, cf) {</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> <span class="fu">exp</span>(cf[<span class="dv">2</span>]); e <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="sc">-</span>r <span class="sc">*</span> x)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">value =</span> cf[<span class="dv">1</span>] <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> e),</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">J =</span> <span class="fu">cbind</span>(<span class="at">Asym =</span> <span class="dv">1</span> <span class="sc">-</span> e, <span class="at">lrc =</span> cf[<span class="dv">1</span>] <span class="sc">*</span> x <span class="sc">*</span> r <span class="sc">*</span> e))</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(term_build, AsymTerm) <span class="ot">&lt;-</span> <span class="cf">function</span>(term, data, ...) {</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">eval</span>(term<span class="sc">@</span>expr, data, <span class="fu">baseenv</span>()))</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  cf <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(term<span class="sc">@</span>start)</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  S7<span class="sc">::</span><span class="fu">set_props</span>(term, <span class="at">X =</span> <span class="fu">asym_parts</span>(x, cf)<span class="sc">$</span>J, <span class="at">coef_names =</span> <span class="fu">c</span>(<span class="st">"Asym"</span>, <span class="st">"lrc"</span>),</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>                <span class="at">blueprint =</span> <span class="fu">list</span>(<span class="at">x =</span> x, <span class="at">coef =</span> cf), <span class="at">penalty =</span> <span class="cn">NULL</span>)</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(term_refresh, AsymTerm) <span class="ot">&lt;-</span> <span class="cf">function</span>(term, coef, ...) {</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>  bp <span class="ot">&lt;-</span> term<span class="sc">@</span>blueprint</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>  bp<span class="sc">$</span>coef <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(coef)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>  S7<span class="sc">::</span><span class="fu">set_props</span>(term, <span class="at">X =</span> <span class="fu">asym_parts</span>(bp<span class="sc">$</span>x, bp<span class="sc">$</span>coef)<span class="sc">$</span>J, <span class="at">blueprint =</span> bp)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(term_value, AsymTerm) <span class="ot">&lt;-</span> <span class="cf">function</span>(term, <span class="at">coef =</span> <span class="cn">NULL</span>, <span class="at">newdata =</span> <span class="cn">NULL</span>, ...) {</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>  bp <span class="ot">&lt;-</span> term<span class="sc">@</span>blueprint</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>  cf <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.null</span>(coef)) bp<span class="sc">$</span>coef <span class="cf">else</span> <span class="fu">as.numeric</span>(coef)</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.null</span>(newdata)) bp<span class="sc">$</span>x <span class="cf">else</span> <span class="fu">as.numeric</span>(<span class="fu">eval</span>(term<span class="sc">@</span>expr, newdata, <span class="fu">baseenv</span>()))</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">asym_parts</span>(x, cf)<span class="sc">$</span>value</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(term_coef_start, AsymTerm) <span class="ot">&lt;-</span> <span class="cf">function</span>(term, <span class="at">target =</span> <span class="cn">NULL</span>, ...) {</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>  term<span class="sc">@</span>blueprint<span class="sc">$</span>coef</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(term_predict, AsymTerm) <span class="ot">&lt;-</span> <span class="cf">function</span>(term, newdata, ...) {</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">asym_parts</span>(<span class="fu">as.numeric</span>(<span class="fu">eval</span>(term<span class="sc">@</span>expr, newdata, <span class="fu">baseenv</span>())),</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>             term<span class="sc">@</span>blueprint<span class="sc">$</span>coef)<span class="sc">$</span>J</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The data are the Loblolly pines of the <code>datasets</code> package: height in feet of fourteen trees, measured at several ages, the trees being distinguished by the factor <code>Seed</code>. We check the term and then fit the curve to the pooled data.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>lob <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(Loblolly)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>chk_asym <span class="ot">&lt;-</span> <span class="fu">check_term</span>(<span class="fu">asym</span>(age), lob, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>chk_asym</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       check status         info</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     build     OK 84 x 2 block</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2     names     OK             </span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3      npar     OK             </span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4    smooth     OK       smooth</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5 reproduce     OK             </span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6    subset     OK      78 rows</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>f_asym <span class="ot">&lt;-</span> <span class="fu">statmod</span>(height <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> <span class="fu">asym</span>(age), <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lob)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(f_asym)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = height ~ 0 + asym(age), distrib = gaussian1_distrib(), </span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = lob)</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gaussian1     Observations: 84</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         estimate     se      z        p  lower  upper</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Asym     344.3  128.3  2.683 0.007299  92.79  595.9</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lrc      -4.84 0.4039 -11.98  &lt; 1e-16 -5.631 -4.048</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z       p  lower upper</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.067 0.07809 13.67 &lt; 1e-16 0.9142  1.22</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -207.839380    effective df 3.00</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 421.679    cBIC 428.971</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 250 ms</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.8e-08   min eigen 0.00025</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.9e-05   min eigen 1</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>n_asym <span class="ot">&lt;-</span> <span class="fu">nls</span>(height <span class="sc">~</span> Asym <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fu">exp</span>(lrc) <span class="sc">*</span> age)), <span class="at">data =</span> lob,</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>              <span class="at">start =</span> <span class="fu">list</span>(<span class="at">Asym =</span> <span class="dv">60</span>, <span class="at">lrc =</span> <span class="sc">-</span><span class="dv">2</span>))</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">statmod =</span> <span class="fu">coef</span>(f_asym)<span class="sc">$</span>mu, <span class="at">nls =</span> <span class="fu">coef</span>(n_asym))</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             Asym       lrc</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod 344.3455 -4.839654</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; nls     344.3468 -4.839659</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The estimates agree with <code>nls()</code> to a relative difference of <span class="math inline">\(3.9 \times 10^{-6}\)</span>. The two log-likelihoods differ by a constant. The fit of <code>statmod()</code> is the restricted likelihood, and the difference from the likelihood of <code>nls()</code> is its dispersion term, which for <span class="math inline">\(n = 84\)</span> observations and <span class="math inline">\(p = 2\)</span> coefficients is <span class="math inline">\(42\log(84/82) - 1 = 0.0121\)</span>. The difference between the two fits is -0.0121. The same curve written with the package’s nonlinear term <code>nl()</code> gives the same log-likelihood, which is a check that the refresh of the block is right:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>f_asym_nl <span class="ot">&lt;-</span> <span class="fu">statmod</span>(height <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> <span class="fu">nl</span>(<span class="sc">~</span> Asym <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="fu">exp</span>(lrc) <span class="sc">*</span> age)),</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">start =</span> <span class="fu">list</span>(<span class="at">Asym =</span> <span class="dv">60</span>, <span class="at">lrc =</span> <span class="sc">-</span><span class="dv">2</span>)),</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> lob)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">asym =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f_asym)), <span class="at">nl =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f_asym_nl)))</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      asym        nl </span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -207.8394 -207.8394</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The term takes part in the other equations as any term does. The spread of the height can grow with the age, and a random intercept for each tree accounts for the repeated measures:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>f_asym_sd <span class="ot">&lt;-</span> <span class="fu">statmod</span>(height <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> <span class="fu">asym</span>(age) <span class="sc">|</span> sigma <span class="sc">~</span> age,</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> lob)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>f_asym_re <span class="ot">&lt;-</span> <span class="fu">statmod</span>(height <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> <span class="fu">asym</span>(age) <span class="sc">+</span> <span class="fu">random</span>(<span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> Seed),</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> lob)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">model =</span> <span class="fu">c</span>(<span class="st">"sigma ~ age"</span>, <span class="st">"random(~ 1 | Seed)"</span>),</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>           <span class="at">logLik =</span> <span class="fu">c</span>(<span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f_asym_sd)),</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>                      <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f_asym_re))),</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>           <span class="at">state =</span> <span class="fu">c</span>(<span class="fu">statmod_certificate</span>(f_asym_sd)<span class="sc">$</span>state,</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">statmod_certificate</span>(f_asym_re)<span class="sc">$</span>state))</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                model    logLik     state</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1        sigma ~ age -205.3795 converged</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 random(~ 1 | Seed) -114.8977 converged</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The predicted curve, with its standard errors, comes from the same term:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>pa <span class="ot">&lt;-</span> <span class="fu">predict</span>(f_asym, <span class="at">what =</span> <span class="st">"mu"</span>,</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">newdata =</span> <span class="fu">data.frame</span>(<span class="at">age =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">15</span>, <span class="dv">25</span>)), <span class="at">se =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>pa</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        fit        se    lower    upper</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 13.35271 0.3300475 12.70583 13.99960</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 38.52488 0.4369437 37.66849 39.38128</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 61.78269 0.6868405 60.43651 63.12888</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(lob<span class="sc">$</span>age, lob<span class="sc">$</span>height, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">cex =</span> <span class="fl">0.5</span>, <span class="at">col =</span> <span class="st">"grey40"</span>,</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"age (years)"</span>, <span class="at">ylab =</span> <span class="st">"height (feet)"</span>)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>ag <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fu">min</span>(lob<span class="sc">$</span>age), <span class="fu">max</span>(lob<span class="sc">$</span>age), <span class="at">length.out =</span> <span class="dv">100</span>)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(ag, <span class="fu">predict</span>(f_asym, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> <span class="fu">data.frame</span>(<span class="at">age =</span> ag),</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>                  <span class="at">se =</span> <span class="cn">TRUE</span>)<span class="sc">$</span>fit, <span class="at">lwd =</span> <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-asym" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-asym-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="16-own-terms_files/figure-html/fig-asym-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-asym-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;16.2: Height of the Loblolly pines against age (points), with the asymptotic curve fitted by asym() (line).
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="sec-own-optim" class="level2" data-number="16.4">
+<h2 data-number="16.4" class="anchored" data-anchor-id="sec-own-optim"><span class="header-section-number">16.4</span> The structure of an optimizer and its stopping rule</h2>
+<p>An optimizer of <code>optimizers7</code> is an S7 object that inherits from <code>optimizer</code>. It holds a criterion, which is its stopping rule, a budget of iterations and of evaluations, and the settings for the trace. Its method <code>minimize()</code> receives the objective <code>fn</code>, the starting point <code>par</code>, the gradient <code>gr</code> and the Hessian <code>he</code>, and it returns an <code>optimizer_result</code> with the point, the value, the number of iterations, the counts of evaluations and whether the criterion was met. The method calls <code>crit_met()</code> after each accepted step, and the criterion decides what finished means. The optimizer also declares what it needs, through <code>optimizer_provides()</code>, and whether it can handle bounds, through <code>optimizer_bounded()</code>, so that <code>check_optimizer()</code> tests it against what it declares.</p>
+<p>The criterion of the chapter is the relative gradient. The run stops when the largest component of the gradient is below the tolerance times <span class="math inline">\(\max(1, |f|)\)</span>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>CritRelGrad <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"CritRelGrad"</span>, <span class="at">parent =</span> criterion,</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>                             <span class="at">properties =</span> <span class="fu">list</span>(<span class="at">tol =</span> S7<span class="sc">::</span>class_numeric))</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>crit_relgrad <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">tol =</span> <span class="fl">1e-8</span>) {</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">CritRelGrad</span>(<span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"relative gradient &lt; %g"</span>, tol), <span class="at">tol =</span> tol)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(crit_met, CritRelGrad) <span class="ot">&lt;-</span> <span class="cf">function</span>(criterion, state) {</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.null</span>(state<span class="sc">$</span>gradient) <span class="sc">&amp;&amp;</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">max</span>(<span class="fu">abs</span>(state<span class="sc">$</span>gradient)) <span class="sc">&lt;</span> criterion<span class="sc">@</span>tol <span class="sc">*</span> <span class="fu">max</span>(<span class="dv">1</span>, <span class="fu">abs</span>(state<span class="sc">$</span>f_new))</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(crit_needs, CritRelGrad) <span class="ot">&lt;-</span> <span class="cf">function</span>(criterion) <span class="st">"gradient"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<section id="sec-own-tr-sub" class="level3">
+<h3 class="anchored" data-anchor-id="sec-own-tr-sub">The trust-region subproblem</h3>
+<p>The method is a Newton method with a trust region <span class="citation" data-cites="conn2000">Conn, Gould, and Toint (<a href="A2-references.html#ref-conn2000" role="doc-biblioref">2000</a>)</span>. At the current point <span class="math inline">\(x\)</span>, with gradient <span class="math inline">\(g\)</span> and Hessian <span class="math inline">\(H\)</span>, it replaces the objective by the quadratic model <span class="math inline">\(m(p) = g^\top p + \tfrac12 p^\top H p\)</span> and takes the step <span class="math inline">\(p\)</span> that minimizes <span class="math inline">\(m\)</span> inside a ball of radius <span class="math inline">\(\Delta\)</span>: <span class="math display">\[
+\min_p\; m(p) \quad \text{subject to} \quad \|p\| \le \Delta .
+\]</span> Write <span class="math inline">\(H = V\Lambda V^\top\)</span> with <span class="math inline">\(\Lambda = \mathrm{diag}(\lambda_1, \ldots,
+\lambda_n)\)</span>, and let <span class="math inline">\(\tilde g = V^\top g\)</span>. The solution has the form <span class="math display">\[
+p(\mu) = -(H + \mu I)^{-1} g ,
+\]</span> for a multiplier <span class="math inline">\(\mu \ge \max(0, -\lambda_{\min})\)</span> such that <span class="math inline">\(\|p(\mu)\| =
+\Delta\)</span>. If the Newton step <span class="math inline">\(-H^{-1}g\)</span> already lies inside the ball, then <span class="math inline">\(\mu = 0\)</span> and the step is the Newton step. The multiplier is the root of the secular equation <span class="math inline">\(\|p(\mu)\| = \Delta\)</span>, which the method finds with a bracketing root search in <span class="math inline">\(\mu\)</span>.</p>
+<p>The case that needs care is the hard case. When <span class="math inline">\(\tilde g\)</span> has no component along the eigenvector of <span class="math inline">\(\lambda_{\min}\)</span> and <span class="math inline">\(\lambda_{\min} \le 0\)</span>, the norm <span class="math inline">\(\|p(\mu)\|\)</span> does not reach <span class="math inline">\(\Delta\)</span> as <span class="math inline">\(\mu\)</span> falls to its lower bound. The step then takes <span class="math inline">\(p = p_\perp + \tau v_{\min}\)</span>, where <span class="math inline">\(p_\perp\)</span> is the step on the other eigenvectors and <span class="math inline">\(\tau\)</span> is chosen to reach the boundary. Between the two signs of <span class="math inline">\(\tau\)</span> the method keeps the one with the smaller model.</p>
+<p>The step is correct when it satisfies the first-order conditions of the problem. These are <span class="math display">\[
+(H + \mu I)\,p = -g, \qquad \mu \ge 0, \qquad \mu\,(\Delta - \|p\|) = 0,
+\qquad H + \mu I \succeq 0,
+\]</span> and they are sufficient for <span class="math inline">\(p\)</span> to be a global minimizer of <span class="math inline">\(m\)</span> over the ball <span class="citation" data-cites="conn2000">Conn, Gould, and Toint (<a href="A2-references.html#ref-conn2000" role="doc-biblioref">2000</a>)</span>. The gate of this chapter checks them on random problems.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>tr_step <span class="ot">&lt;-</span> <span class="cf">function</span>(g, H, Delta) {</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  e <span class="ot">&lt;-</span> <span class="fu">eigen</span>(H, <span class="at">symmetric =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  lam <span class="ot">&lt;-</span> e<span class="sc">$</span>values</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  V <span class="ot">&lt;-</span> e<span class="sc">$</span>vectors</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  gt <span class="ot">&lt;-</span> <span class="fu">drop</span>(<span class="fu">crossprod</span>(V, g))</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  lmin <span class="ot">&lt;-</span> <span class="fu">min</span>(lam)</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (lmin <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    p0 <span class="ot">&lt;-</span> <span class="sc">-</span>gt <span class="sc">/</span> lam</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">sqrt</span>(<span class="fu">sum</span>(p0<span class="sc">^</span><span class="dv">2</span>)) <span class="sc">&lt;=</span> Delta) {</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>      p <span class="ot">&lt;-</span> <span class="fu">drop</span>(V <span class="sc">%*%</span> p0)</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>      <span class="fu">attr</span>(p, <span class="st">"mu"</span>) <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>      <span class="fu">return</span>(p)</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>  lo <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="dv">0</span>, <span class="sc">-</span>lmin)</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>  scale <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="dv">1</span>, <span class="fu">abs</span>(lmin), <span class="fu">sqrt</span>(<span class="fu">sum</span>(gt<span class="sc">^</span><span class="dv">2</span>)))</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>  norm_mu <span class="ot">&lt;-</span> <span class="cf">function</span>(mu) <span class="fu">sqrt</span>(<span class="fu">sum</span>((gt <span class="sc">/</span> (lam <span class="sc">+</span> mu))<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  mu_lo <span class="ot">&lt;-</span> lo <span class="sc">+</span> <span class="fl">1e-12</span> <span class="sc">*</span> scale</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">norm_mu</span>(mu_lo) <span class="sc">&lt;=</span> Delta) {</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># hard case: the most negative eigenvector carries no gradient</span></span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>    i_min <span class="ot">&lt;-</span> <span class="fu">which.min</span>(lam)</span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>    keep <span class="ot">&lt;-</span> <span class="fu">seq_along</span>(lam)[<span class="sc">-</span>i_min]</span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>    p_perp <span class="ot">&lt;-</span> <span class="sc">-</span>gt[keep] <span class="sc">/</span> (lam[keep] <span class="sc">+</span> lo)</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>    tau <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">max</span>(<span class="dv">0</span>, Delta<span class="sc">^</span><span class="dv">2</span> <span class="sc">-</span> <span class="fu">sum</span>(p_perp<span class="sc">^</span><span class="dv">2</span>)))</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>    cand <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="fu">c</span>(<span class="dv">1</span>, <span class="sc">-</span><span class="dv">1</span>), <span class="cf">function</span>(s) {</span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>      pc <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="fu">length</span>(lam))</span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>      pc[keep] <span class="ot">&lt;-</span> p_perp</span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>      pc[i_min] <span class="ot">&lt;-</span> s <span class="sc">*</span> tau</span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>      pc</span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a>    model <span class="ot">&lt;-</span> <span class="fu">vapply</span>(cand, <span class="cf">function</span>(pc) {</span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>      <span class="fu">sum</span>(gt <span class="sc">*</span> pc) <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">sum</span>(lam <span class="sc">*</span> pc<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>    }, <span class="fu">numeric</span>(<span class="dv">1</span>))</span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>    p <span class="ot">&lt;-</span> <span class="fu">drop</span>(V <span class="sc">%*%</span> cand[[<span class="fu">which.min</span>(model)]])</span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>    <span class="fu">attr</span>(p, <span class="st">"mu"</span>) <span class="ot">&lt;-</span> lo</span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(p)</span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">uniroot</span>(<span class="cf">function</span>(mu) <span class="fu">norm_mu</span>(mu) <span class="sc">-</span> Delta,</span>
+<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>                       <span class="fu">c</span>(mu_lo, lo <span class="sc">+</span> <span class="fu">sqrt</span>(<span class="fu">sum</span>(g<span class="sc">^</span><span class="dv">2</span>)) <span class="sc">/</span> Delta),</span>
+<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a>                       <span class="at">tol =</span> <span class="fl">1e-14</span> <span class="sc">*</span> scale, <span class="at">extendInt =</span> <span class="st">"no"</span>)<span class="sc">$</span>root</span>
+<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">drop</span>(V <span class="sc">%*%</span> (<span class="sc">-</span>gt <span class="sc">/</span> (lam <span class="sc">+</span> mu)))</span>
+<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">attr</span>(p, <span class="st">"mu"</span>) <span class="ot">&lt;-</span> mu</span>
+<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a>  p</span>
+<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="sec-own-tr-method" class="level3">
+<h3 class="anchored" data-anchor-id="sec-own-tr-method">The method and its radius</h3>
+<p>After the step, the method compares the decrease of the objective with the decrease the model predicts. The ratio is <span class="math display">\[
+\rho = \frac{f(x) - f(x + p)}{m(0) - m(p)} .
+\]</span> The step is accepted when <span class="math inline">\(\rho &gt; 0\)</span>. The radius follows the classical rules of <span class="citation" data-cites="nocedal2006">Nocedal and Wright (<a href="A2-references.html#ref-nocedal2006" role="doc-biblioref">2006</a>)</span>: it is divided by four when <span class="math inline">\(\rho &lt; 1/4\)</span>, and it is doubled, up to a maximum, when <span class="math inline">\(\rho &gt; 3/4\)</span> and the step reaches the boundary. A step that the model did not predict well therefore shortens the radius, and a step that the model predicted exactly lengthens it.</p>
+<p>A second stop is needed. Near the minimum the predicted decrease falls below the rounding of the objective, so that <span class="math inline">\(f(x + p)\)</span> and <span class="math inline">\(f(x)\)</span> are equal in floating point, every step is rejected, and the radius falls to zero. When the predicted decrease is below <span class="math inline">\(10^3\,\varepsilon\,\max(1, |f|)\)</span>, the method stops and says so. Its <code>criterion_met</code> then names the resolution of the objective, and the result is not marked as converged.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>TrustRegion <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"TrustRegion"</span>, <span class="at">parent =</span> optimizer,</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>                             <span class="at">properties =</span> <span class="fu">list</span>(<span class="at">radius =</span> S7<span class="sc">::</span>class_numeric,</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">radius_max =</span> S7<span class="sc">::</span>class_numeric))</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>trust_region <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">criterion =</span> <span class="fu">crit_relgrad</span>(<span class="fl">1e-8</span>), <span class="at">radius =</span> <span class="dv">1</span>,</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>                         <span class="at">radius_max =</span> <span class="fl">1e4</span>, <span class="at">maxit =</span> <span class="dv">200</span>, <span class="at">max_eval =</span> <span class="dv">2000</span>,</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>                         <span class="at">verbose =</span> <span class="cn">FALSE</span>, <span class="at">refresh =</span> <span class="dv">10</span>, <span class="at">keep_trace =</span> <span class="cn">FALSE</span>) {</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">TrustRegion</span>(<span class="at">name =</span> <span class="st">"trust-region Newton"</span>, <span class="at">criterion =</span> criterion,</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>              <span class="at">maxit =</span> maxit, <span class="at">max_eval =</span> max_eval, <span class="at">verbose =</span> verbose,</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>              <span class="at">refresh =</span> refresh, <span class="at">keep_trace =</span> keep_trace,</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>              <span class="at">radius =</span> radius, <span class="at">radius_max =</span> radius_max)</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(optimizer_provides, TrustRegion) <span class="ot">&lt;-</span> <span class="cf">function</span>(optimizer) <span class="st">"gradient"</span></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="co"># No box: the radius is the only constraint, so the method answers FALSE and</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a><span class="co"># refuses finite bounds, as prox_grad() does.</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(optimizer_bounded, TrustRegion) <span class="ot">&lt;-</span> <span class="cf">function</span>(optimizer) <span class="cn">FALSE</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(minimize, TrustRegion) <span class="ot">&lt;-</span> <span class="cf">function</span>(optimizer, fn, par, <span class="at">gr =</span> <span class="cn">NULL</span>,</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">he =</span> <span class="cn">NULL</span>, <span class="at">lower =</span> <span class="sc">-</span><span class="cn">Inf</span>,</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">upper =</span> <span class="cn">Inf</span>, ...) {</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.null</span>(gr) <span class="sc">||</span> <span class="fu">is.null</span>(he)) {</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"trust_region() needs a gradient and a Hessian."</span>, <span class="at">call. =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.finite</span>(lower)) <span class="sc">||</span> <span class="fu">any</span>(<span class="fu">is.finite</span>(upper))) {</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"trust_region() has no box; its radius is the only constraint."</span>,</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>         <span class="at">call. =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">check_criterion</span>(optimizer)</span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>  o <span class="ot">&lt;-</span> optimizer</span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(par)</span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="fu">fn</span>(x)</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>  nf <span class="ot">&lt;-</span> <span class="dv">1</span>L</span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>  g <span class="ot">&lt;-</span> <span class="fu">gr</span>(x)</span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>  H <span class="ot">&lt;-</span> <span class="fu">he</span>(x)</span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>  ng <span class="ot">&lt;-</span> <span class="dv">1</span>L</span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>  nh <span class="ot">&lt;-</span> <span class="dv">1</span>L</span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>  Delta <span class="ot">&lt;-</span> o<span class="sc">@</span>radius</span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a>  conv <span class="ot">&lt;-</span> <span class="cn">FALSE</span></span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>  it <span class="ot">&lt;-</span> <span class="dv">0</span>L</span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>  reason <span class="ot">&lt;-</span> <span class="st">"stopped without converging"</span></span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>  rows <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">crit_met</span>(o<span class="sc">@</span>criterion, <span class="fu">list</span>(<span class="at">gradient =</span> g, <span class="at">f_new =</span> f))) conv <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (k <span class="cf">in</span> <span class="fu">seq_len</span>(<span class="cf">if</span> (conv) <span class="dv">0</span>L <span class="cf">else</span> o<span class="sc">@</span>maxit)) {</span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a>    it <span class="ot">&lt;-</span> k</span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a>    H <span class="ot">&lt;-</span> (H <span class="sc">+</span> <span class="fu">t</span>(H)) <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a>    p <span class="ot">&lt;-</span> <span class="fu">tr_step</span>(g, H, Delta)</span>
+<span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a>    mu <span class="ot">&lt;-</span> <span class="fu">attr</span>(p, <span class="st">"mu"</span>)</span>
+<span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a>    pn <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">sum</span>(p<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a>    pred <span class="ot">&lt;-</span> <span class="sc">-</span>(<span class="fu">sum</span>(g <span class="sc">*</span> p) <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">sum</span>(p <span class="sc">*</span> <span class="fu">drop</span>(H <span class="sc">%*%</span> p)))</span>
+<span id="cb16-48"><a href="#cb16-48" aria-hidden="true" tabindex="-1"></a>    xn <span class="ot">&lt;-</span> x <span class="sc">+</span> p</span>
+<span id="cb16-49"><a href="#cb16-49" aria-hidden="true" tabindex="-1"></a>    fx <span class="ot">&lt;-</span> <span class="fu">fn</span>(xn)</span>
+<span id="cb16-50"><a href="#cb16-50" aria-hidden="true" tabindex="-1"></a>    nf <span class="ot">&lt;-</span> nf <span class="sc">+</span> <span class="dv">1</span>L</span>
+<span id="cb16-51"><a href="#cb16-51" aria-hidden="true" tabindex="-1"></a>    rho <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.finite</span>(fx) <span class="sc">&amp;&amp;</span> pred <span class="sc">&gt;</span> <span class="dv">0</span>) (f <span class="sc">-</span> fx) <span class="sc">/</span> pred <span class="cf">else</span> <span class="sc">-</span><span class="cn">Inf</span></span>
+<span id="cb16-52"><a href="#cb16-52" aria-hidden="true" tabindex="-1"></a>    accepted <span class="ot">&lt;-</span> rho <span class="sc">&gt;</span> <span class="dv">0</span></span>
+<span id="cb16-53"><a href="#cb16-53" aria-hidden="true" tabindex="-1"></a>    radius_in <span class="ot">&lt;-</span> Delta</span>
+<span id="cb16-54"><a href="#cb16-54" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (rho <span class="sc">&lt;</span> <span class="fl">0.25</span>) {</span>
+<span id="cb16-55"><a href="#cb16-55" aria-hidden="true" tabindex="-1"></a>      Delta <span class="ot">&lt;-</span> Delta <span class="sc">/</span> <span class="dv">4</span></span>
+<span id="cb16-56"><a href="#cb16-56" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> <span class="cf">if</span> (rho <span class="sc">&gt;</span> <span class="fl">0.75</span> <span class="sc">&amp;&amp;</span> pn <span class="sc">&gt;=</span> <span class="fl">0.99</span> <span class="sc">*</span> Delta) {</span>
+<span id="cb16-57"><a href="#cb16-57" aria-hidden="true" tabindex="-1"></a>      Delta <span class="ot">&lt;-</span> <span class="fu">min</span>(<span class="dv">2</span> <span class="sc">*</span> Delta, o<span class="sc">@</span>radius_max)</span>
+<span id="cb16-58"><a href="#cb16-58" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb16-59"><a href="#cb16-59" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (o<span class="sc">@</span>keep_trace) {</span>
+<span id="cb16-60"><a href="#cb16-60" aria-hidden="true" tabindex="-1"></a>      rows[[it]] <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">iteration =</span> it,</span>
+<span id="cb16-61"><a href="#cb16-61" aria-hidden="true" tabindex="-1"></a>                               <span class="at">value =</span> <span class="cf">if</span> (accepted) fx <span class="cf">else</span> f,</span>
+<span id="cb16-62"><a href="#cb16-62" aria-hidden="true" tabindex="-1"></a>                               <span class="at">step =</span> pn, <span class="at">radius =</span> radius_in, <span class="at">rho =</span> rho,</span>
+<span id="cb16-63"><a href="#cb16-63" aria-hidden="true" tabindex="-1"></a>                               <span class="at">accepted =</span> accepted, <span class="at">mu =</span> mu)</span>
+<span id="cb16-64"><a href="#cb16-64" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb16-65"><a href="#cb16-65" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (accepted) {</span>
+<span id="cb16-66"><a href="#cb16-66" aria-hidden="true" tabindex="-1"></a>      g <span class="ot">&lt;-</span> <span class="fu">gr</span>(xn)</span>
+<span id="cb16-67"><a href="#cb16-67" aria-hidden="true" tabindex="-1"></a>      ng <span class="ot">&lt;-</span> ng <span class="sc">+</span> <span class="dv">1</span>L</span>
+<span id="cb16-68"><a href="#cb16-68" aria-hidden="true" tabindex="-1"></a>      H <span class="ot">&lt;-</span> <span class="fu">he</span>(xn)</span>
+<span id="cb16-69"><a href="#cb16-69" aria-hidden="true" tabindex="-1"></a>      nh <span class="ot">&lt;-</span> nh <span class="sc">+</span> <span class="dv">1</span>L</span>
+<span id="cb16-70"><a href="#cb16-70" aria-hidden="true" tabindex="-1"></a>      state <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">iter =</span> it, <span class="at">f_new =</span> fx, <span class="at">f_old =</span> f, <span class="at">x_new =</span> xn,</span>
+<span id="cb16-71"><a href="#cb16-71" aria-hidden="true" tabindex="-1"></a>                    <span class="at">x_old =</span> x, <span class="at">gradient =</span> g)</span>
+<span id="cb16-72"><a href="#cb16-72" aria-hidden="true" tabindex="-1"></a>      x <span class="ot">&lt;-</span> xn</span>
+<span id="cb16-73"><a href="#cb16-73" aria-hidden="true" tabindex="-1"></a>      f <span class="ot">&lt;-</span> fx</span>
+<span id="cb16-74"><a href="#cb16-74" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (<span class="fu">crit_met</span>(o<span class="sc">@</span>criterion, state)) {</span>
+<span id="cb16-75"><a href="#cb16-75" aria-hidden="true" tabindex="-1"></a>        conv <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
+<span id="cb16-76"><a href="#cb16-76" aria-hidden="true" tabindex="-1"></a>        reason <span class="ot">&lt;-</span> o<span class="sc">@</span>criterion<span class="sc">@</span>label</span>
+<span id="cb16-77"><a href="#cb16-77" aria-hidden="true" tabindex="-1"></a>        <span class="cf">break</span></span>
+<span id="cb16-78"><a href="#cb16-78" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb16-79"><a href="#cb16-79" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb16-80"><a href="#cb16-80" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">isTRUE</span>(pred <span class="sc">&lt;=</span> <span class="fl">1e3</span> <span class="sc">*</span> .Machine<span class="sc">$</span>double.eps <span class="sc">*</span> <span class="fu">max</span>(<span class="dv">1</span>, <span class="fu">abs</span>(f)))) {</span>
+<span id="cb16-81"><a href="#cb16-81" aria-hidden="true" tabindex="-1"></a>      reason <span class="ot">&lt;-</span> <span class="st">"resolution of the objective reached"</span></span>
+<span id="cb16-82"><a href="#cb16-82" aria-hidden="true" tabindex="-1"></a>      <span class="cf">break</span></span>
+<span id="cb16-83"><a href="#cb16-83" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb16-84"><a href="#cb16-84" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (nf <span class="sc">&gt;=</span> o<span class="sc">@</span>max_eval <span class="sc">||</span> Delta <span class="sc">&lt;</span> <span class="fl">1e-12</span>) {</span>
+<span id="cb16-85"><a href="#cb16-85" aria-hidden="true" tabindex="-1"></a>      reason <span class="ot">&lt;-</span> <span class="st">"budget or radius exhausted"</span></span>
+<span id="cb16-86"><a href="#cb16-86" aria-hidden="true" tabindex="-1"></a>      <span class="cf">break</span></span>
+<span id="cb16-87"><a href="#cb16-87" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb16-88"><a href="#cb16-88" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb16-89"><a href="#cb16-89" aria-hidden="true" tabindex="-1"></a>  trace <span class="ot">&lt;-</span> <span class="cf">if</span> (o<span class="sc">@</span>keep_trace <span class="sc">&amp;&amp;</span> <span class="fu">length</span>(rows)) <span class="fu">do.call</span>(rbind, rows) <span class="cf">else</span> <span class="cn">NULL</span></span>
+<span id="cb16-90"><a href="#cb16-90" aria-hidden="true" tabindex="-1"></a>  <span class="fu">optimizer_result</span>(<span class="at">par =</span> x, <span class="at">value =</span> f, <span class="at">gradient =</span> g,</span>
+<span id="cb16-91"><a href="#cb16-91" aria-hidden="true" tabindex="-1"></a>                   <span class="at">counts =</span> <span class="fu">c</span>(<span class="at">f =</span> nf, <span class="at">g =</span> ng, <span class="at">h =</span> nh), <span class="at">iterations =</span> it,</span>
+<span id="cb16-92"><a href="#cb16-92" aria-hidden="true" tabindex="-1"></a>                   <span class="at">converged =</span> conv,</span>
+<span id="cb16-93"><a href="#cb16-93" aria-hidden="true" tabindex="-1"></a>                   <span class="at">criterion_met =</span> reason,</span>
+<span id="cb16-94"><a href="#cb16-94" aria-hidden="true" tabindex="-1"></a>                   <span class="at">message =</span> <span class="st">""</span>, <span class="at">trace =</span> trace, <span class="at">optimizer =</span> o,</span>
+<span id="cb16-95"><a href="#cb16-95" aria-hidden="true" tabindex="-1"></a>                   <span class="at">elapsed =</span> <span class="cn">NA_real_</span>)</span>
+<span id="cb16-96"><a href="#cb16-96" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The method has to pass the same battery as the optimizers of the package. The battery runs on the sphere, Rosenbrock and other test functions, and it checks the value, the counts, the trace and the rejection of a bad criterion.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>chk_tr <span class="ot">&lt;-</span> <span class="fu">check_optimizer</span>(<span class="fu">trust_region</span>(), <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>chk_tr<span class="sc">$</span>checks</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            value agrees with par         gradient agrees with par </span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                             TRUE                             TRUE </span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       convergence is not assumed            budgets are respected </span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                             TRUE                             TRUE </span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          evaluations are counted             trace is well formed </span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                             TRUE                             TRUE </span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    bounds are respected strictly                  the run repeats </span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                             TRUE                             TRUE </span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        maximize mirrors minimize  an unevaluable rule is rejected </span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                             TRUE                             TRUE </span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; a bad starting point is an error         it minimizes a quadratic </span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                             TRUE                             TRUE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="sec-own-optim-fit" class="level2" data-number="16.5">
+<h2 data-number="16.5" class="anchored" data-anchor-id="sec-own-optim-fit"><span class="header-section-number">16.5</span> Using the method in a fit</h2>
+<p>A gamma distribution fitted to the GAG concentrations of the <code>MASS</code> package (<code>GAGurine</code>) is the smallest test. We fit it with the Fisher scoring that <code>fit_distrib()</code> uses by default and with the trust-region method:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(GAGurine, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>fd_default <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(<span class="fu">gamma1_distrib</span>(), GAGurine<span class="sc">$</span>GAG)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>fd_tr <span class="ot">&lt;-</span> <span class="fu">fit_distrib</span>(<span class="fu">gamma1_distrib</span>(), GAGurine<span class="sc">$</span>GAG,</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>                     <span class="at">method =</span> <span class="fu">trust_region</span>())</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">default =</span> fd_default<span class="sc">@</span>loglik, <span class="at">trust_region =</span> fd_tr<span class="sc">@</span>loglik)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      default trust_region </span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    -1065.306    -1065.306</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Inside <code>statmod()</code> the method is an inner optimizer, which fits the coefficients for given hyperparameters. The fit of the acceleration of the motorcycle crash data (<code>mcycle</code>) has a smooth in the mean and in the scale, and it runs twenty-six inner fits. To count them, we keep the results of the runs with a wrapper that forwards every call to the optimizer it holds:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>RunLog <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"RunLog"</span>, <span class="at">parent =</span> optimizer,</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>                        <span class="at">properties =</span> <span class="fu">list</span>(<span class="at">inner =</span> S7<span class="sc">::</span>class_any,</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>                                          <span class="at">log =</span> S7<span class="sc">::</span>class_environment))</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>keep_runs <span class="ot">&lt;-</span> <span class="cf">function</span>(o, log) {</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">RunLog</span>(<span class="at">name =</span> o<span class="sc">@</span>name, <span class="at">criterion =</span> o<span class="sc">@</span>criterion, <span class="at">maxit =</span> o<span class="sc">@</span>maxit,</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">max_eval =</span> o<span class="sc">@</span>max_eval, <span class="at">verbose =</span> o<span class="sc">@</span>verbose, <span class="at">refresh =</span> o<span class="sc">@</span>refresh,</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">keep_trace =</span> o<span class="sc">@</span>keep_trace, <span class="at">inner =</span> o, <span class="at">log =</span> log)</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(optimizer_provides, RunLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(optimizer) {</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">optimizer_provides</span>(optimizer<span class="sc">@</span>inner)</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(optimizer_bounded, RunLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(optimizer) {</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">optimizer_bounded</span>(optimizer<span class="sc">@</span>inner)</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(minimize, RunLog) <span class="ot">&lt;-</span> <span class="cf">function</span>(optimizer, fn, par, <span class="at">gr =</span> <span class="cn">NULL</span>,</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>                                         <span class="at">he =</span> <span class="cn">NULL</span>, <span class="at">lower =</span> <span class="sc">-</span><span class="cn">Inf</span>,</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>                                         <span class="at">upper =</span> <span class="cn">Inf</span>, ...) {</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> optimizers7<span class="sc">::</span><span class="fu">minimize</span>(optimizer<span class="sc">@</span>inner, fn, par, <span class="at">gr =</span> gr, <span class="at">he =</span> he,</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>                             <span class="at">lower =</span> lower, <span class="at">upper =</span> upper, ...)</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="fu">length</span>(optimizer<span class="sc">@</span>log<span class="sc">$</span>runs) <span class="sc">+</span> <span class="dv">1</span>L</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>  optimizer<span class="sc">@</span>log<span class="sc">$</span>runs[[n]] <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">iterations =</span> r<span class="sc">@</span>iterations,</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">counts =</span> r<span class="sc">@</span>counts,</span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">converged =</span> r<span class="sc">@</span>converged,</span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>                                  <span class="at">value =</span> r<span class="sc">@</span>value, <span class="at">trace =</span> r<span class="sc">@</span>trace)</span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>  r</span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>runs_summary <span class="ot">&lt;-</span> <span class="cf">function</span>(log) {</span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>  rs <span class="ot">&lt;-</span> log<span class="sc">$</span>runs</span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">runs =</span> <span class="fu">length</span>(rs),</span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>             <span class="at">iterations =</span> <span class="fu">sum</span>(<span class="fu">vapply</span>(rs, <span class="cf">function</span>(r) r<span class="sc">$</span>iterations, <span class="dv">0</span>)),</span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a>             <span class="at">not_converged =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">vapply</span>(rs, <span class="cf">function</span>(r) r<span class="sc">$</span>converged, <span class="cn">TRUE</span>)))</span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(mcycle, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>inner_log <span class="ot">&lt;-</span> <span class="fu">new.env</span>()</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>inner_log<span class="sc">$</span>runs <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>f_inner <span class="ot">&lt;-</span> <span class="fu">statmod</span>(accel <span class="sc">~</span> <span class="fu">s</span>(times) <span class="sc">|</span> sigma <span class="sc">~</span> <span class="fu">s</span>(times),</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> mcycle,</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">inner_optimizer =</span> <span class="fu">keep_runs</span>(<span class="fu">trust_region</span>(), inner_log))</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(f_inner)</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = accel ~ s(times) | sigma ~ s(times), distrib = gaussian1_distrib(), </span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = mcycle, inner_optimizer = keep_runs(trust_region(), </span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                 inner_log))</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gaussian1     Observations: 133</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate    se      z        p  lower  upper</span></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     -16.3 3.489 -4.672 2.98e-06 -23.14 -9.463</span></span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; s(times)   [9 coefficients, edf 7.81]</span></span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  estimate        se     z         p     lower    upper</span></span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lambda [reml]  0.000353 0.0002477                 8.921e-05 0.001397</span></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lin               9.447     1.768 5.342 9.181e-08     5.981    12.91</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z       p lower upper</span></span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     2.993 0.06623 45.19 &lt; 1e-16 2.863 3.123</span></span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; s(times)   [9 coefficients, edf 6.23]</span></span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  estimate     se     z         p   lower  upper</span></span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lambda [reml]    0.2463 0.2024                 0.04922  1.233</span></span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lin              0.3738 0.0749 4.991 6.019e-07   0.227 0.5206</span></span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -579.377190    effective df 16.04</span></span>
+<span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1190.825    cBIC 1237.173</span></span>
+<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 770 ms</span></span>
+<span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1e-08   min eigen 0.0022</span></span>
+<span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.3e-08   min eigen 0.73</span></span>
+<span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
+<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a><span class="fu">runs_summary</span>(inner_log)</span>
+<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   runs iterations not_converged</span></span>
+<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1   26        148             0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Every inner run meets the rule, and the log-likelihood is the one that the default method finds. The check in the gate compares the two.</p>
+</section>
+<section id="sec-own-optim-outer" class="level2" data-number="16.6">
+<h2 data-number="16.6" class="anchored" data-anchor-id="sec-own-optim-outer"><span class="header-section-number">16.6</span> The same method as an outer optimizer</h2>
+<p>The outer optimizer searches over the smoothing parameters, and each of its evaluations is a complete inner fit. We compare the trust-region method with <code>newton()</code> in two forms, one with the default unlimited step and one with the step limited to a norm of five, which is the <code>max_length</code> argument of <code>newton()</code>:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>outer_runs <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">trust_region =</span> <span class="fu">trust_region</span>(<span class="at">criterion =</span> <span class="fu">crit_relgrad</span>(<span class="fl">1e-8</span>), <span class="at">keep_trace =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">newton_unlimited =</span> <span class="fu">newton</span>(<span class="at">criterion =</span> <span class="fu">crit_relgrad</span>(<span class="fl">1e-8</span>)),</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">newton_limited =</span> <span class="fu">newton</span>(<span class="at">criterion =</span> <span class="fu">crit_relgrad</span>(<span class="fl">1e-8</span>), <span class="at">max_length =</span> <span class="dv">5</span>)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>outer_fits <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>outer_logs <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>outer_time <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (nm <span class="cf">in</span> <span class="fu">names</span>(outer_runs)) {</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  lg <span class="ot">&lt;-</span> <span class="fu">new.env</span>()</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  lg<span class="sc">$</span>runs <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  outer_logs[[nm]] <span class="ot">&lt;-</span> lg</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>  o <span class="ot">&lt;-</span> <span class="fu">keep_runs</span>(outer_runs[[nm]], lg)</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>  outer_time[nm] <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(outer_fits[[nm]] <span class="ot">&lt;-</span> <span class="fu">statmod</span>(</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>    accel <span class="sc">~</span> <span class="fu">s</span>(times) <span class="sc">|</span> sigma <span class="sc">~</span> <span class="fu">s</span>(times), <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> mcycle, <span class="at">outer_optimizer =</span> o))</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>outer_table <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="fu">names</span>(outer_runs),</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">seconds =</span> <span class="fu">round</span>(<span class="fu">as.numeric</span>(outer_time), <span class="dv">2</span>),</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">iterations =</span> <span class="fu">vapply</span>(outer_logs, <span class="cf">function</span>(lg) <span class="fu">sum</span>(<span class="fu">vapply</span>(lg<span class="sc">$</span>runs, <span class="cf">function</span>(r) r<span class="sc">$</span>iterations, <span class="dv">0</span>)), <span class="dv">0</span>),</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">log_likelihood =</span> <span class="fu">vapply</span>(outer_fits, <span class="cf">function</span>(f) <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f)), <span class="dv">0</span>),</span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">row.names =</span> <span class="cn">NULL</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>outer_table</span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             method seconds iterations log_likelihood</span></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     trust_region    0.36          9      -579.3772</span></span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 newton_unlimited    0.45         13      -579.3772</span></span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3   newton_limited    0.66         23      -579.3772</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The three methods reach the same hyperparameters and the same log-likelihood. The trust-region method takes 9 iterations against 13 for the unlimited Newton method and 23 for the limited one. The run times are of the same order, so the iteration count is the quantity that separates the methods here.</p>
+<p>The trace of the trust region shows the radius and the ratio <span class="math inline">\(\rho\)</span> at each iteration. The first step is cut by the initial radius, and the radius then grows as the model proves reliable:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>tr_trace <span class="ot">&lt;-</span> outer_logs<span class="sc">$</span>trust_region<span class="sc">$</span>runs[[<span class="fu">length</span>(outer_logs<span class="sc">$</span>trust_region<span class="sc">$</span>runs)]]<span class="sc">$</span>trace</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(tr_trace<span class="sc">$</span>iteration, tr_trace<span class="sc">$</span>radius, <span class="at">type =</span> <span class="st">"b"</span>, <span class="at">pch =</span> <span class="dv">16</span>,</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"iteration"</span>, <span class="at">ylab =</span> <span class="st">"radius"</span>)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(tr_trace<span class="sc">$</span>iteration, tr_trace<span class="sc">$</span>rho, <span class="at">type =</span> <span class="st">"b"</span>, <span class="at">pch =</span> <span class="dv">16</span>,</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"iteration"</span>, <span class="at">ylab =</span> <span class="fu">expression</span>(rho))</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> <span class="fu">c</span>(<span class="fl">0.25</span>, <span class="fl">0.75</span>), <span class="at">lty =</span> <span class="dv">3</span>)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div id="fig-tr-trace" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-tr-trace-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="16-own-terms_files/figure-html/fig-tr-trace-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-tr-trace-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;16.3: Radius of the trust region (line) and ratio of actual to predicted decrease (points) along the outer search on mcycle.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The starting radius of one is a constant that the reader chooses. The outer search gives the same hyperparameters with the other two starting radii as well, and the iteration counts show how little the choice matters:</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>r0_counts <span class="ot">&lt;-</span> <span class="fu">vapply</span>(<span class="fu">c</span>(<span class="fl">0.1</span>, <span class="dv">1</span>, <span class="dv">10</span>), <span class="cf">function</span>(r0) {</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  lg <span class="ot">&lt;-</span> <span class="fu">new.env</span>()</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  lg<span class="sc">$</span>runs <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">invisible</span>(<span class="fu">statmod</span>(accel <span class="sc">~</span> <span class="fu">s</span>(times) <span class="sc">|</span> sigma <span class="sc">~</span> <span class="fu">s</span>(times),</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>                    <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(), <span class="at">data =</span> mcycle,</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>                    <span class="at">outer_optimizer =</span> <span class="fu">keep_runs</span>(</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>                      <span class="fu">trust_region</span>(<span class="at">criterion =</span> <span class="fu">crit_relgrad</span>(<span class="fl">1e-8</span>), <span class="at">radius =</span> r0),</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>                      lg)))</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>(<span class="fu">vapply</span>(lg<span class="sc">$</span>runs, <span class="cf">function</span>(r) r<span class="sc">$</span>iterations, <span class="dv">0</span>))</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>}, <span class="dv">0</span>)</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(r0_counts) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"r0 = 0.1"</span>, <span class="st">"r0 = 1"</span>, <span class="st">"r0 = 10"</span>)</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>r0_counts</span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; r0 = 0.1   r0 = 1  r0 = 10 </span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       12        9       12</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-conn2000" class="csl-entry" role="listitem">
+Conn, Andrew R., Nicholas I. M. Gould, and Philippe L. Toint. 2000. <em>Trust-Region Methods</em>. Philadelphia: SIAM.
+</div>
+<div id="ref-nocedal2006" class="csl-entry" role="listitem">
+Nocedal, Jorge, and Stephen J. Wright. 2006. <em>Numerical Optimization</em>. 2nd ed. New York: Springer.
+</div>
+</div>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/15-own-distributions.html" class="pagination-link" aria-label="Writing a distribution and a link">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Writing a distribution and a link</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../chapters/A2-references.html" class="pagination-link" aria-label="References">
+        <span class="nav-page-text">References</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>statmodels7</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

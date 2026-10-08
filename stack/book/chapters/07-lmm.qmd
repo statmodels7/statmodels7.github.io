@@ -1,0 +1,1564 @@
+# Linear mixed models {#sec-lmm}
+
+```{r}
+#| label: setup-07
+#| include: false
+source("R/_setup.R")
+source("R/lmm-certificates.R")
+chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+dec <- function(x, s = 3) format(signif(x, s), scientific = FALSE, big.mark = ",")
+```
+
+A linear mixed model describes data that come in groups: the measurements of
+one child, the days of one subject, the scores of one worker. The
+observations of one group share some unobserved quantities, the *random
+effects*, and these make the observations of a group correlated
+[@laird1982; @pinheiro2000]. For a gaussian response the model is
+$$
+y_{ij} \sim \mathrm{N}(\mu_{ij}, \sigma), \qquad
+\mu_{ij} = x_{ij}^\top\beta + z_{ij}^\top b_i, \qquad
+b_i \sim \mathrm{N}(0, \Sigma_b),
+$$
+where $i$ is the group, $j$ the observation within the group, $\beta$ the
+fixed effects and $b_i$ the random effects of group $i$. In `statmodels7` the
+term `random()` adds the random effects to an equation. The random effects are
+coefficients with a penalty, and the penalty is minus the logarithm of their
+density. The hyperparameters of the penalty describe $\Sigma_b$, and REML
+estimates them (@sec-beyond-likelihood).
+
+This chapter shows a random intercept, a random slope, several structures for
+$\Sigma_b$, nested and crossed groupings, random effects in the equation of
+$\sigma$, a Student t distribution for the random effects, and the
+predictions for a new group. In each section we compare the fit with a
+reference package: `lme()` of `nlme` [@pinheiro2000], `lmer()` of `lme4`
+[@bates2015] or `glmmTMB()` of `glmmTMB` [@brooks2017].
+
+## A random intercept {#sec-lmm-intercept}
+
+We return to the `Orthodont` data of @sec-beyond-likelihood: the distance
+from the pituitary to the pterygomaxillary fissure of 27 children, measured at
+ages 8, 10, 12 and 14 [@potthoff1964]. We center the age at 11 years, with
+`I(age - 11)` in the formula, and give each child a random intercept:
+$$
+\mu_{ij} = \beta_0 + \beta_1 a_{ij} + \beta_2 f_i + b_i, \qquad
+b_i \sim \mathrm{N}(0, \tau),
+$$
+where $a_{ij}$ is the centered age and $f_i$ is 1 for a girl.
+
+```{r}
+#| label: fit-ri
+data(Orthodont, package = "nlme")
+fit_ri <- statmod(distance ~ I(age - 11) + Sex + random(~ 1 | Subject),
+                  distrib = gaussian1_distrib(), data = Orthodont)
+summary(fit_ri)
+```
+
+The summary reports the random intercept as a block with 27 coefficients,
+one for each child. Its hyperparameter `sigma` is the standard deviation
+$\tau$ of the random intercepts, with a standard error and an interval. The
+function `lme()` fits the same model by REML:
+
+```{r}
+#| label: lme-ri
+lme_ri <- nlme::lme(distance ~ I(age - 11) + Sex, random = ~ 1 | Subject,
+                    data = Orthodont)
+nlme::fixef(lme_ri)
+nlme::VarCorr(lme_ri)
+logLik(lme_ri)
+logLik(fit_ri, type = "marginal")
+```
+
+The fixed effects, the two standard deviations and the restricted
+log-likelihood are the same. The residual standard deviation of `lme()` is
+$\exp(\hat\gamma_0)$, the exponential of the intercept of `sigma`:
+`r fmt(exp(coef(fit_ri)$sigma[[1]]), 6)`. The interval for $\tau$ in the
+summary is built on the logarithm of $\tau$ and mapped back, as the interval
+of `nlme::intervals()`:
+
+```{r}
+#| label: intervals-ri
+nlme::intervals(lme_ri, which = "var-cov")$reStruct
+```
+
+The estimated random intercepts are the coefficients of the term. They are
+the best linear unbiased predictions of $b_i$ [@robinson1991]. We compare them
+with those of `lme()`:
+
+```{r}
+#| label: ranef-ri
+b_ri <- coef(fit_ri)$mu
+b_ri <- b_ri[grepl("random", names(b_ri))]
+head(b_ri, n = 4)
+b_lme <- nlme::ranef(lme_ri)[, 1]
+max(abs(b_ri - b_lme))
+```
+
+### A standard deviation for each sex
+
+As in every chapter of this part, the other parameters of the distribution can
+have covariates too. The boys of `Orthodont` vary more around their own line
+than the girls. We give `sigma` an equation with the
+sex:
+
+```{r}
+#| label: fit-ri-sigma
+fit_rs <- statmod(distance ~ I(age - 11) + Sex + random(~ 1 | Subject) |
+                    sigma ~ Sex,
+                  distrib = gaussian1_distrib(), data = Orthodont)
+summary(fit_rs)
+exp(cumsum(coef(fit_rs)$sigma))
+```
+
+The equation of `sigma` is $\log\sigma_{ij} = \gamma_0 + \gamma_1 f_i$, so the
+residual standard deviation is $\exp(\hat\gamma_0)$ for the boys and
+$\exp(\hat\gamma_0 + \hat\gamma_1)$ for the girls. The coefficient
+$\hat\gamma_1 = `r fmt(coef(fit_rs)$sigma[[2]], 3)`$ is the logarithm of the
+ratio of the two, and $\exp(\hat\gamma_1) = `r fmt(exp(coef(fit_rs)$sigma[[2]]), 3)`$.
+The standard deviation of the random intercepts and the fixed effects of the
+mean are close to those of `fit_ri`. In `lme()` the same model has the
+variance function `varIdent()`:
+
+```{r}
+#| label: lme-ri-sigma
+lme_rs <- nlme::lme(distance ~ I(age - 11) + Sex, random = ~ 1 | Subject,
+                    weights = nlme::varIdent(form = ~ 1 | Sex),
+                    data = Orthodont)
+ratio <- coef(lme_rs$modelStruct$varStruct, unconstrained = FALSE)
+c(Male = lme_rs$sigma, Female = lme_rs$sigma * ratio[["Female"]])
+logLik(lme_rs)
+logLik(fit_rs, type = "marginal")
+```
+
+The two models have the same fixed effects, so we can compare them with their
+restricted log-likelihoods (@sec-beyond-lr):
+
+```{r}
+#| label: lr-ri-sigma
+l0 <- logLik(fit_ri, type = "marginal")
+l1 <- logLik(fit_rs, type = "marginal")
+lr_sex <- 2 * (as.numeric(l1) - as.numeric(l0))
+lr_sex
+pchisq(lr_sex, df = 1, lower.tail = FALSE)
+```
+
+The girls have a residual standard deviation less than half that of the boys,
+and the test rejects a common value.
+
+## A random slope {#sec-lmm-slope}
+
+The data frame `sleepstudy` of the `lme4` package gives the average reaction
+time of 18 subjects on each of ten days of sleep deprivation, from day 0 to
+day 9 [@belenky2003]. Each subject has its own line, so we give each subject a
+random intercept and a random slope in the days:
+$$
+\mu_{ij} = \beta_0 + \beta_1 d_{ij} + b_{0i} + b_{1i} d_{ij}, \qquad
+(b_{0i}, b_{1i}) \sim \mathrm{N}(0, \Sigma_b).
+$$
+By default $\Sigma_b$ is unstructured, with two standard deviations and a
+correlation:
+
+```{r}
+#| label: fit-slope
+data(sleepstudy, package = "lme4")
+fit_sc <- statmod(Reaction ~ Days + random(~ Days | Subject),
+                  distrib = gaussian1_distrib(), data = sleepstudy)
+summary(fit_sc)
+```
+
+The search runs on the coordinates of the Cholesky factor of $\Sigma_b$,
+which take any real value [@pinheiro1996]. The function `hyper()` reports
+these coordinates, and `param_value()` turns them back into the matrix. We
+compare the matrix with the one of `lmer()`:
+
+```{r}
+#| label: lmer-slope
+hyper(fit_sc)[, c("name", "estimate")]
+param_value(log_cholesky(2), eta = hyper(fit_sc)$estimate)
+lmer_sc <- lme4::lmer(Reaction ~ Days + (Days | Subject), data = sleepstudy)
+lme4::VarCorr(lmer_sc)$Subject[, ]
+logLik(lmer_sc)
+logLik(fit_sc, type = "marginal")
+```
+
+The two covariance matrices and the two restricted log-likelihoods are the
+same.
+
+### Uncorrelated effects
+
+With `correlated = FALSE` the two random effects are independent, and each has
+its own standard deviation. In `lmer()` the same model is written with a
+double bar:
+
+```{r}
+#| label: fit-uncor
+fit_su <- statmod(Reaction ~ Days + random(~ Days | Subject,
+                                           correlated = FALSE),
+                  distrib = gaussian1_distrib(), data = sleepstudy)
+summary(fit_su)
+lmer_su <- lme4::lmer(Reaction ~ Days + (Days || Subject), data = sleepstudy)
+lme4::VarCorr(lmer_su)
+logLik(fit_su, type = "marginal")
+```
+
+The block of the random effects has one hyperparameter for each effect:
+`(Intercept).sigma` is the standard deviation of the random intercepts and
+`Days.sigma` that of the random slopes. Both are close to the standard
+deviations of the correlated model, because the estimated correlation there
+is small. The fixed effects of the two models are the same, so the difference of their
+restricted log-likelihoods tests the correlation:
+
+```{r}
+#| label: lr-uncor
+lr_cor <- 2 * (as.numeric(logLik(fit_sc, type = "marginal")) -
+                 as.numeric(logLik(fit_su, type = "marginal")))
+lr_cor
+pchisq(lr_cor, df = 1, lower.tail = FALSE)
+```
+
+The data do not show a correlation between the intercepts and the slopes.
+
+@fig-shrinkage shows what the random effects do to the lines of the
+subjects. We fit a separate least squares line to each subject with
+`nlme::lmList()`, and compare its intercept and slope with those of the
+mixed model, $(\hat\beta_0 + \hat b_{0i}, \hat\beta_1 + \hat b_{1i})$. The
+cross is the pair of estimated fixed effects $(\hat\beta_0, \hat\beta_1)$: it
+is the line of a subject whose random effects are zero, which we call the
+line of a typical subject. The mixed model pulls every line towards the line
+of a typical subject. It pulls most the subjects whose own line is far from
+it, and whose data do not determine that line well.
+
+```{r}
+#| label: fig-shrinkage
+#| fig-cap: "Intercept and slope of each subject of the sleepstudy data, from a least squares line fitted to the subject alone and from the mixed model with correlated random effects. The arrows go from the first to the second. The cross is the pair of estimated fixed effects."
+#| echo: false
+#| fig-height: 4.2
+ols <- coef(nlme::lmList(Reaction ~ Days | Subject, data = sleepstudy))
+cf_sc <- coef(fit_sc)$mu
+subj <- rownames(ols)
+mix_int <- cf_sc[["(Intercept)"]] + cf_sc[paste0("random.", subj, ".(Intercept)")]
+mix_slo <- cf_sc[["Days"]] + cf_sc[paste0("random.", subj, ".Days")]
+est_lev <- c("least squares, one subject", "mixed model", "fixed effects")
+pts <- data.frame(
+  intercept = c(ols[, 1], mix_int, cf_sc[["(Intercept)"]]),
+  slope = c(ols[, 2], mix_slo, cf_sc[["Days"]]),
+  estimate = factor(rep(est_lev, times = c(nrow(ols), length(mix_int), 1)),
+                    levels = est_lev))
+arr <- data.frame(x = ols[, 1], y = ols[, 2], xend = mix_int, yend = mix_slo)
+ggplot(pts, aes(x = intercept, y = slope)) +
+  geom_segment(data = arr, aes(x = x, y = y, xend = xend, yend = yend),
+               colour = grey, arrow = arrow(length = unit(0.06, "inches"))) +
+  geom_point(aes(colour = estimate, shape = estimate, size = estimate),
+             stroke = 0.9) +
+  scale_colour_manual(values = c(rust, chalk, ink)) +
+  scale_shape_manual(values = c(1, 16, 3)) +
+  scale_size_manual(values = c(2, 2, 3.5)) +
+  labs(x = "intercept (ms)", y = "slope (ms per day)")
+```
+
+### A standard deviation at zero
+
+When the groups do not differ in their slopes, the standard deviation of the
+random slopes goes to zero. We simulate twenty groups of six observations with
+random intercepts and a common slope:
+
+```{r}
+#| label: sim-boundary
+set.seed(3)
+n_group <- 20
+n_time <- 6
+bd <- data.frame(id = factor(rep(1:n_group, each = n_time)),
+                 t = rep(0:(n_time - 1), times = n_group))
+b0 <- rnorm(n_group, mean = 0, sd = 1)
+bd$y <- 10 + 0.5 * bd$t + b0[bd$id] + rnorm(nrow(bd), mean = 0, sd = 1)
+fit_bd <- statmod(y ~ t + random(~ t | id), distrib = gaussian1_distrib(),
+                  data = bd)
+summary(fit_bd)
+statmod_certificate(fit_bd)$state
+statmod_certificate(fit_bd)$boundary
+```
+
+The standard deviation of the slopes is close to zero and the correlation is
+$-1$. The certificate is `boundary` and names the coordinate: the second
+logarithm of the Cholesky factor, which carries the standard deviation of the
+slopes, has run to the edge of its scale. A standard deviation at zero has no
+interval on the logarithmic scale, so the summary leaves out the standard
+error and the interval of that row and of the correlation. `lmer()` reports
+the same fit as singular:
+
+```{r}
+#| label: lmer-boundary
+lmer_bd <- lme4::lmer(y ~ t + (t | id), data = bd)
+lme4::isSingular(lmer_bd)
+logLik(lmer_bd)
+logLik(fit_bd, type = "marginal")
+```
+
+The model with a random intercept alone has almost the same restricted
+log-likelihood:
+
+```{r}
+#| label: lr-boundary
+fit_bd0 <- statmod(y ~ t + random(~ 1 | id), distrib = gaussian1_distrib(),
+                   data = bd)
+lr_bd <- 2 * (as.numeric(logLik(fit_bd, type = "marginal")) -
+                as.numeric(logLik(fit_bd0, type = "marginal")))
+lr_bd
+```
+
+Under the smaller model the variance of the slopes is zero, which is on the
+boundary of its range, so the statistic does not have the $\chi^2$
+distribution with two degrees of freedom [@self1987]. Here the statistic is
+so small that the conclusion does not depend on the distribution: the smaller
+model describes these data.
+
+## Structures for the covariance matrix {#sec-lmm-structures}
+
+With $d$ random effects in a group an unstructured $\Sigma_b$ has
+$d(d+1)/2$ parameters. A structure describes it with fewer. The argument
+`distrib` of `random()` takes the distribution of the random effects, and for
+several effects this is a multivariate gaussian distribution whose covariance
+matrix has the structure we choose. The package `parameters7` gives the
+structures: `log_cholesky()` (unstructured), `compound_symmetry()`, `ar1()`,
+`diagonal_matrix()` and others. The mean of the random effects is zero, so we
+hold it with `fixed()`.
+
+The data frame `Machines` of the `nlme` package gives a productivity score of
+six workers on three machines, three times on each machine
+[@pinheiro2000, sec. 1.3]. Each worker has a random effect for each machine,
+so $d = 3$. We first fit the unstructured matrix:
+
+```{r}
+#| label: fit-machines
+data(Machines, package = "nlme")
+fit_un <- statmod(score ~ Machine + random(~ 0 + Machine | Worker),
+                  distrib = gaussian1_distrib(), data = Machines)
+summary(fit_un)
+```
+
+The random effect of worker $i$ on machine $m$ is $b_{im}$, and the model is
+$$
+\mu_{ijm} = \beta_m + b_{im}, \qquad
+(b_{iA}, b_{iB}, b_{iC}) \sim \mathrm{N}(0, \Sigma_b),
+$$
+where $\beta_m$ is the mean score on machine $m$ (the intercept for machine
+A, and the intercept plus `MachineB` or `MachineC` for the others). The
+summary reports $\Sigma_b$ through the standard deviation of each effect and
+the three correlations. The effects on machine B vary twice as much as the
+others, and all three correlations are positive.
+
+Compound symmetry gives the three effects one variance $\tau^2$ and one
+correlation $\varrho$:
+$$
+\Sigma_b = \tau^2\begin{pmatrix} 1 & \varrho & \varrho \\
+\varrho & 1 & \varrho \\ \varrho & \varrho & 1 \end{pmatrix}.
+$$
+We build the distribution and pass it to `random()`:
+
+```{r}
+#| label: fit-cs
+cs3 <- fixed(mvgaussian1_distrib(n_dim = 3, sigma = compound_symmetry(3)),
+             mu = 0)
+cs3@params
+fit_cs <- statmod(score ~ Machine + random(~ 0 + Machine | Worker,
+                                           distrib = cs3),
+                  distrib = gaussian1_distrib(), data = Machines)
+summary(fit_cs)
+S_cs3 <- param_value(compound_symmetry(3), eta = hyper(fit_cs)$estimate)
+```
+
+The argument `mu = 0` holds the whole mean vector $(\mu_1, \mu_2, \mu_3)$
+at zero. The two free parameters are the logarithm of the variance and a
+transformation of the correlation onto the whole line. The summary reports
+the two parameters of the structure: `sd` is the common standard deviation
+$\hat\tau = `r fmt(sqrt(S_cs3[1, 1]), 3)`$ and `rho` is the common
+correlation $\hat\varrho = `r fmt(S_cs3[1, 2] / S_cs3[1, 1], 3)`$.
+
+The standard errors of the fixed effects differ from those of the
+unstructured model. A contrast such as `MachineB` is the difference of the
+mean scores on machines B and A, and each worker enters it through
+$b_{iB} - b_{iA}$. The variance of that difference is
+$2\tau^2(1 - \varrho)$ under compound symmetry and
+$\tau_A^2 + \tau_B^2 - 2\,\mathrm{cov}(b_{iA}, b_{iB})$ under the unstructured
+matrix, so the two structures give the contrast different standard errors.
+
+With `correlated = FALSE` the matrix is diagonal, with one standard deviation
+for each machine:
+
+```{r}
+#| label: fit-diag
+fit_dg <- statmod(score ~ Machine + random(~ 0 + Machine | Worker,
+                                           correlated = FALSE),
+                  distrib = gaussian1_distrib(), data = Machines)
+summary(fit_dg)
+```
+
+The three standard deviations are those of the unstructured model. The
+correlations are now zero, so the standard errors of `MachineB` and
+`MachineC` are larger: a worker's effects no longer cancel in the difference
+between two machines.
+
+In `lme()` the three structures are `pdSymm()`, `pdCompSymm()` and
+`pdDiag()`. We compare the restricted log-likelihoods:
+
+```{r}
+#| label: lme-structures
+lme_un <- nlme::lme(score ~ Machine, random = ~ 0 + Machine | Worker,
+                    data = Machines)
+lme_cs <- nlme::lme(score ~ Machine,
+                    random = list(Worker = nlme::pdCompSymm(~ 0 + Machine)),
+                    data = Machines)
+lme_dg <- nlme::lme(score ~ Machine,
+                    random = list(Worker = nlme::pdDiag(~ 0 + Machine)),
+                    data = Machines)
+data.frame(
+  structure = c("unstructured", "compound symmetry", "diagonal"),
+  statmod = c(logLik(fit_un, type = "marginal"),
+              logLik(fit_cs, type = "marginal"),
+              logLik(fit_dg, type = "marginal")),
+  lme = c(logLik(lme_un), logLik(lme_cs), logLik(lme_dg)))
+```
+
+The three fits agree with `lme()`. The unstructured matrix has six
+parameters, compound symmetry two and the diagonal matrix three. The fixed
+effects are the same in the three models, so we compare the simpler
+structures with the unstructured one:
+
+```{r}
+#| label: lr-structures
+l_un <- as.numeric(logLik(fit_un, type = "marginal"))
+l_cs <- as.numeric(logLik(fit_cs, type = "marginal"))
+l_dg <- as.numeric(logLik(fit_dg, type = "marginal"))
+lr_cs <- 2 * (l_un - l_cs)
+lr_dg <- 2 * (l_un - l_dg)
+pchisq(lr_cs, df = 4, lower.tail = FALSE)
+pchisq(lr_dg, df = 3, lower.tail = FALSE)
+```
+
+The diagonal matrix is rejected at the 5% level, because the three effects of
+a worker are correlated: a good worker is good on every machine. Compound
+symmetry is not rejected.
+
+### Covariance or precision
+
+The distribution `mvgaussian2_distrib()` puts the structure on the precision
+matrix $\Sigma_b^{-1}$ in place of the covariance matrix. For an unstructured
+matrix the two give the same model, because the inverse of an unstructured
+matrix is unstructured:
+
+```{r}
+#| label: fit-precision
+pr3 <- fixed(mvgaussian2_distrib(n_dim = 3, omega = log_cholesky(3)),
+             mu = 0)
+fit_pr <- statmod(score ~ Machine + random(~ 0 + Machine | Worker,
+                                           distrib = pr3),
+                  distrib = gaussian1_distrib(), data = Machines)
+summary(fit_pr)
+Om <- param_value(log_cholesky(3), eta = hyper(fit_pr)$estimate)
+S_pr <- solve(Om)
+pc_ac <- -Om[1, 3] / sqrt(Om[1, 1] * Om[3, 3])
+c(cvar_A = 1 / Om[1, 1], var_A = S_pr[1, 1], pcor_AC = pc_ac,
+  cor_AC = S_pr[1, 3] / sqrt(S_pr[1, 1] * S_pr[3, 3]))
+```
+
+The fixed effects are those of `fit_un`, and so is the restricted
+log-likelihood (`r fmt(as.numeric(logLik(fit_pr, type = "marginal")), 4)`).
+The summary reports the quantities that the precision matrix
+$\Omega = \Sigma_b^{-1}$ gives directly, and not the standard deviations and
+correlations of `fit_un`, which we compute from $\Sigma_b = \Omega^{-1}$ when
+we need them. The conditional variance `cvar` of an effect is its variance
+given the other two effects of the same worker, and the partial correlation
+`pcor` of two effects is their correlation given the third:
+$$
+\mathrm{Var}(b_{im} \mid b_{i,-m}) = \frac{1}{\Omega_{mm}}, \qquad
+\mathrm{cor}(b_{im}, b_{in} \mid b_{i,-mn}) =
+-\frac{\Omega_{mn}}{\sqrt{\Omega_{mm}\Omega_{nn}}}.
+$$
+The conditional variances are smaller than the variances (for machine A,
+`r fmt(1 / Om[1, 1], 2)` against `r fmt(S_pr[1, 1], 2)`): knowing how a worker
+does on two machines tells us much about the third. The partial
+correlation of machines A and C is
+`r fmt(pc_ac, 3)`, against a correlation of
+`r fmt(S_pr[1, 3] / sqrt(S_pr[1, 1] * S_pr[3, 3]), 3)`. Given a worker's
+effect on machine B, the effects on A and C are almost uncorrelated, so the
+correlation between A and C passes through B. A zero partial correlation is a
+zero entry of $\Omega$, which is why a structure that sets entries of the
+precision matrix to zero describes conditional independence.
+
+For a structure such as `ar1()` the two distributions give two different
+models: an autoregressive covariance matrix and an autoregressive precision
+matrix.
+
+### An autoregressive structure
+
+When the random effects of a group are ordered in time, the effects of close
+times are often more correlated than those of distant times. The structure
+`ar1()` has the correlation $\rho^{|s - t|}$ between the times $s$ and $t$. We
+simulate 30 subjects measured at five times $t = 1, \dots, 5$, with three
+measurements $k = 1, 2, 3$ at each time:
+$$
+y_{itk} = \beta_0 + \beta_1 t + b_{it} + \varepsilon_{itk}, \qquad
+\varepsilon_{itk} \sim \mathrm{N}(0, \sigma),
+$$
+$$
+(b_{i1}, \dots, b_{i5}) \sim \mathrm{N}(0, \Sigma_b), \qquad
+(\Sigma_b)_{st} = \tau^2\rho^{|s - t|},
+$$
+with $\beta_0 = 2$, $\beta_1 = 0.3$, $\tau = 1.5$, $\rho = 0.7$ and
+$\sigma = 1$. Subject $i$ has one random effect $b_{it}$ for each time, and
+the effects of two times are more correlated the closer the times are. The
+code draws the five effects of each subject as $L z$, where $L$ is the
+Cholesky factor of $\Sigma_b$ and $z$ is a vector of five independent
+standard normal values:
+
+```{r}
+#| label: sim-ar1
+set.seed(7)
+n_subj <- 30
+n_time <- 5
+rho <- 0.7
+S_b <- 1.5^2 * rho^abs(outer(1:n_time, 1:n_time, "-"))
+L_b <- t(chol(S_b))
+ar <- expand.grid(rep = 1:3, time = 1:n_time, id = 1:n_subj)
+b_sim <- t(L_b %*% matrix(rnorm(n_time * n_subj), nrow = n_time))
+ar$y <- 2 + 0.3 * ar$time + b_sim[cbind(ar$id, ar$time)] +
+  rnorm(nrow(ar), mean = 0, sd = 1)
+ar$id <- factor(ar$id)
+ar$time_g <- factor(ar$time)
+```
+
+The column `time_g` is `time` as a factor, so `random(~ 0 + time_g | id)`
+gives each subject one random effect for each time. The three measurements
+at each time separate the variance of the random effects from the residual
+variance. We fit the model and compare it with the
+`ar1()` structure of `glmmTMB()`:
+
+```{r}
+#| label: fit-ar1
+ar5 <- fixed(mvgaussian1_distrib(n_dim = 5, sigma = ar1(5)), mu = 0)
+fit_ar <- statmod(y ~ time + random(~ 0 + time_g | id, distrib = ar5),
+                  distrib = gaussian1_distrib(), data = ar)
+summary(fit_ar)
+S_ar <- param_value(ar1(5), eta = hyper(fit_ar)$estimate)
+```
+
+The summary reports the two parameters of the structure, the standard
+deviation `sd` $= \hat\tau$ and the correlation of two consecutive times
+`rho` $= \hat\rho$. The correlation of times $s$ and $t$ is
+$\hat\rho^{|s-t|}$. The estimates are close to the values of the simulation: $\hat\tau =
+`r fmt(sqrt(S_ar[1, 1]), 3)`$ against 1.5, $\hat\rho =
+`r fmt(S_ar[1, 2] / S_ar[1, 1], 3)`$ against 0.7, and
+$\exp(\hat\gamma_0) = `r fmt(exp(coef(fit_ar)$sigma[[1]]), 3)`$ against
+$\sigma = 1$. The fixed effects `(Intercept)` and `time` estimate $\beta_0$
+and $\beta_1$. The `ar1()` structure of `glmmTMB()` fits the same model:
+
+```{r}
+#| label: tmb-ar1
+tmb_ar <- glmmTMB::glmmTMB(y ~ time + ar1(0 + time_g | id), data = ar,
+                           REML = TRUE)
+glmmTMB::VarCorr(tmb_ar)
+logLik(tmb_ar)
+logLik(fit_ar, type = "marginal")
+```
+
+The two fits are the same.
+
+## Nested and crossed groupings {#sec-lmm-groupings}
+
+A formula can have several `random()` terms, each with its own grouping.
+
+### Nested groupings
+
+In the `Machines` data each worker uses each machine three times, so the
+pairs of worker and machine are groups within the workers. We give each
+worker a random intercept, and each pair a random intercept of its own:
+$$
+\mu_{ijm} = \beta_m + u_i + v_{im}, \qquad u_i \sim \mathrm{N}(0, \tau_W),
+\qquad v_{im} \sim \mathrm{N}(0, \tau_{WM}).
+$$
+The grouping of the second term is the interaction `Worker:Machine`:
+
+```{r}
+#| label: fit-nested
+fit_ne <- statmod(score ~ Machine + random(~ 1 | Worker) +
+                    random(~ 1 | Worker:Machine),
+                  distrib = gaussian1_distrib(), data = Machines)
+summary(fit_ne)
+```
+
+The summary has one block for each `random()` term. The `sigma` of the first
+block is $\hat\tau_W$, the standard deviation of the workers, and that of the
+second is $\hat\tau_{WM}$, the standard deviation of the pairs around their
+worker. The 6 workers spend `r fmt(sum(fit_ne@edf$edf[grepl("Worker)", fit_ne@edf$term, fixed = TRUE)]), 2)`
+effective degrees of freedom and the 18 pairs
+`r fmt(sum(fit_ne@edf$edf[grepl("Worker:Machine", fit_ne@edf$term, fixed = TRUE)]), 2)`.
+The function `lme()` writes the nested grouping as `Worker / Machine`:
+
+```{r}
+#| label: lme-nested
+lme_ne <- nlme::lme(score ~ Machine, random = ~ 1 | Worker / Machine,
+                    data = Machines)
+nlme::VarCorr(lme_ne)
+logLik(lme_ne)
+logLik(fit_ne, type = "marginal")
+```
+
+The nested model is the compound symmetry model of @sec-lmm-structures in
+another parametrization. The three effects of a worker are the sum of the
+worker's intercept and the intercept of each pair, so their variance is
+$\tau_W^2 + \tau_{WM}^2$ and their correlation is
+$\tau_W^2 / (\tau_W^2 + \tau_{WM}^2)$:
+
+```{r}
+#| label: nested-cs
+tau_ne <- hyper(fit_ne)$estimate
+c(variance = tau_ne[1]^2 + tau_ne[2]^2,
+  correlation = tau_ne[1]^2 / (tau_ne[1]^2 + tau_ne[2]^2))
+param_value(compound_symmetry(3), eta = hyper(fit_cs)$estimate)[1:2, 1:2]
+```
+
+The two models have the same restricted log-likelihood. The nested
+parametrization cannot give a negative correlation, and compound symmetry
+can.
+
+### Crossed groupings
+
+The data frame `Penicillin` of the `lme4` package gives the diameter of the
+zone where the growth of a bacterium is inhibited, for six samples of
+penicillin, each tested on 24 plates [@davies1972]. Every sample is on every
+plate, so the two groupings are crossed:
+$$
+\mu_{ps} = \beta_0 + u_p + w_s, \qquad u_p \sim \mathrm{N}(0, \tau_P),
+\qquad w_s \sim \mathrm{N}(0, \tau_S),
+$$
+where $p$ is the plate and $s$ the sample. Each grouping has its own
+`random()` term:
+
+```{r}
+#| label: fit-crossed
+data(Penicillin, package = "lme4")
+fit_cr <- statmod(diameter ~ random(~ 1 | plate) + random(~ 1 | sample),
+                  distrib = gaussian1_distrib(), data = Penicillin)
+summary(fit_cr)
+```
+
+The samples differ more than the plates: $\hat\tau_S =
+`r fmt(hyper(fit_cr)$estimate[2], 3)`$ against $\hat\tau_P =
+`r fmt(hyper(fit_cr)$estimate[1], 3)`$, and both are larger than the residual
+standard deviation $\exp(\hat\gamma_0) =
+`r fmt(exp(coef(fit_cr)$sigma[[1]]), 3)`$. With only six samples the interval
+of $\tau_S$ is wide. The intercept is the mean diameter over the population
+of plates and samples. We compare with `lmer()`:
+
+```{r}
+#| label: lmer-crossed
+lmer_cr <- lme4::lmer(diameter ~ (1 | plate) + (1 | sample),
+                      data = Penicillin)
+lme4::VarCorr(lmer_cr)
+logLik(lmer_cr)
+logLik(fit_cr, type = "marginal")
+```
+
+The standard deviations and the restricted log-likelihood are those of
+`lmer()`.
+
+## Random effects on sigma {#sec-lmm-sigma}
+
+A random effect can be in any equation. In the `Orthodont` data some
+children vary more around their own line than others. We give `sigma` a
+random intercept on the log scale, beside the random intercept of the mean:
+$$
+\log\sigma_{ij} = \gamma_0 + c_i, \qquad c_i \sim \mathrm{N}(0, \kappa).
+$$
+
+```{r}
+#| label: fit-sigma-re
+fit_ds <- statmod(distance ~ I(age - 11) + Sex + random(~ 1 | Subject) |
+                    sigma ~ random(~ 1 | Subject),
+                  distrib = gaussian1_distrib(), data = Orthodont)
+summary(fit_ds)
+logLik(fit_ds, type = "marginal")
+```
+
+The equation of `sigma` now has its own block of 27 random intercepts, one
+for each child. The `sigma` of that block is $\hat\kappa$, the standard
+deviation of the $c_i$ on the log scale, and the intercept of the equation is
+$\hat\gamma_0$, so $\exp(\hat\gamma_0) =
+`r fmt(exp(coef(fit_ds)$sigma[[1]]), 3)`$ is the residual standard deviation
+of a child with $c_i = 0$. The fixed effects of the mean change little from
+`fit_ri`: the slope in age goes from
+`r fmt(coef(fit_ri)$mu[["I(age - 11)"]], 3)` to
+`r fmt(coef(fit_ds)$mu[["I(age - 11)"]], 3)`, because the children with a large
+$c_i$ now weigh less in it.
+
+`glmmTMB()` accepts random effects in its equation of the dispersion, called
+`dispformula`:
+
+```{r}
+#| label: tmb-sigma-re
+tmb_ds <- glmmTMB::glmmTMB(distance ~ I(age - 11) + Sex + (1 | Subject),
+                           dispformula = ~ (1 | Subject), data = Orthodont,
+                           REML = TRUE)
+glmmTMB::VarCorr(tmb_ds)
+logLik(tmb_ds)
+```
+
+The two fits agree. The standard deviation $\hat\kappa =
+`r fmt(hyper(fit_ds)$estimate[2], 3)`$ means that the residual standard
+deviation of a child is about $\exp(\pm 2\hat\kappa)$, that is between
+`r fmt(exp(-2 * hyper(fit_ds)$estimate[2]))` and
+`r fmt(exp(2 * hyper(fit_ds)$estimate[2]))`, times that of a typical child.
+
+### A covariance shared by two terms
+
+In the model above the two random effects of a child are independent. A
+child with a larger intercept may also vary more. A label between two bars,
+`random(~ 1 | u | Subject)`, puts the terms with the same label and the same
+grouping in one covariance matrix, even when they are in different equations:
+$$
+(b_i, c_i) \sim \mathrm{N}\left(0,
+\begin{pmatrix} \tau^2 & \varrho\tau\kappa \\ \varrho\tau\kappa & \kappa^2
+\end{pmatrix}\right).
+$$
+The label `u` is a name, and it does not refer to a column of the data.
+
+```{r}
+#| label: fit-shared
+fit_sh <- statmod(distance ~ I(age - 11) + Sex + random(~ 1 | u | Subject) |
+                    sigma ~ random(~ 1 | u | Subject),
+                  distrib = gaussian1_distrib(), data = Orthodont)
+summary(fit_sh)
+```
+
+The summary reports the shared block before the equations, with the two
+standard deviations and their correlation. Each coordinate is named after its
+equation. The correlation has a wide interval. The two models have the same
+fixed effects, so we test the correlation with their restricted
+log-likelihoods:
+
+```{r}
+#| label: lr-shared
+lr_sh <- 2 * (as.numeric(logLik(fit_sh, type = "marginal")) -
+                as.numeric(logLik(fit_ds, type = "marginal")))
+lr_sh
+pchisq(lr_sh, df = 1, lower.tail = FALSE)
+```
+
+The data do not show a correlation. `glmmTMB()` has no way to correlate a
+random effect of the mean with one of the dispersion, so we have no reference
+for this model.
+
+## Random effects with heavy tails {#sec-lmm-heavy}
+
+The gaussian distribution of the random effects is an assumption. When a few
+groups are far from the others, the gaussian distribution explains them with
+a large variance, and then it shrinks the other groups too little. A Student
+t distribution with few degrees of freedom has heavier tails, so it can leave
+a few groups far away and keep the variance of the others small
+[@lange1989; @pinheiro2001]. We simulate twenty groups of twenty
+observations. Seventeen groups have random intercepts with standard deviation
+0.3, and three groups are far away:
+
+```{r}
+#| label: sim-heavy
+set.seed(4)
+n_g <- 20
+g <- factor(rep(1:n_g, each = 20))
+b_true <- rnorm(n_g, mean = 0, sd = 0.3)
+b_true[c(3, 9, 16)] <- c(5.5, -6.0, 4.8)
+x <- runif(length(g))
+heavy <- data.frame(y = 1 + 2 * x + b_true[g] + rnorm(length(g)), x = x,
+                    g = g)
+```
+
+The argument `distrib` of `random()` takes a univariate distribution for a
+single random effect. We fix the location of the Student t distribution at
+zero, and REML estimates its scale and its degrees of freedom $\nu$:
+
+```{r}
+#| label: fit-heavy
+fit_hg <- statmod(y ~ x + random(~ 1 | g), distrib = gaussian1_distrib(),
+                  data = heavy)
+t_prior <- fixed(student_t1_distrib(), mu = 0)
+fit_ht <- statmod(y ~ x + random(~ 1 | g, distrib = t_prior),
+                  distrib = gaussian1_distrib(), data = heavy)
+hyper(fit_hg)[, c("name", "estimate")]
+summary(fit_ht)
+```
+
+The block of the random intercepts now has two hyperparameters, the scale
+`sigma` and the degrees of freedom `nu` of the t distribution, each with a
+standard error and an interval built on the log scale. The gaussian
+distribution gives the random intercepts a standard deviation of
+`r fmt(hyper(fit_hg)$estimate)`, which describes neither the seventeen groups
+nor the three. The t distribution has
+$\hat\nu = `r fmt(hyper(fit_ht)$estimate[2])`$ and a scale of
+`r fmt(hyper(fit_ht)$estimate[1])`, close to the 0.3 of the seventeen groups.
+With $\nu < 1$ the distribution has no mean, and the scale is not a standard
+deviation. The random intercepts spend
+`r fmt(sum(fit_ht@edf$edf[grepl("random", fit_ht@edf$term, fixed = TRUE)]), 2)`
+effective degrees of freedom, against
+`r fmt(sum(fit_hg@edf$edf[grepl("random", fit_hg@edf$term, fixed = TRUE)]), 2)`
+under the gaussian distribution: they are shrunk more.
+We compare the estimated random intercepts with the true ones:
+
+```{r}
+#| label: rmse-heavy
+re_hg <- coef(fit_hg)$mu[grepl("random", names(coef(fit_hg)$mu))]
+re_ht <- coef(fit_ht)$mu[grepl("random", names(coef(fit_ht)$mu))]
+c(gaussian = sqrt(mean((re_hg - b_true)^2)),
+  student_t = sqrt(mean((re_ht - b_true)^2)))
+```
+
+The t distribution reduces the error of the random intercepts by more than
+half.
+@fig-heavy shows why: under the gaussian distribution the seventeen groups
+near zero are spread out, and under the t distribution they are shrunk
+towards zero, while the three far groups keep their values.
+
+```{r}
+#| label: fig-heavy
+#| fig-cap: "Estimated against true random intercepts of the simulated groups, under a gaussian and a Student t distribution of the random effects. The right panel shows the seventeen groups near zero."
+#| echo: false
+#| fig-height: 3.8
+near <- abs(b_true) < 2
+panel_lev <- c("all groups", "groups near zero")
+heavy_df <- data.frame(
+  true = rep(b_true, times = 2),
+  estimate = c(re_hg, re_ht),
+  distribution = factor(rep(c("gaussian", "Student t"),
+                            each = length(b_true)),
+                        levels = c("gaussian", "Student t")))
+heavy_df <- rbind(cbind(heavy_df, panel = panel_lev[1]),
+                  cbind(heavy_df[c(near, near), ], panel = panel_lev[2]))
+heavy_df$panel <- factor(heavy_df$panel, levels = panel_lev)
+ggplot(heavy_df, aes(x = true, y = estimate)) +
+  geom_abline(data = data.frame(ref = "equal"),
+              aes(intercept = 0, slope = 1, linetype = ref), colour = grey) +
+  geom_point(aes(colour = distribution, shape = distribution)) +
+  facet_wrap(~ panel, scales = "free") +
+  scale_colour_manual(values = c(rust, chalk),
+                      guide = guide_legend(order = 1)) +
+  scale_shape_manual(values = c(1, 16), guide = guide_legend(order = 1)) +
+  scale_linetype_manual(values = c(equal = "dotted"),
+                        guide = guide_legend(order = 2)) +
+  labs(x = "true intercept", y = "estimated intercept")
+```
+
+When $\nu$ is large the t distribution is the gaussian one. If we hold $\nu$
+at $10^6$, the fit is the gaussian fit:
+
+```{r}
+#| label: fit-heavy-limit
+t_limit <- fixed(student_t1_distrib(), mu = 0, nu = 1e6)
+fit_hl <- statmod(y ~ x + random(~ 1 | g, distrib = t_limit),
+                  distrib = gaussian1_distrib(), data = heavy)
+max(abs(coef(fit_hl)$mu - coef(fit_hg)$mu))
+```
+
+With gaussian random effects and a gaussian response the Laplace
+approximation behind the REML criterion is exact. With a t distribution it
+is an approximation, so we do not compare the two models with their
+restricted log-likelihoods. The conditional AIC of @sec-model reads the
+fitted random effects and applies to both:
+
+```{r}
+#| label: aic-heavy
+c(gaussian = AIC(fit_hg), student_t = AIC(fit_ht))
+```
+
+### A reference for the t distribution
+
+None of the three reference packages fits a t distribution for the random
+effects. The argument `priors` of `glmmTMB()` puts a prior on the parameters
+of the model (the fixed effects, the standard deviations and the
+correlations of the random effects), and the random effects stay gaussian.
+The package `brms` [@burkner2017] accepts a t distribution for the random
+effects, with `(1 | gr(g, dist = "student"))`, but it is Bayesian and
+returns a posterior distribution rather than an estimate.
+
+Our reference is the marginal likelihood written by hand. A group has one
+random intercept, so its contribution is a one-dimensional integral,
+$$
+L_i(\beta, \sigma, s, \nu) = \int_{-\infty}^{\infty}
+  \prod_j \phi\!\left(\frac{y_{ij} - \beta_0 - \beta_1 x_{ij} - b}{\sigma}\right)
+  \frac{1}{\sigma}\,
+  \frac{1}{s}\,t_\nu\!\left(\frac{b}{s}\right) db,
+$$
+where $\phi$ is the standard normal density and $t_\nu$ the Student t density.
+We compute it with `integrate()`, centred at the maximum of the integrand, and
+maximize $\sum_i \log L_i$ with `optim()`:
+
+```{r}
+#| label: exact-heavy
+log_Li <- function(r, s_eps, s_b, nu) {
+  f <- function(b) {
+    vapply(b, function(bb) sum(dnorm(r - bb, sd = s_eps, log = TRUE)), 0) +
+      dt(b / s_b, df = nu, log = TRUE) - log(s_b)
+  }
+  m <- optimize(f, c(-20, 20), maximum = TRUE)
+  I <- integrate(function(b) {
+    v <- exp(f(b) - m$objective)
+    v[!is.finite(v)] <- 0
+    v
+  }, lower = m$maximum - 15, upper = m$maximum + 15, rel.tol = 1e-10,
+  subdivisions = 500)$value
+  m$objective + log(I)
+}
+exact_loglik <- function(par) {
+  r <- heavy$y - par[1] - par[2] * heavy$x
+  sum(vapply(split(r, heavy$g), log_Li, 0, s_eps = exp(par[3]),
+             s_b = exp(par[4]), nu = exp(par[5])))
+}
+op <- optim(c(1, 2, 0, log(0.3), 0), function(p) -exact_loglik(p),
+            method = "BFGS", control = list(reltol = 1e-12))
+op <- optim(op$par, function(p) -exact_loglik(p), method = "Nelder-Mead",
+            control = list(reltol = 1e-14, maxit = 5000))
+fit_tml <- statmod(y ~ x + random(~ 1 | g, distrib = t_prior),
+                   distrib = gaussian1_distrib(), data = heavy,
+                   outer_criterion = ml())
+par_tml <- c(coef(fit_tml)$mu[1:2], coef(fit_tml)$sigma[[1]],
+             log(hyper(fit_tml)$estimate))
+rbind(exact = c(op$par[1:2], exp(op$par[3:5]), loglik = -op$value),
+      laplace = c(par_tml[1:2], exp(par_tml[3:5]),
+                  loglik = exact_loglik(par_tml)))
+mode_b <- function(par) {
+  r <- heavy$y - par[1] - par[2] * heavy$x
+  vapply(split(r, heavy$g), function(rr) {
+    optimize(function(b) sum(dnorm(rr - b, sd = exp(par[3]), log = TRUE)) +
+               dt(b / exp(par[4]), df = exp(par[5]), log = TRUE),
+             c(-20, 20), maximum = TRUE)$maximum
+  }, 0)
+}
+rmse_exact <- sqrt(mean((mode_b(op$par) - b_true)^2))
+rmse_laplace <- sqrt(mean((mode_b(par_tml) - b_true)^2))
+```
+
+`mode_b()` gives the random intercept of each group at the maximum of its
+integrand, which is what a fit reports for a random effect.
+
+The columns are $\beta_0$, $\beta_1$, $\sigma$, the scale $s$ and $\nu$, and
+the last column is the exact log-likelihood at each point. The fixed effects
+and $\sigma$ agree, but the two estimates of the distribution of the random
+effects do not. The exact maximum has $\hat\nu =
+`r fmt(exp(op$par[5]))`$ and $\hat s = `r fmt(exp(op$par[4]), 3)`$: a sharp peak
+at zero with very heavy tails. `statmod()` with `ml()` stops at
+$\hat\nu = `r fmt(hyper(fit_tml)$estimate[2])`$ and
+$\hat s = `r fmt(hyper(fit_tml)$estimate[1], 3)`$, where the exact
+log-likelihood is `r fmt(-op$value - exact_loglik(par_tml), 2)` lower.
+
+The difference is the Laplace approximation behind the criterion
+[@tierney1986]. It replaces the integrand of each group by a gaussian
+function with the same maximum and the same curvature at the maximum. Under a
+t distribution with $\nu < 1$ the integrand of a group near zero is far from
+gaussian: the likelihood of the group has a standard deviation of about
+$\sigma/\sqrt{20} = 0.22$, and the prior has a peak narrower than that. The
+approximation then misjudges the mass of the integral, and it prefers a wider
+peak. The two estimates lead to different random intercepts. Under the
+exact one the prior is a spike at zero, so sixteen of the seventeen groups
+near zero are pulled almost exactly to zero, and the error of the random intercepts is
+`r fmt(rmse_exact, 3)` against `r fmt(rmse_laplace, 3)` under the
+approximate one; the three far groups keep their values under both. The
+conclusion of this section stands under both estimates: a t distribution
+lets the far groups escape and shrinks the others. The estimates of $s$ and
+$\nu$ should be read as those of the approximate criterion. With
+a gaussian distribution of the random effects and a gaussian response the
+integrand is gaussian, and the approximation is exact.
+
+### Other distributions on the real line
+
+Any univariate distribution on the whole real line can be the distribution
+of the random effects, once its location is fixed at zero. We try four more
+on the same data. With the scale $s$ and $z = b/s$, their log-densities are,
+up to constants,
+
+| distribution | $\log f(b)$ | tails |
+|---|---|---|
+| logistic | $-z - 2\log(1 + e^{-z})$ | exponential |
+| Cauchy | $-\log(1 + z^2)$ | polynomial, the t with $\nu = 1$ |
+| pseudo-Huber | $-\sqrt{\nu + z^2}$ | exponential, the Laplace as $\nu \to 0$ |
+| skew t | $\log t_\nu(z) + \log T_{\nu+1}\!\left(\alpha z\sqrt{(\nu+1)/(\nu+z^2)}\right)$ | polynomial, asymmetric for $\alpha \ne 0$ |
+
+where $t_\nu$ and $T_\nu$ are the density and the distribution function of
+the Student t distribution [@azzalini2003]. The pseudo-Huber distribution is
+quadratic near zero and linear in the tails, so it is a smooth version of the
+Laplace distribution. We fit the four and collect the conditional AIC, the
+error of the random intercepts and the effective degrees of freedom they
+spend:
+
+```{r}
+#| label: fit-heavy-others
+fit_prior <- function(prior) {
+  statmod(y ~ x + random(~ 1 | g, distrib = prior),
+          distrib = gaussian1_distrib(), data = heavy)
+}
+fit_lo <- fit_prior(fixed(logistic_distrib(), mu = 0))
+fit_ca <- fit_prior(fixed(cauchy_distrib(), mu = 0))
+fit_ph <- fit_prior(fixed(pseudohuber_distrib(), mu = 0))
+fit_st <- fit_prior(fixed(skewt_distrib(), mu = 0))
+heavy_fits <- list(gaussian = fit_hg, logistic = fit_lo, "Student t" = fit_ht,
+                   Cauchy = fit_ca, "pseudo-Huber" = fit_ph, "skew t" = fit_st)
+re_rmse <- function(f) {
+  re <- coef(f)$mu[grepl("random", names(coef(f)$mu))]
+  sqrt(mean((re - b_true)^2))
+}
+re_edf <- function(f) sum(f@edf$edf[grepl("random", f@edf$term, fixed = TRUE)])
+data.frame(cAIC = sapply(heavy_fits, AIC), rmse = sapply(heavy_fits, re_rmse),
+           edf = sapply(heavy_fits, re_edf))
+hyper(fit_ph)[, c("name", "estimate")]
+hyper(fit_st)[, c("name", "estimate")]
+```
+
+The logistic distribution has heavier tails than the gaussian one, but only
+exponentially heavier, and it lets the three far groups escape only in part:
+its error is between the gaussian error and that of the t. The Cauchy
+distribution
+is the t with $\nu = 1$, close to the estimated
+$\hat\nu = `r fmt(hyper(fit_ht)$estimate[2])`$, and the two fits are almost
+the same. The pseudo-Huber distribution reaches a similar error in another
+way: its $\hat\nu = `r dec(hyper(fit_ph)$estimate[2])`$ makes it almost a
+Laplace distribution, whose log-density decreases linearly, so the penalty on
+a far group grows like $\lvert b\rvert$ and not like $b^2$. The skew t has
+$\hat\alpha = `r fmt(hyper(fit_st)$estimate[2])`$, a mild asymmetry towards
+positive values, because two of the three far groups are above zero. It has
+the smallest conditional AIC and the smallest error, with one parameter
+more than the t.
+
+With an asymmetric distribution the location zero is not the centre of the
+random effects. The skew t puts more mass above zero than below, so the
+estimated random intercepts average
+`r fmt(mean(coef(fit_st)$mu[grepl("random", names(coef(fit_st)$mu))]), 3)`
+and the intercept of the model is
+`r fmt(coef(fit_st)$mu[[1]], 3)`, against `r fmt(coef(fit_ht)$mu[[1]], 3)`
+under the t. The sum of the intercept and the average random intercept is
+almost the same in the two fits, so the mean line of the groups does not
+move; only its split between $\beta_0$ and the random effects does.
+
+### A multivariate t distribution with a structure
+
+For several random effects in a group the heavy-tailed distribution is the
+multivariate t. With the scale matrix $\Sigma$ and $\nu$ degrees of freedom,
+$$
+b_i = \frac{\Sigma^{1/2} z_i}{\sqrt{u_i}}, \qquad
+z_i \sim \mathrm{N}(0, I), \qquad \nu u_i \sim \chi^2_\nu ,
+$$
+so the effects of one group share one weight $u_i$: a group with a small
+$u_i$ is far from zero in all its effects at once. For $\nu > 2$ the
+covariance matrix is
+$$
+\mathrm{Var}(b_i) = \frac{\nu}{\nu - 2}\,\Sigma ,
+$$
+so $\Sigma$ is not the covariance matrix, and the structure of $\Sigma$ is
+the structure of the covariance up to the factor $\nu/(\nu - 2)$. The same
+structures of @sec-lmm-structures apply: `mvstudent_t1_distrib()` takes them
+as its `sigma`. We simulate the design of the autoregressive example with 60
+subjects, with $\Sigma$ the AR(1) matrix with $\tau = 1$ and $\rho = 0.7$, and
+$\nu = 3$:
+
+```{r}
+#| label: sim-mvt
+set.seed(1)
+n_subj <- 60
+nu_true <- 3
+S_true <- 0.7^abs(outer(1:n_time, 1:n_time, "-"))
+u <- rgamma(n_subj, shape = nu_true / 2, rate = nu_true / 2)
+b_mvt <- t(t(chol(S_true)) %*% matrix(rnorm(n_time * n_subj), nrow = n_time)) /
+  sqrt(u)
+mt <- expand.grid(rep = 1:3, time = 1:n_time, id = 1:n_subj)
+mt$y <- 2 + 0.3 * mt$time + b_mvt[cbind(mt$id, mt$time)] +
+  rnorm(nrow(mt), mean = 0, sd = 1)
+mt$id <- factor(mt$id)
+mt$time_g <- factor(mt$time)
+```
+
+The covariance matrix of the simulated effects is $3\,\Sigma$, so their
+standard deviation is $\sqrt{3} = `r fmt(sqrt(3), 3)`$. We fit the gaussian
+AR(1) structure and the t one, whose free parameters are those of `ar1()` and
+$\nu$:
+
+```{r}
+#| label: fit-mvt
+ts5 <- fixed(mvstudent_t1_distrib(n_dim = 5, sigma = ar1(5)), mu = 0)
+ts5@params
+fit_mg <- statmod(y ~ time + random(~ 0 + time_g | id, distrib = ar5),
+                  distrib = gaussian1_distrib(), data = mt)
+fit_mt <- statmod(y ~ time + random(~ 0 + time_g | id, distrib = ts5),
+                  distrib = gaussian1_distrib(), data = mt)
+summary(fit_mt)
+```
+
+The summary reports the two parameters of `ar1()` and $\hat\nu$. The first
+is named `scale_sd`, because it is the square root of the common diagonal of
+$\Sigma$ and not the standard deviation of the effects; `rho` needs no such
+care, since a positive multiple of a matrix has the same correlations. The covariance matrix and the
+comparison with the gaussian fit are
+
+```{r}
+#| label: mvt-cov
+h_mt <- hyper(fit_mt)$estimate
+S_mt <- param_value(ar1(5), eta = h_mt[1:2])
+nu_mt <- h_mt[3]
+S_mg <- param_value(ar1(5), eta = hyper(fit_mg)$estimate)
+re_mvt <- function(f) coef(f)$mu[grepl("random", names(coef(f)$mu))]
+rbind(gaussian = c(sd = sqrt(S_mg[1, 1]), rho = S_mg[1, 2] / S_mg[1, 1],
+                   cAIC = AIC(fit_mg),
+                   rmse = sqrt(mean((re_mvt(fit_mg) - as.vector(t(b_mvt)))^2))),
+      t = c(sd = sqrt(nu_mt / (nu_mt - 2) * S_mt[1, 1]),
+            rho = S_mt[1, 2] / S_mt[1, 1], cAIC = AIC(fit_mt),
+            rmse = sqrt(mean((re_mvt(fit_mt) - as.vector(t(b_mvt)))^2))))
+```
+
+The standard deviation of the t row is
+$\sqrt{\hat\nu/(\hat\nu - 2)}$ times the square root of the diagonal of
+$\hat\Sigma$, the standard deviation of the effects. The t distribution has
+the smaller conditional AIC and the smaller error of the random effects,
+while the two estimates of the standard deviation and of the correlation are
+close. Both standard deviations are below $\sqrt{3}$, and so is that of the
+300 simulated effects, `r fmt(sqrt(mean(b_mvt^2)), 3)`: with $\nu = 3$ the
+variance comes from the few subjects with a small $u_i$, and a sample of 60
+subjects usually has fewer of them than the variance assumes. The estimate
+$\hat\nu = `r fmt(nu_mt)`$ is above the true 3, and that is typical: with 60
+subjects the data tell little about $\nu$. We repeat the simulation
+with five more seeds:
+
+```{r}
+#| label: mvt-seeds
+nu_seeds <- vapply(2:6, function(seed) {
+  set.seed(seed)
+  u <- rgamma(n_subj, shape = nu_true / 2, rate = nu_true / 2)
+  b <- t(t(chol(S_true)) %*% matrix(rnorm(n_time * n_subj), nrow = n_time)) /
+    sqrt(u)
+  d <- mt
+  d$y <- 2 + 0.3 * d$time + b[cbind(as.integer(d$id), d$time)] +
+    rnorm(nrow(d), mean = 0, sd = 1)
+  f <- statmod(y ~ time + random(~ 0 + time_g | id, distrib = ts5),
+               distrib = gaussian1_distrib(), data = d)
+  hyper(f)$estimate[3]
+}, 0)
+nu_seeds
+```
+
+All the estimates are above 3. Part of this is the Laplace approximation of
+the previous section, and part is that $\nu$ is weakly identified: a few
+groups far from zero are the only information about the tails.
+
+## Predictions {#sec-lmm-predict}
+
+With the argument `random` of `predict()` we choose what to do with the
+random effects (@sec-beyond-random). We write $x$ for the row of the fixed
+effects and $z$ for the row of the random effects at the point we predict;
+for `fit_sc` at day $d$, $x = z = (1, d)$.
+
+**A group in the data.** With `random = "conditional"`, the default, the
+prediction uses the estimated random effects of the group:
+$$
+\hat\mu = x^\top\hat\beta + z^\top\hat b_i ,
+$$
+and its standard error comes from the joint variance of $(\hat\beta, \hat b_i)$.
+We predict subject 308 of `sleepstudy` at days 0, 5 and 9, and compare with
+`predict()` of `lmer()`:
+
+```{r}
+#| label: predict-known
+old <- data.frame(Days = c(0, 5, 9), Subject = "308")
+predict(fit_sc, what = "mu", newdata = old, se = TRUE)
+predict(lmer_sc, newdata = old)
+```
+
+**A new group.** Its random effects $b$ are unknown, and the model says
+$b \sim \mathrm{N}(0, \Sigma_b)$. There are two predictions of its mean:
+
+| `random` | prediction | |
+|---|---|---|
+| `"zero"` | $\hat\mu_0 = h^{-1}(x^\top\hat\beta)$ | the group with $b = 0$ |
+| `"marginal"` | $\bar\mu = \mathbb{E}_b\{h^{-1}(x^\top\hat\beta + z^\top b)\}$ | the average over the groups |
+
+where $h$ is the link of the parameter. The link of the mean is the identity,
+$h^{-1}(\eta) = \eta$, so
+$$
+\bar\mu = \mathbb{E}_b(x^\top\hat\beta + z^\top b)
+        = x^\top\hat\beta + z^\top\mathbb{E}(b) = x^\top\hat\beta = \hat\mu_0 ,
+$$
+and the two predictions are the same:
+
+```{r}
+#| label: predict-new
+new <- data.frame(Days = c(0, 5, 9), Subject = "new")
+p_zero <- predict(fit_sc, what = "mu", newdata = new, se = TRUE,
+                  random = "zero")
+p_zero
+predict(fit_sc, what = "mu", newdata = new, se = TRUE, random = "marginal")
+predict(lmer_sc, newdata = new, re.form = NA)
+```
+
+The standard error of `p_zero` describes the uncertainty of $\hat\beta$
+alone, $\mathrm{se}_0^2 = x^\top \widehat{\mathrm{Var}}(\hat\beta)\, x$.
+
+**Three sources of variation.** One new measurement of a new subject is
+$y = x^\top\beta + z^\top b + \varepsilon$. Its value is uncertain for three
+reasons:
+
+| source | what varies | in `fit_sc` |
+|---|---|---|
+| the distribution | $y$ given its parameters | $\varepsilon \sim \mathrm{N}(0, \sigma)$ |
+| a new subject | the random effects of a subject the fit has not seen | $b \sim \mathrm{N}(0, \Sigma_b)$ |
+| the estimation | the estimates differ from the true values | $\hat\beta$, $\hat\sigma$ |
+
+**Three intervals.** The argument `interval` chooses which sources the
+interval includes:
+
+| `interval` | the interval covers | sources included | variance |
+|---|---|---|---|
+| `"confidence"` | the line of a typical subject, $x^\top\beta$ | estimation | $\mathrm{se}_0^2$ |
+| `"group"` | the line of a new subject, $x^\top\beta + z^\top b$ | estimation, new subject | $\mathrm{se}_0^2 + z^\top\Sigma_b z$ |
+| `"prediction"` | one measurement of a new subject, $y$ | all three | $\mathrm{se}_0^2 + z^\top\Sigma_b z + \hat\sigma^2 e^{2v}$ |
+
+Each interval is the prediction plus or minus $1.96$ times the square root
+of its variance. For `fit_sc` at day $d$,
+$z^\top\Sigma_b z = \tau_0^2 + 2d\,\tau_{01} + d^2\tau_1^2$, so the group
+interval widens with the days.
+
+**How the estimation enters a prediction interval.** The argument
+`predictive` chooses how the third source enters `interval = "prediction"`:
+
+| `predictive` | what it does with the estimates | cost |
+|---|---|---|
+| `"plugin"` | holds them at their values, so the estimation error is ignored | none |
+| `"averaged"` (default) | averages over their approximate sampling distribution, $\mathrm{N}(\hat\theta, \widehat{V})$ with $\widehat{V}$ from `vcov()` | none |
+| `"bootstrap"` | simulates `n_boot` data sets from the fit, refits the model on each, and averages over the refits | one fit per data set |
+
+The averaged interval is a normal approximation of the bootstrap one
+[@harris1989]. Both are frequentist: what they average over is the estimate
+in a replicated sample, not the parameter. For $\sigma$ this gives the term
+$\hat\sigma^2 e^{2v}$ of the table above. The model estimates
+$\gamma_0 = \log\sigma$, and its estimate has the variance $v$ from
+`vcov()`. In a replicated sample the estimate is
+$\hat\gamma_0^* \sim \mathrm{N}(\hat\gamma_0, \sqrt{v})$, so the residual variance
+there is $\hat\sigma^{*2} = \exp(2\hat\gamma_0^*)$. The moment generating
+function of the normal distribution, $\mathbb{E}(e^{tX}) = e^{tm + t^2 v/2}$
+for $X \sim \mathrm{N}(m, \sqrt{v})$, at $t = 2$ gives its average:
+$$
+\mathbb{E}(\hat\sigma^{*2}) = \exp(2\hat\gamma_0 + 2v) = \hat\sigma^2 e^{2v}.
+$$
+Here $e^{2v} = `r fmt(exp(2 * vcov(fit_sc)["sigma:(Intercept)", "sigma:(Intercept)"]), 4)`$.
+The term $\mathrm{se}_0^2$ has the same origin: it is the error in
+$x^\top\hat\beta$. The plug-in interval leaves out both terms.
+
+**The bootstrap in detail.** Two choices define it. The argument
+`boot_refit` says what is estimated again on each simulated data set:
+
+| `boot_refit` | estimated again | held at the fit's values |
+|---|---|---|
+| `"coefficients"` (default) | the coefficients of every equation, including $\sigma$, which REML estimates | $\Sigma_b$ and the smoothing parameters |
+| `"full"` | everything, including $\Sigma_b$ | nothing |
+
+The argument `random` says how the random effects are simulated:
+
+| `random` | the subjects in a simulated data set | why |
+|---|---|---|
+| `"zero"` or `"marginal"` | new subjects: their effects are drawn from the estimated prior | the prediction is about a new subject, and the population estimates vary with the subjects sampled |
+| `"conditional"` | the observed subjects, with their estimated effects | the prediction is about these subjects, so their effects are the target and not a source of variation |
+
+Each refit starts at the estimates of the fit. The same rules hold for every
+distribution and every parameter, modelled or not: for a Poisson response
+the only estimate is $\hat\mu$, for a negative binomial with `theta ~ x` the
+estimates of both equations are averaged or refitted.
+
+We ask for the two wider intervals at the days 0, 5 and 9, and compute their
+standard errors by hand at day 9:
+
+```{r}
+#| label: predict-group
+p_group <- predict(fit_sc, what = "mu", newdata = new, se = TRUE,
+                   random = "zero", interval = "group")
+p_group
+p_pred <- predict(fit_sc, what = "response", newdata = new, se = TRUE,
+                  random = "zero", interval = "prediction")
+p_pred
+S_sc <- param_value(log_cholesky(2), eta = hyper(fit_sc)$estimate)
+z9 <- c(1, 9)
+se_group <- sqrt(p_zero$se[3]^2 + drop(t(z9) %*% S_sc %*% z9))
+sigma_sc <- exp(coef(fit_sc)$sigma[[1]])
+v_ls <- vcov(fit_sc)["sigma:(Intercept)", "sigma:(Intercept)"]
+c(group = se_group, prediction = sqrt(se_group^2 + sigma_sc^2 * exp(2 * v_ls)))
+```
+
+The three values of `predictive` at day 9:
+
+```{r}
+#| label: predict-predictive
+ends <- sapply(c("plugin", "averaged", "bootstrap"), function(pv) {
+  set.seed(1)
+  p <- predict(fit_sc, what = "response", newdata = new[3, ],
+               random = "zero", interval = "prediction",
+               predictive = pv, n_boot = 100)
+  c(lower = p$lower, upper = p$upper, width = p$upper - p$lower)
+})
+round(ends, 2)
+```
+
+The three intervals differ by a few per cent, because 18 subjects and 180
+measurements estimate the fixed effects and $\sigma$ well. In a small sample
+the difference matters. We simulated 200 regressions with 12 observations
+and a new observation for each, and the 95% intervals covered it 90.0% of
+the time (plug-in), 95.0% (averaged) and 94.5% (bootstrap).
+
+@fig-predict-new shows the three intervals over the days, with the data of
+the 18 subjects.
+
+```{r}
+#| label: fig-predict-new
+#| fig-cap: "Reaction time of a new subject against the days of sleep deprivation: the mean line with its confidence interval, the interval of the mean line of a new subject, and the prediction interval of one measurement. The grey points are the data of the 18 subjects."
+#| echo: false
+#| fig-height: 4
+dd <- data.frame(Days = seq(from = 0, to = 9, length.out = 50), Subject = "new")
+gz <- predict(fit_sc, what = "mu", newdata = dd, se = TRUE, random = "zero")
+gg <- predict(fit_sc, what = "mu", newdata = dd, se = TRUE, random = "zero",
+              interval = "group")
+gr <- predict(fit_sc, what = "response", newdata = dd, se = TRUE,
+              random = "zero", interval = "prediction")
+band_lev <- c("confidence interval", "group interval")
+bands_new <- data.frame(
+  Days = rep(dd$Days, times = 2),
+  lower = c(gz$lower, gg$lower), upper = c(gz$upper, gg$upper),
+  band = factor(rep(band_lev, each = nrow(dd)), levels = band_lev))
+line_lev <- c("mean line", "prediction interval")
+lines_new <- data.frame(
+  Days = rep(dd$Days, times = 3),
+  value = c(gz$fit, gr$upper, gr$lower),
+  curve = factor(rep(line_lev[c(1, 2, 2)], each = nrow(dd)),
+                 levels = line_lev),
+  piece = rep(c("fit", "upper", "lower"), each = nrow(dd)))
+ggplot(sleepstudy, aes(x = Days)) +
+  geom_point(aes(y = Reaction), colour = book_grey, size = 0.8) +
+  geom_ribbon(data = bands_new[bands_new$band == band_lev[2], ],
+              aes(ymin = lower, ymax = upper, fill = band)) +
+  geom_ribbon(data = bands_new[bands_new$band == band_lev[1], ],
+              aes(ymin = lower, ymax = upper, fill = band)) +
+  geom_line(data = lines_new,
+            aes(y = value, colour = curve, linetype = curve,
+                linewidth = curve, group = piece)) +
+  scale_fill_manual(values = c(alpha(chalk, 0.4), alpha(chalk, 0.15)),
+                    limits = band_lev) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_linewidth_manual(values = c(1, 0.5)) +
+  labs(x = "days of sleep deprivation", y = "reaction time (ms)")
+```
+
+### Predicting sigma
+
+With a random effect on `sigma` the two predictions differ, because the link
+of `sigma` is the logarithm. In the model `fit_ds` of @sec-lmm-sigma,
+$\sigma_{ij} = \exp(\gamma_0 + c_i)$ with $c_i \sim \mathrm{N}(0, \kappa)$.
+For a new child:
+$$
+\begin{aligned}
+\text{zero:} \quad & \hat\sigma_0 = \exp(\hat\gamma_0), \\
+\text{marginal:} \quad & \bar\sigma = \mathbb{E}_c\{\exp(\hat\gamma_0 + c)\}
+  = \exp(\hat\gamma_0)\,\mathbb{E}(e^{c})
+  = \exp(\hat\gamma_0 + \hat\kappa^2/2),
+\end{aligned}
+$$
+where the last step is the moment generating function of $c$ at $t = 1$. The
+first is the residual standard deviation of a typical child, the second its
+average over the children:
+
+```{r}
+#| label: predict-sigma
+new_child <- data.frame(age = 11, Sex = factor("Male", levels(Orthodont$Sex)),
+                        Subject = "new")
+s_zero <- predict(fit_ds, what = "sigma", newdata = new_child, se = TRUE,
+                  random = "zero")
+s_marg <- predict(fit_ds, what = "sigma", newdata = new_child, se = TRUE,
+                  random = "marginal")
+s_zero
+s_marg
+kappa <- hyper(fit_ds)$estimate[2]
+s_zero$fit * exp(kappa^2 / 2)
+```
+
+The average residual standard deviation is larger than that of the typical
+child by the factor $\exp(\hat\kappa^2/2) = `r fmt(exp(kappa^2 / 2), 3)`$.
+
+### Random effects that are not gaussian
+
+The intervals above use a gaussian distribution of the random effects. With
+another distribution, such as those of @sec-lmm-heavy, the prediction for a
+new group needs an integral. We write one measurement of a new group with a
+random intercept as
+$$
+y = x^\top\beta + b + \varepsilon, \qquad b \sim f_b, \qquad
+\varepsilon \sim \mathrm{N}(0, \sigma),
+$$
+where $f_b$ is the distribution of the random intercepts, centred at zero.
+Given $b$, the measurement $y$ is normal, so its distribution function is an
+average of normal distribution functions over $b$:
+$$
+G(y) = \int_{-\infty}^{\infty}
+  \Phi\!\left(\frac{y - x^\top\beta - b}{\sigma}\right) f_b(b)\, db .
+$$
+When $f_b$ is gaussian with variance $\tau^2$, $G$ is the normal
+distribution function with mean $x^\top\beta$ and variance
+$\sigma^2 + \tau^2$, and the interval is the one of the table above. For any
+other $f_b$, $G$ is not normal. The prediction is then the median of $G$,
+and the interval runs from its quantile at $0.025$ to its quantile at
+$0.975$; `predict()` finds each quantile by solving $G(y) = p$ with Newton's
+method, whose derivative is the density of $y$. The standard deviation of
+$y$ is $\sqrt{\sigma^2 + \mathrm{Var}(b)}$ when the variance of $b$ exists.
+
+**A Student t distribution.** A t distribution with scale $s$ and $\nu$
+degrees of freedom is a scale mixture of normal distributions
+[@lange1989]:
+$$
+b \mid w \sim \mathrm{N}(0, s/\sqrt{w}), \qquad
+w \sim \mathrm{Gamma}(\nu/2, \nu/2).
+$$
+Given $w$, the integral over $b$ is the gaussian one, so
+$$
+G(y) = \int_0^\infty
+  \Phi\!\left(\frac{y - x^\top\beta}{\sqrt{\sigma^2 + s^2/w}}\right)
+  g(w)\, dw ,
+$$
+where $g$ is the density of $w$. This is an integral in one variable, and
+`predict()` computes it with a trapezoidal rule in $\log w$, with the nodes
+0.6 apart, which gives an error below $10^{-7}$ in probability. The
+variance of $b$ is $s^2\nu/(\nu - 2)$ when $\nu > 2$ and is infinite
+otherwise, so for $\nu \le 2$ the standard error is `NA`.
+
+**Other distributions.** For the logistic distribution and the others of
+@sec-lmm-heavy the integral over $b$ has no such form. `predict()` splits the
+distribution of $b$ into $K = 1000$ pieces of equal probability and
+represents each piece by its middle quantile, $b_k = Q_b\{(k - 1/2)/K\}$,
+where $Q_b$ is the quantile function of $f_b$:
+$$
+G(y) \approx \frac{1}{K}\sum_{k=1}^{K}
+  \Phi\!\left(\frac{y - x^\top\beta - b_k}{\sigma}\right).
+$$
+The nodes $b_k$ are fixed, so the interval does not depend on the random
+seed. The standard deviation of $y$ uses the variance of $f_b$, and it is
+`NA` when $f_b$ has no variance, as for the Cauchy distribution.
+
+With `predictive = "averaged"`, the default, the predictor of each node $w$
+or $b_k$ is also averaged over the approximate distribution of the
+estimates, as for the gaussian distribution. When the variance of that
+predictor is much larger than $\sigma^2$, the function averaged turns from 0
+to 1 over a short range, and `predict()` integrates it with `quad_vec()` of
+`numericals7`.
+
+We predict a new group of the simulated data of @sec-lmm-heavy at $x = 0.5$
+under the gaussian, the Student t and the logistic distributions. We hold
+the estimates at their values (`predictive = "plugin"`), so that the
+intervals differ only by $f_b$:
+
+```{r}
+#| label: predict-heavy
+new_g <- data.frame(x = 0.5, g = "new")
+heavy_pred <- t(sapply(list(gaussian = fit_hg, "Student t" = fit_ht,
+                            logistic = fit_lo), function(f) {
+  p <- predict(f, what = "response", newdata = new_g, se = TRUE,
+               random = "zero", interval = "prediction",
+               predictive = "plugin")
+  c(fit = p$fit, se = p$se, lower = p$lower, upper = p$upper,
+    width = p$upper - p$lower)
+}))
+round(heavy_pred, 3)
+```
+
+The gaussian interval is the widest, because the three far groups raise the
+estimated standard deviation of the random intercepts to
+`r fmt(hyper(fit_hg)$estimate)`, and its interval is
+$x^\top\hat\beta \pm 1.96\sqrt{\hat\sigma^2 + \hat\tau^2}$. The t
+distribution keeps the scale of the seventeen near groups and puts the far
+groups in its tails, so its interval is narrower. Its standard error is
+`NA` because $\hat\nu = `r fmt(hyper(fit_ht)$estimate[2])`$ is below 2. We
+compute $G$ of the t distribution at the two ends of its interval with
+`integrate()`, which shares no code with `predict()`:
+
+```{r}
+#| label: predict-heavy-check
+mu_t <- predict(fit_ht, what = "mu", newdata = new_g, random = "zero")
+sigma_t <- predict(fit_ht, what = "sigma", newdata = new_g, random = "zero")
+s_t <- hyper(fit_ht)$estimate[1]
+nu_t <- hyper(fit_ht)$estimate[2]
+G_t <- function(y) {
+  integrate(function(w) {
+    pnorm((y - mu_t) / sqrt(sigma_t^2 + s_t^2 / w)) *
+      dgamma(w, shape = nu_t / 2, rate = nu_t / 2)
+  }, lower = 0, upper = Inf, rel.tol = 1e-10)$value
+}
+c(lower = G_t(heavy_pred["Student t", "lower"]),
+  upper = G_t(heavy_pred["Student t", "upper"]))
+```
+
+For the logistic distribution with scale $s$ we compute $G$ at the two ends
+of its interval with `integrate()` over $b$:
+
+```{r}
+#| label: predict-heavy-logistic
+mu_l <- predict(fit_lo, what = "mu", newdata = new_g, random = "zero")
+sigma_l <- predict(fit_lo, what = "sigma", newdata = new_g, random = "zero")
+s_l <- hyper(fit_lo)$estimate
+G_l <- function(y) {
+  integrate(function(b) {
+    pnorm((y - mu_l - b) / sigma_l) * dlogis(b, location = 0, scale = s_l)
+  }, lower = -Inf, upper = Inf, rel.tol = 1e-10)$value
+}
+c(lower = G_l(heavy_pred["logistic", "lower"]),
+  upper = G_l(heavy_pred["logistic", "upper"]))
+```
+
+The thousand nodes put the ends at the 2.5% and 97.5% quantiles of $G$ to
+about six decimals. With 5000 random draws, which `predict()` used before,
+the ends moved by about 0.05 from one seed to the next.
+
+The group interval (`interval = "group"`) covers the mean
+$x^\top\beta + b$ of a new group. Its ends are the quantiles of
+$x^\top\hat\beta + e + b$, where $e \sim \mathrm{N}(0, \mathrm{se}_0)$ is
+the error of the estimate: `predict()` computes them with the scale mixture
+for the t distribution and with the quantiles of $f_b$ for the logistic
+distribution. Its standard error is the standard deviation of this sum,
+$\sqrt{\mathrm{se}_0^2 + \mathrm{Var}(b)}$, which does not exist for the t
+distribution with $\hat\nu < 2$:
+
+```{r}
+#| label: predict-heavy-group
+group_heavy <- rbind(
+  "Student t" = predict(fit_ht, what = "mu", newdata = new_g,
+                        random = "zero", interval = "group"),
+  logistic = predict(fit_lo, what = "mu", newdata = new_g, random = "zero",
+                     interval = "group"))
+group_heavy
+```
+
+The logistic distribution with scale $s$ has variance $\pi^2 s^2/3$, so the
+standard error of the logistic row is
+$\sqrt{\mathrm{se}_0^2 + \pi^2\hat s^2/3}$.
+
+```{r}
+#| label: gate-07
+#| include: false
+assert_lmm_ok(
+  fits = list(ri = fit_ri, rs = fit_rs, sc = fit_sc, su = fit_su,
+              bd = fit_bd, bd0 = fit_bd0, un = fit_un, cs = fit_cs,
+              dg = fit_dg, pr = fit_pr, ar = fit_ar, ne = fit_ne,
+              cr = fit_cr, ds = fit_ds, sh = fit_sh, hg = fit_hg,
+              ht = fit_ht, hl = fit_hl, lo = fit_lo, ca = fit_ca,
+              ph = fit_ph, st = fit_st, tml = fit_tml, mg = fit_mg,
+              mt = fit_mt),
+  ref = list(ri = lme_ri, rs = lme_rs, sc = lmer_sc, su = lmer_su,
+             bd = lmer_bd, un = lme_un, cs = lme_cs, dg = lme_dg,
+             ar = tmb_ar, ne = lme_ne, cr = lmer_cr, ds = tmb_ds),
+  data = list(ortho = Orthodont, sleep = sleepstudy, heavy = heavy,
+              b_true = b_true, b_mvt = b_mvt),
+  claims = list(lr_sex = lr_sex, lr_cor = lr_cor, lr_bd = lr_bd,
+                lr_cs = lr_cs, lr_dg = lr_dg, lr_sh = lr_sh,
+                b_ri = b_ri, b_lme = b_lme, p_zero = p_zero,
+                p_group = p_group, p_pred = p_pred, s_zero = s_zero,
+                s_marg = s_marg, ols = ols, mix_int = mix_int,
+                mix_slo = mix_slo, Om = Om, pc_ac = pc_ac,
+                op = op, par_tml = par_tml, mode_b = mode_b,
+                exact_loglik = exact_loglik, rmse_exact = rmse_exact,
+                rmse_laplace = rmse_laplace, nu_seeds = nu_seeds,
+                heavy_pred = heavy_pred, group_heavy = group_heavy))
+```

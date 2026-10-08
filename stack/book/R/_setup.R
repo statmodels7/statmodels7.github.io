@@ -43,6 +43,37 @@ options(digits = 7, width = 82)
 
 
 # ---------------------------------------------------------------------------
+# Figures
+#
+# Every figure of the book is drawn with ggplot2 and this theme. A figure of
+# several panels is a facet, so its legend is drawn once, below the panels,
+# and the axes are labelled once. Observations are grey points; fitted curves
+# take the palette in the order the legend lists them.
+# ---------------------------------------------------------------------------
+
+suppressPackageStartupMessages(library(ggplot2))
+
+book_palette <- c("#3D6B4C", "#9C3E11", "#5B7DB1", "grey15", "#C49A2C",
+                  "#7A4E8C")
+book_grey <- "grey60"
+
+theme_book <- function(base_size = 11) {
+  ggplot2::theme_bw(base_size = base_size) +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "bottom",
+      legend.title = ggplot2::element_blank(),
+      legend.key.width = grid::unit(1.8, "lines"),
+      strip.background = ggplot2::element_rect(fill = "grey95",
+                                               colour = "grey70"),
+      plot.margin = ggplot2::margin(4, 8, 4, 4))
+}
+ggplot2::theme_set(theme_book())
+options(ggplot2.discrete.colour = book_palette,
+        ggplot2.discrete.fill = book_palette)
+
+
+# ---------------------------------------------------------------------------
 # Certification helpers
 #
 # Three of them, answering three different questions:
