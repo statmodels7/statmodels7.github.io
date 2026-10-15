@@ -138,7 +138,10 @@ assert_glmm_ok <- function(fits, ref, data, claims) {
   # original order it stops at -817.824. The outer curvature is not readable
   # at either point, a rank-one matrix of order 1e14 with an equilibrated
   # eigenvalue of -5, and the criterion jumps by 4 between neighbouring
-  # evaluations under 0.196.0, so the value is an arithmetic accident)
+  # evaluations under 0.196.0, so the value is an arithmetic accident;
+  # 2026-10-15, statmodels7 0.202.0: -817.8226 in the chapter and -817.8099
+  # in a fresh session, the same with optimizers7 0.14.0 and 0.15.0, so it
+  # moved between 0.197.0 and 0.202.0)
   zr <- claims$zinb_re
   tr <- claims$tmb_zinb_re
   sd_zr <- attr(glmmTMB::VarCorr(tr)$zi[[1]], "stddev")
@@ -146,7 +149,7 @@ assert_glmm_ok <- function(fits, ref, data, claims) {
       !is.na(as.numeric(stats::logLik(tr))) ||
       !near(hy(zr)[2], sd_zr, 0.05) ||
       abs(coef(zr)$zi[[1]] - glmmTMB::fixef(tr)$zi[[1]]) < 0.2 ||
-      abs(as.numeric(stats::logLik(zr, type = "marginal")) + 817.819) > 1e-3) {
+      abs(as.numeric(stats::logLik(zr, type = "marginal")) + 817.823) > 1e-3) {
     fail("the random effect on the zero inflation of the negative binomial")
   }
   # and the summary gives its two standard deviations no standard error

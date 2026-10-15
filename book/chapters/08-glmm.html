@@ -336,7 +336,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../chapters/16-own-terms.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></a>
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term and an optimizer</span></span></a>
   </div>
 </li>
       </ul>
@@ -407,7 +407,7 @@ b_i \sim \mathrm{N}(0, \Sigma_b),
 \]</span> where <span class="math inline">\(F\)</span> is a Poisson, Bernoulli, negative binomial or any other distribution, and <span class="math inline">\(h\)</span> is the link of its parameter. The likelihood of the fixed effects and of <span class="math inline">\(\Sigma_b\)</span> is an integral over the random effects of each group: <span class="math display">\[
 L(\beta, \Sigma_b) = \prod_i \int \prod_j f\{y_{ij} \mid
   h^{-1}(x_{ij}^\top\beta + z_{ij}^\top b)\}\, \phi(b; 0, \Sigma_b)\, db .
-\]</span> For a gaussian response with the identity link this integral has a closed form, which is why the models of <a href="07-lmm.html" class="quarto-xref"><span>Chapter 7</span></a> are exact. For any other distribution it has none. <code>statmodels7</code> replaces it with the Laplace approximation <span class="citation" data-cites="tierney1986">(<a href="A2-references.html#ref-tierney1986" role="doc-biblioref">Tierney and Kadane 1986</a>)</span>: the integrand is approximated by a gaussian density centred at its mode <span class="math inline">\(\hat b_i\)</span>, and <span class="math display">\[
+\]</span> For a gaussian response with the identity link this integral has a closed form, which is why the models of <a href="07-lmm.html" class="quarto-xref"><span>Chapter 7</span></a> are exact. For any other distribution it has none. <code>statmodels7</code> replaces it with the Laplace approximation <span class="citation" data-cites="tierney1986">(<a href="A2-references.html#ref-tierney1986" role="doc-biblioref">Tierney and Kadane 1986</a>)</span>: the integrand is approximated by a gaussian density centered at its mode <span class="math inline">\(\hat b_i\)</span>, and <span class="math display">\[
 \log \int e^{g(b)}\, db \approx g(\hat b) - \tfrac12 \log\det\{-g''(\hat b)\}
 + \tfrac{d}{2}\log(2\pi),
 \]</span> where <span class="math inline">\(g\)</span> is the logarithm of the integrand and <span class="math inline">\(d\)</span> the dimension of <span class="math inline">\(b\)</span>. In <code>statmodels7</code> the random effects are coefficients with a penalty, so <span class="math inline">\(\hat b\)</span> is the mode of the penalized likelihood, and the REML criterion applies the same approximation to the fixed effects of the mean as well (<a href="02-beyond.html#sec-beyond-outer" class="quarto-xref"><span>Section 2.8</span></a>). The packages <code>glmmTMB</code> <span class="citation" data-cites="brooks2017">(<a href="A2-references.html#ref-brooks2017" role="doc-biblioref">Brooks et al. 2017</a>)</span> and <code>lme4</code> <span class="citation" data-cites="bates2015">(<a href="A2-references.html#ref-bates2015" role="doc-biblioref">Bates et al. 2015</a>)</span> use the same approximation by default, and we compare with them throughout the chapter.</p>
@@ -452,8 +452,8 @@ y_{ij} \mid b_i \sim \mathrm{Poisson}(\mu_{ij}), \qquad
 <span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -585.619968    effective df 50.41</span></span>
 <span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1272.053    cBIC 1446.653</span></span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.43 s</span></span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 7.2e-15   min eigen 0.0099</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.41 s</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 7.3e-15   min eigen 0.0099</span></span>
 <span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.7e-07   min eigen 1</span></span>
 <span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -503,7 +503,7 @@ y_{ij} \mid b_i \sim \mathrm{Poisson}(\mu_{ij}), \qquad
 <span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 ml(marginal = "all") 0.5015651 -0.3349636 -665.3587</span></span>
 <span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3                glmer 0.5015329 -0.3348773 -665.3591</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The second row, <code>ml(marginal = "all")</code>, agrees with <code>glmer()</code> in the third row to four digits. The first row differs from both slightly: for a gaussian response the joint mode and the maximum of <span class="math inline">\(L\)</span> give the same fixed effects, but for a Poisson response the determinant in the Laplace approximation depends on <span class="math inline">\(\beta\)</span>, so the two differ.</p>
+<p>The second row, <code>ml(marginal = "all")</code>, agrees with <code>glmer()</code> in the third row to three digits in the estimates and to four in the log-likelihood. The first row differs from both slightly: for a gaussian response the joint mode and the maximum of <span class="math inline">\(L\)</span> give the same fixed effects, but for a Poisson response the determinant in the Laplace approximation depends on <span class="math inline">\(\beta\)</span>, so the two differ.</p>
 </section>
 </section>
 <section id="sec-glmm-bernoulli" class="level2" data-number="8.2">
@@ -637,8 +637,8 @@ b_i \sim \mathrm{N}(0, \tau).
 <span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -1718.722349    effective df 21.61</span></span>
 <span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 3480.669    cBIC 3575.661</span></span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 460 ms</span></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.3e-15   min eigen 0.059</span></span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 380 ms</span></span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.7e-15   min eigen 0.059</span></span>
 <span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.2e-08   min eigen 0.89</span></span>
 <span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -720,8 +720,8 @@ c_i \sim \mathrm{N}(0, \kappa),
 <span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -1644.314839    effective df 36.77</span></span>
 <span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 3362.174    cBIC 3523.796</span></span>
-<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.38 s</span></span>
-<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 8e-15   min eigen 0.092</span></span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1 s</span></span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 8.5e-15   min eigen 0.092</span></span>
 <span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.7e-07   min eigen 0.55</span></span>
 <span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -834,13 +834,13 @@ P(y = k) = (1 - \pi)\frac{\mu^k e^{-\mu}}{k!}, \quad k \ge 1
 <span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -841.252789    effective df 34.84</span></span>
 <span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1752.190    cBIC 1907.854</span></span>
-<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.02 s</span></span>
-<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 6.1e-15   min eigen 0.018</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.28 s</span></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.4e-15   min eigen 0.018</span></span>
 <span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 6.7e-09   min eigen 0.23</span></span>
 <span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>In a stream affected by mining (<code>mined</code> is <code>yes</code>, the reference level) the probability of a structural zero for a typical stream is <span class="math inline">\(\mathrm{logit}^{-1}(\hat\alpha_0) = 0.758\)</span>, and in an unaffected stream it is <span class="math inline">\(\mathrm{logit}^{-1}(\hat\alpha_0 + \hat\alpha_1) =
-0.447\)</span>. Where the species are present, the unaffected streams also have <span class="math inline">\(\exp(\hat\beta_{\mathrm{minedno}}) = 2.83\)</span> times the salamanders. In <code>glmmTMB()</code> the equation of <span class="math inline">\(\pi\)</span> is the argument <code>ziformula</code>:</p>
+0.225\)</span>. Where the species are present, the unaffected streams also have <span class="math inline">\(\exp(\hat\beta_{\mathrm{minedno}}) = 2.83\)</span> times the salamanders. In <code>glmmTMB()</code> the equation of <span class="math inline">\(\pi\)</span> is the argument <code>ziformula</code>:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>tmb_zi <span class="ot">&lt;-</span> glmmTMB<span class="sc">::</span><span class="fu">glmmTMB</span>(count <span class="sc">~</span> spp <span class="sc">+</span> mined <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> site),</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>                           <span class="at">ziformula =</span> <span class="sc">~</span> mined <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> site),</span>
@@ -920,7 +920,7 @@ P(y = k) = (1 - \pi)\frac{\mu^k e^{-\mu}}{k!}, \quad k \ge 1
 <span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -802.116895    effective df 24.75</span></span>
 <span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1653.730    cBIC 1764.299</span></span>
-<span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.71 s</span></span>
+<span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.65 s</span></span>
 <span id="cb14-48"><a href="#cb14-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.6e-15   min eigen 0.031</span></span>
 <span id="cb14-49"><a href="#cb14-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2e-06   min eigen 0.11</span></span>
 <span id="cb14-50"><a href="#cb14-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
@@ -941,7 +941,7 @@ P(y = k) = (1 - \pi)\frac{\mu^k e^{-\mu}}{k!}, \quad k \ge 1
 </section>
 <section id="a-random-effect-on-the-zero-inflation" class="level3">
 <h3 class="anchored" data-anchor-id="a-random-effect-on-the-zero-inflation">A random effect on the zero inflation</h3>
-<p>In the Poisson model the probability <span class="math inline">\(\pi\)</span> had a random effect on the stream. We can ask for the same random effect in the negative binomial model. The fit takes more than a minute, and during it the sparse Cholesky factorization reports many times that a matrix is not positive definite; we hide these warnings here:</p>
+<p>In the Poisson model the probability <span class="math inline">\(\pi\)</span> had a random effect on the stream. We can ask for the same random effect in the negative binomial model. During the fit the sparse Cholesky factorization reports many times that a matrix is not positive definite; we hide these warnings here:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>fit_zinb_re <span class="ot">&lt;-</span> <span class="fu">statmod</span>(count <span class="sc">~</span> spp <span class="sc">+</span> mined <span class="sc">+</span> <span class="fu">random</span>(<span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> site) <span class="sc">|</span></span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>                         zi <span class="sc">~</span> mined <span class="sc">+</span> <span class="fu">random</span>(<span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> site),</span>
@@ -997,9 +997,9 @@ P(y = k) = (1 - \pi)\frac{\mu^k e^{-\mu}}{k!}, \quad k \ge 1
 <span id="cb15-52"><a href="#cb15-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     (Intercept)  -2.813 -0.3658 -0.064 0.1813  0.4104 4.657</span></span>
 <span id="cb15-53"><a href="#cb15-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb15-54"><a href="#cb15-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb15-55"><a href="#cb15-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -788.709858    effective df 28.67</span></span>
+<span id="cb15-55"><a href="#cb15-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -788.709855    effective df 28.67</span></span>
 <span id="cb15-56"><a href="#cb15-56" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1634.753    cBIC 1762.827</span></span>
-<span id="cb15-57"><a href="#cb15-57" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 17.3 s</span></span>
+<span id="cb15-57"><a href="#cb15-57" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 16.7 s</span></span>
 <span id="cb15-58"><a href="#cb15-58" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.2e-05   min eigen 0.00029</span></span>
 <span id="cb15-59"><a href="#cb15-59" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 0.5   min eigen -5</span></span>
 <span id="cb15-60"><a href="#cb15-60" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 notes: print(summary(fit), notes = TRUE)</span></span>
@@ -1027,7 +1027,7 @@ P(y = k) = (1 - \pi)\frac{\mu^k e^{-\mu}}{k!}, \quad k \ge 1
 <span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(tmb_zinb_re)</span>
 <span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' NA (df=13)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>It reports a Hessian that is not positive definite and a false convergence, and it returns no log-likelihood. The two packages reach similar estimates of the standard deviation of the random effect on <span class="math inline">\(\pi\)</span> (1.973 against 1.954), but different estimates of the intercept <span class="math inline">\(\hat\alpha_0\)</span> (1.11 against 0.61) and of the slope <span class="math inline">\(\hat\alpha_1\)</span> (-5.78 against -5.29). Neither package can confirm its estimates. The cause is the one of the previous subsection. In the unaffected streams <span class="math inline">\(\pi\)</span> is already close to zero, <span class="math inline">\(\hat\alpha_1\)</span> moves towards <span class="math inline">\(-\infty\)</span>, and the likelihood is flat in that direction. A random effect on <span class="math inline">\(\mathrm{logit}\,\pi\)</span> adds a second direction that the data do not determine well. For this reason we keep the negative binomial model without it.</p>
+<p>It reports a Hessian that is not positive definite and a false convergence, and it returns no log-likelihood. The two packages reach similar estimates of the standard deviation of the random effect on <span class="math inline">\(\pi\)</span> (1.973 against 1.954), but different estimates of the intercept <span class="math inline">\(\hat\alpha_0\)</span> (1.11 against 0.61) and of the slope <span class="math inline">\(\hat\alpha_1\)</span> (-5.78 against -5.29). The estimates of both packages remain unconfirmed. The cause is the one of the previous subsection. In the unaffected streams <span class="math inline">\(\pi\)</span> is already close to zero, <span class="math inline">\(\hat\alpha_1\)</span> moves towards <span class="math inline">\(-\infty\)</span>, and the likelihood is flat in that direction. A random effect on <span class="math inline">\(\mathrm{logit}\,\pi\)</span> adds a second direction that the data do not determine well. For this reason we keep the negative binomial model without it.</p>
 </section>
 </section>
 <section id="sec-glmm-predict" class="level2" data-number="8.5">
@@ -1267,7 +1267,7 @@ Figure&nbsp;8.1: Probability of the bacterium against the linear predictor of a 
 <span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a><span class="fu">sd</span>(y_sim)</span>
 <span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 8.302989</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The quantiles of the simulated counts are the ends of the interval for the deprived nest, and the empirical distribution function crosses 0.975 at the upper end. The standard deviation agrees to within half a per cent, which is the Monte Carlo error of a count with such a long tail.</p>
+<p>The quantiles of the simulated counts are the ends of the interval for the deprived nest, and the empirical distribution function crosses 0.975 at the upper end. The standard deviation agrees to within half a percent, which is the Monte Carlo error of a count with such a long tail.</p>
 <p><strong>A new stream of the salamanders.</strong> In the zero-inflated Poisson model the probability of a zero and the counts of a new stream depend on its two random effects. We predict a new stream affected by mining and one that is not, for the species <code>GP</code>, and check the unaffected one by simulation:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>new_site <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">spp =</span> <span class="fu">factor</span>(<span class="st">"GP"</span>, <span class="fu">levels</span>(Salamanders<span class="sc">$</span>spp)),</span>

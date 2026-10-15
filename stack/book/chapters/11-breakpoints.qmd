@@ -115,8 +115,8 @@ where $U_\gamma(q)$ is the score of $\gamma$ in the model with the break-point
 at $q$, evaluated at the fit of the model without the break-point, and
 $K(q)$ is the information of that model. One fit of the model without the
 break-point serves every $q$, so the process costs one gradient and one
-Hessian per position. For a change of slope $S(q)$ is a smooth function of
-$q$, and the p-value of $M = \sup_q S(q)$ has the upper bound of
+Hessian per position. For a change of slope $S(q)$ is a continuous function
+of $q$, and the p-value of $M = \sup_q S(q)$ has the upper bound of
 @davies1987,
 $$
 P\Big(\sup_q S(q) > M\Big) \le P(\chi^2_1 > M) +
@@ -216,7 +216,8 @@ criterion.
 
 A break-point term goes into any family. The data frame `down` of the package
 `segmented` gives the number of babies born with Down syndrome (`cases`) and
-the number of births (`births`) for mothers of each age from 17 to 47. We
+the number of births (`births`) for mothers in 30 classes of age from 17 to
+47. We
 model the rate of cases per birth on the logarithmic scale, with a change of
 slope at the age $\psi$:
 $$
@@ -245,10 +246,10 @@ cf_down <- coef(fit_down)$mu
 
 The two fits agree. Before the age of `r fmt(cf_down[["seg.psi1"]], 1)`
 years the rate changes by
-`r fmt(100 * (exp(cf_down[["seg.beta"]]) - 1), 1)` per cent a year, which is
+`r fmt(100 * (exp(cf_down[["seg.beta"]]) - 1), 1)` percent a year, which is
 almost constant, and after it the rate grows by
 `r fmt(100 * (exp(cf_down[["seg.beta"]] + cf_down[["seg.gamma1"]]) - 1), 1)`
-per cent a year. @fig-down shows the observed rates per 1,000 births with the
+percent a year. @fig-down shows the observed rates per 1,000 births with the
 fitted rate, which we obtain from `predict()` with `births = 1000` in
 `newdata`, so that the offset gives the rate per 1,000 births.
 
@@ -318,7 +319,8 @@ ci_nile <- confint(fit_nile)
 Both fits put the step between 1898 and 1899, and they have the same residual
 sum of squares. We compare the residual sums of squares and not the
 log-likelihoods, because our $\sigma$ is the REML estimate
-$\sqrt{\mathrm{RSS}/(n-3)}$ and `stepmented()` reports the maximum likelihood
+$\sqrt{\mathrm{RSS}/(n-2)}$, which counts the two coefficients of the mean and
+not the held position, and `stepmented()` reports the maximum likelihood
 one. The mean flow is `r fmt(cf_nile[["(Intercept)"]], 0)` before the step
 and `r fmt(cf_nile[["(Intercept)"]] + cf_nile[["jump.delta1"]], 0)` after it,
 a drop of `r fmt(-cf_nile[["jump.delta1"]], 0)` with a standard error of
@@ -367,8 +369,8 @@ q_psi <- stats::quantile(psi_star, c(0.025, 0.975))
 share <- mean(floor(psi_star) == 1898)
 ```
 
-In `r fmt(100 * share, 0)` per cent of the simulated data sets the step falls
-between 1898 and 1899, as in the original fit, and 95 per cent of the
+In `r fmt(100 * share, 0)` percent of the simulated data sets the step falls
+between 1898 and 1899, as in the original fit, and 95 percent of the
 positions lie between `r yr(q_psi[1])` and `r yr(q_psi[2])`.
 
 ### Is there a step?
@@ -611,7 +613,7 @@ $$
 \frac{(c_t - q\, c_s)^2}{a_{tt} - 2q\, a_{ts} + q^2 a_{ss}} ,
 $$
 where $c_t = t' M_F y$, $c_s = s' M_F y$ and the $a$ are the cross products
-of $t$ and $s$ after $M_F$. The ratio has one stationary point,
+of $t$ and $s$ after $M_F$. The ratio has its maximum at
 $q^* = -b/g$, where $g$ and $b$ are the coefficients of $t$ and $s$ in the
 regression of $r$ on the two columns. The minimum over the interval is at
 $q^*$ when $q^*$ falls inside it, and at one of its ends otherwise, which is
@@ -650,7 +652,7 @@ best point along those lines, not a guaranteed global minimum.
 The data frame `globTempAnom` of the package `segmented` gives the yearly
 anomaly of the global temperature from 1850 to 2023. We fit two changes of
 slope with the default starting values, and from $\psi = (1880, 1950)$
-without the bootstrap restarts of @muggeo2003 (`n_boot = 0`):
+without the bootstrap restarts of @wood2001 (`n_boot = 0`):
 
 ```{r}
 #| label: fit-glob
@@ -675,10 +677,21 @@ c(default = rss(fit_glob), start = rss(fit_glob_0),
 
 The two fits reach the same positions as `segmented`. @fig-glob shows why
 the start matters for the iteration and not for the polish: with the first
-position held at 1910, the profile in the second position has two minima,
-and an iteration that starts from 1950 can stop at the one near 2014, where
-the second change of slope rests on a handful of years. The polish evaluates
-every interval and moves the position to the deeper minimum.
+position held at 1910, the profile in the second position has its deepest
+minimum near 1976 and shallow local minima a few years later. The iteration
+of @muggeo2003, as `segmented()` runs it from $\psi = (1880, 1950)$ without
+restarts, stops at one of them:
+
+```{r}
+#| label: glob-iteration
+s_glob_0 <- segmented::segmented(lm_glob, seg.Z = ~ Year, psi = c(1880, 1950),
+                                 control = segmented::seg.control(n.boot = 0))
+s_glob_0$psi[, "Est."]
+sum(residuals(s_glob_0)^2)
+```
+
+Its residual sum of squares is larger than that of the fit. The polish
+evaluates every interval and moves the position to the deeper minimum.
 
 ```{r}
 #| label: fig-glob
@@ -817,7 +830,8 @@ c(statmod = sum((plant$y - fitted(fit_by, what = "mu"))^2),
   segreg = sum(residuals(s_plant)^2))
 ```
 
-The two fits have the same positions and the same residual sum of squares.
+The two fits have the same residual sum of squares, and positions that agree
+within a small fraction of their standard errors.
 @fig-plant shows the data of the three plants with the two fits.
 
 ```{r}
@@ -920,7 +934,7 @@ cbind(statmod = c(position = cf_pan[["seg.psi1.(Intercept)"]],
 ```
 
 The two fits give the same population position and change of slope, and
-standard deviations that agree within one per cent. The positions of the subjects
+standard deviations that agree within one percent. The positions of the subjects
 are the population position plus each subject's random effect, and we
 compare them with those of `segmented.lme()` and with the positions used in
 the simulation:
@@ -1239,9 +1253,10 @@ ggplot(nile[nile$year >= 1880 & nile$year <= 1920, ], aes(x = year, y = flow)) +
 
 The width $h$ is a constant of the model, chosen before the fit and not
 estimated. When it is not given, it is computed from the spacing of the
-covariate: $h$ is the spacing for the probit, 3.61 times the spacing for the
-quintic, so that about five observations fall inside $[-h, h]$, and $c$ is
-the square of the spacing for the hyperbolic. The choice matters because the
+covariate: $h$ is the median spacing for the probit, 3.61 times the median
+spacing for the quintic, so that about five observations of a uniform
+covariate fall inside $[-h, h]$, and $c$ is the square of the median spacing
+for the hyperbolic. The choice matters because the
 standard error of $\psi$ belongs to the smoothed model at that width. We fit
 the probit step to the Nile with widths from a tenth of a year to eight
 years:
@@ -1304,8 +1319,8 @@ times.
 
 ### Which smoother to use
 
-On the Nile the three smoothers give almost the same fit, because the width
-is about one year and the series has one observation a year. They differ in
+On the Nile the three smoothers give almost the same fit, because their
+widths are a few years at most and the series has one observation a year. They differ in
 three properties, and these decide the choice.
 
 * **How far from $\psi$ the fit is changed.** The probit step differs from

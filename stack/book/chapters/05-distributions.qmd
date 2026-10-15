@@ -77,7 +77,7 @@ The package `gamlss` fits the same model with its family `TF`
 `statmod()` under `ml()`. This model has no penalty, so the criterion `ml()`
 integrates no coefficient out of the likelihood, and the estimates are those of
 the joint maximum likelihood. The default stopping rule of `gamlss` is loose
-(the relative change of the deviance below 0.001), and we tighten it:
+(the absolute change of the global deviance below 0.001), and we tighten it:
 
 ```{r}
 #| label: heavy-gamlss
@@ -225,7 +225,7 @@ with heavier tails than the Cauchy distribution ($\nu = 1$).
 ### A degrees of freedom parameter at the boundary
 
 When the data have gaussian tails, the likelihood increases with $\nu$ up to
-infinity, and no finite estimate exists. We draw 400 observations from a
+infinity, and the estimate of $\nu$ is not finite. We draw 400 observations from a
 gaussian distribution with `rstatmod()` and we fit a Student $t$ model:
 
 ```{r}
@@ -248,7 +248,8 @@ c(student_t = AIC(fit_bt), gaussian = AIC(fit_bg))
 ```
 
 The estimate of $\nu$ is `r format(exp(coef(fit_bt)$nu[[1]]), scientific = FALSE, big.mark = ",")`,
-the largest value that the log link can produce, and the certificate gives the
+the value at which the search stopped, because the likelihood is flat in
+$\log\nu$ there, and the certificate gives the
 state `r cert_bt$state` and names the coefficient `r cert_bt$boundary`. The
 fit is at its maximum, and the maximum is a limit: the $t$ model has become the
 gaussian model. `summary()` leaves the standard error of this coefficient
@@ -293,7 +294,7 @@ regression still has its maximum at a finite shape. The package has two
 parametrizations of the distribution. `skewnormal1_distrib()` has the
 direct parameters of @azzalini1985: the location $\xi$ (`mu`), the scale
 $\omega$ (`sigma`) and the shape $\alpha$ (`alpha`), with the identity link
-for the shape. `skewnormal2_distrib()` has the centred parameters: the mean
+for the shape. `skewnormal2_distrib()` has the centered parameters: the mean
 (`mu`), the standard deviation (`sigma`) and the skewness `gamma1`, with a
 link that keeps `gamma1` between $-\gamma_{\max}$ and $\gamma_{\max}$. The two
 parametrizations describe the same family of distributions, so we expect the
@@ -310,7 +311,7 @@ summary(fit_ss)
 rbind(direct = c(slope = coef(fit_sn1)$mu[["Horsepower"]],
                  logLik = as.numeric(logLik(fit_sn1)),
                  marginal = as.numeric(logLik(fit_sn1, type = "marginal"))),
-      centred = c(coef(fit_ss)$mu[["Horsepower"]], as.numeric(logLik(fit_ss)),
+      centered = c(coef(fit_ss)$mu[["Horsepower"]], as.numeric(logLik(fit_ss)),
                   as.numeric(logLik(fit_ss, type = "marginal"))))
 ```
 
@@ -333,7 +334,7 @@ the log-likelihood in $\xi$ grows as $\alpha^2$. A fit that started there would
 take steps of order $1/\alpha^2$. For this reason `statmod()` starts the
 direct parametrization from the moment estimate, with the skewness of the
 sample held at 0.9, when the skewness of the response is beyond that value.
-The centred parametrization does not have this difficulty, since the mean and
+The centered parametrization does not have this difficulty, since the mean and
 the standard deviation stay finite as the skewness approaches $\gamma_{\max}$
 [@azzalini1985].
 
@@ -504,9 +505,9 @@ rbind(statmod_ml = coef(fit_b0_ml)$mu, gamlss = coef(gl_be, what = "mu"),
       glmmTMB = glmmTMB::fixef(tmb_be)$cond)
 ```
 
-The three packages give the same coefficients, the same precision and the same
-log-likelihood. The default criterion of `statmod()` gives a precision that is
-about two per cent smaller, because it integrates the two coefficients of the
+The three packages give the same coefficients and the same precision to three
+digits, and the same log-likelihood. The default criterion of `statmod()` gives a precision that is
+about two percent smaller, because it integrates the two coefficients of the
 mean out of the likelihood, as it did for the gamma distribution in
 @sec-glm-positive.
 
@@ -596,8 +597,8 @@ summary(fit_za)
 ```
 
 All the coefficients of `za` for the opening and the solder are negative, so
-the probability of a board with no skips falls for the larger openings and the
-thinner solder, which are the conditions that produce more skips. The
+the probability of a board with no skips falls for the smaller openings and
+the thinner solder, which are the conditions that produce more skips. The
 zero-inflated model can also have an equation for `zi`. We give it the
 opening and the solder:
 
@@ -827,8 +828,9 @@ c(beta = AIC(fit_b0), logit_normal = AIC(fit_ln_b))
 
 The logit-normal model has the smaller AIC by
 `r fmt(AIC(fit_b0) - AIC(fit_ln_b), 1)` units. The two distributions have the
-same number of parameters, and their log-likelihoods are the logarithms of the
-probability that each model gives to the same observed proportions. The
+same number of parameters, and their log-likelihoods are the sums of the
+logarithms of the densities that each model gives to the same observed
+proportions. The
 comparison holds because the response of both models is $y$ itself.
 
 ## A known parameter {#sec-distribs-fixed}

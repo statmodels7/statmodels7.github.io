@@ -20,8 +20,9 @@ also set coefficients exactly to zero, and so they choose which covariates
 stay in the model. In `statmodels7` a penalty is a term of the formula. The
 terms `ridge()`, `lasso()`, `enet()`, `scad()` and `mcp()` each contain a
 block of covariates, and the penalty acts only on the coefficients of that
-block. Each penalty is minus the logarithm of a density for the coefficients,
-with its normalizing constant. The penalty of a smooth (@sec-gam) and the
+block. The ridge, the lasso and the elastic net are minus the logarithm of a
+density for the coefficients, with its normalizing constant, and SCAD and MCP
+are not (@sec-penalized-scad). The penalty of a smooth (@sec-gam) and the
 penalty of a random effect (@sec-lmm) have the same form, so one model can
 contain all three.
 
@@ -203,7 +204,7 @@ edf_e <- fit_enet@edf$edf[2]
 The elastic net has two hyperparameters, and `statmod()` chooses both of them
 by BIC over a grid of values (@sec-penalized-hyper). It chooses
 $\hat\lambda = `r fmt(lam_e, 2)`$ and $\hat\alpha = `r fmt(alp_e, 3)`$. With
-this value of $\alpha$, most of the penalty comes from its ridge part. The
+this value of $\alpha$, the ridge part of the penalty has the larger weight. The
 fit keeps `r n_e` covariates, more than the lasso, and sets only
 `r code(zero_e)` to zero. The block spends `r fmt(edf_e, 2)` effective
 degrees of freedom on these `r n_e` coefficients. The number is smaller than
@@ -260,14 +261,14 @@ max(abs(coef(fit_mat)$mu - coef(fit_lasso)$mu))
 ```
 
 A matrix is useful when there are many covariates, or when the covariates
-come from another computation and have no formula. `statmod()` keeps a
-sparse matrix of the package `Matrix` sparse.
+come from another computation and have no formula. `statmod()` does not
+convert a sparse matrix of the package `Matrix` to a dense one.
 
 ### The scale of the covariates
 
 The penalty treats all the coefficients in the same way. Without the factor
 $s_j$, the fit would therefore depend on the units of the covariates. The
-covariates of `UScrime` have been rescaled to convenient numbers
+covariates of `UScrime` seem to have been rescaled to convenient numbers
 [@venables2002]. We change the units of two of them: we multiply the
 population `Pop` by 1000 and the gross domestic product `GDP` by 10, in a
 second formula of the covariates. We then fit the lasso at the same
@@ -463,8 +464,9 @@ the trace $\operatorname{tr}\{(H_{AA} + S_{AA})^{-1} H_{AA}\}$ counts each of
 these two coefficients as more than one parameter. This is why the MCP block
 spends more effective degrees of freedom than it has coefficients. For SCAD
 the corresponding point is $a\lambda/c_j$ with $a = 3.7$, further from zero,
-and on these data no SCAD coefficient lies in the region where its penalty
-bends, so its effective degrees of freedom equal its number of coefficients.
+and on these data every SCAD coefficient lies outside the region where its
+penalty bends, so its effective degrees of freedom equal its number of
+coefficients.
 
 The package `ncvreg` fits SCAD and MCP by coordinate descent along a sequence
 of values of $\lambda$ [@breheny2011]. It minimizes
@@ -521,9 +523,9 @@ o_zero <- obj_mcp(ncv_zero$beta)
 ```
 
 On these data both computations of `ncvreg` reach our estimates. On other
-data the computation from zero can end in a different local minimum. Neither
-package searches for a lower minimum than the one that its sequence of
-starting points reaches.
+data the computation from zero can end in a different local minimum. Each
+package stops at the minimum that its sequence of starting points reaches,
+and does not search for a lower one.
 
 ### The shape parameter
 

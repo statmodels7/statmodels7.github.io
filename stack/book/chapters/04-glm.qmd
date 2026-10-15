@@ -336,12 +336,12 @@ Smoking multiplies the odds of a low birth weight by
 `r fmt(odds["smoke", "odds_ratio"])`, and a history of hypertension by
 `r fmt(odds["ht", "odds_ratio"])`. The intervals are Wald intervals, built
 on the log scale and mapped back, so they are not symmetric around the odds
-ratio. The function `MASS::confint.glm()` computes profile intervals, which
-differ from the Wald ones when the sample is small. @sec-beyond-invert gave
+ratio. The function `confint()` of `stats` computes profile intervals for a
+fit of `glm()`, which differ from the Wald ones when the sample is small. @sec-beyond-invert gave
 the intervals of `statmod()` that invert the likelihood ratio.
 
-The Bernoulli distribution takes the same links. We fit the four links that
-the `linkfunctions7` package provides for a probability, with the cauchit
+The Bernoulli distribution takes the same links. We fit four of the links
+that the `linkfunctions7` package provides for a probability, with the cauchit
 link, the inverse of the Cauchy distribution function, in addition to the
 three of the previous section:
 
@@ -538,7 +538,8 @@ variance as a different function of the mean:
 | `poisson_distrib()` | none | $\mu$ |
 | `negbin2_distrib()` | $\theta$ | $\mu + \mu^2/\theta$ |
 | `negbin1_distrib()` | $\theta$ | $\mu(1 + \theta)$ |
-| `pig1_distrib()`, `pig2_distrib()` | $\sigma$ | $\mu + \sigma\mu^2$ |
+| `pig1_distrib()` | $\sigma$ | $\mu + \sigma\mu^2$ |
+| `pig2_distrib()` | $\alpha$ | $\mu + \sigma\mu^2$, $\sigma = (\mu + \sqrt{\mu^2 + \alpha^2})/\alpha^2$ |
 
 Of these, only the Poisson distribution and the negative binomial
 distribution with a known $\theta$ are in the exponential family. The other
@@ -546,9 +547,10 @@ three are extensions of the generalized linear model: the variance function of
 `negbin1_distrib()` is linear in the mean, like that of the quasi-Poisson
 model of `glm()` but with a proper distribution and a likelihood, and the
 Poisson-inverse gaussian distribution, `pig`, is a mixture of Poisson
-distributions with an inverse gaussian mean. It has the same variance function
-as the first negative binomial distribution, with a longer right tail. The two
-versions of it differ in the parametrization of the dispersion.
+distributions with an inverse gaussian mean. In `pig1_distrib()` it has the
+same variance function as `negbin2_distrib()`, with a longer right tail. In
+`pig2_distrib()` the dispersion $\sigma$ is a function of the mean and of a
+parameter $\alpha$.
 We fit the four distributions:
 
 ```{r}
@@ -598,7 +600,8 @@ quine_fits
 
 The Poisson model has a ratio of `r fmt(quine_fits$pearson[1], 1)`: the counts
 vary about `r fmt(quine_fits$pearson[1], 0)` times as much as the Poisson
-variance. The first negative binomial distribution brings the ratio to
+variance. The negative binomial distribution `negbin2_distrib()` brings the
+ratio to
 `r fmt(quine_fits$pearson[2])`, and it has the smallest AIC. We may compare
 the AIC of the five models, although the distributions are different,
 because every log-likelihood is the logarithm of the probability that its
@@ -607,8 +610,7 @@ model gives to the same observed counts [@akaike1974]. The ratios of the
 variance of these counts.
 
 @fig-quine compares the observed number of children in six classes of
-absence with the numbers that the Poisson and the first negative binomial
-model expect. For each class we sum over the children the probability that
+absence with the numbers that the Poisson and the `negbin2` model expect. For each class we sum over the children the probability that
 the fitted distribution gives to the class:
 
 ```{r}
@@ -633,7 +635,7 @@ data.frame(class = cls, observed = observed, Poisson = exp_pois,
 
 ```{r}
 #| label: fig-quine
-#| fig-cap: "Number of children in six classes of days of absence: observed (grey), expected under the Poisson model (rust) and expected under the first negative binomial model (green)."
+#| fig-cap: "Number of children in six classes of days of absence: observed (grey), expected under the Poisson model (rust) and expected under the negbin2 model (green)."
 #| echo: false
 #| fig-height: 3.4
 counts <- c("observed", "Poisson", "negative binomial")

@@ -29,7 +29,7 @@ For a gaussian response with the identity link this integral has a closed
 form, which is why the models of @sec-lmm are exact. For any other
 distribution it has none. `statmodels7` replaces it with the Laplace
 approximation [@tierney1986]: the integrand is approximated by a gaussian
-density centred at its mode $\hat b_i$, and
+density centered at its mode $\hat b_i$, and
 $$
 \log \int e^{g(b)}\, db \approx g(\hat b) - \tfrac12 \log\det\{-g''(\hat b)\}
 + \tfrac{d}{2}\log(2\pi),
@@ -121,7 +121,7 @@ data.frame(
 ```
 
 The second row, `ml(marginal = "all")`, agrees with `glmer()` in the third
-row to four digits. The first row differs from both slightly: for a gaussian
+row to three digits in the estimates and to four in the log-likelihood. The first row differs from both slightly: for a gaussian
 response the joint mode and the maximum of $L$ give the same fixed effects, but for a Poisson response the determinant in the Laplace
 approximation depends on $\beta$, so the two differ.
 
@@ -343,7 +343,7 @@ probability of a structural zero for a typical stream is
 $\mathrm{logit}^{-1}(\hat\alpha_0) = `r fmt(plogis(coef(fit_zi)$zi[[1]]), 3)`$,
 and in an unaffected stream it is
 $\mathrm{logit}^{-1}(\hat\alpha_0 + \hat\alpha_1) =
-`r fmt(plogis(sum(coef(fit_zi)$zi)), 3)`$. Where the species are present,
+`r fmt(plogis(sum(coef(fit_zi)$zi[1:2])), 3)`$. Where the species are present,
 the unaffected streams also have
 $\exp(\hat\beta_{\mathrm{minedno}}) = `r fmt(exp(coef(fit_zi)$mu[["minedno"]]), 2)`$
 times the salamanders. In `glmmTMB()` the equation of $\pi$ is the argument
@@ -400,9 +400,8 @@ streams.
 ### A random effect on the zero inflation
 
 In the Poisson model the probability $\pi$ had a random effect on the stream.
-We can ask for the same random effect in the negative binomial model. The fit
-takes more than a minute, and during it the sparse Cholesky factorization
-reports many times that a matrix is not positive definite; we hide these
+We can ask for the same random effect in the negative binomial model. During
+the fit the sparse Cholesky factorization reports many times that a matrix is not positive definite; we hide these
 warnings here:
 
 ```{r}
@@ -443,8 +442,8 @@ different estimates of the intercept $\hat\alpha_0$
 (`r fmt(coef(fit_zinb_re)$zi[[1]], 2)` against
 `r fmt(glmmTMB::fixef(tmb_zinb_re)$zi[[1]], 2)`) and of the slope
 $\hat\alpha_1$ (`r fmt(coef(fit_zinb_re)$zi[[2]], 2)` against
-`r fmt(glmmTMB::fixef(tmb_zinb_re)$zi[[2]], 2)`). Neither package can
-confirm its estimates. The cause is the one of the previous subsection. In the unaffected
+`r fmt(glmmTMB::fixef(tmb_zinb_re)$zi[[2]], 2)`). The estimates of both
+packages remain unconfirmed. The cause is the one of the previous subsection. In the unaffected
 streams $\pi$ is already close to zero, $\hat\alpha_1$ moves towards
 $-\infty$, and the likelihood is flat in that direction. A random effect on
 $\mathrm{logit}\,\pi$ adds a second direction that the data do not determine
@@ -663,7 +662,7 @@ sd(y_sim)
 
 The quantiles of the simulated counts are the ends of the interval for the
 deprived nest, and the empirical distribution function crosses 0.975 at the
-upper end. The standard deviation agrees to within half a per cent, which is
+upper end. The standard deviation agrees to within half a percent, which is
 the Monte Carlo error of a count with such a long tail.
 
 **A new stream of the salamanders.** In the zero-inflated Poisson model the

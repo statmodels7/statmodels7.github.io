@@ -7,6 +7,10 @@ source("R/_setup.R")
 source("R/gamm-certificates.R")
 chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
 fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+sci <- function(x, d = 1) {
+  e <- floor(log10(abs(x)))
+  sprintf("%.*f \\times 10^{%d}", d, x / 10^e, e)
+}
 ```
 
 A generalized additive mixed model has smooth functions and random effects in
@@ -251,8 +255,8 @@ frequentist band leaves this variation out, so it is the right band only for
 a statement about these 50 chicks. For a statement about chicks in general,
 which is what a curve of a typical chick is for, the Bayesian band is the
 right one. The unconditional band is wider than the Bayesian band by at most
-`r fmt(100 * max(bands$unconditional$se / bands$bayesian$se - 1), 1)` per
-cent: the 50 chicks determine $\lambda$ and $\Sigma_b$ well enough that their
+`r fmt(100 * max(bands$unconditional$se / bands$bayesian$se - 1), 1)`
+percent: the 50 chicks determine $\lambda$ and $\Sigma_b$ well enough that their
 uncertainty adds little. @fig-band shows the three bands.
 
 ```{r}
@@ -503,7 +507,7 @@ deviation falls from `r fmt(exp(coef(fit_sh)$sigma[[1]]), 1)` to
 `r fmt(exp(coef(fit_gs)$sigma[[1]]), 1)` grams, so the residual variance
 falls by
 `r fmt(100 * (1 - exp(2 * (coef(fit_gs)$sigma[[1]] - coef(fit_sh)$sigma[[1]]))), 0)`
-per cent. Most of what the model with straight deviations left as noise is
+percent. Most of what the model with straight deviations left as noise is
 the shape of the chicks' own curves. The two models have the same coefficients without a penalty, so their
 restricted log-likelihoods can be compared. Under the smaller model the
 variance $1/\lambda$ of the deviations is zero, on the boundary of its range,
@@ -555,7 +559,7 @@ c(fit = max(abs(p_ri$fit - t_ri$fit[, "s(Time)"])),
 
 The curve of diet 3 is the part with the prefixes `(Intercept)`, `Diet3` and
 `s(Time).3.`. We read it at the twelve days of chick 33, which received
-diet 3 and was weighed on every day:
+diet 3 and was weighed on all twelve days of the schedule:
 
 ```{r}
 #| label: diets-gs
@@ -570,8 +574,9 @@ rbind(straight = part_band(fit_sh, prefix = d3, rows = r33)$se,
 
 The curve of diet 3 is the same in the two models to within
 `r fmt(max(abs(part_band(fit_sh, prefix = d3, rows = r33)$fit - part_band(fit_gs, prefix = d3, rows = r33)$fit)), 0)`
-grams. Its band is a little wider when the deviations are smooth, although
-the residual standard deviation is three times smaller. As in
+grams. Its band is much wider at hatching when the deviations are smooth,
+and a little wider from the first week on, although the residual standard
+deviation is three times smaller. As in
 @sec-gamm-band, most of the standard error of a typical curve is the variation
 among chicks, and with smooth deviations the chicks vary in the shape of their
 curves as well as in their intercept and slope.
@@ -631,6 +636,48 @@ ggplot(gs_obs, aes(x = Time, y = weight)) +
   scale_linewidth_manual(values = c(0.9, 0.9, 0.7)) +
   labs(x = "day", y = "weight (g)")
 ```
+
+### The deviations as one random effect {#sec-gamm-rsmooth}
+
+In `fit_gs` each chick has the curve $b_{0i} + b_{1i}t + g_i(t)$ around the
+curve of its diet, written with two terms: `random(~ Time | Chick)` gives the
+straight line a gaussian distribution, and `s(Time, by = Chick)` adds the
+bending, with the straight line dropped from its basis. The term `random()`
+writes the same curve with one term when the left side of the bar is a
+smooth:
+
+```{r}
+#| label: fit-rsm
+fit_rsm <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet) +
+                     random(~ s(Time, bspline_smooth(k = 6)) | Chick),
+                   distrib = gaussian1_distrib(), data = ChickWeight)
+summary(fit_rsm)
+c(fit_gs = logLik(fit_gs, type = "marginal"),
+  fit_rsm = logLik(fit_rsm, type = "marginal"))
+```
+
+```{r}
+#| label: rsm-numbers
+#| include: false
+d_rsm <- max(abs(fitted(fit_gs, what = "mu") - fitted(fit_rsm, what = "mu")))
+e_rsm <- floor(log10(d_rsm))
+d_rsm <- ceiling(d_rsm / 10^e_rsm) * 10^e_rsm
+```
+
+The two models are the same: their marginal log-likelihoods agree, and
+their fitted values differ by at most $`r sci(d_rsm, 0)`$ grams. The term
+splits the basis of the smooth into its null space, here the straight line
+`lin`, and its penalized coordinates `z1` to `z4`. The constant and the null
+space have the distribution that `random()` gives to its columns, a gaussian
+distribution with an unrestricted covariance by default, and the summary
+reports it as `sd[(Intercept)]`, `sd[lin]` and their correlation. The
+penalized coordinates are rescaled so that their penalty is the identity
+matrix, and they have one standard deviation, `smooth.sigma`, which the 50
+chicks share. With an unrestricted covariance the model does not change when
+the origin or the unit of `Time` changes. The smooth
+`s(Time, Chick, bs = "fs")` of `mgcv` [@wood2017] gives each column of the
+null space a penalty of its own, so that the intercepts and the slopes of
+the chicks are independent.
 
 ## Smooths and random effects in sigma {#sec-gamm-sigma}
 
@@ -698,7 +745,7 @@ glmmTMB::VarCorr(tmb_sg)
 max(abs(fitted(fit_sg) - fitted(tmb_sg)))
 ```
 
-The standard deviations differ by less than 3 per cent, and the fitted means
+The standard deviations differ by less than 3 percent, and the fitted means
 differ by up
 to `r fmt(max(abs(fitted(fit_sg) - fitted(tmb_sg))), 2)` grams. The difference
 comes from the smooth of $\sigma$. A smooth with a penalty on the second
@@ -1008,7 +1055,7 @@ cold2 <- which.min(abs(chicagoNMMAPS$temp2 + 15))
 The three temperatures are strongly correlated, so each curve is the effect
 of the temperature of one day with the temperatures of the other two days
 held fixed. On 98 days of 100 the two models give curves that differ by less
-than half a per cent in the rate. The shared parameter changes the curves at
+than half a percent in the rate. The shared parameter changes the curves at
 their ends, where the data are few, and most of all the curve of the same
 day: with its own parameter this curve is smoother, flatter on the coldest
 days and less steep on the hottest. This is the difference that the
@@ -1025,9 +1072,10 @@ while on the same day the cold lowers it a little.
 
 ### Levels that share a parameter
 
-`id` also groups some levels of a factor `by`. Under `by_hyper = "level"` the
-hyperparameters of the levels are named `lambda.1`, `lambda.2` and so on, and
-`id` takes one label for each of them. In @sec-gamm-by the smoothing
+`id` also groups some levels of a factor `by`. Under `by_hyper = "level"` each
+level has its own hyperparameter, which the arguments `hyper` and `id` write
+as `lambda.1`, `lambda.2` and so on, and `id` takes one label for each of
+them. In @sec-gamm-by the smoothing
 parameter of diet 3 was the smallest, so we let diets 1, 2 and 4 share one
 parameter and give diet 3 its own:
 
@@ -1055,7 +1103,7 @@ equality constraints, and the likelihood ratio does not reject them: diets 1,
 #| include: false
 assert_gamm_ok(
   fits = list(ri = fit_ri, rs = fit_rs, sh = fit_sh, lv = fit_lv, shu = fit_shu,
-              gs = fit_gs,
+              gs = fit_gs, rsm = fit_rsm,
               sg0 = fit_sg0, sg = fit_sg, ml = fit_ml, ow = fit_ow, ow2 = fit_ow2,
               id = fit_id, free = fit_free, lid = fit_lid),
   ref = list(g_ri = g_ri, tmb_rs = tmb_rs, g_shu = g_shu, tmb_sg = tmb_sg,

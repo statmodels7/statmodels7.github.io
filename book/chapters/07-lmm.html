@@ -336,7 +336,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../chapters/16-own-terms.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></a>
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term and an optimizer</span></span></a>
   </div>
 </li>
       </ul>
@@ -421,7 +421,7 @@ y_{ij} \sim \mathrm{N}(\mu_{ij}, \sigma), \qquad
 \mu_{ij} = x_{ij}^\top\beta + z_{ij}^\top b_i, \qquad
 b_i \sim \mathrm{N}(0, \Sigma_b),
 \]</span> where <span class="math inline">\(i\)</span> is the group, <span class="math inline">\(j\)</span> the observation within the group, <span class="math inline">\(\beta\)</span> the fixed effects and <span class="math inline">\(b_i\)</span> the random effects of group <span class="math inline">\(i\)</span>. In <code>statmodels7</code> the term <code>random()</code> adds the random effects to an equation. The random effects are coefficients with a penalty, and the penalty is minus the logarithm of their density. The hyperparameters of the penalty describe <span class="math inline">\(\Sigma_b\)</span>, and REML estimates them (<a href="02-beyond.html#sec-beyond-likelihood" class="quarto-xref"><span>Section 2.2</span></a>).</p>
-<p>This chapter shows a random intercept, a random slope, several structures for <span class="math inline">\(\Sigma_b\)</span>, nested and crossed groupings, random effects in the equation of <span class="math inline">\(\sigma\)</span>, a Student t distribution for the random effects, and the predictions for a new group. In each section we compare the fit with a reference package: <code>lme()</code> of <code>nlme</code> <span class="citation" data-cites="pinheiro2000">(<a href="A2-references.html#ref-pinheiro2000" role="doc-biblioref">Pinheiro and Bates 2000</a>)</span>, <code>lmer()</code> of <code>lme4</code> <span class="citation" data-cites="bates2015">(<a href="A2-references.html#ref-bates2015" role="doc-biblioref">Bates et al. 2015</a>)</span> or <code>glmmTMB()</code> of <code>glmmTMB</code> <span class="citation" data-cites="brooks2017">(<a href="A2-references.html#ref-brooks2017" role="doc-biblioref">Brooks et al. 2017</a>)</span>.</p>
+<p>This chapter shows a random intercept, a random slope, several structures for <span class="math inline">\(\Sigma_b\)</span>, nested and crossed groupings, random effects in the equation of <span class="math inline">\(\sigma\)</span>, a Student t distribution for the random effects, and the predictions for a new group. In most sections we compare the fit with a reference package: <code>lme()</code> of <code>nlme</code> <span class="citation" data-cites="pinheiro2000">(<a href="A2-references.html#ref-pinheiro2000" role="doc-biblioref">Pinheiro and Bates 2000</a>)</span>, <code>lmer()</code> of <code>lme4</code> <span class="citation" data-cites="bates2015">(<a href="A2-references.html#ref-bates2015" role="doc-biblioref">Bates et al. 2015</a>)</span> or <code>glmmTMB()</code> of <code>glmmTMB</code> <span class="citation" data-cites="brooks2017">(<a href="A2-references.html#ref-brooks2017" role="doc-biblioref">Brooks et al. 2017</a>)</span>.</p>
 <section id="sec-lmm-intercept" class="level2" data-number="7.1">
 <h2 data-number="7.1" class="anchored" data-anchor-id="sec-lmm-intercept"><span class="header-section-number">7.1</span> A random intercept</h2>
 <p>We return to the <code>Orthodont</code> data of <a href="02-beyond.html#sec-beyond-likelihood" class="quarto-xref"><span>Section 2.2</span></a>: the distance from the pituitary to the pterygomaxillary fissure of 27 children, measured at ages 8, 10, 12 and 14 <span class="citation" data-cites="potthoff1964">(<a href="A2-references.html#ref-potthoff1964" role="doc-biblioref">Potthoff and Roy 1964</a>)</span>. We center the age at 11 years, with <code>I(age - 11)</code> in the formula, and give each child a random intercept: <span class="math display">\[
@@ -464,7 +464,7 @@ b_i \sim \mathrm{N}(0, \tau),
 <span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -179.689087    effective df 25.61</span></span>
 <span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 410.599    cBIC 479.290</span></span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.73 s</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.77 s</span></span>
 <span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.2e-14   min eigen 0.037</span></span>
 <span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.2e-08   min eigen 0.92</span></span>
 <span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -547,7 +547,7 @@ b_i \sim \mathrm{N}(0, \tau),
 <span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -167.299822    effective df 26.75</span></span>
 <span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 388.100    cBIC 459.848</span></span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 970 ms</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.06 s</span></span>
 <span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 6.2e-15   min eigen 0.016</span></span>
 <span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.5e-14   min eigen 0.35</span></span>
 <span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
@@ -555,7 +555,7 @@ b_i \sim \mathrm{N}(0, \tau),
 <span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)   SexFemale </span></span>
 <span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   1.7617578   0.8000713</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The equation of <code>sigma</code> is <span class="math inline">\(\log\sigma_{ij} = \gamma_0 + \gamma_1 f_i\)</span>, so the residual standard deviation is <span class="math inline">\(\exp(\hat\gamma_0)\)</span> for the boys and <span class="math inline">\(\exp(\hat\gamma_0 + \hat\gamma_1)\)</span> for the girls. The coefficient <span class="math inline">\(\hat\gamma_1 = -0.789\)</span> is the logarithm of the ratio of the two, and <span class="math inline">\(\exp(\hat\gamma_1) = 0.454\)</span>. The standard deviation of the random intercepts and the fixed effects of the mean are close to those of <code>fit_ri</code>. In <code>lme()</code> the same model has the variance function <code>varIdent()</code>:</p>
+<p>The equation of <code>sigma</code> is <span class="math inline">\(\log\sigma_{ij} = \gamma_0 + \gamma_1 f_i\)</span>, so the residual standard deviation is <span class="math inline">\(\exp(\hat\gamma_0)\)</span> for the boys and <span class="math inline">\(\exp(\hat\gamma_0 + \hat\gamma_1)\)</span> for the girls. The coefficient <span class="math inline">\(\hat\gamma_1 = -0.789\)</span> is the logarithm of the ratio of the two, and <span class="math inline">\(\exp(\hat\gamma_1) = 0.454\)</span>. The standard deviation of the random intercepts, the intercept and the effect of sex are close to those of <code>fit_ri</code>, while the slope in age falls from 0.660 to 0.550. In <code>lme()</code> the same model has the variance function <code>varIdent()</code>:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>lme_rs <span class="ot">&lt;-</span> nlme<span class="sc">::</span><span class="fu">lme</span>(distance <span class="sc">~</span> <span class="fu">I</span>(age <span class="sc">-</span> <span class="dv">11</span>) <span class="sc">+</span> Sex, <span class="at">random =</span> <span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> Subject,</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                    <span class="at">weights =</span> nlme<span class="sc">::</span><span class="fu">varIdent</span>(<span class="at">form =</span> <span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> Sex),</span>
@@ -626,8 +626,8 @@ b_i \sim \mathrm{N}(0, \tau),
 <span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -824.506969    effective df 30.02</span></span>
 <span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1709.058    cBIC 1804.917</span></span>
-<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.11 s</span></span>
-<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 6.6e-15   min eigen 0.03</span></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.17 s</span></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5.8e-15   min eigen 0.03</span></span>
 <span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.2e-07   min eigen 0.62</span></span>
 <span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -693,7 +693,7 @@ b_i \sim \mathrm{N}(0, \tau),
 <span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -824.153068    effective df 30.36</span></span>
 <span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1709.019    cBIC 1805.946</span></span>
-<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 290 ms</span></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 330 ms</span></span>
 <span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.8e-15   min eigen 0.029</span></span>
 <span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.4e-08   min eigen 0.93</span></span>
 <span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
@@ -762,33 +762,33 @@ Figure&nbsp;7.1: Intercept and slope of each subject of the sleepstudy data, fro
 <span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; random(~t | id)   [40 coefficients, edf 16.28]</span></span>
 <span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                               estimate     se  lower upper</span></span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[(Intercept)] [reml]         0.897 0.2109 0.5658 1.422</span></span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[t] [reml]                0.005813</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[(Intercept)] [reml]         0.897 0.2109 0.5659 1.422</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[t] [reml]                0.005823</span></span>
 <span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cor[(Intercept), t] [reml]        -1</span></span>
 <span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   predicted effects (20 levels of id)</span></span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                      Min.   1st Qu.    Median Mean  3rd Qu.     Max.</span></span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     (Intercept)    -1.366   -0.5326   -0.1264    0   0.5562    1.457</span></span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     t            -0.00944 -0.003604 0.0008192    0 0.003451 0.008849</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                       Min.  1st Qu.    Median Mean  3rd Qu.     Max.</span></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     (Intercept)     -1.366  -0.5326   -0.1264    0   0.5562    1.457</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     t            -0.009457 -0.00361 0.0008206    0 0.003457 0.008865</span></span>
 <span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
 <span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z       p   lower   upper</span></span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)   -0.1229 0.07093 -1.733 0.08312 -0.2619 0.01611</span></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z       p   lower  upper</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)   -0.1229 0.07093 -1.733 0.08311 -0.2619 0.0161</span></span>
 <span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -146.385730    effective df 19.28</span></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -146.385682    effective df 19.28</span></span>
 <span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 331.324    cBIC 385.056</span></span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.32 s</span></span>
-<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 8.8e-14   min eigen 5.5e-06</span></span>
-<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.1e-05   min eigen 0.39</span></span>
-<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 notes: print(summary(fit), notes = TRUE)</span></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.55 s</span></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 6.2e-14   min eigen 2.2e-05</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 0.00015   min eigen 0.39</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 notes: print(summary(fit), notes = TRUE)</span></span>
 <span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a><span class="fu">statmod_certificate</span>(fit_bd)<span class="sc">$</span>state</span>
 <span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "boundary"</span></span>
 <span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a><span class="fu">statmod_certificate</span>(fit_bd)<span class="sc">$</span>boundary</span>
 <span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "mu/random(~t | id)/sigma_log_L2"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The standard deviation of the slopes is close to zero and the correlation is <span class="math inline">\(-1\)</span>. The certificate is <code>boundary</code> and names the coordinate: the second logarithm of the Cholesky factor, which carries the standard deviation of the slopes, has run to the edge of its scale. A standard deviation at zero has no interval on the logarithmic scale, so the summary leaves out the standard error and the interval of that row and of the correlation. <code>lmer()</code> reports the same fit as singular:</p>
+<p>The standard deviation of the slopes is close to zero and the correlation is <span class="math inline">\(-1\)</span>. The certificate is <code>boundary</code> and names the coordinate: the second logarithm of the Cholesky factor has run to the edge of its scale, so that <span class="math inline">\(\Sigma_b\)</span> is singular and the correlation is <span class="math inline">\(-1\)</span>. A standard deviation at zero has no interval on the logarithmic scale, so the summary leaves out the standard error and the interval of that row and of the correlation. <code>lmer()</code> reports the same fit as singular:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>lmer_bd <span class="ot">&lt;-</span> lme4<span class="sc">::</span><span class="fu">lmer</span>(y <span class="sc">~</span> t <span class="sc">+</span> (t <span class="sc">|</span> id), <span class="at">data =</span> bd)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>lme4<span class="sc">::</span><span class="fu">isSingular</span>(lmer_bd)</span>
@@ -805,7 +805,7 @@ Figure&nbsp;7.1: Intercept and slope of each subject of the sleepstudy data, fro
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>lr_bd <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (<span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bd, <span class="at">type =</span> <span class="st">"marginal"</span>)) <span class="sc">-</span></span>
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>                <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bd0, <span class="at">type =</span> <span class="st">"marginal"</span>)))</span>
 <span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>lr_bd</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.01343039</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.01342491</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Under the smaller model the variance of the slopes is zero, which is on the boundary of its range, so the statistic does not have the <span class="math inline">\(\chi^2\)</span> distribution with two degrees of freedom <span class="citation" data-cites="self1987">(<a href="A2-references.html#ref-self1987" role="doc-biblioref">Self and Liang 1987</a>)</span>. Here the statistic is so small that the conclusion does not depend on the distribution: the smaller model describes these data.</p>
 </section>
@@ -829,37 +829,37 @@ Figure&nbsp;7.1: Intercept and slope of each subject of the sleepstudy data, fro
 <span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
 <span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate    se     z        p lower upper</span></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     52.36 1.681 31.14  &lt; 1e-16 49.06 55.65</span></span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   MachineB        7.967 2.422  3.29 0.001003  3.22 12.71</span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   MachineC        13.92  1.54 9.038  &lt; 1e-16  10.9 16.93</span></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate    se     z         p lower upper</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     52.36 1.681 31.15   &lt; 1e-16 49.06 55.65</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   MachineB        7.967 2.421 3.291 0.0009988 3.222 12.71</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   MachineC        13.92  1.54 9.036   &lt; 1e-16  10.9 16.94</span></span>
 <span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; random(~0 + Machine | Worker)   [18 coefficients, edf 14.48]</span></span>
 <span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                                   estimate     se   lower  upper</span></span>
-<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[MachineA] [reml]                 4.08  1.315    2.17  7.673</span></span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[MachineB] [reml]                8.629  2.741   4.629  16.08</span></span>
-<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[MachineC] [reml]                 4.39  1.411   2.338  8.242</span></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[MachineA] [reml]                4.079  1.314    2.17  7.669</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[MachineB] [reml]                8.625  2.739   4.629  16.07</span></span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sd[MachineC] [reml]                4.389   1.41   2.338  8.239</span></span>
 <span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cor[MachineA, MachineB] [reml]    0.8028 0.1641  0.1989 0.9648</span></span>
-<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cor[MachineA, MachineC] [reml]    0.6228 0.2815 -0.1702 0.9262</span></span>
-<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cor[MachineB, MachineC] [reml]     0.771 0.1859  0.1235  0.958</span></span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cor[MachineA, MachineC] [reml]    0.6225 0.2817 -0.1706 0.9261</span></span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   cor[MachineB, MachineC] [reml]    0.7708  0.186  0.1233  0.958</span></span>
 <span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   predicted effects (6 levels of Worker)</span></span>
 <span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                 Min.  1st Qu.  Median Mean 3rd Qu.  Max.</span></span>
-<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     MachineA  -5.592  -0.9803 -0.3329    0  0.2799 6.969</span></span>
-<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     MachineB  -16.58 -0.02039   2.441    0   4.183 7.779</span></span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     MachineA  -5.592  -0.9803 -0.3329    0    0.28 6.969</span></span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     MachineB  -16.58 -0.02038   2.441    0   4.183 7.779</span></span>
 <span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     MachineC   -5.03   -3.565 -0.2422    0   3.588 5.323</span></span>
 <span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
 <span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
 <span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se       z      p   lower  upper</span></span>
-<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)  -0.03919 0.1178 -0.3327 0.7394 -0.2701 0.1917</span></span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)  -0.03918 0.1178 -0.3326 0.7395 -0.2701 0.1917</span></span>
 <span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -65.765757    effective df 18.48</span></span>
+<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -65.765905    effective df 18.48</span></span>
 <span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 168.496    cBIC 205.256</span></span>
-<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.31 s</span></span>
-<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.4e-14   min eigen 0.0019</span></span>
-<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 0.00085   min eigen 0.2</span></span>
+<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.18 s</span></span>
+<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5.4e-14   min eigen 0.0019</span></span>
+<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 5.4e-06   min eigen 0.2</span></span>
 <span id="cb15-46"><a href="#cb15-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The random effect of worker <span class="math inline">\(i\)</span> on machine <span class="math inline">\(m\)</span> is <span class="math inline">\(b_{im}\)</span>, and the model is <span class="math display">\[
@@ -913,8 +913,8 @@ Figure&nbsp;7.1: Intercept and slope of each subject of the sleepstudy data, fro
 <span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -65.624603    effective df 18.76</span></span>
 <span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 168.778    cBIC 206.101</span></span>
-<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 540 ms</span></span>
-<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.8e-14   min eigen 0.0016</span></span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 640 ms</span></span>
+<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.6e-14   min eigen 0.0016</span></span>
 <span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 9.8e-08   min eigen 0.35</span></span>
 <span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
 <span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a>S_cs3 <span class="ot">&lt;-</span> <span class="fu">param_value</span>(<span class="fu">compound_symmetry</span>(<span class="dv">3</span>), <span class="at">eta =</span> <span class="fu">hyper</span>(fit_cs)<span class="sc">$</span>estimate)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -962,7 +962,7 @@ Figure&nbsp;7.1: Intercept and slope of each subject of the sleepstudy data, fro
 <span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -65.602044    effective df 18.81</span></span>
 <span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 168.824    cBIC 206.236</span></span>
-<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 340 ms</span></span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 420 ms</span></span>
 <span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.9e-14   min eigen 0.0018</span></span>
 <span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.5e-08   min eigen 0.99</span></span>
 <span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -997,9 +997,9 @@ Figure&nbsp;7.1: Intercept and slope of each subject of the sleepstudy data, fro
 <span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>lr_cs <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (l_un <span class="sc">-</span> l_cs)</span>
 <span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>lr_dg <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (l_un <span class="sc">-</span> l_dg)</span>
 <span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="fu">pchisq</span>(lr_cs, <span class="at">df =</span> <span class="dv">4</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1172871</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.117287</span></span>
 <span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="fu">pchisq</span>(lr_dg, <span class="at">df =</span> <span class="dv">3</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.02509747</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.02509744</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The diagonal matrix is rejected at the 5% level, because the three effects of a worker are correlated: a good worker is good on every machine. Compound symmetry is not rejected.</p>
 <section id="covariance-or-precision" class="level3">
@@ -1050,8 +1050,8 @@ Figure&nbsp;7.1: Intercept and slope of each subject of the sleepstudy data, fro
 <span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -65.765892    effective df 18.48</span></span>
 <span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 168.496    cBIC 205.256</span></span>
-<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 610 ms</span></span>
-<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.8e-14   min eigen 0.0019</span></span>
+<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 690 ms</span></span>
+<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5.4e-14   min eigen 0.0019</span></span>
 <span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.6e-07   min eigen 0.18</span></span>
 <span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
 <span id="cb20-49"><a href="#cb20-49" aria-hidden="true" tabindex="-1"></a>Om <span class="ot">&lt;-</span> <span class="fu">param_value</span>(<span class="fu">log_cholesky</span>(<span class="dv">3</span>), <span class="at">eta =</span> <span class="fu">hyper</span>(fit_pr)<span class="sc">$</span>estimate)</span>
@@ -1131,11 +1131,11 @@ y_{itk} = \beta_0 + \beta_1 t + b_{it} + \varepsilon_{itk}, \qquad
 <span id="cb22-35"><a href="#cb22-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)   0.02158 0.03958 0.5451 0.5857 -0.056 0.09916</span></span>
 <span id="cb22-36"><a href="#cb22-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb22-37"><a href="#cb22-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb22-38"><a href="#cb22-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -596.261976    effective df 104.94</span></span>
+<span id="cb22-38"><a href="#cb22-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -596.261974    effective df 104.94</span></span>
 <span id="cb22-39"><a href="#cb22-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1402.405    cBIC 1833.631</span></span>
-<span id="cb22-40"><a href="#cb22-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.01 s</span></span>
-<span id="cb22-41"><a href="#cb22-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.3e-15   min eigen 0.013</span></span>
-<span id="cb22-42"><a href="#cb22-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.4e-09   min eigen 0.44</span></span>
+<span id="cb22-40"><a href="#cb22-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 2.01 s</span></span>
+<span id="cb22-41"><a href="#cb22-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.2e-15   min eigen 0.013</span></span>
+<span id="cb22-42"><a href="#cb22-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 4.3e-07   min eigen 0.44</span></span>
 <span id="cb22-43"><a href="#cb22-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
 <span id="cb22-44"><a href="#cb22-44" aria-hidden="true" tabindex="-1"></a>S_ar <span class="ot">&lt;-</span> <span class="fu">param_value</span>(<span class="fu">ar1</span>(<span class="dv">5</span>), <span class="at">eta =</span> <span class="fu">hyper</span>(fit_ar)<span class="sc">$</span>estimate)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -1211,7 +1211,7 @@ y_{itk} = \beta_0 + \beta_1 t + b_{it} + \varepsilon_{itk}, \qquad
 <span id="cb24-40"><a href="#cb24-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb24-41"><a href="#cb24-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -65.624603    effective df 18.76</span></span>
 <span id="cb24-42"><a href="#cb24-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 168.778    cBIC 206.101</span></span>
-<span id="cb24-43"><a href="#cb24-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 340 ms</span></span>
+<span id="cb24-43"><a href="#cb24-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 390 ms</span></span>
 <span id="cb24-44"><a href="#cb24-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.3e-14   min eigen 0.0018</span></span>
 <span id="cb24-45"><a href="#cb24-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 9e-14   min eigen 0.88</span></span>
 <span id="cb24-46"><a href="#cb24-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1293,7 +1293,7 @@ y_{itk} = \beta_0 + \beta_1 t + b_{it} + \varepsilon_{itk}, \qquad
 <span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb27-39"><a href="#cb27-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -104.482315    effective df 28.47</span></span>
 <span id="cb27-40"><a href="#cb27-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 265.909    cBIC 350.467</span></span>
-<span id="cb27-41"><a href="#cb27-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 200 ms</span></span>
+<span id="cb27-41"><a href="#cb27-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 220 ms</span></span>
 <span id="cb27-42"><a href="#cb27-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.7e-14   min eigen 0.0017</span></span>
 <span id="cb27-43"><a href="#cb27-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.6e-07   min eigen 0.97</span></span>
 <span id="cb27-44"><a href="#cb27-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1367,7 +1367,7 @@ y_{itk} = \beta_0 + \beta_1 t + b_{it} + \varepsilon_{itk}, \qquad
 <span id="cb29-41"><a href="#cb29-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb29-42"><a href="#cb29-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -150.222025    effective df 38.91</span></span>
 <span id="cb29-43"><a href="#cb29-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 378.267    cBIC 482.633</span></span>
-<span id="cb29-44"><a href="#cb29-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 560 ms</span></span>
+<span id="cb29-44"><a href="#cb29-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 620 ms</span></span>
 <span id="cb29-45"><a href="#cb29-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.3e-14   min eigen 0.018</span></span>
 <span id="cb29-46"><a href="#cb29-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.7e-09   min eigen 0.79</span></span>
 <span id="cb29-47"><a href="#cb29-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
@@ -1451,7 +1451,7 @@ y_{itk} = \beta_0 + \beta_1 t + b_{it} + \varepsilon_{itk}, \qquad
 <span id="cb31-44"><a href="#cb31-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb31-45"><a href="#cb31-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -150.024453    effective df 38.87</span></span>
 <span id="cb31-46"><a href="#cb31-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 377.786    cBIC 482.035</span></span>
-<span id="cb31-47"><a href="#cb31-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.05 s</span></span>
+<span id="cb31-47"><a href="#cb31-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.11 s</span></span>
 <span id="cb31-48"><a href="#cb31-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 7.1e-06   min eigen 0.018</span></span>
 <span id="cb31-49"><a href="#cb31-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.1e-05   min eigen 0.76</span></span>
 <span id="cb31-50"><a href="#cb31-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 notes: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1537,15 +1537,15 @@ y_{itk} = \beta_0 + \beta_1 t + b_{it} + \varepsilon_{itk}, \qquad
 <span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  gaussian student_t </span></span>
 <span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 0.3060051 0.1335341</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The t distribution reduces the error of the random intercepts by more than half. <a href="#fig-heavy" class="quarto-xref">Figure&nbsp;<span>7.2</span></a> shows why: under the gaussian distribution the seventeen groups near zero are spread out, and under the t distribution they are shrunk towards zero, while the three far groups keep their values.</p>
+<p>The t distribution reduces the error of the random intercepts by more than half. <a href="#fig-lmm-heavy" class="quarto-xref">Figure&nbsp;<span>7.2</span></a> shows why: under the gaussian distribution the seventeen groups near zero are spread out, and under the t distribution they are shrunk towards zero, while the three far groups keep their values.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<div id="fig-heavy" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<div id="fig-lmm-heavy" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
 <figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-heavy-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="07-lmm_files/figure-html/fig-heavy-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
+<div aria-describedby="fig-lmm-heavy-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="07-lmm_files/figure-html/fig-lmm-heavy-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-heavy-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lmm-heavy-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;7.2: Estimated against true random intercepts of the simulated groups, under a gaussian and a Student t distribution of the random effects. The right panel shows the seventeen groups near zero.
 </figcaption>
 </figure>
@@ -1571,10 +1571,10 @@ Figure&nbsp;7.2: Estimated against true random intercepts of the simulated group
 <p>None of the three reference packages fits a t distribution for the random effects. The argument <code>priors</code> of <code>glmmTMB()</code> puts a prior on the parameters of the model (the fixed effects, the standard deviations and the correlations of the random effects), and the random effects stay gaussian. The package <code>brms</code> <span class="citation" data-cites="burkner2017">(<a href="A2-references.html#ref-burkner2017" role="doc-biblioref">Bürkner 2017</a>)</span> accepts a t distribution for the random effects, with <code>(1 | gr(g, dist = "student"))</code>, but it is Bayesian and returns a posterior distribution rather than an estimate.</p>
 <p>Our reference is the marginal likelihood written by hand. A group has one random intercept, so its contribution is a one-dimensional integral, <span class="math display">\[
 L_i(\beta, \sigma, s, \nu) = \int_{-\infty}^{\infty}
-  \prod_j \phi\!\left(\frac{y_{ij} - \beta_0 - \beta_1 x_{ij} - b}{\sigma}\right)
-  \frac{1}{\sigma}\,
+  \prod_j \frac{1}{\sigma}\,
+  \phi\!\left(\frac{y_{ij} - \beta_0 - \beta_1 x_{ij} - b}{\sigma}\right)
   \frac{1}{s}\,t_\nu\!\left(\frac{b}{s}\right) db,
-\]</span> where <span class="math inline">\(\phi\)</span> is the standard normal density and <span class="math inline">\(t_\nu\)</span> the Student t density. We compute it with <code>integrate()</code>, centred at the maximum of the integrand, and maximize <span class="math inline">\(\sum_i \log L_i\)</span> with <code>optim()</code>:</p>
+\]</span> where <span class="math inline">\(\phi\)</span> is the standard normal density and <span class="math inline">\(t_\nu\)</span> the Student t density. We compute it with <code>integrate()</code>, centered at the maximum of the integrand, and maximize <span class="math inline">\(\sum_i \log L_i\)</span> with <code>optim()</code>:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>log_Li <span class="ot">&lt;-</span> <span class="cf">function</span>(r, s_eps, s_b, nu) {</span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="cf">function</span>(b) {</span>
@@ -1692,9 +1692,9 @@ L_i(\beta, \sigma, s, \nu) = \int_{-\infty}^{\infty}
 <span id="cb39-23"><a href="#cb39-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; pseudo-Huber 1136.663 0.1322502 17.32188</span></span>
 <span id="cb39-24"><a href="#cb39-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; skew t       1130.278 0.1190866 11.75030</span></span>
 <span id="cb39-25"><a href="#cb39-25" aria-hidden="true" tabindex="-1"></a><span class="fu">hyper</span>(fit_ph)[, <span class="fu">c</span>(<span class="st">"name"</span>, <span class="st">"estimate"</span>)]</span>
-<span id="cb39-26"><a href="#cb39-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    name   estimate</span></span>
-<span id="cb39-27"><a href="#cb39-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 sigma 1.07550603</span></span>
-<span id="cb39-28"><a href="#cb39-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2    nu 0.00578858</span></span>
+<span id="cb39-26"><a href="#cb39-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    name    estimate</span></span>
+<span id="cb39-27"><a href="#cb39-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 sigma 1.075506032</span></span>
+<span id="cb39-28"><a href="#cb39-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2    nu 0.005788581</span></span>
 <span id="cb39-29"><a href="#cb39-29" aria-hidden="true" tabindex="-1"></a><span class="fu">hyper</span>(fit_st)[, <span class="fu">c</span>(<span class="st">"name"</span>, <span class="st">"estimate"</span>)]</span>
 <span id="cb39-30"><a href="#cb39-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    name  estimate</span></span>
 <span id="cb39-31"><a href="#cb39-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 sigma 0.2544951</span></span>
@@ -1702,7 +1702,7 @@ L_i(\beta, \sigma, s, \nu) = \int_{-\infty}^{\infty}
 <span id="cb39-33"><a href="#cb39-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3    nu 0.9665441</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The logistic distribution has heavier tails than the gaussian one, but only exponentially heavier, and it lets the three far groups escape only in part: its error is between the gaussian error and that of the t. The Cauchy distribution is the t with <span class="math inline">\(\nu = 1\)</span>, close to the estimated <span class="math inline">\(\hat\nu = 0.95\)</span>, and the two fits are almost the same. The pseudo-Huber distribution reaches a similar error in another way: its <span class="math inline">\(\hat\nu = 0.00579\)</span> makes it almost a Laplace distribution, whose log-density decreases linearly, so the penalty on a far group grows like <span class="math inline">\(\lvert b\rvert\)</span> and not like <span class="math inline">\(b^2\)</span>. The skew t has <span class="math inline">\(\hat\alpha = 0.53\)</span>, a mild asymmetry towards positive values, because two of the three far groups are above zero. It has the smallest conditional AIC and the smallest error, with one parameter more than the t.</p>
-<p>With an asymmetric distribution the location zero is not the centre of the random effects. The skew t puts more mass above zero than below, so the estimated random intercepts average 0.305 and the intercept of the model is 0.871, against 0.949 under the t. The sum of the intercept and the average random intercept is almost the same in the two fits, so the mean line of the groups does not move; only its split between <span class="math inline">\(\beta_0\)</span> and the random effects does.</p>
+<p>With an asymmetric distribution the location zero is not the center of the random effects. The skew t puts more mass above zero than below, so the estimated random intercepts average 0.305 and the intercept of the model is 0.871, against 0.949 under the t. The sum of the intercept and the average random intercept is almost the same in the two fits, so the mean line of the groups does not move; only its split between <span class="math inline">\(\beta_0\)</span> and the random effects does.</p>
 </section>
 <section id="a-multivariate-t-distribution-with-a-structure" class="level3">
 <h3 class="anchored" data-anchor-id="a-multivariate-t-distribution-with-a-structure">A multivariate t distribution with a structure</h3>
@@ -1772,8 +1772,8 @@ z_i \sim \mathrm{N}(0, I), \qquad \nu u_i \sim \chi^2_\nu ,
 <span id="cb41-42"><a href="#cb41-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb41-43"><a href="#cb41-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -1233.444664    effective df 208.66</span></span>
 <span id="cb41-44"><a href="#cb41-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 2884.218    cBIC 3886.305</span></span>
-<span id="cb41-45"><a href="#cb41-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 4.84 s</span></span>
-<span id="cb41-46"><a href="#cb41-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.4e-15   min eigen 0.017</span></span>
+<span id="cb41-45"><a href="#cb41-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 5.13 s</span></span>
+<span id="cb41-46"><a href="#cb41-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.8e-15   min eigen 0.017</span></span>
 <span id="cb41-47"><a href="#cb41-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.1e-05   min eigen 0.52</span></span>
 <span id="cb41-48"><a href="#cb41-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -1903,7 +1903,7 @@ z_i \sim \mathrm{N}(0, I), \qquad \nu u_i \sim \chi^2_\nu ,
 </tr>
 <tr class="even">
 <td>a new subject</td>
-<td>the random effects of a subject the fit has not seen</td>
+<td>the random effects of a subject that the fit has not seen</td>
 <td><span class="math inline">\(b \sim \mathrm{N}(0, \Sigma_b)\)</span></td>
 </tr>
 <tr class="odd">
@@ -2081,7 +2081,7 @@ z_i \sim \mathrm{N}(0, I), \qquad \nu u_i \sim \chi^2_\nu ,
 <span id="cb47-11"><a href="#cb47-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; upper 473.85   477.08     475.9</span></span>
 <span id="cb47-12"><a href="#cb47-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; width 256.47   262.94     261.8</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The three intervals differ by a few per cent, because 18 subjects and 180 measurements estimate the fixed effects and <span class="math inline">\(\sigma\)</span> well. In a small sample the difference matters. We simulated 200 regressions with 12 observations and a new observation for each, and the 95% intervals covered it 90.0% of the time (plug-in), 95.0% (averaged) and 94.5% (bootstrap).</p>
+<p>The three intervals differ by a few percent, because 18 subjects and 180 measurements estimate the fixed effects and <span class="math inline">\(\sigma\)</span> well. In a small sample the difference matters. We simulated 200 regressions with 12 observations and a new observation for each, and the 95% intervals covered it 90.0% of the time (plug-in), 95.0% (averaged) and 94.5% (bootstrap).</p>
 <p><a href="#fig-predict-new" class="quarto-xref">Figure&nbsp;<span>7.3</span></a> shows the three intervals over the days, with the data of the 18 subjects.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
@@ -2131,7 +2131,7 @@ Figure&nbsp;7.3: Reaction time of a new subject against the days of sleep depriv
 <p>The intervals above use a gaussian distribution of the random effects. With another distribution, such as those of <a href="#sec-lmm-heavy" class="quarto-xref"><span>Section 7.6</span></a>, the prediction for a new group needs an integral. We write one measurement of a new group with a random intercept as <span class="math display">\[
 y = x^\top\beta + b + \varepsilon, \qquad b \sim f_b, \qquad
 \varepsilon \sim \mathrm{N}(0, \sigma),
-\]</span> where <span class="math inline">\(f_b\)</span> is the distribution of the random intercepts, centred at zero. Given <span class="math inline">\(b\)</span>, the measurement <span class="math inline">\(y\)</span> is normal, so its distribution function is an average of normal distribution functions over <span class="math inline">\(b\)</span>: <span class="math display">\[
+\]</span> where <span class="math inline">\(f_b\)</span> is the distribution of the random intercepts, centered at zero. Given <span class="math inline">\(b\)</span>, the measurement <span class="math inline">\(y\)</span> is normal, so its distribution function is an average of normal distribution functions over <span class="math inline">\(b\)</span>: <span class="math display">\[
 G(y) = \int_{-\infty}^{\infty}
   \Phi\!\left(\frac{y - x^\top\beta - b}{\sigma}\right) f_b(b)\, db .
 \]</span> When <span class="math inline">\(f_b\)</span> is gaussian with variance <span class="math inline">\(\tau^2\)</span>, <span class="math inline">\(G\)</span> is the normal distribution function with mean <span class="math inline">\(x^\top\beta\)</span> and variance <span class="math inline">\(\sigma^2 + \tau^2\)</span>, and the interval is the one of the table above. For any other <span class="math inline">\(f_b\)</span>, <span class="math inline">\(G\)</span> is not normal. The prediction is then the median of <span class="math inline">\(G\)</span>, and the interval runs from its quantile at <span class="math inline">\(0.025\)</span> to its quantile at <span class="math inline">\(0.975\)</span>; <code>predict()</code> finds each quantile by solving <span class="math inline">\(G(y) = p\)</span> with Newton’s method, whose derivative is the density of <span class="math inline">\(y\)</span>. The standard deviation of <span class="math inline">\(y\)</span> is <span class="math inline">\(\sqrt{\sigma^2 + \mathrm{Var}(b)}\)</span> when the variance of <span class="math inline">\(b\)</span> exists.</p>

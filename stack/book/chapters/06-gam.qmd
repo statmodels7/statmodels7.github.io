@@ -92,8 +92,8 @@ From 10 to 20 basis functions the effective degrees of freedom grow from
 `r fmt(k_table$edf[1])` to `r fmt(k_table$edf[2])`, so with 10 functions the
 basis limited the curve. From 20 to 40 they grow only to
 `r fmt(k_table$edf[3])`: the penalty holds the curve, and a larger basis
-changes little. A basis larger than the curve needs is therefore safe, and it
-costs only computing time.
+changes little. A basis larger than the curve requires is therefore safe,
+and it costs only computing time.
 
 ### The order of the penalty
 
@@ -152,8 +152,9 @@ ggplot(Boston, aes(x = lstat, y = medv)) +
 ### The null space
 
 The argument `null_space` decides what happens to the functions that the
-penalty leaves free. With `"keep"`, the default, they have no penalty. With
-`"shrink"` they get a small penalty of their own [@marra2012], so a large
+penalty leaves free. With `"keep"`, the default of every smoother except
+`fourier_smooth()` without a `penalty`, they have no penalty. With
+`"shrink"` they get a small penalty of their own [@marra2011], so a large
 $\lambda$ can remove the whole term, the straight line included. This is
 useful when a model has many smooths and some covariates may have no
 effect. We add to the model the number of rooms per dwelling (`rm`) and the
@@ -412,7 +413,8 @@ zero outside a short interval:
 
 ```{r}
 #| label: fit-fourier
-fit_tf <- statmod(temp ~ s(doy, fourier_smooth(k = 9, lower = 0, upper = 366)),
+fit_tf <- statmod(temp ~ s(doy, fourier_smooth(k = 9, lower = 0, upper = 366,
+                                               null_space = "keep")),
                   distrib = gaussian1_distrib(), data = chic)
 predict(fit_tf, what = "mu", newdata = ends)
 data.frame(edf = c(edf_mu(fit_tc), edf_mu(fit_tf)),
@@ -486,7 +488,8 @@ fit_tf2 <- statmod(temp ~ s(doy, fourier_smooth(k = 9, lower = 0, upper = 366,
                    distrib = gaussian1_distrib(), data = chic)
 op_h2 <- harmonic_operator(period = 366, harmonics = 2)
 fit_tf3 <- statmod(temp ~ s(doy, fourier_smooth(k = 9, lower = 0, upper = 366,
-                                                order = op_h2)),
+                                                order = op_h2,
+                                                null_space = "keep")),
                    distrib = gaussian1_distrib(), data = chic)
 names(coef(fit_tf3)$mu)[2:5]
 data.frame(edf = c(edf_mu(fit_tf), edf_mu(fit_tf2), edf_mu(fit_tf3)),
@@ -497,8 +500,9 @@ data.frame(edf = c(edf_mu(fit_tf), edf_mu(fit_tf2), edf_mu(fit_tf3)),
 The three penalties give close fits. The yearly temperature is close to one
 sine wave, and the harmonic operator shrinks the curve toward that wave, while
 the penalty on the second derivative shrinks it toward a constant. The
-harmonic operator with one harmonic has the smallest AIC and the fewest
-effective degrees of freedom.
+three values of AIC are within two units of each other, and the operator
+with two harmonics has the smallest AIC and the fewest effective degrees of
+freedom.
 
 ### A yearly cycle on a B-spline basis
 
@@ -554,8 +558,8 @@ model
 $$
 W(t) = \beta_0 + \beta_1\, 2^{-t/\theta},
 $$
-a decay toward the weight $\beta_0$, in which $\theta$ is the time the excess
-weight takes to halve. With $a = \log(2)/\theta$ the function $2^{-t/\theta}$
+a decay toward the weight $\beta_0$, in which $\theta$ is the time that the
+excess weight takes to halve. With $a = \log(2)/\theta$ the function $2^{-t/\theta}$
 is $e^{-a t}$. The operator $L f = a f' + f''$ has in its null space the
 constant and $e^{-a t}$, so the operator `linear_operator(c(0, a))` shrinks
 a smooth toward the curves of this model. We estimate $\theta$ with `nls()`
@@ -619,7 +623,8 @@ data.frame(edf = c(edf_mu(fit_c1), edf_mu(fit_c3), edf_mu(fit_c2)),
 ```
 
 The operator has order 4, and the B-splines of degree 3 have a fourth
-derivative equal to zero, so the smoother needs `degree = 5`. With the
+derivative equal to zero, so the smoother needs a degree of at least 4, and
+we use `degree = 5`. With the
 penalty on the second derivative the smooth follows the trend and misses the
 cycle, also with 120 basis functions, which are three for each year: the
 cycle has a large second derivative, and this penalty removes it. With the
@@ -858,7 +863,7 @@ max(abs(fitted(fit_te) - fitted(g_te)))
 ```
 
 The two packages use B-spline margins with the same functions and the same
-penalties, and the tensor products span the same functions. The difference is
+penalty integrals, and the tensor products span the same functions. The difference is
 the identity matrix $I$ in the penalty above. The penalty $P_x$ is an
 integral, so it does not depend on how the basis of $x$ is written, but
 $P_x \otimes I$ also penalizes each coefficient of the $y$ basis with weight

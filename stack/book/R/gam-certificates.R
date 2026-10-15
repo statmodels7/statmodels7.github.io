@@ -118,8 +118,10 @@ assert_gam_ok <- function(fits, ref, data, claims) {
       any(grepl("sin|cos", names(coef(fits$tf2)$mu)))) {
     fail("the free coefficients of the Fourier penalties")
   }
-  if (!(AIC(fits$tf) < AIC(fits$tf2) && AIC(fits$tf) < AIC(fits$tf3) &&
-        edf(fits$tf) < edf(fits$tf2) && edf(fits$tf) < edf(fits$tf3))) {
+  aic_f <- c(AIC(fits$tf), AIC(fits$tf2), AIC(fits$tf3))
+  edf_f <- c(edf(fits$tf), edf(fits$tf2), edf(fits$tf3))
+  if (!(diff(range(aic_f)) < 2 && which.min(aic_f) == 3L &&
+        which.min(edf_f) == 3L)) {
     fail("the harmonic operator against the other Fourier penalties")
   }
   if (!all(c("s(day).sin1", "s(day).cos1") %in% names(coef(fits$h20)$mu))) {

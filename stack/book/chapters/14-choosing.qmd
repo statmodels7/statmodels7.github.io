@@ -102,7 +102,7 @@ sp_table
 The Pearson ratio of the Poisson model is
 `r fmt(sp_table$pearson[1], 1)`: the counts vary far more than a Poisson
 distribution allows. The three distributions with a dispersion bring the
-ratio close to one. The AIC orders them, and the Poisson-inverse gaussian
+ratio much closer to one. The AIC orders them, and the Poisson-inverse gaussian
 distribution has the smallest. The package `gamlss` [@rigby2005] fits the
 same distributions under the names `NBI` and `PIG`:
 
@@ -307,7 +307,7 @@ ab_table
 ```
 
 The four criteria agree on the spread: the smoothing parameter of $\sigma$
-is above $`r sci(min(ab_table[, "lambda_sigma"]))`$ in all of them, so the
+is at least $`r sci(min(ab_table[, "lambda_sigma"]), 2)`$ in all of them, so the
 smooth term of $\sigma$ reduces to its straight line, and the standard
 deviation grows exponentially with the age. They differ on the mean. REML,
 ML and AIC give the curve of the mean about
@@ -403,7 +403,7 @@ cost: with a group effect the naive cAIC is smaller for the right model in
 ### A lasso chosen by BIC and by cross-validation
 
 The flats of `rent` have three binary attributes: a bathroom of their own
-(`B`), central heating (`H`) and a full kitchen (`L`). We put these and the
+(`B`), central heating (`H`) and kitchen equipment above the average (`L`). We put these and the
 location under a lasso, beside the two smooth terms, and choose the
 $\lambda$ of the lasso by BIC and by ten-fold cross-validation. The
 smoothing parameters are estimated by REML at each point of the sequence of
@@ -451,8 +451,8 @@ costs about ten times as much as BIC.
 ### The Student t and its information
 
 The data frame `film90` gives, for `r nrow(film90)` American films of
-1990, the logarithm of the box office revenue `lborev1` against the
-logarithm of the number of screens in the opening week `lboopen`
+1990, the logarithm of the box office revenue after the first week
+`lborev1` against the logarithm of the revenue of the opening week `lboopen`
 [@stasinopoulos2017]. The revenue has outliers in both directions, and we
 compare a gaussian and a Student $t$ distribution, each with smooth terms
 in the location and in the scale:
@@ -491,7 +491,7 @@ model.
 
 ```{r}
 #| label: fig-film
-#| fig-cap: "Logarithm of the box office revenue against the logarithm of the opening screens. The lines are the fitted median and the 5% and 95% quantiles of the Student t model and of the gaussian model."
+#| fig-cap: "Logarithm of the box office revenue after the first week against the logarithm of the opening revenue. The lines are the fitted median and the 5% and 95% quantiles of the Student t model and of the gaussian model."
 #| fig-height: 4
 og <- data.frame(lboopen = seq(from = min(film90$lboopen),
                                to = max(film90$lboopen), length.out = 200))
@@ -513,7 +513,7 @@ ggplot(film90, aes(x = lboopen, y = lborev1)) +
   geom_point(colour = book_grey, size = 0.4, alpha = 0.4) +
   geom_line(data = qf, aes(y = value, colour = model, linetype = model,
                            group = group)) +
-  labs(x = "log opening screens", y = "log box office revenue")
+  labs(x = "log opening revenue", y = "log revenue after the first week")
 ```
 
 ## When a fit does not converge {#sec-choosing-convergence}
@@ -651,7 +651,7 @@ cert_b$state
 cert_b$reason
 ```
 
-The certificate says that the criterion is still rising. The first thing to
+The reason of the certificate records that the criterion is still rising. The first thing to
 change is the information in the criterion. The expected information of the
 $t$ distribution is positive definite everywhere:
 
@@ -698,7 +698,7 @@ with the observed information converges as well, with the default
 arguments. The two maxima describe different models (@fig-gag-nu): at the
 first the degrees of freedom fall from about
 `r fmt(exp(sum(coef(gag_e)$nu * c(1, 0))), 0)` at birth, at the second they
-rise with the age from below one. The criterion prefers the second. The
+rise with the age from below one. The criterion is larger at the second. The
 general lesson is that a certificate is local: when a model is hard, we fit
 it from more than one start, compare the criteria of fits that use the same
 information, and keep the highest.
@@ -725,7 +725,7 @@ Some models cannot be fitted with `statmodels7` at present, and for each of
 them `statmod()` stops with a message that names the cause.
 
 A response with several components, such as a pair of measurements on the
-same subject, needs a multivariate distribution. `distributions7` has four
+same subject, needs a multivariate distribution. `distributions7` has six
 multivariate families, and `distributions7::fit_distrib()` fits them with
 constant parameters, but `statmod()` does not let their parameters depend
 on covariates:
@@ -846,7 +846,8 @@ half-saturation concentration $K$ of the Michaelis–Menten model of
 @sec-beyond-tests, with `r nrow(Puromycin[Puromycin$state == "treated", ])`
 observations. We draw 200 data sets from the fitted model and count how
 often the 95% Wald interval of `statmodels7` and the interval of
-`confint()` for `nls()`, which uses the $t$ distribution, contain the true
+`confint()` for `nls()`, which profiles the residual sum of squares and
+reads the interval against the $t$ distribution, contain the true
 $K$.
 
 ```{r}

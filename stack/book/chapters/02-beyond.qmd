@@ -42,7 +42,7 @@ fit1 <- statmod(accel ~ s(times, bspline_smooth(k = 20)) |
 
 ## Three variance matrices {#sec-beyond-variances}
 
-The summary of @sec-model ends with the line "95% intervals, bayesian
+The summary of @sec-model contains the line "95% intervals, bayesian
 variance". Every standard error of a penalized model depends on a choice of
 variance matrix, and `statmodels7` offers three of them. As in @sec-model,
 let $H$ be the Fisher information of the coefficients at the fit, and let
@@ -484,7 +484,7 @@ ci_nls <- suppressMessages(confint(nls_p))["K", ]
 It runs from `r fmt(ci_nls[1], 4)` to `r fmt(ci_nls[2], 4)`, so it is wider.
 `nls()` uses the profile $t$ statistic [@bates1988]
 $$
-\tau(K_0) = \mathrm{sign}(\hat K - K_0)\,
+\tau(K_0) = \mathrm{sign}(K_0 - \hat K)\,
 \frac{\sqrt{S(K_0) - S(\hat K)}}{s},
 $$
 where $S(K_0)$ is the residual sum of squares with $K$ held at $K_0$ and
@@ -790,9 +790,9 @@ fit1
 `start_from()` takes the coefficients that the two models share. The
 parametric coefficients are matched by name. A smooth is matched when the two
 models write it in the same way; when the two bases differ, `start_from()`
-projects the fitted curve of the old model onto the new basis. A coefficient
-that the old model does not have starts from the intercept-only fit, and
-here this is the case of the smooth of `sigma`.
+projects the fitted curve of the old model onto the new basis. If the old
+model lacks a coefficient, that coefficient starts from the intercept-only
+fit, and here this is the case of the smooth of `sigma`.
 
 ```{r}
 #| label: start-numbers
@@ -1059,8 +1059,8 @@ AIC(fit_t4)
 The model with $t$ errors has the same equations as `fit1`, and it has no
 equation for `nu`, because `nu` is not a parameter of the fixed
 distribution. Its cAIC is higher than the cAIC of the gaussian model, so the
-motorcycle data do not need tails heavier than the gaussian ones once the
-standard deviation changes with time.
+motorcycle data do not need the tails of a $t$ distribution with four degrees
+of freedom once the standard deviation changes with time.
 
 ```{r}
 #| label: gate-02

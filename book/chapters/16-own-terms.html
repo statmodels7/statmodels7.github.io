@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>16&nbsp; Writing a model term – statmodels7</title>
+<title>16&nbsp; Writing a model term and an optimizer – statmodels7</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -168,7 +168,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/15-own-distributions.html">Extending the toolkit</a></li><li class="breadcrumb-item"><a href="../chapters/16-own-terms.html"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/15-own-distributions.html">Extending the toolkit</a></li><li class="breadcrumb-item"><a href="../chapters/16-own-terms.html"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term and an optimizer</span></a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -336,7 +336,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../chapters/16-own-terms.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></a>
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term and an optimizer</span></span></a>
   </div>
 </li>
       </ul>
@@ -373,9 +373,9 @@ window.Quarto = {
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/15-own-distributions.html">Extending the toolkit</a></li><li class="breadcrumb-item"><a href="../chapters/16-own-terms.html"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/15-own-distributions.html">Extending the toolkit</a></li><li class="breadcrumb-item"><a href="../chapters/16-own-terms.html"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term and an optimizer</span></a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title"><span id="sec-own-terms" class="quarto-section-identifier"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></h1>
+<h1 class="title"><span id="sec-own-terms" class="quarto-section-identifier"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term and an optimizer</span></span></h1>
 </div>
 
 
@@ -392,12 +392,12 @@ window.Quarto = {
 </header>
 
 
-<p>Chapter 14 showed how <code>statmod()</code> uses the terms of <code>modelterms7</code>: a linear term, a smooth, a random effect, a break-point and a few others, each written in the formula and each contributing a block of the design. A term that the package does not provide is written by the user as an S7 object of the same kind, and the formula then accepts it. This chapter writes two. The first is a seasonal term with a fixed block, which uses one of the penalties of <code>penalties7</code>. The second is an asymptotic growth term whose block moves with its own coefficients, which is the case the package handles through a refresh step at each iteration.</p>
+<p>Chapters 6 to 12 showed how <code>statmod()</code> uses the terms of <code>modelterms7</code>: a linear term, a smooth, a random effect, a break-point and a few others, each written in the formula and each contributing a block of the design. A term that the package does not provide is written by the user as an S7 object of the same kind, and the formula then accepts it. This chapter writes two. The first is a seasonal term with a fixed block, which uses one of the penalties of <code>penalties7</code>. The second is an asymptotic growth term whose block moves with its own coefficients, which is the case the package handles through a refresh step at each iteration. The chapter then writes an optimizer, a trust-region method with a stopping rule of its own, and uses it for the inner and for the outer fit.</p>
 <section id="sec-own-term-structure" class="level2" data-number="16.1">
 <h2 data-number="16.1" class="anchored" data-anchor-id="sec-own-term-structure"><span class="header-section-number">16.1</span> The structure of a model term</h2>
-<p>A term of the additive branch is an S7 class that inherits from <code>additive_term</code>. The class adds four properties to the common ones of every term: the design block <code>X</code>, the names of its coefficients <code>coef_names</code>, a list <code>blueprint</code> that keeps what is needed to rebuild the block at new data, and the penalty <code>penalty</code>, which is <code>NULL</code> for an unpenalized term. The label, the hyperparameters and the variables of the formula are common to all terms.</p>
-<p>Four methods make the term work in a fit. <code>term_build()</code> receives the term and the data, evaluates the variables and returns the term with <code>X</code>, <code>coef_names</code>, <code>blueprint</code> and <code>penalty</code> filled in. <code>term_predict()</code> receives the term and new data and returns the block at those data; <code>predict()</code> and the residuals use it. A term whose block does not depend on the coefficients needs nothing more. A term whose block does depend on them also has <code>term_refresh()</code>, which receives the term and a vector of coefficients and returns the term with the block recomputed at those values, <code>term_value()</code>, which returns the fitted contribution to the predictor, and <code>term_coef_start()</code>, which gives starting values for the coefficients. Section <a href="#sec-own-asym" class="quarto-xref"><span>Section 16.3</span></a> shows these three.</p>
-<p>The function <code>check_term()</code> runs the methods on a data frame and reports six checks. It builds the block, names its columns, counts its parameters, checks the penalty when there is one, reproduces the block at the training data, and gives the matching rows of the block for a subset of the data. A check that fails names the method at fault, so a term that passes is one that <code>statmod()</code> can fit.</p>
+<p>A term of the additive branch is an S7 class that inherits from <code>additive_term</code>. The class adds four properties to the common ones of every term: the design block <code>X</code>, the names of its coefficients <code>coef_names</code>, a list <code>blueprint</code> that keeps what is needed to rebuild the block at new data, and the penalty <code>penalty</code>, which is <code>NULL</code> for an unpenalized term. The label and the hyperparameters are common to all terms, and each class keeps the variables of its formula in a property of its own.</p>
+<p>Two methods make the term work in a fit. <code>term_build()</code> receives the term and the data, evaluates the variables and returns the term with <code>X</code>, <code>coef_names</code>, <code>blueprint</code> and <code>penalty</code> filled in. <code>term_predict()</code> receives the term and new data and returns the block at those data; <code>predict()</code> and the residuals use it. A term whose block does not depend on the coefficients needs nothing more. A term whose block does depend on them also has <code>term_refresh()</code>, which receives the term and a vector of coefficients and returns the term with the block recomputed at those values, <code>term_value()</code>, which returns the fitted contribution to the predictor, and <code>term_coef_start()</code>, which gives starting values for the coefficients. <a href="#sec-own-asym" class="quarto-xref"><span>Section 16.3</span></a> shows these three.</p>
+<p>The function <code>check_term()</code> runs the methods on a data frame and reports six checks. It builds the block, names its columns, counts its parameters, checks that <code>term_smooth()</code> returns a single logical value, reproduces the block at the training data, and gives the matching rows of the block for a subset of the data. A check that fails names the method at fault, so a term that passes is one that <code>statmod()</code> can fit.</p>
 </section>
 <section id="sec-own-season" class="level2" data-number="16.2">
 <h2 data-number="16.2" class="anchored" data-anchor-id="sec-own-season"><span class="header-section-number">16.2</span> A fixed block: a seasonal term</h2>
@@ -488,7 +488,7 @@ window.Quarto = {
 <span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -534.716152    effective df 10.13</span></span>
 <span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1089.694    cBIC 1124.955</span></span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.42 s</span></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.45 s</span></span>
 <span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.2e-05   min eigen 4.5e-06</span></span>
 <span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 8.1e-07   min eigen 1</span></span>
 <span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -762,7 +762,7 @@ p(\mu) = -(H + \mu I)^{-1} g ,
 <p>After the step, the method compares the decrease of the objective with the decrease the model predicts. The ratio is <span class="math display">\[
 \rho = \frac{f(x) - f(x + p)}{m(0) - m(p)} .
 \]</span> The step is accepted when <span class="math inline">\(\rho &gt; 0\)</span>. The radius follows the classical rules of <span class="citation" data-cites="nocedal2006">Nocedal and Wright (<a href="A2-references.html#ref-nocedal2006" role="doc-biblioref">2006</a>)</span>: it is divided by four when <span class="math inline">\(\rho &lt; 1/4\)</span>, and it is doubled, up to a maximum, when <span class="math inline">\(\rho &gt; 3/4\)</span> and the step reaches the boundary. A step that the model did not predict well therefore shortens the radius, and a step that the model predicted exactly lengthens it.</p>
-<p>A second stop is needed. Near the minimum the predicted decrease falls below the rounding of the objective, so that <span class="math inline">\(f(x + p)\)</span> and <span class="math inline">\(f(x)\)</span> are equal in floating point, every step is rejected, and the radius falls to zero. When the predicted decrease is below <span class="math inline">\(10^3\,\varepsilon\,\max(1, |f|)\)</span>, the method stops and says so. Its <code>criterion_met</code> then names the resolution of the objective, and the result is not marked as converged.</p>
+<p>A second stop is needed. Near the minimum the predicted decrease falls below the rounding of the objective, so that <span class="math inline">\(f(x + p)\)</span> and <span class="math inline">\(f(x)\)</span> are equal in floating point, every step is rejected, and the radius falls to zero. When the predicted decrease is below <span class="math inline">\(10^3\,\varepsilon\,\max(1, |f|)\)</span>, the method stops, and its <code>criterion_met</code> names the resolution of the objective, and the result is not marked as converged.</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>TrustRegion <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"TrustRegion"</span>, <span class="at">parent =</span> optimizer,</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>                             <span class="at">properties =</span> <span class="fu">list</span>(<span class="at">radius =</span> S7<span class="sc">::</span>class_numeric,</span>
@@ -968,7 +968,7 @@ p(\mu) = -(H + \mu I)^{-1} g ,
 <span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -579.377190    effective df 16.04</span></span>
 <span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1190.825    cBIC 1237.173</span></span>
-<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 770 ms</span></span>
+<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 790 ms</span></span>
 <span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1e-08   min eigen 0.0022</span></span>
 <span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.3e-08   min eigen 0.73</span></span>
 <span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
@@ -980,7 +980,7 @@ p(\mu) = -(H + \mu I)^{-1} g ,
 </section>
 <section id="sec-own-optim-outer" class="level2" data-number="16.6">
 <h2 data-number="16.6" class="anchored" data-anchor-id="sec-own-optim-outer"><span class="header-section-number">16.6</span> The same method as an outer optimizer</h2>
-<p>The outer optimizer searches over the smoothing parameters, and each of its evaluations is a complete inner fit. We compare the trust-region method with <code>newton()</code> in two forms, one with the default unlimited step and one with the step limited to a norm of five, which is the <code>max_length</code> argument of <code>newton()</code>:</p>
+<p>The outer optimizer searches over the smoothing parameters, and each of its evaluations is a complete inner fit. We compare the trust-region method with <code>newton()</code> in two forms, one with the default unlimited step and one with the step whose largest component is limited to five, which is the <code>max_length</code> argument of <code>newton()</code>:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>outer_runs <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">trust_region =</span> <span class="fu">trust_region</span>(<span class="at">criterion =</span> <span class="fu">crit_relgrad</span>(<span class="fl">1e-8</span>), <span class="at">keep_trace =</span> <span class="cn">TRUE</span>),</span>
@@ -1008,9 +1008,9 @@ p(\mu) = -(H + \mu I)^{-1} g ,
 <span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>outer_table</span>
 <span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             method seconds iterations log_likelihood</span></span>
-<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     trust_region    0.36          9      -579.3772</span></span>
-<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 newton_unlimited    0.45         13      -579.3772</span></span>
-<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3   newton_limited    0.66         23      -579.3772</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     trust_region    0.41          9      -579.3772</span></span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 newton_unlimited    0.50         13      -579.3772</span></span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3   newton_limited    0.89         23      -579.3772</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The three methods reach the same hyperparameters and the same log-likelihood. The trust-region method takes 9 iterations against 13 for the unlimited Newton method and 23 for the limited one. The run times are of the same order, so the iteration count is the quantity that separates the methods here.</p>
 <p>The trace of the trust region shows the radius and the ratio <span class="math inline">\(\rho\)</span> at each iteration. The first step is cut by the initial radius, and the radius then grows as the model proves reliable:</p>

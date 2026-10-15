@@ -336,7 +336,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../chapters/16-own-terms.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></a>
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term and an optimizer</span></span></a>
   </div>
 </li>
       </ul>
@@ -442,7 +442,7 @@ window.Quarto = {
 <span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -970.058113    effective df 4.00</span></span>
 <span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1948.116    cBIC 1963.114</span></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.78 s</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.41 s</span></span>
 <span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5.2e-15   min eigen 0.094</span></span>
 <span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.1e-14   min eigen 0.3</span></span>
 <span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>fit_ht <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age <span class="sc">|</span> sigma <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">student_t1_distrib</span>(),</span>
@@ -478,7 +478,7 @@ window.Quarto = {
 <span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -930.977075    effective df 5.00</span></span>
 <span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1871.954    cBIC 1890.701</span></span>
-<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.16 s</span></span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.09 s</span></span>
 <span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.3e-15   min eigen 0.063</span></span>
 <span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 8.1e-07   min eigen 0.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -497,7 +497,7 @@ window.Quarto = {
 <p>The interval of <span class="math inline">\(\log\nu\)</span> runs from 0.60 to 1.32, so <span class="math inline">\(\nu\)</span> lies between 1.8 and 3.7. A gaussian distribution, with <span class="math inline">\(\nu = \infty\)</span>, is far outside this interval. The AIC of the <span class="math inline">\(t\)</span> model is 76 units smaller than the AIC of the gaussian model.</p>
 <section id="the-same-model-in-gamlss" class="level3">
 <h3 class="anchored" data-anchor-id="the-same-model-in-gamlss">The same model in <code>gamlss</code></h3>
-<p>The package <code>gamlss</code> fits the same model with its family <code>TF</code> <span class="citation" data-cites="rigby2005">(<a href="A2-references.html#ref-rigby2005" role="doc-biblioref">Rigby and Stasinopoulos 2005</a>)</span>. It maximizes the likelihood, so we compare it with the fit of <code>statmod()</code> under <code>ml()</code>. This model has no penalty, so the criterion <code>ml()</code> integrates no coefficient out of the likelihood, and the estimates are those of the joint maximum likelihood. The default stopping rule of <code>gamlss</code> is loose (the relative change of the deviance below 0.001), and we tighten it:</p>
+<p>The package <code>gamlss</code> fits the same model with its family <code>TF</code> <span class="citation" data-cites="rigby2005">(<a href="A2-references.html#ref-rigby2005" role="doc-biblioref">Rigby and Stasinopoulos 2005</a>)</span>. It maximizes the likelihood, so we compare it with the fit of <code>statmod()</code> under <code>ml()</code>. This model has no penalty, so the criterion <code>ml()</code> integrates no coefficient out of the likelihood, and the estimates are those of the joint maximum likelihood. The default stopping rule of <code>gamlss</code> is loose (the absolute change of the global deviance below 0.001), and we tighten it:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fit_ht_ml <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age <span class="sc">|</span> sigma <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">student_t1_distrib</span>(),</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> GAGurine, <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
@@ -521,7 +521,7 @@ window.Quarto = {
 <span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  -930.9614  -930.9614</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The two sets of estimates agree to five digits, and the log-likelihoods agree to the printed digits. With the default stopping rule of <code>gamlss</code> the agreement is about three digits, because that rule stops the iteration before the maximum. The fits with <code>outer_criterion = NULL</code> and with <code>ml(marginal = "none")</code> give the same estimates to about five digits, since there is nothing to integrate out.</p>
-<p><a href="07-lmm.html#fig-heavy" class="quarto-xref">Figure&nbsp;<span>7.2</span></a> shows the two fitted models. The band of each model runs from the 5% to the 95% quantile of the fitted distribution at each age, so it should leave out 10% of the children. We count the children outside each band:</p>
+<p><a href="#fig-heavy" class="quarto-xref">Figure&nbsp;<span>5.1</span></a> shows the two fitted models. The band of each model runs from the 5% to the 95% quantile of the fitted distribution at each age, so it should leave out 10% of the children. We count the children outside each band:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>mu_d <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_ht, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> GAGurine)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>sg_d <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_ht, <span class="at">what =</span> <span class="st">"sigma"</span>, <span class="at">newdata =</span> GAGurine)</span>
@@ -590,7 +590,7 @@ Figure&nbsp;5.1: GAG concentration against age, with the fitted location and the
 <span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -930.984577    effective df 5.00</span></span>
 <span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1871.969    cBIC 1890.716</span></span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.28 s</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.22 s</span></span>
 <span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.1e-14   min eigen 0.063</span></span>
 <span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 6.8e-07   min eigen 0.25</span></span>
 <span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>fit_ht1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age <span class="sc">|</span> sigma <span class="sc">~</span> Age <span class="sc">|</span> nu <span class="sc">~</span> Age,</span>
@@ -628,7 +628,7 @@ Figure&nbsp;5.1: GAG concentration against age, with the fitted location and the
 <span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -923.890935    effective df 6.00</span></span>
 <span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1859.782    cBIC 1882.278</span></span>
-<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 3.85 s</span></span>
+<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 3.51 s</span></span>
 <span id="cb5-74"><a href="#cb5-74" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2e-05   min eigen 0.062</span></span>
 <span id="cb5-75"><a href="#cb5-75" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 4.1e-06   min eigen 0.02</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -650,7 +650,7 @@ Figure&nbsp;5.1: GAG concentration against age, with the fitted location and the
 </section>
 <section id="a-degrees-of-freedom-parameter-at-the-boundary" class="level3">
 <h3 class="anchored" data-anchor-id="a-degrees-of-freedom-parameter-at-the-boundary">A degrees of freedom parameter at the boundary</h3>
-<p>When the data have gaussian tails, the likelihood increases with <span class="math inline">\(\nu\)</span> up to infinity, and no finite estimate exists. We draw 400 observations from a gaussian distribution with <code>rstatmod()</code> and we fit a Student <span class="math inline">\(t\)</span> model:</p>
+<p>When the data have gaussian tails, the likelihood increases with <span class="math inline">\(\nu\)</span> up to infinity, and the estimate of <span class="math inline">\(\nu\)</span> is not finite. We draw 400 observations from a gaussian distribution with <code>rstatmod()</code> and we fit a Student <span class="math inline">\(t\)</span> model:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>xb <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">runif</span>(<span class="at">n =</span> <span class="dv">400</span>))</span>
@@ -682,57 +682,58 @@ Figure&nbsp;5.1: GAG concentration against age, with the fitted location and the
 <span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === nu   [log link]</span></span>
 <span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate    se        z      p  lower upper</span></span>
-<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     20.82 10030 0.002076 0.9983 -19640 19680</span></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate</span></span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     20.82</span></span>
 <span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -318.328078    effective df 4.00</span></span>
 <span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 644.656    cBIC 660.622</span></span>
-<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 560 ms</span></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 470 ms</span></span>
 <span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.6e-06   min eigen 0.13</span></span>
 <span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.4e-08   min eigen 1</span></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>fit_bg <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> x <span class="sc">|</span> sigma <span class="sc">~</span> <span class="dv">1</span>, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> sim_b<span class="sc">$</span>data)</span>
-<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_bg)</span>
-<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = y ~ x | sigma ~ 1, distrib = gaussian1_distrib(), </span></span>
-<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = sim_b$data)</span></span>
-<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gaussian1     Observations: 400</span></span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
-<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z       p  lower upper</span></span>
-<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.079 0.05478  19.7 &lt; 1e-16 0.9715 1.186</span></span>
-<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   x               1.793 0.09675 18.54 &lt; 1e-16  1.604 1.983</span></span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z       p   lower   upper</span></span>
-<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)   -0.6206 0.03544 -17.51 &lt; 1e-16 -0.6901 -0.5511</span></span>
-<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -318.328078    effective df 3.00</span></span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 642.656    cBIC 654.631</span></span>
-<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 40 ms</span></span>
-<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.1e-15   min eigen 0.13</span></span>
-<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.1e-09   min eigen 1</span></span>
-<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a><span class="fu">exp</span>(<span class="fu">coef</span>(fit_bt)<span class="sc">$</span>nu)</span>
-<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept) </span></span>
-<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  1102569830</span></span>
-<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>cert_bt <span class="ot">&lt;-</span> <span class="fu">statmod_certificate</span>(fit_bt)</span>
-<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>cert_bt<span class="sc">$</span>state</span>
-<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "boundary"</span></span>
-<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>cert_bt<span class="sc">$</span>boundary</span>
-<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "nu/(Intercept)"</span></span>
-<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">student_t =</span> <span class="fu">AIC</span>(fit_bt), <span class="at">gaussian =</span> <span class="fu">AIC</span>(fit_bg))</span>
-<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; student_t  gaussian </span></span>
-<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  644.6562  642.6562</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>fit_bg <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> x <span class="sc">|</span> sigma <span class="sc">~</span> <span class="dv">1</span>, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> sim_b<span class="sc">$</span>data)</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_bg)</span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = y ~ x | sigma ~ 1, distrib = gaussian1_distrib(), </span></span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = sim_b$data)</span></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gaussian1     Observations: 400</span></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z       p  lower upper</span></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.079 0.05478  19.7 &lt; 1e-16 0.9715 1.186</span></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   x               1.793 0.09675 18.54 &lt; 1e-16  1.604 1.983</span></span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z       p   lower   upper</span></span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)   -0.6206 0.03544 -17.51 &lt; 1e-16 -0.6901 -0.5511</span></span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -318.328078    effective df 3.00</span></span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 642.656    cBIC 654.631</span></span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 60 ms</span></span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.1e-15   min eigen 0.13</span></span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.1e-09   min eigen 1</span></span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a><span class="fu">exp</span>(<span class="fu">coef</span>(fit_bt)<span class="sc">$</span>nu)</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept) </span></span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  1102569830</span></span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>cert_bt <span class="ot">&lt;-</span> <span class="fu">statmod_certificate</span>(fit_bt)</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>cert_bt<span class="sc">$</span>state</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "boundary"</span></span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>cert_bt<span class="sc">$</span>boundary</span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "nu/(Intercept)"</span></span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">student_t =</span> <span class="fu">AIC</span>(fit_bt), <span class="at">gaussian =</span> <span class="fu">AIC</span>(fit_bg))</span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; student_t  gaussian </span></span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  644.6562  642.6562</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The estimate of <span class="math inline">\(\nu\)</span> is 1,102,569,830, the largest value that the log link can produce, and the certificate gives the state boundary and names the coefficient nu/(Intercept). The fit is at its maximum, and the maximum is a limit: the <span class="math inline">\(t\)</span> model has become the gaussian model. <code>summary()</code> leaves the standard error of this coefficient empty, since it has no meaning at the boundary. The AIC of the gaussian model is smaller by 2.0 units, which is the penalty of the extra parameter.</p>
+<p>The estimate of <span class="math inline">\(\nu\)</span> is 1,102,569,830, the value at which the search stopped, because the likelihood is flat in <span class="math inline">\(\log\nu\)</span> there, and the certificate gives the state boundary and names the coefficient nu/(Intercept). The fit is at its maximum, and the maximum is a limit: the <span class="math inline">\(t\)</span> model has become the gaussian model. <code>summary()</code> leaves the standard error of this coefficient empty, since it has no meaning at the boundary. The AIC of the gaussian model is smaller by 2.0 units, which is the penalty of the extra parameter.</p>
 </section>
 </section>
 <section id="sec-distribs-skew" class="level2" data-number="5.2">
@@ -755,7 +756,7 @@ Figure&nbsp;5.1: GAG concentration against age, with the fitted location and the
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>gamma_max</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.9952717</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The skewness of the residuals is larger than this limit. This skewness is a moment of the sample, and the likelihood of the skew normal regression still has its maximum at a finite shape. The package has two parametrizations of the distribution. <code>skewnormal1_distrib()</code> has the direct parameters of <span class="citation" data-cites="azzalini1985">Azzalini (<a href="A2-references.html#ref-azzalini1985" role="doc-biblioref">1985</a>)</span>: the location <span class="math inline">\(\xi\)</span> (<code>mu</code>), the scale <span class="math inline">\(\omega\)</span> (<code>sigma</code>) and the shape <span class="math inline">\(\alpha\)</span> (<code>alpha</code>), with the identity link for the shape. <code>skewnormal2_distrib()</code> has the centred parameters: the mean (<code>mu</code>), the standard deviation (<code>sigma</code>) and the skewness <code>gamma1</code>, with a link that keeps <code>gamma1</code> between <span class="math inline">\(-\gamma_{\max}\)</span> and <span class="math inline">\(\gamma_{\max}\)</span>. The two parametrizations describe the same family of distributions, so we expect the same maximum from both:</p>
+<p>The skewness of the residuals is larger than this limit. This skewness is a moment of the sample, and the likelihood of the skew normal regression still has its maximum at a finite shape. The package has two parametrizations of the distribution. <code>skewnormal1_distrib()</code> has the direct parameters of <span class="citation" data-cites="azzalini1985">Azzalini (<a href="A2-references.html#ref-azzalini1985" role="doc-biblioref">1985</a>)</span>: the location <span class="math inline">\(\xi\)</span> (<code>mu</code>), the scale <span class="math inline">\(\omega\)</span> (<code>sigma</code>) and the shape <span class="math inline">\(\alpha\)</span> (<code>alpha</code>), with the identity link for the shape. <code>skewnormal2_distrib()</code> has the centered parameters: the mean (<code>mu</code>), the standard deviation (<code>sigma</code>) and the skewness <code>gamma1</code>, with a link that keeps <code>gamma1</code> between <span class="math inline">\(-\gamma_{\max}\)</span> and <span class="math inline">\(\gamma_{\max}\)</span>. The two parametrizations describe the same family of distributions, so we expect the same maximum from both:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fit_sn1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Price <span class="sc">~</span> Horsepower, <span class="at">distrib =</span> <span class="fu">skewnormal1_distrib</span>(),</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> cars93)</span>
@@ -789,8 +790,8 @@ Figure&nbsp;5.1: GAG concentration against age, with the fitted location and the
 <span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -284.620453    effective df 4.00</span></span>
 <span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 577.241    cBIC 587.371</span></span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 290 ms</span></span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.7e-15   min eigen 0.078</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 280 ms</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.1e-15   min eigen 0.078</span></span>
 <span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.3e-08   min eigen 0.51</span></span>
 <span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>fit_ss <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Price <span class="sc">~</span> Horsepower, <span class="at">distrib =</span> <span class="fu">skewnormal2_distrib</span>(),</span>
 <span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> cars93)</span>
@@ -825,19 +826,19 @@ Figure&nbsp;5.1: GAG concentration against age, with the fitted location and the
 <span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -284.620453    effective df 4.00</span></span>
 <span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 577.241    cBIC 587.371</span></span>
 <span id="cb10-68"><a href="#cb10-68" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 530 ms</span></span>
-<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.1e-15   min eigen 0.078</span></span>
+<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.4e-15   min eigen 0.078</span></span>
 <span id="cb10-70"><a href="#cb10-70" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 4.5e-09   min eigen 0.63</span></span>
 <span id="cb10-71"><a href="#cb10-71" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">direct =</span> <span class="fu">c</span>(<span class="at">slope =</span> <span class="fu">coef</span>(fit_sn1)<span class="sc">$</span>mu[[<span class="st">"Horsepower"</span>]],</span>
 <span id="cb10-72"><a href="#cb10-72" aria-hidden="true" tabindex="-1"></a>                 <span class="at">logLik =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_sn1)),</span>
 <span id="cb10-73"><a href="#cb10-73" aria-hidden="true" tabindex="-1"></a>                 <span class="at">marginal =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_sn1, <span class="at">type =</span> <span class="st">"marginal"</span>))),</span>
-<span id="cb10-74"><a href="#cb10-74" aria-hidden="true" tabindex="-1"></a>      <span class="at">centred =</span> <span class="fu">c</span>(<span class="fu">coef</span>(fit_ss)<span class="sc">$</span>mu[[<span class="st">"Horsepower"</span>]], <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_ss)),</span>
+<span id="cb10-74"><a href="#cb10-74" aria-hidden="true" tabindex="-1"></a>      <span class="at">centered =</span> <span class="fu">c</span>(<span class="fu">coef</span>(fit_ss)<span class="sc">$</span>mu[[<span class="st">"Horsepower"</span>]], <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_ss)),</span>
 <span id="cb10-75"><a href="#cb10-75" aria-hidden="true" tabindex="-1"></a>                  <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_ss, <span class="at">type =</span> <span class="st">"marginal"</span>))))</span>
-<span id="cb10-76"><a href="#cb10-76" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;              slope    logLik  marginal</span></span>
-<span id="cb10-77"><a href="#cb10-77" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; direct  0.09115311 -284.6205 -288.8055</span></span>
-<span id="cb10-78"><a href="#cb10-78" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; centred 0.09115311 -284.6205 -288.8055</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-76"><a href="#cb10-76" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;               slope    logLik  marginal</span></span>
+<span id="cb10-77"><a href="#cb10-77" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; direct   0.09115311 -284.6205 -288.8055</span></span>
+<span id="cb10-78"><a href="#cb10-78" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; centered 0.09115311 -284.6205 -288.8055</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The slopes and the log-likelihoods agree. The intercepts differ, because the intercept of the first fit is the location <span class="math inline">\(\xi\)</span> for a car with no power, and the intercept of the second fit is the mean, which is <span class="math inline">\(\xi\)</span> plus <span class="math inline">\(\omega\sqrt{2/\pi}\,\alpha/\sqrt{1 + \alpha^2}\)</span>. The estimate of the shape is <span class="math inline">\(\hat\alpha = 8.09\)</span>, and the estimate of the skewness in the second fit is <span class="math inline">\(\hat\gamma_1 = 0.936\)</span>, close to the limit <span class="math inline">\(\gamma_{\max}\)</span>.</p>
-<p>The direct parametrization is difficult to use near this limit. The skewness of the price without the covariate is 1.48, which is also above <span class="math inline">\(\gamma_{\max}\)</span>, and the model without covariates then has its maximum at <span class="math inline">\(\alpha \to \infty\)</span>, with <span class="math inline">\(\xi\)</span> at the smallest price. At that limit the distribution is a half-normal distribution, and the curvature of the log-likelihood in <span class="math inline">\(\xi\)</span> grows as <span class="math inline">\(\alpha^2\)</span>. A fit that started there would take steps of order <span class="math inline">\(1/\alpha^2\)</span>. For this reason <code>statmod()</code> starts the direct parametrization from the moment estimate, with the skewness of the sample held at 0.9, when the skewness of the response is beyond that value. The centred parametrization does not have this difficulty, since the mean and the standard deviation stay finite as the skewness approaches <span class="math inline">\(\gamma_{\max}\)</span> <span class="citation" data-cites="azzalini1985">(<a href="A2-references.html#ref-azzalini1985" role="doc-biblioref">Azzalini 1985</a>)</span>.</p>
+<p>The direct parametrization is difficult to use near this limit. The skewness of the price without the covariate is 1.48, which is also above <span class="math inline">\(\gamma_{\max}\)</span>, and the model without covariates then has its maximum at <span class="math inline">\(\alpha \to \infty\)</span>, with <span class="math inline">\(\xi\)</span> at the smallest price. At that limit the distribution is a half-normal distribution, and the curvature of the log-likelihood in <span class="math inline">\(\xi\)</span> grows as <span class="math inline">\(\alpha^2\)</span>. A fit that started there would take steps of order <span class="math inline">\(1/\alpha^2\)</span>. For this reason <code>statmod()</code> starts the direct parametrization from the moment estimate, with the skewness of the sample held at 0.9, when the skewness of the response is beyond that value. The centered parametrization does not have this difficulty, since the mean and the standard deviation stay finite as the skewness approaches <span class="math inline">\(\gamma_{\max}\)</span> <span class="citation" data-cites="azzalini1985">(<a href="A2-references.html#ref-azzalini1985" role="doc-biblioref">Azzalini 1985</a>)</span>.</p>
 <p>The skew <span class="math inline">\(t\)</span> distribution of <span class="citation" data-cites="azzalini2003">Azzalini and Capitanio (<a href="A2-references.html#ref-azzalini2003" role="doc-biblioref">2003</a>)</span> has the degrees of freedom <span class="math inline">\(\nu\)</span> as a fourth parameter, and its skewness is not bounded by this limit. We fit the gaussian model and the skew <span class="math inline">\(t\)</span> model, and we compare them with the skew normal model:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fit_sg <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Price <span class="sc">~</span> Horsepower, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
@@ -906,8 +907,8 @@ Figure&nbsp;5.1: GAG concentration against age, with the fitted location and the
 <span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -276.390221    effective df 5.00</span></span>
 <span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 562.780    cBIC 575.443</span></span>
-<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 800 ms</span></span>
-<span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.9e-16   min eigen 0.062</span></span>
+<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 500 ms</span></span>
+<span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.6e-15   min eigen 0.062</span></span>
 <span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.4e-09   min eigen 0.12</span></span>
 <span id="cb11-70"><a href="#cb11-70" aria-hidden="true" tabindex="-1"></a>skew_table <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
 <span id="cb11-71"><a href="#cb11-71" aria-hidden="true" tabindex="-1"></a>  <span class="at">distribution =</span> <span class="fu">c</span>(<span class="st">"gaussian"</span>, <span class="st">"skew normal"</span>, <span class="st">"skew t"</span>),</span>
@@ -1004,7 +1005,7 @@ Figure&nbsp;5.2: List price against engine power. The lines are the conditional 
 <span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood 19.883207    effective df 3.00</span></span>
 <span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC -33.766    cBIC -28.216</span></span>
 <span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 110 ms</span></span>
-<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.1e-14   min eigen 0.21</span></span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1e-14   min eigen 0.21</span></span>
 <span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 4.5e-08   min eigen 1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The coefficient of the education is -0.071 on the logit scale, so the odds of working in agriculture fall by 6.9% for each percent of draftees with further education. The precision is <span class="math inline">\(\hat\phi = 6.95\)</span>.</p>
@@ -1036,7 +1037,7 @@ Figure&nbsp;5.2: List price against engine power. The lines are the conditional 
 <span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; gamlss       0.7658626 -0.07171267</span></span>
 <span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; glmmTMB      0.7659541 -0.07172502</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The three packages give the same coefficients, the same precision and the same log-likelihood. The default criterion of <code>statmod()</code> gives a precision that is about two per cent smaller, because it integrates the two coefficients of the mean out of the likelihood, as it did for the gamma distribution in <a href="04-glm.html#sec-glm-positive" class="quarto-xref"><span>Section 4.3</span></a>.</p>
+<p>The three packages give the same coefficients and the same precision to three digits, and the same log-likelihood. The default criterion of <code>statmod()</code> gives a precision that is about two percent smaller, because it integrates the two coefficients of the mean out of the likelihood, as it did for the gamma distribution in <a href="04-glm.html#sec-glm-positive" class="quarto-xref"><span>Section 4.3</span></a>.</p>
 <section id="a-precision-with-an-equation" class="level3">
 <h3 class="anchored" data-anchor-id="a-precision-with-an-equation">A precision with an equation</h3>
 <p>We give <code>phi</code> an equation in the education, and we compare the two models with the likelihood ratio of the marginal log-likelihoods:</p>
@@ -1069,7 +1070,7 @@ Figure&nbsp;5.2: List price against engine power. The lines are the conditional 
 <span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood 20.316511    effective df 4.00</span></span>
 <span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC -32.633    cBIC -25.232</span></span>
 <span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 110 ms</span></span>
-<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 6.5e-15   min eigen 0.23</span></span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 7.5e-15   min eigen 0.23</span></span>
 <span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.2e-06   min eigen 0.22</span></span>
 <span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>l0_b <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_b0, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
 <span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>l1_b <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_b1, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
@@ -1130,7 +1131,7 @@ P(y = k) = (1 - \pi)\,\frac{f(k)}{1 - f(0)}, \quad k \ge 1 .
 <span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -1949.761285    effective df 19.00</span></span>
 <span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 3937.523    cBIC 4028.768</span></span>
-<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 30 ms</span></span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 40 ms</span></span>
 <span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.3e-14   min eigen 0.02</span></span>
 <span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>fit_zn <span class="ot">&lt;-</span> <span class="fu">statmod</span>(fs, <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> solder)</span>
 <span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_zn)</span>
@@ -1165,7 +1166,7 @@ P(y = k) = (1 - \pi)\,\frac{f(k)}{1 - f(0)}, \quad k \ge 1 .
 <span id="cb18-60"><a href="#cb18-60" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb18-61"><a href="#cb18-61" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -1819.944088    effective df 20.00</span></span>
 <span id="cb18-62"><a href="#cb18-62" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 3679.888    cBIC 3775.936</span></span>
-<span id="cb18-63"><a href="#cb18-63" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 360 ms</span></span>
+<span id="cb18-63"><a href="#cb18-63" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 610 ms</span></span>
 <span id="cb18-64"><a href="#cb18-64" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5.7e-15   min eigen 0.029</span></span>
 <span id="cb18-65"><a href="#cb18-65" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 6e-07   min eigen 1</span></span>
 <span id="cb18-66"><a href="#cb18-66" aria-hidden="true" tabindex="-1"></a>fit_zi <span class="ot">&lt;-</span> <span class="fu">statmod</span>(fs, <span class="at">distrib =</span> <span class="fu">zero_inflated</span>(<span class="fu">negbin2_distrib</span>()), <span class="at">data =</span> solder)</span>
@@ -1208,8 +1209,8 @@ P(y = k) = (1 - \pi)\,\frac{f(k)}{1 - f(0)}, \quad k \ge 1 .
 <span id="cb18-103"><a href="#cb18-103" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb18-104"><a href="#cb18-104" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -1819.455228    effective df 21.00</span></span>
 <span id="cb18-105"><a href="#cb18-105" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 3680.910    cBIC 3781.761</span></span>
-<span id="cb18-106"><a href="#cb18-106" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.29 s</span></span>
-<span id="cb18-107"><a href="#cb18-107" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4e-15   min eigen 0.029</span></span>
+<span id="cb18-106"><a href="#cb18-106" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.51 s</span></span>
+<span id="cb18-107"><a href="#cb18-107" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5.1e-15   min eigen 0.029</span></span>
 <span id="cb18-108"><a href="#cb18-108" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 7e-07   min eigen 0.4</span></span>
 <span id="cb18-109"><a href="#cb18-109" aria-hidden="true" tabindex="-1"></a>fit_za <span class="ot">&lt;-</span> <span class="fu">statmod</span>(skips <span class="sc">~</span> Opening <span class="sc">+</span> Solder <span class="sc">+</span> Mask <span class="sc">+</span> PadType <span class="sc">+</span> Panel <span class="sc">|</span></span>
 <span id="cb18-110"><a href="#cb18-110" aria-hidden="true" tabindex="-1"></a>                    za <span class="sc">~</span> Opening <span class="sc">+</span> Solder <span class="sc">+</span> Mask <span class="sc">+</span> PadType <span class="sc">+</span> Panel,</span>
@@ -1271,11 +1272,11 @@ P(y = k) = (1 - \pi)\,\frac{f(k)}{1 - f(0)}, \quad k \ge 1 .
 <span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb19-49"><a href="#cb19-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -1757.403536    effective df 39.00</span></span>
 <span id="cb19-50"><a href="#cb19-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 3592.807    cBIC 3780.100</span></span>
-<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 7.9 s</span></span>
-<span id="cb19-52"><a href="#cb19-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5.9e-15   min eigen 0.022</span></span>
+<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 5.74 s</span></span>
+<span id="cb19-52"><a href="#cb19-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4e-15   min eigen 0.022</span></span>
 <span id="cb19-53"><a href="#cb19-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.7e-07   min eigen 0.036</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>All the coefficients of <code>za</code> for the opening and the solder are negative, so the probability of a board with no skips falls for the larger openings and the thinner solder, which are the conditions that produce more skips. The zero-inflated model can also have an equation for <code>zi</code>. We give it the opening and the solder:</p>
+<p>All the coefficients of <code>za</code> for the opening and the solder are negative, so the probability of a board with no skips falls for the smaller openings and the thinner solder, which are the conditions that produce more skips. The zero-inflated model can also have an equation for <code>zi</code>. We give it the opening and the solder:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>fit_zi2 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(skips <span class="sc">~</span> Opening <span class="sc">+</span> Solder <span class="sc">+</span> Mask <span class="sc">+</span> PadType <span class="sc">+</span> Panel <span class="sc">|</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>                     zi <span class="sc">~</span> Opening <span class="sc">+</span> Solder,</span>
@@ -1323,8 +1324,8 @@ P(y = k) = (1 - \pi)\,\frac{f(k)}{1 - f(0)}, \quad k \ge 1 .
 <span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -1774.882553    effective df 24.00</span></span>
 <span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 3597.765    cBIC 3713.023</span></span>
-<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.6 s</span></span>
-<span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5.6e-15   min eigen 0.026</span></span>
+<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.51 s</span></span>
+<span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 6.4e-15   min eigen 0.026</span></span>
 <span id="cb20-49"><a href="#cb20-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 6.1e-09   min eigen 0.51</span></span>
 <span id="cb20-50"><a href="#cb20-50" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">constant =</span> <span class="fu">AIC</span>(fit_zi), <span class="at">opening_solder =</span> <span class="fu">AIC</span>(fit_zi2))</span>
 <span id="cb20-51"><a href="#cb20-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       constant opening_solder </span></span>
@@ -1394,7 +1395,7 @@ f_T(y) = \frac{f(y)}{1 - F(a)}, \qquad y \ge a .
 <span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -340.055976    effective df 3.00</span></span>
 <span id="cb22-31"><a href="#cb22-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 686.112    cBIC 697.223</span></span>
-<span id="cb22-32"><a href="#cb22-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 360 ms</span></span>
+<span id="cb22-32"><a href="#cb22-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 420 ms</span></span>
 <span id="cb22-33"><a href="#cb22-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 7e-16   min eigen 0.12</span></span>
 <span id="cb22-34"><a href="#cb22-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 4.7e-10   min eigen 1</span></span>
 <span id="cb22-35"><a href="#cb22-35" aria-hidden="true" tabindex="-1"></a>fit_tg <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> x <span class="sc">|</span> sigma <span class="sc">~</span> <span class="dv">1</span>, <span class="at">distrib =</span> <span class="fu">gaussian1_distrib</span>(),</span>
@@ -1423,7 +1424,7 @@ f_T(y) = \frac{f(y)}{1 - F(a)}, \qquad y \ge a .
 <span id="cb22-58"><a href="#cb22-58" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb22-59"><a href="#cb22-59" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -359.160925    effective df 3.00</span></span>
 <span id="cb22-60"><a href="#cb22-60" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 724.322    cBIC 735.433</span></span>
-<span id="cb22-61"><a href="#cb22-61" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 50 ms</span></span>
+<span id="cb22-61"><a href="#cb22-61" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 40 ms</span></span>
 <span id="cb22-62"><a href="#cb22-62" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.5e-15   min eigen 0.14</span></span>
 <span id="cb22-63"><a href="#cb22-63" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 6.6e-16   min eigen 1</span></span>
 <span id="cb22-64"><a href="#cb22-64" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">truth =</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="fl">1.5</span>, <span class="dv">0</span>), <span class="at">truncated =</span> <span class="fu">c</span>(<span class="fu">coef</span>(fit_tr)<span class="sc">$</span>mu, <span class="fu">coef</span>(fit_tr)<span class="sc">$</span>sigma),</span>
@@ -1496,8 +1497,8 @@ Figure&nbsp;5.3: Simulated data from a gaussian distribution truncated below zer
 <span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -131.463601    effective df 3.00</span></span>
 <span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 268.927    cBIC 280.039</span></span>
-<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 180 ms</span></span>
-<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.8e-16   min eigen 0.051</span></span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 190 ms</span></span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.9e-16   min eigen 0.051</span></span>
 <span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 9e-12   min eigen 1</span></span>
 <span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>nll_fo <span class="ot">&lt;-</span> <span class="cf">function</span>(p) {</span>
 <span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> p[<span class="dv">1</span>] <span class="sc">+</span> p[<span class="dv">2</span>] <span class="sc">*</span> sim_f<span class="sc">$</span>data<span class="sc">$</span>x</span>
@@ -1563,7 +1564,7 @@ Figure&nbsp;5.4: Simulated data from a folded gaussian distribution, with the cu
 <span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -860.014457    effective df 3.00</span></span>
 <span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1726.029    cBIC 1737.277</span></span>
-<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 100 ms</span></span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 110 ms</span></span>
 <span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.3e-15   min eigen 0.27</span></span>
 <span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 7.1e-17   min eigen 1</span></span>
 <span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>fit_ln <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">lognormal1_distrib</span>(), <span class="at">data =</span> GAGurine,</span>
@@ -1634,14 +1635,14 @@ Figure&nbsp;5.4: Simulated data from a folded gaussian distribution, with the cu
 <span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood 21.099097    effective df 3.00</span></span>
 <span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC -36.198    cBIC -30.648</span></span>
-<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 100 ms</span></span>
+<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 130 ms</span></span>
 <span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.2e-16   min eigen 0.24</span></span>
 <span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.9e-13   min eigen 1</span></span>
 <span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">beta =</span> <span class="fu">AIC</span>(fit_b0), <span class="at">logit_normal =</span> <span class="fu">AIC</span>(fit_ln_b))</span>
 <span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         beta logit_normal </span></span>
 <span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    -33.76641    -36.19819</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The logit-normal model has the smaller AIC by 2.4 units. The two distributions have the same number of parameters, and their log-likelihoods are the logarithms of the probability that each model gives to the same observed proportions. The comparison holds because the response of both models is <span class="math inline">\(y\)</span> itself.</p>
+<p>The logit-normal model has the smaller AIC by 2.4 units. The two distributions have the same number of parameters, and their log-likelihoods are the sums of the logarithms of the densities that each model gives to the same observed proportions. The comparison holds because the response of both models is <span class="math inline">\(y\)</span> itself.</p>
 </section>
 </section>
 <section id="sec-distribs-fixed" class="level2" data-number="5.6">
@@ -1730,8 +1731,8 @@ f(y) = \frac{(\beta/\alpha)(y/\alpha)^{\beta - 1}}
 <span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density integrates to 1                     3.04e-14</span></span>
 <span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density is non-negative                     6.63e-04</span></span>
 <span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf in [0,1] and non-decreasing             2.46e-02</span></span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf agrees with the density                 6.25e-12</span></span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] quantile/cdf round-trip                     0.00e+00</span></span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf agrees with the density                 1.15e-11</span></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] quantile/cdf round-trip                     1.11e-16</span></span>
 <span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] rng matches the cdf                         1.69e+00</span></span>
 <span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] expected information vs Monte Carlo         1.02e+00</span></span>
 <span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] response derivatives vs finite differences  7.42e-08</span></span>

@@ -1,4 +1,4 @@
-# Writing a model term {#sec-own-terms}
+# Writing a model term and an optimizer {#sec-own-terms}
 
 ```{r}
 #| label: setup-16
@@ -18,15 +18,17 @@ elapsed <- function(expr) {
 }
 ```
 
-Chapter 14 showed how `statmod()` uses the terms of `modelterms7`: a linear
-term, a smooth, a random effect, a break-point and a few others, each written
+Chapters 6 to 12 showed how `statmod()` uses the terms of `modelterms7`: a
+linear term, a smooth, a random effect, a break-point and a few others, each written
 in the formula and each contributing a block of the design. A term that the
 package does not provide is written by the user as an S7 object of the same
 kind, and the formula then accepts it. This chapter writes two. The first is
 a seasonal term with a fixed block, which uses one of the penalties of
 `penalties7`. The second is an asymptotic growth term whose block moves with
 its own coefficients, which is the case the package handles through a
-refresh step at each iteration.
+refresh step at each iteration. The chapter then writes an optimizer, a
+trust-region method with a stopping rule of its own, and uses it for the
+inner and for the outer fit.
 
 ## The structure of a model term {#sec-own-term-structure}
 
@@ -35,10 +37,10 @@ A term of the additive branch is an S7 class that inherits from
 term: the design block `X`, the names of its coefficients `coef_names`, a
 list `blueprint` that keeps what is needed to rebuild the block at new data,
 and the penalty `penalty`, which is `NULL` for an unpenalized term. The
-label, the hyperparameters and the variables of the formula are common to all
-terms.
+label and the hyperparameters are common to all terms, and each class keeps
+the variables of its formula in a property of its own.
 
-Four methods make the term work in a fit. `term_build()` receives the term and
+Two methods make the term work in a fit. `term_build()` receives the term and
 the data, evaluates the variables and returns the term with `X`, `coef_names`,
 `blueprint` and `penalty` filled in. `term_predict()` receives the term and
 new data and returns the block at those data; `predict()` and the residuals
@@ -47,11 +49,12 @@ more. A term whose block does depend on them also has `term_refresh()`, which
 receives the term and a vector of coefficients and returns the term with the
 block recomputed at those values, `term_value()`, which returns the fitted
 contribution to the predictor, and `term_coef_start()`, which gives starting
-values for the coefficients. Section @sec-own-asym shows these three.
+values for the coefficients. @sec-own-asym shows these three.
 
 The function `check_term()` runs the methods on a data frame and reports six
 checks. It builds the block, names its columns, counts its parameters, checks
-the penalty when there is one, reproduces the block at the training data, and
+that `term_smooth()` returns a single logical value, reproduces the block at
+the training data, and
 gives the matching rows of the block for a subset of the data. A check that
 fails names the method at fault, so a term that passes is one that `statmod()`
 can fit.
@@ -431,8 +434,8 @@ the model predicted exactly lengthens it.
 A second stop is needed. Near the minimum the predicted decrease falls below
 the rounding of the objective, so that $f(x + p)$ and $f(x)$ are equal in
 floating point, every step is rejected, and the radius falls to zero. When the
-predicted decrease is below $10^3\,\varepsilon\,\max(1, |f|)$, the method stops
-and says so. Its `criterion_met` then names the resolution of the objective,
+predicted decrease is below $10^3\,\varepsilon\,\max(1, |f|)$, the method
+stops, and its `criterion_met` names the resolution of the objective,
 and the result is not marked as converged.
 
 ```{r}
@@ -622,7 +625,8 @@ default method finds. The check in the gate compares the two.
 The outer optimizer searches over the smoothing parameters, and each of its
 evaluations is a complete inner fit. We compare the trust-region method with
 `newton()` in two forms, one with the default unlimited step and one with the
-step limited to a norm of five, which is the `max_length` argument of
+step whose largest component is limited to five, which is the `max_length`
+argument of
 `newton()`:
 
 ```{r}

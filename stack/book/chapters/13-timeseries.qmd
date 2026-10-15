@@ -51,7 +51,7 @@ and three values are common:
 - with $d = 1/2$ the score is divided by its standard deviation, so $u_t$
   has variance one;
 - with $d = 1$ the score is multiplied by the inverse of its information,
-  which is the step of Newton's method for one observation.
+  which is the step of Fisher scoring for one observation.
 
 For every $d$ the scaled score has mean zero, so $f_t$ fluctuates around
 $\omega/(1 - \sum_j \xi_j)$, and the recursion starts there. If
@@ -95,8 +95,8 @@ gives the same model, and the table says "any".
 ### The working parametrization
 
 The loadings and the persistences are constrained. A loading is positive, so
-that an observation the predictor underestimates raises the predictor of
-the next times, and the persistences must keep the recursion stationary, so
+that an observation that the predictor underestimates raises the predictor
+of the next times, and the persistences must keep the recursion stationary, so
 that $f_t$ fluctuates around its level instead of drifting away from it.
 `gas()` does not search the parameters in these constrained sets. It
 searches unconstrained working parameters, from which the parameters of the
@@ -141,7 +141,7 @@ finite at every point of the box. With one lag the persistence and the
 partial autocorrelation coincide. With several, the summary reports the
 persistences $\xi_j$, with standard errors from the Jacobian of the
 Durbin-Levinson recursion, and builds their intervals on the scale of the
-persistences, because the region they range over is not a box.
+persistences, because the region of their values is not a box.
 
 ### The mean of a gaussian response
 
@@ -172,8 +172,8 @@ summary(fit_nile)
 
 The argument `p` of `gas()` is the number of lagged scores and `q` the number
 of lagged levels, and `time` gives the order of the observations. The
-summary marks $\omega$ as held at zero. With $d = 1$ the fit is the same, and only the loading changes, by
-the factor $\sigma^2$:
+summary marks $\omega$ as held at zero. With $d = 1$ the fit is the same, and only the loading changes: it is
+divided by $\sigma^2$:
 
 ```{r}
 #| label: ts-fit-nile-d1
@@ -1117,7 +1117,7 @@ gives times that the fit did not see. The score has mean zero, so beyond the
 data the expected score is zero, and the forecast follows the recursion
 without the score:
 $$
-f_{n+1} = \omega + \kappa\, s_n + \xi f_n, \qquad
+f_{n+1} = \omega + \kappa\, u_n + \xi f_n, \qquad
 f_{n+h} = \omega + \xi f_{n+h-1} \quad (h \ge 2).
 $$
 The forecast therefore approaches the level $\omega/(1 - \xi)$ around which
@@ -1304,7 +1304,8 @@ recursion, run at our estimates with the initial probabilities set to the
 stationary distribution of the chain, gives the same log-likelihood and the
 same probabilities of the states. Its own fit is a different model: each
 state has its own standard deviation, and the probabilities of the first
-state are estimated as two further parameters. We start its EM algorithm
+state are estimated, which adds one free parameter because the two
+probabilities sum to one. We start its EM algorithm
 from our estimates, without the random starts it uses by default.
 
 ```{r}

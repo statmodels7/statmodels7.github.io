@@ -30,7 +30,7 @@ estimates them (@sec-beyond-likelihood).
 This chapter shows a random intercept, a random slope, several structures for
 $\Sigma_b$, nested and crossed groupings, random effects in the equation of
 $\sigma$, a Student t distribution for the random effects, and the
-predictions for a new group. In each section we compare the fit with a
+predictions for a new group. In most sections we compare the fit with a
 reference package: `lme()` of `nlme` [@pinheiro2000], `lmer()` of `lme4`
 [@bates2015] or `glmmTMB()` of `glmmTMB` [@brooks2017].
 
@@ -115,8 +115,10 @@ residual standard deviation is $\exp(\hat\gamma_0)$ for the boys and
 $\exp(\hat\gamma_0 + \hat\gamma_1)$ for the girls. The coefficient
 $\hat\gamma_1 = `r fmt(coef(fit_rs)$sigma[[2]], 3)`$ is the logarithm of the
 ratio of the two, and $\exp(\hat\gamma_1) = `r fmt(exp(coef(fit_rs)$sigma[[2]]), 3)`$.
-The standard deviation of the random intercepts and the fixed effects of the
-mean are close to those of `fit_ri`. In `lme()` the same model has the
+The standard deviation of the random intercepts, the intercept and the effect
+of sex are close to those of `fit_ri`, while the slope in age falls from
+`r fmt(coef(fit_ri)$mu[["I(age - 11)"]], 3)` to
+`r fmt(coef(fit_rs)$mu[["I(age - 11)"]], 3)`. In `lme()` the same model has the
 variance function `varIdent()`:
 
 ```{r}
@@ -280,8 +282,8 @@ statmod_certificate(fit_bd)$boundary
 
 The standard deviation of the slopes is close to zero and the correlation is
 $-1$. The certificate is `boundary` and names the coordinate: the second
-logarithm of the Cholesky factor, which carries the standard deviation of the
-slopes, has run to the edge of its scale. A standard deviation at zero has no
+logarithm of the Cholesky factor has run to the edge of its scale, so that
+$\Sigma_b$ is singular and the correlation is $-1$. A standard deviation at zero has no
 interval on the logarithmic scale, so the summary leaves out the standard
 error and the interval of that row and of the correlation. `lmer()` reports
 the same fit as singular:
@@ -812,12 +814,12 @@ c(gaussian = sqrt(mean((re_hg - b_true)^2)),
 
 The t distribution reduces the error of the random intercepts by more than
 half.
-@fig-heavy shows why: under the gaussian distribution the seventeen groups
+@fig-lmm-heavy shows why: under the gaussian distribution the seventeen groups
 near zero are spread out, and under the t distribution they are shrunk
 towards zero, while the three far groups keep their values.
 
 ```{r}
-#| label: fig-heavy
+#| label: fig-lmm-heavy
 #| fig-cap: "Estimated against true random intercepts of the simulated groups, under a gaussian and a Student t distribution of the random effects. The right panel shows the seventeen groups near zero."
 #| echo: false
 #| fig-height: 3.8
@@ -881,12 +883,12 @@ Our reference is the marginal likelihood written by hand. A group has one
 random intercept, so its contribution is a one-dimensional integral,
 $$
 L_i(\beta, \sigma, s, \nu) = \int_{-\infty}^{\infty}
-  \prod_j \phi\!\left(\frac{y_{ij} - \beta_0 - \beta_1 x_{ij} - b}{\sigma}\right)
-  \frac{1}{\sigma}\,
+  \prod_j \frac{1}{\sigma}\,
+  \phi\!\left(\frac{y_{ij} - \beta_0 - \beta_1 x_{ij} - b}{\sigma}\right)
   \frac{1}{s}\,t_\nu\!\left(\frac{b}{s}\right) db,
 $$
 where $\phi$ is the standard normal density and $t_\nu$ the Student t density.
-We compute it with `integrate()`, centred at the maximum of the integrand, and
+We compute it with `integrate()`, centered at the maximum of the integrand, and
 maximize $\sum_i \log L_i$ with `optim()`:
 
 ```{r}
@@ -1024,7 +1026,7 @@ positive values, because two of the three far groups are above zero. It has
 the smallest conditional AIC and the smallest error, with one parameter
 more than the t.
 
-With an asymmetric distribution the location zero is not the centre of the
+With an asymmetric distribution the location zero is not the center of the
 random effects. The skew t puts more mass above zero than below, so the
 estimated random intercepts average
 `r fmt(mean(coef(fit_st)$mu[grepl("random", names(coef(fit_st)$mu))]), 3)`
@@ -1201,7 +1203,7 @@ reasons:
 | source | what varies | in `fit_sc` |
 |---|---|---|
 | the distribution | $y$ given its parameters | $\varepsilon \sim \mathrm{N}(0, \sigma)$ |
-| a new subject | the random effects of a subject the fit has not seen | $b \sim \mathrm{N}(0, \Sigma_b)$ |
+| a new subject | the random effects of a subject that the fit has not seen | $b \sim \mathrm{N}(0, \Sigma_b)$ |
 | the estimation | the estimates differ from the true values | $\hat\beta$, $\hat\sigma$ |
 
 **Three intervals.** The argument `interval` chooses which sources the
@@ -1297,7 +1299,7 @@ ends <- sapply(c("plugin", "averaged", "bootstrap"), function(pv) {
 round(ends, 2)
 ```
 
-The three intervals differ by a few per cent, because 18 subjects and 180
+The three intervals differ by a few percent, because 18 subjects and 180
 measurements estimate the fixed effects and $\sigma$ well. In a small sample
 the difference matters. We simulated 200 regressions with 12 observations
 and a new observation for each, and the 95% intervals covered it 90.0% of
@@ -1391,7 +1393,7 @@ $$
 y = x^\top\beta + b + \varepsilon, \qquad b \sim f_b, \qquad
 \varepsilon \sim \mathrm{N}(0, \sigma),
 $$
-where $f_b$ is the distribution of the random intercepts, centred at zero.
+where $f_b$ is the distribution of the random intercepts, centered at zero.
 Given $b$, the measurement $y$ is normal, so its distribution function is an
 average of normal distribution functions over $b$:
 $$

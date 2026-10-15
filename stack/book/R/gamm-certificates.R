@@ -182,6 +182,14 @@ assert_gamm_ok <- function(fits, ref, data, claims) {
   }
   e_gs <- fits$gs@edf$edf[4]
   sg_ratio <- exp(coef(fits$gs)$sigma[[1]] - coef(fits$sh)$sigma[[1]])
+  # the deviations as one smooth random effect: the same model as the
+  # composition of a random line and a smooth by chick without its null space
+  if (!(near(ml(fits$rsm), ml(fits$gs), 1e-7) &&
+        max(abs(fitted(fits$rsm, what = "mu") -
+                fitted(fits$gs, what = "mu"))) < 1e-4 &&
+        state(fits$rsm) == "converged")) {
+    fail("the smooth random effect against the composition of fit_gs")
+  }
   if (!(near(claims$lr_gs, 2 * (ml(fits$gs) - ml(fits$sh)), 1e-12) &&
         claims$lr_gs > 500 && e_gs > 100 && e_gs < 160 &&
         sg_ratio < 0.4 && sg_ratio > 0.25)) {

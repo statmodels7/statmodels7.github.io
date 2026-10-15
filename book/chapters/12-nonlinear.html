@@ -336,7 +336,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../chapters/16-own-terms.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term</span></span></a>
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Writing a model term and an optimizer</span></span></a>
   </div>
 </li>
       </ul>
@@ -431,11 +431,11 @@ y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
 <span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -44.729377    effective df 3.00</span></span>
 <span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 95.459    cBIC 96.913</span></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 2.08 s</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.76 s</span></span>
 <span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.6e-12   min eigen 0.23</span></span>
 <span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 8.1e-05   min eigen 1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The first argument of <code>nl()</code> is a one-sided formula. The names in it that are not columns of the data, here <code>Vm</code> and <code>K</code>, are the parameters of the curve, and their coefficients are called <code>nl.Vm</code> and <code>nl.K</code>. The formula of the model starts with <code>0</code> because the curve has no intercept. The derivatives of the curve in its parameters come from <code>deriv()</code>, which differentiates the formula symbolically.</p>
+<p>The first argument of <code>nl()</code> is a one-sided formula. The names in it that are not columns of the data, here <code>Vm</code> and <code>K</code>, are the parameters of the curve, and their coefficients are called <code>nl.Vm</code> and <code>nl.K</code>. The formula of the model starts with <code>0</code> because the curve has no intercept. The derivatives of the curve in its parameters come from <code>deriv()</code> for the first order and from <code>D()</code> for the orders above, which differentiate the formula symbolically.</p>
 <p>We give no starting values, and <code>statmod()</code> computes them from the data. It takes the response on the scale of the predictor, which here is the rate itself because the link of <span class="math inline">\(\mu\)</span> is the identity. The curve is linear in <span class="math inline">\(V_m\)</span> when <span class="math inline">\(K\)</span> is fixed, so for every value of <span class="math inline">\(K\)</span> the best <span class="math inline">\(V_m\)</span> is a least squares solution. The parameters in which the curve is not linear, here <span class="math inline">\(K\)</span>, are searched on a grid of about 600 points on the scale of their links. The grid covers a range built from the quantiles, the standard deviation and the range of the response and of the covariates. The twelve best points of the grid are refined by a one-dimensional search, or by the Nelder–Mead method when there are several such parameters, and the best of them is the start. A value written in the argument <code>start</code> is kept as it is, and only the other parameters are searched.</p>
 <p>The function <code>nls()</code> fits the same model by least squares:</p>
 <div class="cell" data-layout-align="center">
@@ -522,7 +522,7 @@ Figure&nbsp;12.1: Initial rate against the concentration of the substrate for tr
 <span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -44.729377    effective df 3.00</span></span>
 <span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 95.459    cBIC 96.913</span></span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.27 s</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.2 s</span></span>
 <span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.6e-11   min eigen 0.23</span></span>
 <span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 8.1e-05   min eigen 1</span></span>
 <span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a><span class="fu">exp</span>(<span class="fu">coef</span>(fit_mm_log)<span class="sc">$</span>mu)</span>
@@ -579,8 +579,8 @@ y_i \sim \mathrm{Gamma}(\mu_i, \phi), \qquad
 <span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -50.094400    effective df 3.00</span></span>
 <span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 106.189    cBIC 107.644</span></span>
-<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 280 ms</span></span>
-<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.2e-15   min eigen 0.22</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 270 ms</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.3e-16   min eigen 0.22</span></span>
 <span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2.2e-09   min eigen 1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>This model is also a generalized linear model. The inverse of the mean is <span class="math inline">\(1/\mu_i = 1/V_m + (K/V_m)(1/c_i)\)</span>, which is linear in <span class="math inline">\(1/c_i\)</span>, so <code>glm()</code> with the gamma family and the inverse link fits it, and its two coefficients give <span class="math inline">\(V_m\)</span> and <span class="math inline">\(K\)</span> <span class="citation" data-cites="mccullagh1989">(<a href="A2-references.html#ref-mccullagh1989" role="doc-biblioref">McCullagh and Nelder 1989</a>)</span>:</p>
@@ -673,7 +673,7 @@ V_{m,i} = v_0 + v_1 u_i, \qquad K_i = k_0 + k_1 u_i,
 <span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -84.300058    effective df 5.00</span></span>
 <span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 178.600    cBIC 184.278</span></span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 450 ms</span></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 430 ms</span></span>
 <span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.8e-12   min eigen 0.07</span></span>
 <span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.1e-06   min eigen 1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -743,7 +743,7 @@ V_{m,i} = v_0 + v_1 u_i, \qquad K_i = k_0 + k_1 u_i,
 <span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -85.295637    effective df 4.00</span></span>
 <span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 178.591    cBIC 183.133</span></span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 410 ms</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 390 ms</span></span>
 <span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.6e-13   min eigen 0.18</span></span>
 <span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.1e-07   min eigen 1</span></span>
 <span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>l0 <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_st0)</span>
@@ -815,7 +815,7 @@ Figure&nbsp;12.3: Initial rate against the concentration, one panel for each sta
 <span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -119.489267    effective df 7.93</span></span>
 <span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 254.839    cBIC 267.173</span></span>
-<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 2.35 s</span></span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.67 s</span></span>
 <span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.4e-09   min eigen 0.0079</span></span>
 <span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.5e-05   min eigen 1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -912,7 +912,7 @@ Figure&nbsp;12.3: Initial rate against the concentration, one panel for each sta
 <span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -119.308114    effective df 7.92</span></span>
 <span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 254.451    cBIC 266.766</span></span>
-<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 2.31 s</span></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 2.06 s</span></span>
 <span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.3e-08   min eigen 0.0093</span></span>
 <span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 0.00011   min eigen 0.99</span></span>
 <span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>nlme_or_ml <span class="ot">&lt;-</span> nlme<span class="sc">::</span><span class="fu">nlme</span>(circumference <span class="sc">~</span> <span class="fu">SSlogis</span>(age, Asym, xmid, scal),</span>
@@ -964,7 +964,7 @@ Figure&nbsp;12.3: Initial rate against the concentration, one panel for each sta
 <span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   statmod      nlme </span></span>
 <span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -131.5844 -131.5845</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The two maxima differ by less than 0.001, ours being the larger, and the estimates agree to three significant digits.</p>
+<p>The two maxima differ by less than 0.001, ours being the larger. The fixed effects agree to three significant digits, and the two standard deviations within one percent.</p>
 <p>The argument <code>random</code> of <code>predict()</code> sets the random effects aside. With <code>random = "zero"</code> every tree is given <span class="math inline">\(b_i = 0\)</span>, which is the curve of a typical tree, also for a tree that the fit never saw. <a href="#fig-nl-orange" class="quarto-xref">Figure&nbsp;<span>12.4</span></a> shows three trees, the one with the smallest final circumference, one in the middle and the one with the largest, each with its own curve and with the curve of the typical tree.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
@@ -1039,7 +1039,7 @@ Figure&nbsp;12.4: Trunk circumference against age for three orange trees, each w
 <span id="cb14-50"><a href="#cb14-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb14-51"><a href="#cb14-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -130.635426    effective df 24.64</span></span>
 <span id="cb14-52"><a href="#cb14-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 310.549    cBIC 381.579</span></span>
-<span id="cb14-53"><a href="#cb14-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 3.28 s</span></span>
+<span id="cb14-53"><a href="#cb14-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 3.2 s</span></span>
 <span id="cb14-54"><a href="#cb14-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.9e-06   min eigen 0.016</span></span>
 <span id="cb14-55"><a href="#cb14-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 8e-06   min eigen 0.96</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -1167,7 +1167,7 @@ Figure&nbsp;12.5: Concentration of theophylline against time for three subjects,
 <span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -342.102004    effective df 7.00</span></span>
 <span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 698.204    cBIC 716.154</span></span>
-<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 2.32 s</span></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 2.39 s</span></span>
 <span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 0.0093   min eigen 0.19</span></span>
 <span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; zeros   max |score|/kink 0.71   (4 coefficients at zero)</span></span>
 <span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 notes: print(summary(fit), notes = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1209,7 +1209,7 @@ Figure&nbsp;12.5: Concentration of theophylline against time for three subjects,
 <span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -339.883172    effective df 9.88</span></span>
 <span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 699.522    cBIC 724.852</span></span>
-<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.91 s</span></span>
+<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.87 s</span></span>
 <span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.9e-05   min eigen 0.0087</span></span>
 <span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 0.00056   min eigen 1</span></span>
 <span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a>d_las <span class="ot">&lt;-</span> <span class="fu">coef</span>(fit_las)<span class="sc">$</span>mu[<span class="fu">paste0</span>(<span class="st">"nl.Vm.lasso.enzyme"</span>, LETTERS[<span class="dv">1</span><span class="sc">:</span><span class="dv">8</span>])]</span>
@@ -1284,7 +1284,7 @@ y \sim \mathrm{Poisson}(\mu), \qquad \mu = a\, e^{-r x}, \qquad
 <span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -690.434373    effective df 4.00</span></span>
 <span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1388.869    cBIC 1402.791</span></span>
-<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 210 ms</span></span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 200 ms</span></span>
 <span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.9e-05   min eigen 0.17</span></span>
 <span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a><span class="fu">statmod_certificate</span>(fit_dec)<span class="sc">$</span>state</span>
 <span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "converged"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1377,7 +1377,7 @@ Figure&nbsp;12.7: Left: the counts of three days with the fitted curves. Right: 
 <span id="cb22-33"><a href="#cb22-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb22-34"><a href="#cb22-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -235.626820    effective df 4.00</span></span>
 <span id="cb22-35"><a href="#cb22-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 479.254    cBIC 490.785</span></span>
-<span id="cb22-36"><a href="#cb22-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1 s</span></span>
+<span id="cb22-36"><a href="#cb22-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 2.06 s</span></span>
 <span id="cb22-37"><a href="#cb22-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.6e-12   min eigen 0.041</span></span>
 <span id="cb22-38"><a href="#cb22-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 4.7e-11   min eigen 1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
