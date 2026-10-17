@@ -196,7 +196,7 @@ assert_choosing_ok <- function(fits, ref, data, claims) {
       msg(statmod(accel ~ s(times), distrib = laplace_distrib(), data = mc)),
     "single finite number" =
       msg(fixed(gaussian1_distrib(), sigma = c(1, 2))),
-    "only a formula says" =
+    "can be read from a formula" =
       msg(statmod(rate ~ 0 + nl(function(conc, Vm, K) Vm * conc / (K + conc),
                                 K ~ state, params = c("Vm", "K"),
                                 start = list(Vm = 200, K = 0.1)),
