@@ -28,6 +28,14 @@
 #             maximum and on ACDm's estimates through the omega mapping; the
 #             gamma and beta filters written out, both below their static
 #             models by AIC, the law with a negative coefficient;
+#   joint     the DAX log-scale that loads the score of the static location
+#             is that filter written out, at a maximum, with a negative
+#             loading; the likelihood ratio is recomputed and significant;
+#             rugarch's EGARCH has a negative alpha1 and the smaller
+#             log-likelihood; the log-scale and log degrees of freedom
+#             filtered together (d = 0) are one recursion written out, at a
+#             maximum; d = 1/2 is the larger; the ratios are recomputed and
+#             the filtered nu straddles the constant one;
 #   scaling   the Poisson filters scaled by mu^-1/2 and mu^-1 written out,
 #             d = 1 at a maximum and the largest; the GARCH, INGARCH and
 #             linear ACD models are the scaled filters on the identity link,
@@ -242,6 +250,90 @@ assert_timeseries_ok <- function(fits, ref, data, claims) {
       !(ll(fits$dax_t) > rugarch::likelihood(ref$garch_t))) {
     fail("the Student t score-driven model")
   }
+  # --- several filtered parameters: DAX -----------------------------------------
+  # the log-scale loads the score of the location as well, the location static
+  ctl <- coef(fits$dax_lev)
+  lev_ll <- function(mu, g0, a, cm, b, nuv) {
+    f <- 0
+    out <- 0
+    for (t in seq_len(m)) {
+      if (t > 1L) {
+        z <- (r[t - 1L] - mu) / sp
+        f <- a * ((nuv + 1) * z^2 / (nuv + z^2) - 1) +
+          cm * (nuv + 1) * z / (sp * (nuv + z^2)) + b * f
+      }
+      sp <- exp(g0 + f)
+      out <- out + stats::dt((r[t] - mu) / sp, nuv, log = TRUE) - log(sp)
+    }
+    out
+  }
+  pl <- c(ctl$mu[["(Intercept)"]], ctl$sigma[["(Intercept)"]],
+          ctl$sigma[["gas.kappa1"]], ctl$sigma[["gas.kappa1_mu"]],
+          ctl$sigma[["gas.xi1"]], exp(ctl$nu[["(Intercept)"]]))
+  nll_lev <- function(p) -lev_ll(p[1], p[2], exp(p[3]), p[4], tanh(p[5]),
+                                 exp(p[6]))
+  lr_l <- 2 * (ll(fits$dax_lev) - ll(fits$dax_t))
+  if (abs(lev_ll(pl[1], pl[2], pl[3], pl[4], pl[5], pl[6]) - ll(fits$dax_lev)) > 1e-7 ||
+      !at_max(nll_lev, c(pl[1], pl[2], log(pl[3]), pl[4], atanh(pl[5]),
+                         log(pl[6]))) ||
+      !(pl[4] < 0) || abs(claims$lr_lev - lr_l) > 1e-10 ||
+      !(stats::pchisq(lr_l, df = 1, lower.tail = FALSE) < 0.05) ||
+      !(rugarch::coef(ref$egarch_t)[["alpha1"]] < 0) ||
+      !(ll(fits$dax_lev) > rugarch::likelihood(ref$egarch_t))) {
+    fail("the asymmetry of the DAX volatility")
+  }
+  # the log-scale and the log degrees of freedom filtered together, d = 0:
+  # each level driven by its own score, both read at (sigma_t, nu_t)
+  nu_ll <- function(mu, g0, a1, b1, gn, a2, b2) {
+    fs <- 0
+    fn <- 0
+    out <- 0
+    for (t in seq_len(m)) {
+      if (t > 1L) {
+        z <- (r[t - 1L] - mu) / sp
+        ss <- (nuv + 1) * z^2 / (nuv + z^2) - 1
+        sn <- nuv * (0.5 * digamma((nuv + 1) / 2) - 0.5 * digamma(nuv / 2) -
+                       1 / (2 * nuv) - 0.5 * log(1 + z^2 / nuv) +
+                       (nuv + 1) * z^2 / (2 * nuv * (nuv + z^2)))
+        fs <- a1 * ss + b1 * fs
+        fn <- a2 * sn + b2 * fn
+      }
+      sp <- exp(g0 + fs)
+      nuv <- exp(gn + fn)
+      out <- out + stats::dt((r[t] - mu) / sp, nuv, log = TRUE) - log(sp)
+    }
+    out
+  }
+  cn_ <- coef(fits$dax_nu)
+  pn_ <- c(cn_$mu[["(Intercept)"]], cn_$sigma[["(Intercept)"]],
+           cn_$sigma[["gas.kappa1"]], cn_$sigma[["gas.xi1"]],
+           cn_$nu[["(Intercept)"]], cn_$nu[["gas.kappa1"]], cn_$nu[["gas.xi1"]])
+  nll_nu <- function(p) -nu_ll(p[1], p[2], exp(p[3]), tanh(p[4]), p[5],
+                               exp(p[6]), tanh(p[7]))
+  if (abs(do.call(nu_ll, as.list(pn_)) - ll(fits$dax_nu)) > 1e-7 ||
+      !at_max(nll_nu, c(pn_[1], pn_[2], log(pn_[3]), atanh(pn_[4]), pn_[5],
+                        log(pn_[6]), atanh(pn_[7]))) ||
+      abs(claims$lr_nu - 2 * (ll(fits$dax_nu) - ll(fits$dax_t))) > 1e-10 ||
+      abs(claims$lr_nu2 - 2 * (ll(fits$dax_nu2) - ll(fits$dax_t))) > 1e-10 ||
+      !(ll(fits$dax_nu2) > ll(fits$dax_nu)) ||
+      !(stats::pchisq(claims$lr_nu, df = 2, lower.tail = FALSE) < 0.05) ||
+      rel(claims$nu_t, predict(fits$dax_nu2, what = "nu")) > 1e-12 ||
+      !(min(claims$nu_t) < exp(ct$nu[["(Intercept)"]]) &&
+        max(claims$nu_t) > exp(ct$nu[["(Intercept)"]]))) {
+    fail("the filtered degrees of freedom")
+  }
+  # after each of the ten largest returns nu falls within 20 days and is back
+  # above 3/4 of its median 60 days later; its minimum, below 2, is in 1991
+  nt <- claims$nu_t
+  big <- order(abs(r), decreasing = TRUE)[1:10]
+  dips <- vapply(big, function(b) min(nt[b + 1:20]) < nt[b] ||
+                   min(nt[b + 1:20]) < stats::median(nt), logical(1))
+  back <- vapply(big, function(b) nt[min(b + 60L, m)] > 0.75 * stats::median(nt),
+                 logical(1))
+  if (!all(dips) || !all(back) || !(min(nt) < 2) || !(which.min(nt) < 260L)) {
+    fail("the path of the filtered degrees of freedom")
+  }
+
   w <- data$disc$n
   k <- length(w)
   pois_ll <- function(c0, a, b) {

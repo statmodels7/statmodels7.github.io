@@ -750,17 +750,21 @@ statmod(cens(accel, accel < -100) ~ times, distrib = gaussian1_distrib(),
         data = mcycle)
 ```
 
-A model can contain at most one structural term, that is one `gas()`, one
-`regime()` or one marginal break-point term. Two score-driven terms, one in
-the mean and one in the scale, would form one joint recursion, which
-`statmodels7` does not implement:
+A model can contain one `gas()` term in each of several equations, which
+are filtered as one recursion (@sec-timeseries-joint), and otherwise at
+most one structural term, that is one `regime()` or one marginal
+break-point term. A `gas()` term beside a `regime()` term would make the
+score of one recursion depend on the states of the other, and two `gas()`
+terms in one equation would add two levels with nothing to tell one from
+the other. `statmodels7` implements neither:
 
 ```{r}
 #| label: limit-structural
 #| error: true
 data(EuStockMarkets)
-dax <- data.frame(r = 100 * diff(log(EuStockMarkets[, "DAX"])))
-statmod(r ~ gas(p = 1, q = 1) | sigma ~ gas(p = 1, q = 1),
+dax <- data.frame(day = 1:1859,
+                  r = 100 * diff(log(as.numeric(EuStockMarkets[, "DAX"]))))
+statmod(r ~ gas(p = 1, q = 1, time = day) | sigma ~ regime(k = 2, time = day),
         distrib = gaussian1_distrib(), data = dax)
 ```
 

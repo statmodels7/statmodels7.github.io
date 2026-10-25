@@ -21,11 +21,11 @@
 #   by         the four smoothing parameters do not differ significantly,
 #              diet 3's is the smallest, the uncorrelated version is mgcv's
 #              with id = 1 (fitted values and edf);
-#   chick      the REML criterion with smooth deviations is the exact gaussian
-#              restricted likelihood; the deviations are significant, spend
-#              100 to 160 edf and cut sigma to between a quarter and 0.4 of
-#              its value; the curve of diet 3 moves by less than 5 g and its
-#              band widens; chicks 33 and 11 stop growing;
+#   chick      the REML criterion of random(~ s(Time) | Chick) is the exact
+#              gaussian restricted likelihood; the smooth deviations are
+#              significant, spend 180 to 260 edf and cut sigma to between a
+#              quarter and 0.4 of its value; the curve of diet 3 moves by less
+#              than 5 g and its band widens; chicks 33 and 11 stop growing;
 #   sigma      the REML criterion of both sigma models is the Laplace
 #              approximation written out with the analytic Hessian; the random
 #              effects in sigma are significant; the chicks' standard
@@ -176,28 +176,21 @@ assert_gamm_ok <- function(fits, ref, data, claims) {
   # the REML criterion of both models is the exact gaussian restricted
   # likelihood with the covariance written out
   y <- CW$weight
-  if (!near(exact_reml(fits$gs, y), ml(fits$gs), 1e-8) ||
-      !near(exact_reml(fits$sh, y), ml(fits$sh), 1e-8)) {
+  if (!near(exact_reml(fits$rsm, y), ml(fits$rsm), 1e-8) ||
+      !near(exact_reml(fits$sh, y), ml(fits$sh), 1e-8) ||
+      state(fits$rsm) != "converged") {
     fail("the REML criterion of the model with smooth deviations")
   }
-  e_gs <- fits$gs@edf$edf[4]
-  sg_ratio <- exp(coef(fits$gs)$sigma[[1]] - coef(fits$sh)$sigma[[1]])
-  # the deviations as one smooth random effect: the same model as the
-  # composition of a random line and a smooth by chick without its null space
-  if (!(near(ml(fits$rsm), ml(fits$gs), 1e-7) &&
-        max(abs(fitted(fits$rsm, what = "mu") -
-                fitted(fits$gs, what = "mu"))) < 1e-4 &&
-        state(fits$rsm) == "converged")) {
-    fail("the smooth random effect against the composition of fit_gs")
-  }
-  if (!(near(claims$lr_gs, 2 * (ml(fits$gs) - ml(fits$sh)), 1e-12) &&
-        claims$lr_gs > 500 && e_gs > 100 && e_gs < 160 &&
+  e_rsm <- fits$rsm@edf$edf[3]
+  sg_ratio <- exp(coef(fits$rsm)$sigma[[1]] - coef(fits$sh)$sigma[[1]])
+  if (!(near(claims$lr_rsm, 2 * (ml(fits$rsm) - ml(fits$sh)), 1e-12) &&
+        claims$lr_rsm > 500 && e_rsm > 180 && e_rsm < 260 &&
         sg_ratio < 0.4 && sg_ratio > 0.25)) {
     fail("the test of the smooth deviations")
   }
   # the free line of each diet multiplies the standardized time on that
   # diet's rows; the slopes are ordered diet 3 largest, diet 1 smallest
-  Xgs <- as.matrix(model.matrix(fits$gs))
+  Xgs <- as.matrix(model.matrix(fits$rsm))
   zt <- (CW$Time - mean(CW$Time)) / stats::sd(CW$Time)
   lin_nm <- paste0("s(Time).", 1:4, ".lin")
   for (d in 1:4) {
@@ -206,9 +199,9 @@ assert_gamm_ok <- function(fits, ref, data, claims) {
       fail("the free line of the diet curves")
     }
   }
-  sl <- coef(fits$gs)$mu[lin_nm]
+  sl <- coef(fits$rsm)$mu[lin_nm]
   if (which.max(sl) != 3L || which.min(sl) != 1L) fail("the slopes of the diets")
-  s_rows <- summary(fits$gs)@tables$mu
+  s_rows <- summary(fits$rsm)@tables$mu
   s_rows <- unlist(lapply(s_rows, function(b) b$table$name[b$table$role == "coefficient"]))
   if (!all(lin_nm %in% s_rows)) fail("the free lines in the summary")
   d3 <- claims$diet3
@@ -221,7 +214,7 @@ assert_gamm_ok <- function(fits, ref, data, claims) {
   for (ck in c("33", "11")) {
     nd <- data.frame(Time = c(18, 21), Diet = CW$Diet[CW$Chick == ck][1],
                      Chick = factor(ck, levels = levels(CW$Chick)))
-    p <- predict(fits$gs, what = "mu", newdata = nd)
+    p <- predict(fits$rsm, what = "mu", newdata = nd)
     if (p[2] >= p[1]) fail("the chicks that stop growing")
   }
   n33 <- data.frame(Time = 0, Diet = factor(3, levels = levels(CW$Diet)),
@@ -418,9 +411,9 @@ laplace_ls <- function(fit, y) {
 }
 
 # The exact gaussian restricted log-likelihood of a ChickWeight model whose
-# penalized parts are the wiggly coordinates of the diet curves (lambda_1 I),
-# the random intercept and slope of each chick (Sigma_b) and, if present, the
-# smooth deviations of the chicks (lambda_2 I), with sigma at its estimate and
+# penalized parts are the wiggly coordinates of the diet curves (lambda I),
+# the level and slope of each chick (Sigma) and, for a smooth random effect,
+# the chick's penalized coordinates (tau^2 I), with sigma at its estimate and
 # a flat prior on the coefficients without a penalty.
 exact_reml <- function(fit, y) {
   X <- as.matrix(model.matrix(fit))
@@ -429,20 +422,23 @@ exact_reml <- function(fit, y) {
   est <- h$estimate
   lam <- est[h$name == "lambda"]
   S <- parameters7::param_value(parameters7::log_cholesky(2),
-                                eta = est[h$name != "lambda"])
+                                eta = est[startsWith(h$name, "sigma_")])
+  tau <- est[h$name == "sigma"]
   sz <- startsWith(nm, "s(Time).") & grepl(".z", nm, fixed = TRUE)
-  dv <- startsWith(nm, "dev.")
   ri <- startsWith(nm, "random.")
-  fx <- !(sz | dv | ri)
+  fx <- !(sz | ri)
   V <- exp(2 * coef(fit)$sigma[[1]]) * diag(length(y)) +
-    tcrossprod(X[, sz]) / lam[1]
-  if (any(dv)) V <- V + tcrossprod(X[, dv]) / lam[2]
+    tcrossprod(X[, sz]) / lam
   Zr <- X[, ri]
-  chick <- sub("random.", "", colnames(Zr), fixed = TRUE)
-  chick <- sub(".(Intercept)", "", sub(".Time", "", chick, fixed = TRUE), fixed = TRUE)
+  rest <- sub("random.", "", colnames(Zr), fixed = TRUE)
+  chick <- sub("\\..*$", "", rest)
+  role <- substring(rest, nchar(chick) + 2L)
+  line <- role %in% c("(Intercept)", "Time", "lin")
   for (cc in unique(chick)) {
-    Zc <- Zr[, chick == cc]
+    Zc <- Zr[, chick == cc & line]
     V <- V + Zc %*% S %*% t(Zc)
+    Zw <- Zr[, chick == cc & !line, drop = FALSE]
+    if (ncol(Zw) > 0) V <- V + tau^2 * tcrossprod(Zw)
   }
   R <- chol(V)
   W <- backsolve(R, X[, fx], transpose = TRUE)

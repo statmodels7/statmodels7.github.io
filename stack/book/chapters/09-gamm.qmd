@@ -425,161 +425,144 @@ ggplot(diet_obs, aes(x = Time, y = weight)) +
 In the models so far a chick differs from the typical chick of its diet by a
 straight line, $b_{0i} + b_{1i}t$. @fig-chicks shows that some chicks have
 curves of a different shape: some grow fast and then slow down, and others
-start slowly. A model with `s(Time, by = Chick)` alone gives each chick a
-smooth curve of its own. Each chick received one diet, so the curves of the
-chicks then contain the curves of the diets, and the model has nothing left to
-compare the diets. We keep the curves of the diets and add to each chick a
-smooth deviation from the curve of its diet:
+start slowly. We keep the curves of the diets and give each chick a smooth
+deviation $g_i$ from the curve of its diet:
 $$
-\mu_{ij} = \beta_0 + \beta_{d(i)} + f_{d(i)}(t_{ij}) + b_{0i} + b_{1i} t_{ij}
-  + g_i(t_{ij}).
+\mu_{ij} = \beta_0 + \beta_{d(i)} + f_{d(i)}(t_{ij}) + g_i(t_{ij}).
 $$
-The 50 deviations $g_i$ have one smoothing parameter, so the data of all the
-chicks determine how much a chick's curve may bend. This is a hierarchical
-additive model in the sense of @pedersen2019, with one curve for each diet in
-place of one curve for all the groups. The straight line of $g_i$ is already
-in the random intercept and slope, so we drop it with
-`null_space = "drop"`; then $g_i$ has no coefficient without a penalty. The
-deviations have 200 coefficients, most of them zero in each row of the design,
-and `sparse = TRUE` stores their block as a sparse matrix. The argument
-`label` gives the coefficients of the deviations the prefix `dev`, because the
-levels `1` to `4` of `Chick` would give them the same names as the curves of
-the four diets.
+The term `random(~ s(Time, bspline_smooth(k = 6)) | Chick)` writes $g_i$ in the
+basis of the smoother, split as in @sec-gam into the part that the penalty
+leaves free and the part that it shrinks:
+$$
+g_i(t) = a_{0i} + a_{1i}\,\tilde t + \sum_{k=1}^{4} u_{ik}\, z_k(t),
+\qquad
+\begin{pmatrix} a_{0i} \\ a_{1i} \end{pmatrix} \sim \mathrm{N}(0, \Sigma_a),
+\qquad
+u_{ik} \sim \mathrm{N}(0, \tau^2).
+$$
+Here $\tilde t$ is the time standardized to mean zero and standard deviation
+one over all the observations, the column `lin` of @sec-model; $a_{0i}$ and
+$a_{1i}$ are the level and the slope of the straight line of chick $i$, with
+the $2\times 2$ covariance matrix $\Sigma_a$; and $z_1, \dots, z_4$ are the
+penalized coordinates of the basis (the columns `z1` to `z4`), rescaled so that
+their penalty is the identity matrix. The four coefficients $u_{ik}$ of a chick
+bend its straight line, and their common standard deviation $\tau$ is shared
+by the 50 chicks, so the data of all the chicks determine how much the curve of
+one chick may bend: $\tau = 0$ gives back the straight deviations of
+@sec-gamm-by. This is a hierarchical additive model in the sense of
+@pedersen2019, with one curve for each diet in place of one curve for all the
+groups. Since $\Sigma_a$ is unrestricted, the model does not change when the
+origin or the unit of `Time` changes. The smooth `s(Time, Chick, bs = "fs")` of
+`mgcv` [@wood2017] gives each column of the free part a penalty of its own, so
+that the levels and the slopes of the chicks are independent there, and it is
+a different model.
 
 ```{r}
-#| label: fit-gs
-fit_gs <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet) +
-                    random(~ Time | Chick) +
-                    s(Time, bspline_smooth(k = 6, null_space = "drop"), by = Chick,
-                      sparse = TRUE, label = "dev"),
-                  distrib = gaussian1_distrib(), data = ChickWeight)
-summary(fit_gs)
+#| label: fit-rsm
+fit_rsm <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet) +
+                     random(~ s(Time, bspline_smooth(k = 6)) | Chick),
+                   distrib = gaussian1_distrib(), data = ChickWeight)
+summary(fit_rsm)
 ```
 
 ```{r}
-#| label: sigma-gs
+#| label: rsm-numbers
 #| include: false
-h_gs <- hyper(fit_gs)
-S_gs <- param_value(log_cholesky(2),
-                    eta = h_gs$estimate[h_gs$name != "lambda"])
+h_rsm <- hyper(fit_rsm)
+S_rsm <- param_value(log_cholesky(2),
+                     eta = h_rsm$estimate[startsWith(h_rsm$name, "sigma_")])
+tau_rsm <- h_rsm$estimate[h_rsm$name == "sigma"]
+edf_rsm <- fit_rsm@edf$edf[3]
+edf_sh <- fit_sh@edf$edf[3]
 ```
 
-The summary has one block for each of the four terms of the mean. The
+The summary has one block for each of the three terms of the mean. The
 parametric terms `Diet2`, `Diet3` and `Diet4` shift the curves of the diets
 up or down. Each curve of a diet also has a level of its own, set by the
 constraint that removes the constant from its basis, so these three
 coefficients are not the differences between the diets on a given day; those
 differences are read from the curves of @fig-diets. The
 block of the diet curves shows the one smoothing parameter of the four curves
-and the free straight line of each of them, `1.lin` to `4.lin`. As in
-@sec-model, each multiplies the time standardized to mean zero and standard
-deviation one over all the observations, so it is the slope of the linear
-part of the diet's curve per standard deviation of time,
+and the free straight line of each of them, `1.lin` to `4.lin`. Each is the
+slope of the linear part of the diet's curve per standard deviation of time,
 `r fmt(sd(ChickWeight$Time), 2)` days. The slopes are largest for diet 3 and
 smallest for diet 1, as the curves of @fig-diets show. The block spends
-`r fmt(fit_gs@edf$edf[2], 1)` effective degrees of freedom of its 28
-coefficients. The block of the random intercept and slope reports the
-standard deviation of the chicks' intercepts,
-`r fmt(sqrt(S_gs[1, 1]), 1)` grams, and of their slopes,
-`r fmt(sqrt(S_gs[2, 2]), 2)` grams a day, and their correlation,
-`r fmt(S_gs[1, 2] / sqrt(S_gs[1, 1] * S_gs[2, 2]), 2)`. The block `dev` has
-only one row: the smoothing parameter of the 50 deviations, with its
-standard error and interval. Its 200 coefficients are not printed, because
-each of them is the coordinate of one chick's deviation in a basis and has
-no meaning of its own. The equation of $\sigma$ has only an intercept, on the
-log scale, so the residual standard deviation is
-$\exp(`r fmt(coef(fit_gs)$sigma[[1]], 3)`) = `r fmt(exp(coef(fit_gs)$sigma[[1]]), 2)`$
+`r fmt(fit_rsm@edf$edf[2], 1)` effective degrees of freedom of its 28
+coefficients.
+
+The block of the chicks' curves reports the estimates of $\Sigma_a$ and
+$\tau$. Since $\tilde t$ is zero at the mean time of the observations,
+`r fmt(mean(ChickWeight$Time), 1)` days, `sd[(Intercept)]` is the standard
+deviation of the chicks' deviations at that time,
+`r fmt(sqrt(S_rsm[1, 1]), 1)` grams, and `sd[lin]` is the standard deviation of
+their slopes, `r fmt(sqrt(S_rsm[2, 2]), 1)` grams per standard deviation of
+time. Their correlation,
+`r fmt(S_rsm[1, 2] / sqrt(S_rsm[1, 1] * S_rsm[2, 2]), 2)`, is close to one: a
+chick that is heavier than the typical chick of its diet in the middle of the
+experiment also grows faster. The row `smooth.sigma` is $\tau$,
+`r fmt(tau_rsm, 1)`, the standard deviation of the coordinates that bend the
+curves. The table of predicted effects summarizes, over the 50 chicks, the
+predicted values of the six coefficients of $g_i$. The block has 300
+coefficients, six for each chick, and spends `r fmt(edf_rsm, 1)` effective
+degrees of freedom, about `r fmt(edf_rsm / 50, 1)` for each chick, against
+`r fmt(edf_sh, 1)` for the straight deviations of `fit_sh`. The equation of
+$\sigma$ has only an intercept, on the log scale, so the residual standard
+deviation is
+$\exp(`r fmt(coef(fit_rsm)$sigma[[1]], 3)`) = `r fmt(exp(coef(fit_rsm)$sigma[[1]]), 2)`$
 grams. The last lines give the effective degrees of freedom of the whole
-model, `r fmt(sum(fit_gs@edf$edf), 1)` for 578 observations, and the
+model, `r fmt(sum(fit_rsm@edf$edf), 1)` for 578 observations, and the
 conditional AIC.
 
 With straight deviations the residual standard deviation was larger:
 
 ```{r}
 #| label: sigma-compare
-c(straight = exp(coef(fit_sh)$sigma[[1]]), smooth = exp(coef(fit_gs)$sigma[[1]]))
+c(straight = exp(coef(fit_sh)$sigma[[1]]), smooth = exp(coef(fit_rsm)$sigma[[1]]))
 ```
 
-The deviations spend `r fmt(fit_gs@edf$edf[4], 1)` effective degrees of
-freedom of their 200 coefficients, about
-`r fmt(fit_gs@edf$edf[4] / 50, 1)` for each chick. The residual standard
-deviation falls from `r fmt(exp(coef(fit_sh)$sigma[[1]]), 1)` to
-`r fmt(exp(coef(fit_gs)$sigma[[1]]), 1)` grams, so the residual variance
+The residual standard deviation falls from
+`r fmt(exp(coef(fit_sh)$sigma[[1]]), 1)` to
+`r fmt(exp(coef(fit_rsm)$sigma[[1]]), 1)` grams, so the residual variance
 falls by
-`r fmt(100 * (1 - exp(2 * (coef(fit_gs)$sigma[[1]] - coef(fit_sh)$sigma[[1]]))), 0)`
+`r fmt(100 * (1 - exp(2 * (coef(fit_rsm)$sigma[[1]] - coef(fit_sh)$sigma[[1]]))), 0)`
 percent. Most of what the model with straight deviations left as noise is
-the shape of the chicks' own curves. The two models have the same coefficients without a penalty, so their
-restricted log-likelihoods can be compared. Under the smaller model the
-variance $1/\lambda$ of the deviations is zero, on the boundary of its range,
-and the likelihood ratio has the distribution
+the shape of the chicks' own curves. The two models have the same
+coefficients without a penalty, so their restricted log-likelihoods can be
+compared. Under the smaller model $\tau$ is zero, on the boundary of its
+range, and the likelihood ratio has the distribution
 $\tfrac12\chi^2_0 + \tfrac12\chi^2_1$:
 
 ```{r}
-#| label: lr-gs
-l_gs <- as.numeric(logLik(fit_gs, type = "marginal"))
-lr_gs <- 2 * (l_gs - l_sh)
-lr_gs
-0.5 * pchisq(lr_gs, df = 1, lower.tail = FALSE)
+#| label: lr-rsm
+l_rsm <- as.numeric(logLik(fit_rsm, type = "marginal"))
+lr_rsm <- 2 * (l_rsm - l_sh)
+lr_rsm
+0.5 * pchisq(lr_rsm, df = 1, lower.tail = FALSE)
 ```
 
-The curve of a typical chick of a diet is now
-$\beta_0 + \beta_d + f_d(t)$, without $b_{0i} + b_{1i}t$ and without $g_i$.
-`predict()` with `random = "zero"` sets the random intercept and slope to
-zero, but $g_i$ is a smooth and not a `random()` term, so `predict()` keeps it.
-We build the curve, and any other part of the predictor, from the columns of
-the design and from the same rows and columns of `vcov()`. The function
-`part_band()` takes the prefixes of the columns and the rows of the data where
-the part is wanted:
+The curve of a typical chick of a diet is $\beta_0 + \beta_d + f_d(t)$, without
+$g_i$, and `predict()` with `random = "zero"` gives it with its band. We read
+the curve of diet 3 in the two models at the twelve days of chick 33, which
+received diet 3 and was weighed on all twelve days of the schedule:
 
 ```{r}
-#| label: part-band
-part_band <- function(fit, prefix, rows = NULL, type = "bayesian") {
-  X <- as.matrix(model.matrix(fit))
-  if (!is.null(rows)) X <- X[rows, , drop = FALSE]
-  keep <- Reduce(`|`, lapply(prefix, function(p) startsWith(colnames(X), p)))
-  nm <- colnames(X)[keep]
-  Xk <- X[, nm, drop = FALSE]
-  V <- as.matrix(vcov(fit, type = type)[paste0("mu:", nm), paste0("mu:", nm)])
-  data.frame(fit = drop(Xk %*% coef(fit)$mu[nm]),
-             se = sqrt(rowSums((Xk %*% V) * Xk)))
-}
-```
-
-On the model of @sec-gamm-intercept the part `s(Time)` is the contribution of
-the smooth, which sums to zero over the data, and it has the value and the
-standard error that `mgcv` reports with `type = "terms"`:
-
-```{r}
-#| label: part-mgcv
-p_ri <- part_band(fit_ri, prefix = "s(Time).")
-t_ri <- predict(g_ri, type = "terms", se.fit = TRUE)
-c(fit = max(abs(p_ri$fit - t_ri$fit[, "s(Time)"])),
-  se = max(abs(p_ri$se - t_ri$se.fit[, "s(Time)"])))
-```
-
-The curve of diet 3 is the part with the prefixes `(Intercept)`, `Diet3` and
-`s(Time).3.`. We read it at the twelve days of chick 33, which received
-diet 3 and was weighed on all twelve days of the schedule:
-
-```{r}
-#| label: diets-gs
+#| label: diets-rsm
 r33 <- which(ChickWeight$Chick == "33")
-d3 <- c("(Intercept)", "Diet3", "s(Time).3.")
-rbind(day = ChickWeight$Time[r33],
-      straight = part_band(fit_sh, prefix = d3, rows = r33)$fit,
-      smooth = part_band(fit_gs, prefix = d3, rows = r33)$fit)
-rbind(straight = part_band(fit_sh, prefix = d3, rows = r33)$se,
-      smooth = part_band(fit_gs, prefix = d3, rows = r33)$se)
+nd33 <- ChickWeight[r33, c("Time", "Diet", "Chick")]
+d3_sh <- predict(fit_sh, what = "mu", newdata = nd33, random = "zero", se = TRUE)
+d3_rsm <- predict(fit_rsm, what = "mu", newdata = nd33, random = "zero", se = TRUE)
+rbind(day = nd33$Time, straight = d3_sh$fit, smooth = d3_rsm$fit)
+rbind(straight = d3_sh$se, smooth = d3_rsm$se)
 ```
 
 The curve of diet 3 is the same in the two models to within
-`r fmt(max(abs(part_band(fit_sh, prefix = d3, rows = r33)$fit - part_band(fit_gs, prefix = d3, rows = r33)$fit)), 0)`
+`r fmt(max(abs(d3_sh$fit - d3_rsm$fit)), 0)`
 grams. Its band is much wider at hatching when the deviations are smooth,
 and a little wider from the first week on, although the residual standard
 deviation is three times smaller. As in
 @sec-gamm-band, most of the standard error of a typical curve is the variation
 among chicks, and with smooth deviations the chicks vary in the shape of their
-curves as well as in their intercept and slope.
+curves as well as in their level and slope.
 
 @fig-gs shows the six chicks whose curves change most between the two models.
 With a straight deviation the curve of a chick has the shape of the curve of
@@ -596,7 +579,7 @@ puts the weight at birth about 20 grams too high.
 #| fig-height: 5.5
 cid <- as.character(ChickWeight$Chick)
 full <- names(which(table(cid) == 12))
-gap <- tapply((fitted(fit_gs) - fitted(fit_sh))^2, cid, mean)[full]
+gap <- tapply((fitted(fit_rsm) - fitted(fit_sh))^2, cid, mean)[full]
 show6 <- names(sort(gap, decreasing = TRUE))[1:6]
 show6 <- show6[order(as.numeric(show6))]
 gs_lev <- c("smooth deviation", "straight deviation", "typical chick of the diet")
@@ -610,16 +593,15 @@ for (ck in show6) {
   gs_strip <- c(gs_strip, strip)
   nd <- data.frame(Time = tg, Diet = d,
                    Chick = factor(ck, levels = levels(ChickWeight$Chick)))
-  y_gs <- predict(fit_gs, what = "mu", newdata = nd)
+  y_gs <- predict(fit_rsm, what = "mu", newdata = nd)
   y_sh <- predict(fit_sh, what = "mu", newdata = nd)
-  y_d <- part_band(fit_gs, prefix = c("(Intercept)", paste0("Diet", d),
-                                      paste0("s(Time).", d, ".")), rows = rows)$fit
+  y_d <- predict(fit_rsm, what = "mu", newdata = nd, random = "zero")
   gs_obs[[ck]] <- data.frame(Time = ChickWeight$Time[rows],
                              weight = ChickWeight$weight[rows], chick = strip)
-  gs_fit[[ck]] <- data.frame(
-    Time = c(tg, tg, ChickWeight$Time[rows]), weight = c(y_gs, y_sh, y_d),
-    curve = rep(gs_lev, times = c(length(tg), length(tg), length(rows))),
-    chick = strip)
+  gs_fit[[ck]] <- data.frame(Time = rep(tg, times = 3),
+                             weight = c(y_gs, y_sh, y_d),
+                             curve = rep(gs_lev, each = length(tg)),
+                             chick = strip)
 }
 gs_obs <- do.call(rbind, gs_obs)
 gs_fit <- do.call(rbind, gs_fit)
@@ -636,48 +618,6 @@ ggplot(gs_obs, aes(x = Time, y = weight)) +
   scale_linewidth_manual(values = c(0.9, 0.9, 0.7)) +
   labs(x = "day", y = "weight (g)")
 ```
-
-### The deviations as one random effect {#sec-gamm-rsmooth}
-
-In `fit_gs` each chick has the curve $b_{0i} + b_{1i}t + g_i(t)$ around the
-curve of its diet, written with two terms: `random(~ Time | Chick)` gives the
-straight line a gaussian distribution, and `s(Time, by = Chick)` adds the
-bending, with the straight line dropped from its basis. The term `random()`
-writes the same curve with one term when the left side of the bar is a
-smooth:
-
-```{r}
-#| label: fit-rsm
-fit_rsm <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet) +
-                     random(~ s(Time, bspline_smooth(k = 6)) | Chick),
-                   distrib = gaussian1_distrib(), data = ChickWeight)
-summary(fit_rsm)
-c(fit_gs = logLik(fit_gs, type = "marginal"),
-  fit_rsm = logLik(fit_rsm, type = "marginal"))
-```
-
-```{r}
-#| label: rsm-numbers
-#| include: false
-d_rsm <- max(abs(fitted(fit_gs, what = "mu") - fitted(fit_rsm, what = "mu")))
-e_rsm <- floor(log10(d_rsm))
-d_rsm <- ceiling(d_rsm / 10^e_rsm) * 10^e_rsm
-```
-
-The two models are the same: their marginal log-likelihoods agree, and
-their fitted values differ by at most $`r sci(d_rsm, 0)`$ grams. The term
-splits the basis of the smooth into its null space, here the straight line
-`lin`, and its penalized coordinates `z1` to `z4`. The constant and the null
-space have the distribution that `random()` gives to its columns, a gaussian
-distribution with an unrestricted covariance by default, and the summary
-reports it as `sd[(Intercept)]`, `sd[lin]` and their correlation. The
-penalized coordinates are rescaled so that their penalty is the identity
-matrix, and they have one standard deviation, `smooth.sigma`, which the 50
-chicks share. With an unrestricted covariance the model does not change when
-the origin or the unit of `Time` changes. The smooth
-`s(Time, Chick, bs = "fs")` of `mgcv` [@wood2017] gives each column of the
-null space a penalty of its own, so that the intercepts and the slopes of
-the chicks are independent.
 
 ## Smooths and random effects in sigma {#sec-gamm-sigma}
 
@@ -989,9 +929,41 @@ it spends `r fmt(fit_free@edf$edf[3], 1)` effective degrees of freedom of its
 7 coefficients, against `r fmt(fit_free@edf$edf[4], 1)` and
 `r fmt(fit_free@edf$edf[5], 1)` for the two previous days.
 
-The function `part_band()` of @sec-gamm-chick gives the contribution
-$f_k(T)$ of each curve with its band. The contribution sums to zero over the
-data, and its band leaves out the uncertainty of the intercept. @fig-lags shows
+To draw the three curves we need the contribution $f_k(T)$ of each of them,
+which is one part of the predictor, and `predict()` returns the whole
+predictor. We build the part, with its standard error, from the columns of the
+design and from the same rows and columns of `vcov()`. The function
+`part_band()` takes the prefixes of the columns and the rows of the data where
+the part is wanted:
+
+```{r}
+#| label: part-band
+part_band <- function(fit, prefix, rows = NULL, type = "bayesian") {
+  X <- as.matrix(model.matrix(fit))
+  if (!is.null(rows)) X <- X[rows, , drop = FALSE]
+  keep <- Reduce(`|`, lapply(prefix, function(p) startsWith(colnames(X), p)))
+  nm <- colnames(X)[keep]
+  Xk <- X[, nm, drop = FALSE]
+  V <- as.matrix(vcov(fit, type = type)[paste0("mu:", nm), paste0("mu:", nm)])
+  data.frame(fit = drop(Xk %*% coef(fit)$mu[nm]),
+             se = sqrt(rowSums((Xk %*% V) * Xk)))
+}
+```
+
+On the model of @sec-gamm-intercept the part `s(Time)` is the contribution of
+the smooth, which sums to zero over the data, and it has the value and the
+standard error that `mgcv` reports with `type = "terms"`:
+
+```{r}
+#| label: part-mgcv
+p_ri <- part_band(fit_ri, prefix = "s(Time).")
+t_ri <- predict(g_ri, type = "terms", se.fit = TRUE)
+c(fit = max(abs(p_ri$fit - t_ri$fit[, "s(Time)"])),
+  se = max(abs(p_ri$se - t_ri$se.fit[, "s(Time)"])))
+```
+
+The contribution of a curve sums to zero over the data, and its band leaves
+out the uncertainty of the intercept. @fig-lags shows
 the three curves of the two models as ratios of the death rate,
 $\exp\{f_k(T)\}$, with their 95% bands.
 
@@ -1103,7 +1075,7 @@ equality constraints, and the likelihood ratio does not reject them: diets 1,
 #| include: false
 assert_gamm_ok(
   fits = list(ri = fit_ri, rs = fit_rs, sh = fit_sh, lv = fit_lv, shu = fit_shu,
-              gs = fit_gs, rsm = fit_rsm,
+              rsm = fit_rsm,
               sg0 = fit_sg0, sg = fit_sg, ml = fit_ml, ow = fit_ow, ow2 = fit_ow2,
               id = fit_id, free = fit_free, lid = fit_lid),
   ref = list(g_ri = g_ri, tmb_rs = tmb_rs, g_shu = g_shu, tmb_sg = tmb_sg,
@@ -1114,9 +1086,8 @@ assert_gamm_ok(
   claims = list(lr_rs = lr_rs, lr_by = lr_by, lr_sg = lr_sg, lr_ow = lr_ow,
                 lr_ow_tmb = lr_ow_tmb, lr_id = lr_id, lr_lid = lr_lid,
                 a_lin = a_lin, t_min = t_min, bands = bands, part_ri = p_ri,
-                lr_gs = lr_gs,
-                diet3 = list(straight = part_band(fit_sh, prefix = d3, rows = r33),
-                             smooth = part_band(fit_gs, prefix = d3, rows = r33)),
+                lr_rsm = lr_rsm,
+                diet3 = list(straight = d3_sh, smooth = d3_rsm),
                 lag_ratios = c(lag_at(fit_free, 2, hot1), lag_at(fit_free, 3, hot2),
                                lag_at(fit_free, 3, cold2))))
 ```

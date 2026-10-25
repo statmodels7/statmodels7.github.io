@@ -188,10 +188,16 @@ assert_choosing_ok <- function(fits, ref, data, claims) {
     "censored likelihood" =
       msg(statmod(cens(accel, accel < -100) ~ times, distrib = gaussian1_distrib(),
                   data = mc)),
-    "at most one structural term" =
-      msg(statmod(r ~ gas(p = 1, q = 1) | sigma ~ gas(p = 1, q = 1),
+    "a structural term other than gas() beside another one is not implemented" =
+      msg(statmod(r ~ gas(p = 1, q = 1, time = day) |
+                    sigma ~ regime(k = 2, time = day),
                   distrib = gaussian1_distrib(),
-                  data = data.frame(r = stats::rnorm(50)))),
+                  data = data.frame(day = 1:50, r = stats::rnorm(50)))),
+    "carries two gas() terms" =
+      msg(statmod(r ~ gas(p = 1, q = 1, time = day) +
+                    gas(p = 2, q = 1, time = day, label = "g2"),
+                  distrib = gaussian1_distrib(),
+                  data = data.frame(day = 1:50, r = stats::rnorm(50)))),
     "needs 2 derivatives" =
       msg(statmod(accel ~ s(times), distrib = laplace_distrib(), data = mc)),
     "single finite number" =

@@ -22,7 +22,9 @@ its own level to the predictor. In both cases the contribution of the term at
 one time depends on the data at earlier times, so it is computed by a
 recursion and it cannot be written as a block of a design matrix. We call
 such a term structural. A model can contain one structural term, in the
-equation of any parameter of the distribution.
+equation of any parameter of the distribution, or one `gas()` term in each
+of several equations, which are filtered as one recursion
+(@sec-timeseries-joint).
 
 ## The score-driven filter {#sec-timeseries-gas}
 
@@ -539,6 +541,202 @@ ggplot(curves_score, aes(x = z, y = score)) +
   scale_linewidth_manual(values = c(0.9, 0.9, 0.5)) +
   coord_cartesian(ylim = c(-1, 12)) +
   labs(x = "standardized observation z", y = "score")
+```
+
+## Several filtered parameters {#sec-timeseries-joint}
+
+A `gas()` term can sit in the equation of more than one parameter of the
+same model, one term in each equation. The score of each parameter is read
+at the current values of all the others, so the levels cannot be filtered
+one after the other, and `statmod()` runs them as one recursion. Let $G$ be
+the set of the filtered parameters and, for a parameter $k$ in $G$, let
+$f_{k,t}$ be its level at time $t$. The driving score of $k$ is
+$u_{k,t} = \partial \ell_t / \partial \eta_{k,t}$, the derivative of the
+log-density of observation $t$ with respect to the predictor $\eta_{k,t}$
+of $k$. The recursion of the level of $k$ is
+$$
+f_{k,t} = \omega_k + \sum_{i=1}^{p_k} \kappa_{k,i}\, u_{k,t-i}
++ \sum_{l \ne k} \sum_{i=1}^{p_{kl}} \kappa_{k,i,l}\, u_{l,t-i}
++ \sum_{j=1}^{q_k} \xi_{k,j}\, f_{k,t-j} .
+$$
+The first sum is the term of one filtered parameter, with $p_k$ loadings
+$\kappa_{k,i}$ of its own score. The second sum adds the scores of the other
+parameters: $\kappa_{k,i,l}$ is the loading of the score of parameter $l$ at
+lag $i$, and $p_{kl}$ is the number of lags of that score. The argument
+`p_cross` of the term of $k$ gives these numbers, one for each other
+parameter, as in `p_cross = c(mu = 1)`; without `p_cross` the level of $k$
+loads its own score only, and each $p_{kl}$ is zero. The parameter $l$ need
+not carry a `gas()` term of its own. If it does not, its predictor is
+static, and its score enters the recursion only through the loadings
+$\kappa_{k,i,l}$. The persistences $\xi_{k,j}$ are those of $k$ alone, so
+the recursion is stationary when each level's autoregressive part is.
+
+With a scaling $d$ other than zero the vector of scores is scaled as a
+whole, $u_t = \mathcal{I}_t^{-d}\,\partial \ell_t / \partial \eta_t$, where
+$\eta_t$ collects the predictors of the parameters in $G$ and of those
+whose scores the levels load, and $\mathcal{I}_t$ is their expected
+information. When the information couples two parameters, as it couples the
+scale and the degrees of freedom of the Student $t$ distribution, the
+scaled score of one depends on the score of the other.
+
+### The asymmetry of volatility
+
+In stock returns a fall tends to raise the volatility of the following
+days more than a rise of the same size, an asymmetry known as the leverage
+effect [@nelson1991]. In the model of the previous section the score of the
+log-scale depends on $z_t^2$ only, so it does not depend on the sign of a
+return.
+The score with respect to the location $\mu$ of the Student $t$
+distribution,
+$$
+v_t = \frac{\partial \ell_t}{\partial \mu}
+= \frac{(\nu + 1)\, z_t}{\sigma_t\,(\nu + z_t^2)}, \qquad
+z_t = \frac{r_t - \mu}{\sigma_t},
+$$
+has the sign of $r_t - \mu$. We let the level of the log-scale load it as
+well:
+$$
+\log \sigma_t = \gamma_0 + f_t, \qquad
+f_t = \kappa\, s_{t-1} + \kappa_\mu\, v_{t-1} + \xi f_{t-1},
+$$
+where $s_t$ is the score of the log-scale given in the previous section.
+The location stays constant, so $\mu$ has no `gas()` term, and
+`p_cross = c(mu = 1)` adds the loading $\kappa_\mu$, which the summary
+calls `kappa1_mu`:
+
+```{r}
+#| label: ts-fit-dax-lev
+fit_dax_lev <- statmod(r ~ 1 | sigma ~ gas(p = 1, q = 1, time = day,
+                                           p_cross = c(mu = 1)),
+                       distrib = student_t1_distrib(), data = dax)
+summary(fit_dax_lev)
+```
+
+```{r}
+#| label: ts-dax-lev-numbers
+#| include: false
+k_mu <- coef(fit_dax_lev)$sigma[["gas.kappa1_mu"]]
+lr_lev <- 2 * (as.numeric(logLik(fit_dax_lev)) - as.numeric(logLik(fit_dax_t)))
+p_lev <- stats::pchisq(lr_lev, df = 1, lower.tail = FALSE)
+```
+
+The loading is $\hat\kappa_\mu = `r fmt(k_mu, 4)`$. It is negative, so a
+return below $\mu$ gives $v_t < 0$ and raises the scale of the next day, and
+a return above $\mu$ lowers it. The model of the previous section is the
+point $\kappa_\mu = 0$, inside the range of $\kappa_\mu$, so the likelihood
+ratio between the two has a $\chi^2_1$ reference: it is
+`r fmt(lr_lev, 2)`, with a p-value of `r fmt(p_lev, 4)`.
+
+The EGARCH model of @nelson1991 describes the same asymmetry with a term in
+$z_{t-1}$ in the recursion of $\log \sigma_t^2$. The package `rugarch` fits
+it with the Student $t$ distribution standardized to unit variance, and its
+coefficient `alpha1` plays the role of our $\kappa_\mu$:
+
+```{r}
+#| label: ts-egarch-dax
+spec_e <- rugarch::ugarchspec(
+  variance.model = list(model = "eGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = TRUE),
+  distribution.model = "std")
+egarch_t <- rugarch::ugarchfit(spec = spec_e, data = dax$r, solver = "hybrid")
+egarch_t@fit$matcoef
+c(statmod = logLik(fit_dax_lev), rugarch = rugarch::likelihood(egarch_t))
+```
+
+```{r}
+#| label: ts-egarch-numbers
+#| include: false
+d_e <- as.numeric(logLik(fit_dax_lev)) - rugarch::likelihood(egarch_t)
+```
+
+The two models are not the same: the EGARCH model adds $|z_{t-1}|$ where we
+add the score $s_{t-1}$, and its term in $z_{t-1}$ is not bounded, while
+$v_t$ is. In both models the estimate of the asymmetry is negative, and
+both have six parameters. The score-driven model has the larger
+log-likelihood, by `r fmt(d_e, 1)`.
+
+### Two filtered parameters
+
+The degrees of freedom $\nu$ of the Student $t$ distribution measure how
+heavy the tails are, and nothing forces them to be the same in every
+period. We give $\nu$ a level of its own, on its log link, beside the level
+of the log-scale:
+$$
+\log \sigma_t = \gamma_0 + f_{\sigma,t}, \qquad
+\log \nu_t = \gamma_\nu + f_{\nu,t},
+$$
+each level driven by its own score with one loading and one persistence.
+The two scores are read at the same $(\sigma_t, \nu_t)$, so the levels form
+one recursion. The expected information of the Student $t$ distribution
+couples $\log \sigma$ and $\log \nu$, so with $d = 1/2$ each scaled score
+mixes the two raw scores, and we fit the model with $d = 0$ and with
+$d = 1/2$:
+
+```{r}
+#| label: ts-fit-dax-nu
+fit_dax_nu <- statmod(r ~ 1 | sigma ~ gas(p = 1, q = 1, time = day) |
+                        nu ~ gas(p = 1, q = 1, time = day),
+                      distrib = student_t1_distrib(), data = dax)
+summary(fit_dax_nu)
+fit_dax_nu2 <- statmod(r ~ 1 | sigma ~ gas(p = 1, q = 1, time = day,
+                                           scaling = 0.5) |
+                         nu ~ gas(p = 1, q = 1, time = day, scaling = 0.5),
+                       distrib = student_t1_distrib(), data = dax)
+c(d0 = logLik(fit_dax_nu), d_half = logLik(fit_dax_nu2),
+  constant_nu = logLik(fit_dax_t))
+```
+
+```{r}
+#| label: ts-dax-nu-numbers
+#| include: false
+lr_nu <- 2 * (as.numeric(logLik(fit_dax_nu)) - as.numeric(logLik(fit_dax_t)))
+lr_nu2 <- 2 * (as.numeric(logLik(fit_dax_nu2)) - as.numeric(logLik(fit_dax_t)))
+p_nu <- stats::pchisq(lr_nu, df = 2, lower.tail = FALSE)
+p_nu2 <- stats::pchisq(lr_nu2, df = 2, lower.tail = FALSE)
+nu_t <- predict(fit_dax_nu2, what = "nu")
+```
+
+The level of $\log \nu$ is held at zero beside the intercept $\gamma_\nu$,
+as the level of the log-scale is, so each of the two models has two
+parameters more than the model with a constant $\nu$: a loading and a
+persistence. The likelihood ratios are `r fmt(lr_nu, 2)` with $d = 0$ and
+`r fmt(lr_nu2, 2)` with $d = 1/2$, with p-values of `r fmt(p_nu, 4)` and
+`r fmt(p_nu2, 4)` on $\chi^2_2$. The model with $d = 1/2$ has the larger
+log-likelihood, so the scaling by the joint information is the better of
+the two. Its degrees of freedom range from `r fmt(min(nu_t), 2)` to
+`r fmt(max(nu_t), 2)` over the series (@fig-ts-dax-nu). They fall after
+each large return, so the model gives the following days heavier tails, and
+they return to about `r fmt(stats::median(nu_t), 1)` within a few weeks.
+After the largest return of the series, in August 1991, they fall below 2,
+where the variance of the $t$ distribution does not exist; for this reason
+the figure shows the scale $\sigma_t$ and not the standard deviation.
+
+```{r}
+#| label: fig-ts-dax-nu
+#| fig-cap: "Top: absolute daily returns of the DAX with the scale of the model with filtered scale and degrees of freedom (d = 1/2). Bottom: the filtered degrees of freedom, with the constant estimate of the model of the previous section as a dotted line."
+#| echo: false
+#| fig-height: 5
+pan_nu <- c("scale", "degrees of freedom")
+sd_nu <- predict(fit_dax_nu2, what = "sigma")
+nu_ret <- data.frame(x = yr, hi = abs(dax$r),
+                     panel = factor(pan_nu[1], levels = pan_nu))
+nu_sd <- data.frame(x = yr, y = sd_nu,
+                    panel = factor(pan_nu[1], levels = pan_nu))
+nu_df <- data.frame(x = yr, y = nu_t,
+                    panel = factor(pan_nu[2], levels = pan_nu))
+nu_const <- data.frame(y = nu_dax, panel = factor(pan_nu[2], levels = pan_nu))
+ggplot(mapping = aes(x = x)) +
+  geom_linerange(data = nu_ret, aes(ymin = 0, ymax = hi),
+                 colour = book_grey, linewidth = 0.3) +
+  geom_line(data = nu_sd, aes(y = y), colour = chalk, linewidth = 0.6) +
+  geom_line(data = nu_df, aes(y = y), colour = rust, linewidth = 0.5) +
+  geom_hline(data = nu_const, aes(yintercept = y), colour = grey,
+             linetype = 3) +
+  facet_wrap(~panel, ncol = 1, scales = "free_y", strip.position = "left") +
+  scale_x_continuous(breaks = seq(ceiling(min(yr)), floor(max(yr)))) +
+  labs(x = "year", y = NULL) +
+  theme(strip.placement = "outside", strip.background = element_blank(),
+        strip.text = element_text(size = rel(1)))
 ```
 
 ## Counts {#sec-timeseries-counts}
@@ -1579,15 +1777,18 @@ assert_timeseries_ok(
               ov = fit_ov, ov_om = fit_ov_om, ov_ml = fit_ov_ml,
               ov_int = fit_ov_int, ov_al = fit_ov_al, gey = fit_gey,
               gey3 = fit_gey3, gey_d = fit_gey_d, gey_d0 = fit_gey_d0,
-              dax_r = fit_dax_r),
+              dax_r = fit_dax_r, dax_lev = fit_dax_lev, dax_nu = fit_dax_nu,
+              dax_nu2 = fit_dax_nu2),
   ref = list(arima_nile = arima_nile, garch_n = garch_n, garch_t = garch_t,
              tsc_p = tsc_p, tsc_nb = tsc_nb, acd = acd, tsc_id = tsc_id,
              acd_lin = acd_lin, gls_ov = gls_ov,
-             fb_gey = fb_gey, hmm_fit = hmm_fit),
+             fb_gey = fb_gey, hmm_fit = hmm_fit, egarch_t = egarch_t),
   data = list(nile = nile, dax = dax, disc = disc, dur = dur, lhd = lhd,
               belts = belts, ov = Ovary, geyser = geyser, gey = geyser[-1, ]),
   claims = list(lr_nile = lr_nile, fc_nile = fc_nile, se_fc = se_fc,
                 lr_ov = lr_ov, fc_ov = fc_ov, new_1 = new_1,
                 tau_int = tau_int, lev_ml = lev_ml, st_gey = st_gey,
-                gap_fb = gap_fb, bic_hmm = bic_hmm, st_dax = st_dax))
+                gap_fb = gap_fb, bic_hmm = bic_hmm, st_dax = st_dax,
+                lr_lev = lr_lev, lr_nu = lr_nu, lr_nu2 = lr_nu2,
+                nu_t = nu_t))
 ```
