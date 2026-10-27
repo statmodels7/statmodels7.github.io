@@ -273,8 +273,8 @@ assert_penalized_ok <- function(fits, ref, data, claims) {
       abs(fits$id@criterion - fits$ridge@criterion) > 1e-4) {
     fail("two ridges with one id against one ridge")
   }
-  lr <- 2 * (as.numeric(logLik(fits$two, type = "marginal")) -
-               as.numeric(logLik(fits$id, type = "marginal")))
+  lr <- 2 * (as.numeric(logLik(fits$two, loglik_type = "marginal")) -
+               as.numeric(logLik(fits$id, loglik_type = "marginal")))
   if (abs(lr - claims$lr_id) > 1e-8 || !(lr >= 0)) fail("the likelihood ratio of the id")
   hl <- hyper(fits$lid)$estimate
   if (abs(hl[1] - hl[2]) > 1e-10 ||

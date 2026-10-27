@@ -161,7 +161,7 @@ assert_statmod_ok <- function() {
   # penalties7. The information is the EXPECTED one, which is what the fit
   # inverted; reading the observed one instead moves the count by 3.3e-04,
   # which is a different quantity rather than a worse one.
-  H <- -hessian(fb, expected = TRUE)
+  H <- -hessian(fb, information = expected_info())
   cols <- de$mu$blocks[[key]]
   ptot <- sum(vapply(de, function(e) e$npar, integer(1)))
   S <- matrix(0, ptot, ptot)

@@ -57,7 +57,7 @@ assert_lmm_ok <- function(fits, ref, data, claims) {
     stop("Part II chapter 7: ", what, " no longer agrees with the package.",
          call. = FALSE)
   }
-  ml <- function(f) as.numeric(logLik(f, type = "marginal"))
+  ml <- function(f) as.numeric(logLik(f, loglik_type = "marginal"))
   near <- function(a, b, tol) {
     a <- as.numeric(a); b <- as.numeric(b)
     length(a) == length(b) && all(is.finite(a)) &&
@@ -318,6 +318,13 @@ assert_lmm_ok <- function(fits, ref, data, claims) {
   if (!near(claims$s_marg$fit, claims$s_zero$fit * exp(kap^2 / 2), 1e-6) ||
       !(claims$s_marg$fit > claims$s_zero$fit)) {
     fail("the marginal prediction of sigma")
+  }
+
+  cp <- claims$cover_pred
+  if (!is.matrix(cp) || ncol(cp) != 3L || nrow(cp) != 200L ||
+      !(mean(cp[, "plugin"]) < mean(cp[, "averaged"])) ||
+      !(mean(cp[, "plugin"]) < 0.95)) {
+    fail("the coverage of the three predictives")
   }
 
   # --- a new group under a distribution that is not gaussian ------------------

@@ -7,6 +7,7 @@ source("R/_setup.R")
 source("R/glmm-certificates.R")
 chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
 fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
 ```
 
 A generalized linear mixed model adds random effects to the linear predictor
@@ -87,7 +88,7 @@ tmb_ep <- glmmTMB::glmmTMB(y ~ lbase * trt + lage + V4 + (1 | subject),
 glmmTMB::fixef(tmb_ep)$cond
 glmmTMB::VarCorr(tmb_ep)
 logLik(tmb_ep)
-logLik(fit_ep, type = "marginal")
+logLik(fit_ep, loglik_type = "marginal")
 ```
 
 ### Maximum likelihood
@@ -116,8 +117,8 @@ data.frame(
   trt = c(coef(fit_ep_ml)$mu[["trtprogabide"]],
           coef(fit_ep_all)$mu[["trtprogabide"]],
           lme4::fixef(glmer_ep)[["trtprogabide"]]),
-  logLik = c(logLik(fit_ep_ml, type = "marginal"),
-             logLik(fit_ep_all, type = "marginal"), logLik(glmer_ep)))
+  logLik = c(logLik(fit_ep_ml, loglik_type = "marginal"),
+             logLik(fit_ep_all, loglik_type = "marginal"), logLik(glmer_ep)))
 ```
 
 The second row, `ml(marginal = "all")`, agrees with `glmer()` in the third
@@ -169,7 +170,7 @@ coef(fit_bc_all)$mu[1:4]
 lme4::fixef(glmer_bc)
 c(statmod = hyper(fit_bc_all)$estimate,
   glmer = attr(lme4::VarCorr(glmer_bc)$ID, "stddev"))
-logLik(fit_bc_all, type = "marginal")
+logLik(fit_bc_all, loglik_type = "marginal")
 logLik(glmer_bc)
 ```
 
@@ -237,7 +238,7 @@ glmmTMB::fixef(tmb_ow1)$cond
 glmmTMB::sigma(tmb_ow1)
 exp(coef(fit_ow1)$theta[[1]])
 logLik(tmb_ow1)
-logLik(fit_ow1, type = "marginal")
+logLik(fit_ow1, loglik_type = "marginal")
 ```
 
 The function `sigma()` of `glmmTMB` returns $\hat\theta$ for this family.
@@ -277,7 +278,7 @@ tmb_ow2 <- glmmTMB::glmmTMB(SiblingNegotiation ~ FoodTreatment * SexParent +
 glmmTMB::fixef(tmb_ow2)
 glmmTMB::VarCorr(tmb_ow2)
 logLik(tmb_ow2)
-logLik(fit_ow2, type = "marginal")
+logLik(fit_ow2, loglik_type = "marginal")
 ```
 
 The three models have the same fixed effects in the mean, so we compare them
@@ -285,9 +286,9 @@ with their restricted log-likelihoods:
 
 ```{r}
 #| label: lr-owls
-l1 <- as.numeric(logLik(fit_ow1, type = "marginal"))
-lf <- as.numeric(logLik(fit_owf, type = "marginal"))
-l2 <- as.numeric(logLik(fit_ow2, type = "marginal"))
+l1 <- as.numeric(logLik(fit_ow1, loglik_type = "marginal"))
+lf <- as.numeric(logLik(fit_owf, loglik_type = "marginal"))
+l2 <- as.numeric(logLik(fit_ow2, loglik_type = "marginal"))
 lr_food <- 2 * (lf - l1)
 lr_nest <- 2 * (l2 - lf)
 c(lr_food = lr_food, lr_nest = lr_nest)
@@ -357,7 +358,7 @@ tmb_zi <- glmmTMB::glmmTMB(count ~ spp + mined + (1 | site),
 glmmTMB::fixef(tmb_zi)
 glmmTMB::VarCorr(tmb_zi)
 logLik(tmb_zi)
-logLik(fit_zi, type = "marginal")
+logLik(fit_zi, loglik_type = "marginal")
 ```
 
 ### A negative binomial count
@@ -377,7 +378,7 @@ tmb_zinb <- glmmTMB::glmmTMB(count ~ spp + mined + (1 | site),
                              ziformula = ~ mined, family = glmmTMB::nbinom2,
                              data = Salamanders, REML = TRUE)
 logLik(tmb_zinb)
-logLik(fit_zinb, type = "marginal")
+logLik(fit_zinb, loglik_type = "marginal")
 fit_zip2 <- statmod(count ~ spp + mined + random(~ 1 | site) | zi ~ mined,
                     distrib = zero_inflated(poisson_distrib()), data = Salamanders)
 c(zip = AIC(fit_zip2), zinb = AIC(fit_zinb))
@@ -411,16 +412,46 @@ fit_zinb_re <- statmod(count ~ spp + mined + random(~ 1 | site) |
                          zi ~ mined + random(~ 1 | site),
                        distrib = zero_inflated(negbin2_distrib()),
                        data = Salamanders)
-summary(fit_zinb_re)
 statmod_certificate(fit_zinb_re)$state
+try(summary(fit_zinb_re))
 ```
 
-The certificate is `unknown`. The curvature of the REML criterion at the
-reported point is not negative definite (the `min eigen` of the `outer` line
-of the summary is negative), so the fit cannot confirm that the two standard
-deviations sit at a maximum of the criterion, and the summary gives them no
-standard error. `glmmTMB()` has
-the same difficulty with this model:
+The certificate is `unknown`, and the summary cannot be computed. By default
+both the REML criterion and the standard errors read the observed
+information, the curvature of the log-likelihood at the data. At the
+reported point the penalized observed information is not positive definite:
+the message names the direction in which it is negative, which is carried by
+the slope $\alpha_1$ of `mined` and by the random effects of four streams on
+$\mathrm{logit}\,\pi$. A matrix with a negative eigenvalue has no inverse
+that is a variance, so `vcov()`, `summary()` and `confint()` stop. The
+negative direction also means that the point is not a maximum of the
+penalized likelihood along it, which is why the fit does not converge.
+
+The expected information is positive semidefinite for every value of the
+parameters, because it is a variance of the score. We fit the same model with
+the REML criterion on the expected information:
+
+```{r}
+#| label: fit-zinb-re-expected
+#| warning: false
+fit_zinb_re_e <- statmod(count ~ spp + mined + random(~ 1 | site) |
+                           zi ~ mined + random(~ 1 | site),
+                         distrib = zero_inflated(negbin2_distrib()),
+                         data = Salamanders,
+                         outer_criterion = reml(information = expected_info()))
+statmod_certificate(fit_zinb_re_e)$state
+summary(fit_zinb_re_e,
+        vcov_type = bayesian_vcov(information = expected_info()))
+```
+
+This fit converges and every coefficient has a standard error. The criterion
+is a different one, because the Laplace approximation now reads the expected
+information, so its estimates are not those of the observed criterion: the
+standard deviation of the random effect on $\pi$ is
+`r fmt(hyper(fit_zinb_re_e)$estimate[2], 3)` here and
+`r fmt(hyper(fit_zinb_re)$estimate[2], 3)` at the point where the observed
+criterion stopped. `glmmTMB()` uses the observed information and has the
+same difficulty with this model:
 
 ```{r}
 #| label: tmb-zinb-re
@@ -451,8 +482,8 @@ well. For this reason we keep the negative binomial model without it.
 
 ## Predictions for a new group {#sec-glmm-predict}
 
-@sec-lmm-predict introduced the arguments `random`, `interval` and
-`predictive` of `predict()`. With a link that is not the identity two things
+@sec-lmm-predict introduced the arguments `random` and `interval`
+of `predict()` and `predictive` of `prediction_interval()`. With a link that is not the identity two things
 change: the typical group and the average group have different predictions,
 and the intervals are not symmetric around the prediction. We write $h$ for
 the link of the parameter, $\eta_0 = x^\top\hat\beta$ for the linear
@@ -610,10 +641,10 @@ new_nest <- data.frame(
   SexParent = factor("Male", levels(Owls$SexParent)),
   logBroodSize = log(4), Nest = "new")
 g_theta <- predict(fit_ow2, what = "theta", newdata = new_nest,
-                   random = "zero", interval = "group")
+                   random = "zero", interval = group_interval())
 g_theta
 g_link <- predict(fit_ow2, what = "link:theta", newdata = new_nest,
-                  random = "zero", interval = "group")
+                  random = "zero", interval = group_interval())
 g_link
 s_th <- g_link$se
 cbind(lower = exp(g_link$fit - qnorm(0.975) * s_th),
@@ -633,14 +664,14 @@ approximation, $e^{\eta_0}\,s$, would give
 **One new count of a new nest.** We check the prediction interval by
 simulation: a million new nests, each with its two random effects, and one
 count from each. The estimates are held at their values
-(`predictive = "plugin"`), so that the simulation and `predict()` describe
+(`predictive = pred_plugin()`), so that the simulation and `predict()` describe
 the same distribution:
 
 ```{r}
 #| label: predict-owls-response
 p_calls <- predict(fit_ow2, what = "response", newdata = new_nest, se = TRUE,
-                   random = "zero", interval = "prediction",
-                   predictive = "plugin")
+                   random = "zero",
+                   interval = prediction_interval(predictive = pred_plugin()))
 p_calls
 eta_mu <- predict(fit_ow2, what = "link:mu", newdata = new_nest,
                   random = "zero")
@@ -657,13 +688,16 @@ y_sim <- rnbinom(n_sim, mu = exp(eta_mu[1] + b_sim),
 quantile(y_sim, probs = c(0.025, 0.5, 0.975), type = 1)
 c(G_below_upper = mean(y_sim <= p_calls$upper[1] - 1),
   G_at_upper = mean(y_sim <= p_calls$upper[1]))
-sd(y_sim)
+sd_sim <- sd(y_sim)
+sd_sim
 ```
 
 The quantiles of the simulated counts are the ends of the interval for the
 deprived nest, and the empirical distribution function crosses 0.975 at the
-upper end. The standard deviation agrees to within half a percent, which is
-the Monte Carlo error of a count with such a long tail.
+upper end. The standard deviation of the simulated counts differs from the standard
+error `r fmt(p_calls$se[1], 3)` of `predict()` by
+`r pct(abs(sd_sim / p_calls$se[1] - 1), 2)`, which is the Monte Carlo error of a
+count with such a long tail.
 
 **A new stream of the salamanders.** In the zero-inflated Poisson model the
 probability of a zero and the counts of a new stream depend on its two
@@ -676,8 +710,8 @@ new_site <- data.frame(spp = factor("GP", levels(Salamanders$spp)),
                        mined = factor(c("yes", "no"), levels(Salamanders$mined)),
                        site = "new")
 p_sal <- predict(fit_zi, what = "response", newdata = new_site, se = TRUE,
-                 random = "zero", interval = "prediction",
-                 predictive = "plugin")
+                 random = "zero",
+                 interval = prediction_interval(predictive = pred_plugin()))
 p_sal
 eta_mu_s <- predict(fit_zi, what = "link:mu", newdata = new_site,
                     random = "zero")
@@ -715,6 +749,6 @@ assert_glmm_ok(
                 lr_food = lr_food, lr_nest = lr_nest, g_theta = g_theta,
                 g_link = g_link, p_calls = p_calls, p_sal = p_sal,
                 new_child = new_child, new_nest = new_nest,
-                new_site = new_site, zinb_re = fit_zinb_re,
+                new_site = new_site, zinb_re = fit_zinb_re, zinb_re_e = fit_zinb_re_e,
                 tmb_zinb_re = tmb_zinb_re))
 ```

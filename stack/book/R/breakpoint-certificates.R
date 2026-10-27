@@ -214,8 +214,8 @@ assert_breakpoint_ok <- function(fits, ref, data, claims) {
     fail("the random break-point against segmented.lme")
   }
   hs <- hyper(fits$pg_id)$estimate[grepl("seg", hyper(fits$pg_id)$term)]
-  lr_g <- 2 * (as.numeric(logLik(fits$pg, type = "marginal")) -
-                 as.numeric(logLik(fits$pg_id, type = "marginal")))
+  lr_g <- 2 * (as.numeric(logLik(fits$pg, loglik_type = "marginal")) -
+                 as.numeric(logLik(fits$pg_id, loglik_type = "marginal")))
   if (!identical(state(fits$pg), "converged") ||
       !identical(state(fits$pg_id), "converged") ||
       length(hs) != 2L || abs(hs[1] - hs[2]) > 1e-12 ||

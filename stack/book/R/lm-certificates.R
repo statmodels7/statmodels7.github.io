@@ -9,7 +9,8 @@
 #   linear     the coefficients of the mean are lm()'s; sigma is
 #              sqrt(RSS/(n - p)), lm()'s, and larger than sqrt(RSS/n); the
 #              variance block of the mean is lm()'s and the row of sigma's
-#              intercept is zero off its diagonal; the z of every row is lm()'s
+#              intercept is zero off its diagonal (exactly under
+#              expected_info(), to rounding under the default observed one); the z of every row is lm()'s
 #              t value, statmod()'s p-value is 2 pnorm(-|z|), the first three
 #              rows have p below 1e-10 under both references and the
 #              interaction's differ; the intervals are the estimate +- qnorm
@@ -71,7 +72,15 @@ assert_lm_ok <- function(fits, ref, data, claims) {
   if (rel(unname(V[1:4, 1:4]), unname(stats::vcov(l))) > 1e-8) {
     fail("the variance matrix of the mean")
   }
-  if (any(V[5, 1:4] != 0)) fail("the zero row of sigma's intercept")
+  # exactly zero under the expected information; under the default observed
+  # information the block is 2 sum (y - mu) x / sigma^2, zero to rounding
+  # because the least squares residuals are orthogonal to the columns of X
+  Ve <- stats::vcov(f, vcov_type = bayesian_vcov(information = expected_info()))
+  if (any(Ve[5, 1:4] != 0)) fail("the zero row of sigma's intercept under expected_info()")
+  if (max(abs(V[5, 1:4])) > 1e-12 * V[5, 5] ||
+      abs(sum(unname(stats::residuals(l)) * model.matrix(l)[, 2])) > 1e-8) {
+    fail("the zero row of sigma's intercept up to rounding")
+  }
   ci <- claims$ci_lin
   zz <- ci$estimate / ci$se
   tl <- summary(l)$coefficients
@@ -92,7 +101,7 @@ assert_lm_ok <- function(fits, ref, data, claims) {
   }
   if (attr(logLik(f), "df") != 5 || attr(stats::logLik(l), "df") != 5 ||
       abs(AIC(f) - (-2 * as.numeric(logLik(f)) + 10)) > 1e-8) fail("AIC")
-  if (abs(as.numeric(logLik(f, type = "marginal")) -
+  if (abs(as.numeric(logLik(f, loglik_type = "marginal")) -
           as.numeric(stats::logLik(l, REML = TRUE))) > 1e-6) {
     fail("the REML criterion against lm()")
   }
@@ -145,7 +154,7 @@ assert_lm_ok <- function(fits, ref, data, claims) {
       abs(coef(c1)$sigma[[2]] - dl[[1]]) > 1e-4) {
     fail("the variance regression against gls()")
   }
-  if (abs(as.numeric(logLik(c1, type = "marginal")) -
+  if (abs(as.numeric(logLik(c1, loglik_type = "marginal")) -
           as.numeric(stats::logLik(g))) > 1e-6) fail("the REML criterion of cars")
   v4 <- data.frame(speed = c(4, 25))
   s4 <- predict(c1, what = "sigma", newdata = v4)
@@ -172,7 +181,7 @@ assert_lm_ok <- function(fits, ref, data, claims) {
   gs <- ref$gls_s1
   rat <- stats::coef(gs$modelStruct$varStruct, unconstrained = FALSE)
   if (rel(sg1, gs$sigma * c(1, unname(rat))) > 1e-4 ||
-      abs(as.numeric(logLik(fits$s1, type = "marginal")) -
+      abs(as.numeric(logLik(fits$s1, loglik_type = "marginal")) -
           as.numeric(stats::logLik(gs))) > 1e-6) {
     fail("the insecticides against gls(varIdent)")
   }
@@ -196,7 +205,7 @@ assert_lm_ok <- function(fits, ref, data, claims) {
   ll <- vapply(list(fits$g1, fits$g2, fits$g3),
                function(x) as.numeric(logLik(x)), numeric(1))
   lm_ <- vapply(list(fits$g1, fits$g2, fits$g3),
-                function(x) as.numeric(logLik(x, type = "marginal")),
+                function(x) as.numeric(logLik(x, loglik_type = "marginal")),
                 numeric(1))
   if (diff(range(ll)) > 1e-6 || diff(range(lm_)) > 1e-6) {
     fail("the three log-likelihoods")

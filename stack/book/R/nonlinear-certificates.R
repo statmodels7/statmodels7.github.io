@@ -50,7 +50,7 @@ assert_nonlinear_ok <- function(fits, ref, data, claims) {
     if (!length(b) || length(a) != length(b) || anyNA(a) || anyNA(b)) return(Inf)
     max(abs(a - b)) / max(1, max(abs(b)))
   }
-  ll <- function(f, type = "conditional") as.numeric(logLik(f, type = type))
+  ll <- function(f, type = "conditional") as.numeric(logLik(f, loglik_type = type))
   state <- function(f) statmod_certificate(f)$state
 
   # --- nl --------------------------------------------------------------------

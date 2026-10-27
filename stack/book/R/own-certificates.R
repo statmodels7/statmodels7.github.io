@@ -91,7 +91,7 @@ assert_own_ok <- function(fits, ref, data, claims) {
   sd_tmb <- attr(glmmTMB::VarCorr(tr)$cond$tension, "stddev")
   if (abs(fits$gp_ra@coefficients$mu[[1]] - glmmTMB::fixef(tr)$cond[[1]]) > 1e-3 ||
       abs(hyper(fits$gp_ra)$estimate[[1]] - sd_tmb) > 1e-3 ||
-      abs(as.numeric(stats::logLik(fits$gp_ra, type = "marginal")) - ll(tr)) > 1e-3) {
+      abs(as.numeric(stats::logLik(fits$gp_ra, loglik_type = "marginal")) - ll(tr)) > 1e-3) {
     fail("ml(marginal = \"all\") against glmmTMB")
   }
   d_int <- abs(fits$gp_r@coefficients$mu[[1]] - glmmTMB::fixef(tr)$cond[[1]])

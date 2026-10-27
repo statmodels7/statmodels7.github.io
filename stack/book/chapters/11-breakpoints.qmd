@@ -313,10 +313,11 @@ c(statmod = rss_nile, stepmented = sum(residuals(s_nile)^2))
 #| label: nile-numbers
 #| include: false
 cf_nile <- coef(fit_nile)$mu
+y_step <- floor(cf_nile[["jump.psi1"]])
 ci_nile <- confint(fit_nile)
 ```
 
-Both fits put the step between 1898 and 1899, and they have the same residual
+Both fits put the step between `r y_step` and `r y_step + 1`, and they have the same residual
 sum of squares. We compare the residual sums of squares and not the
 log-likelihoods, because our $\sigma$ is the REML estimate
 $\sqrt{\mathrm{RSS}/(n-2)}$, which counts the two coefficients of the mean and
@@ -359,18 +360,18 @@ for (k in 1:100) {
   psi_star[k] <- coef(fit_k)$mu[["jump.psi1"]]
 }
 quantile(psi_star, probs = c(0.025, 0.975))
-mean(floor(psi_star) == 1898)
+mean(floor(psi_star) == y_step)
 ```
 
 ```{r}
 #| label: boot-numbers
 #| include: false
 q_psi <- stats::quantile(psi_star, c(0.025, 0.975))
-share <- mean(floor(psi_star) == 1898)
+share <- mean(floor(psi_star) == y_step)
 ```
 
 In `r fmt(100 * share, 0)` percent of the simulated data sets the step falls
-between 1898 and 1899, as in the original fit, and 95 percent of the
+between `r y_step` and `r y_step + 1`, as in the original fit, and 95 percent of the
 positions lie between `r yr(q_psi[1])` and `r yr(q_psi[2])`.
 
 ### Is there a step?
@@ -425,10 +426,11 @@ c(statmod = logLik(fit_coal), stepmented = logLik(s_coal))
 #| label: coal-numbers
 #| include: false
 cf_coal <- coef(fit_coal)$mu
+y_coal <- floor(cf_coal[["jump.psi1"]])
 ```
 
 The two fits have the same log-likelihood, and both put the change between
-1891 and 1892. The expected number of disasters falls from
+`r y_coal` and `r y_coal + 1`. The expected number of disasters falls from
 `r fmt(exp(cf_coal[["(Intercept)"]]), 2)` a year to
 `r fmt(exp(cf_coal[["(Intercept)"]] + cf_coal[["jump.delta1"]]), 2)`, a ratio
 of `r fmt(exp(cf_coal[["jump.delta1"]]), 2)`. @fig-coal shows the counts with
@@ -678,7 +680,7 @@ c(default = rss(fit_glob), start = rss(fit_glob_0),
 The two fits reach the same positions as `segmented`. @fig-glob shows why
 the start matters for the iteration and not for the polish: with the first
 position held at 1910, the profile in the second position has its deepest
-minimum near 1976 and shallow local minima a few years later. The iteration
+minimum near `r round(coef(fit_glob)$mu[["seg.psi2"]])` and shallow local minima a few years later. The iteration
 of @muggeo2003, as `segmented()` runs it from $\psi = (1880, 1950)$ without
 restarts, stops at one of them:
 
@@ -1033,8 +1035,8 @@ likelihood ratio of their REML criteria:
 
 ```{r}
 #| label: lr-panel-gamma
-l0 <- logLik(fit_pg_id, type = "marginal")
-l1 <- logLik(fit_pg, type = "marginal")
+l0 <- logLik(fit_pg_id, loglik_type = "marginal")
+l1 <- logLik(fit_pg, loglik_type = "marginal")
 lr_g <- 2 * (as.numeric(l1) - as.numeric(l0))
 lr_g
 pchisq(lr_g, df = 1, lower.tail = FALSE)
@@ -1216,7 +1218,7 @@ The three smoothed models put the step at
 `r fmt(ci_np["mu:jump.psi1", "se"], 2)`,
 `r fmt(ci_nq["mu:jump.psi1", "se"], 2)` and
 `r fmt(ci_nh["mu:jump.psi1", "se"], 2)` years. The sharp step sits in the
-same interval, between 1898 and 1899, and has no standard error. The levels
+same interval, between `r y_step` and `r y_step + 1`, and has no standard error. The levels
 and the drop change by a few units, and their standard errors are a little
 larger in the smoothed models, which add the uncertainty of the position. The
 log-likelihood of the sharp step is the highest, and the smoothed ones are
@@ -1314,7 +1316,7 @@ round(tab_hr, 3)
 
 The positions were drawn with a standard deviation of 0.8 (the sample
 standard deviation of the twenty positions is `r fmt(sd(psi_i), 2)`) and the
-change of level is 1.5. The width 0.71 is the default, the spacing of the
+change of level is 1.5. The width `r fmt(stats::median(diff(sort(unique(t)))), 2)` is the default, the median spacing of the
 times.
 
 ### Which smoother to use

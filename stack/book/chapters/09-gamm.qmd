@@ -101,8 +101,8 @@ distribution $\tfrac12\chi^2_1 + \tfrac12\chi^2_2$ and not $\chi^2_2$
 
 ```{r}
 #| label: lr-rs
-l_ri <- as.numeric(logLik(fit_ri, type = "marginal"))
-l_rs <- as.numeric(logLik(fit_rs, type = "marginal"))
+l_ri <- as.numeric(logLik(fit_ri, loglik_type = "marginal"))
+l_rs <- as.numeric(logLik(fit_rs, loglik_type = "marginal"))
 lr_rs <- 2 * (l_rs - l_ri)
 lr_rs
 0.5 * pchisq(lr_rs, df = 1, lower.tail = FALSE) +
@@ -138,7 +138,7 @@ tmb_rs <- glmmTMB::glmmTMB(weight ~ s(Time, bs = "bs", k = 8) + (Time | Chick),
                            data = ChickWeight, REML = TRUE)
 glmmTMB::VarCorr(tmb_rs)
 logLik(tmb_rs)
-logLik(fit_rs, type = "marginal")
+logLik(fit_rs, loglik_type = "marginal")
 ```
 
 The group `dummy` of `glmmTMB` is the smooth: its standard deviation measures
@@ -222,12 +222,12 @@ $\Sigma_b$. We compute the three bands at days 0, 10.5 and 21:
 #| label: band-types
 tg <- seq(from = 0, to = 21, length.out = 101)
 nd_t <- data.frame(Time = tg, Chick = factor("1", levels = levels(ChickWeight$Chick)))
-types <- c("bayesian", "frequentist", "unconditional")
+types <- list(bayesian = bayesian_vcov(), frequentist = frequentist_vcov(),
+              unconditional = unconditional_vcov())
 bands <- lapply(types, function(ty) {
   predict(fit_rs, what = "mu", newdata = nd_t, random = "zero", se = TRUE,
-          type = ty)
+          vcov_type = ty)
 })
-names(bands) <- types
 sapply(bands, function(p) p$se[c(1, 51, 101)])
 ```
 
@@ -280,10 +280,10 @@ band_lines <- rbind(
 band_lines$panel <- pan[1]
 band_se <- data.frame(Time = rep(tg, times = 3),
                       y = c(pb$se, bands$frequentist$se, bands$unconditional$se),
-                      type = rep(types, each = length(tg)),
+                      type = rep(names(types), each = length(tg)),
                       piece = "se", panel = pan[2])
 band_lines <- rbind(band_lines, band_se)
-band_lines$type <- factor(band_lines$type, levels = types)
+band_lines$type <- factor(band_lines$type, levels = names(types))
 ggplot(band_lines, aes(x = Time, y = y)) +
   geom_point(data = band_obs, colour = book_grey, size = 0.6, alpha = 0.4) +
   geom_ribbon(data = band_rib, aes(y = NULL, ymin = lower, ymax = upper),
@@ -301,8 +301,13 @@ ggplot(band_lines, aes(x = Time, y = y)) +
 ```
 
 In `mgcv` the matrices $V_b$ and $V_f$ are the components `Vp` and `Ve` of
-a fit. On the model with a random intercept the typical curve, which leaves
-out the term `s(Chick)`, has the same two bands in the two packages:
+a fit. They are built from $X^\top X/\sigma^2 + S$, which is the expected
+information of a gaussian response with an estimated constant $\sigma$. On
+the model with a random intercept the typical curve, which leaves out the
+term `s(Chick)`, has the same two bands in the two packages when we choose
+the expected information in `vcov_type`. The default observed information has
+a nonzero block between the mean and $\sigma$, and the bands differ from the
+ones of `mgcv` by a relative amount of the order of $10^{-4}$:
 
 ```{r}
 #| label: band-mgcv
@@ -311,10 +316,17 @@ Xg[, grepl("Chick", colnames(Xg))] <- 0
 se_mgcv <- function(V) sqrt(rowSums((Xg %*% V) * Xg))
 se_sm <- function(ty) {
   predict(fit_ri, what = "mu", newdata = nd_t, random = "zero", se = TRUE,
-          type = ty)$se
+          vcov_type = ty)$se
 }
-c(bayesian = max(abs(se_sm("bayesian") / se_mgcv(g_ri$Vp) - 1)),
-  frequentist = max(abs(se_sm("frequentist") / se_mgcv(g_ri$Ve) - 1)))
+exp_info <- expected_info()
+rbind(expected = c(
+  bayesian = max(abs(se_sm(bayesian_vcov(information = exp_info)) /
+                       se_mgcv(g_ri$Vp) - 1)),
+  frequentist = max(abs(se_sm(frequentist_vcov(information = exp_info)) /
+                          se_mgcv(g_ri$Ve) - 1))),
+  observed = c(
+    bayesian = max(abs(se_sm(bayesian_vcov()) / se_mgcv(g_ri$Vp) - 1)),
+    frequentist = max(abs(se_sm(frequentist_vcov()) / se_mgcv(g_ri$Ve) - 1))))
 ```
 
 ## A smooth for each group {#sec-gamm-by}
@@ -343,16 +355,24 @@ hyper(fit_sh)[, c("name", "estimate")]
 hyper(fit_lv)[, c("name", "estimate")]
 ```
 
-The smoothing parameter of diet 3 is about a quarter of those of diets 1 and
-2, so its curve bends more, and that of diet 4 is in between. The model with one parameter is
+```{r}
+#| label: by-lambda
+#| include: false
+lam_lv <- hyper(fit_lv)$estimate[hyper(fit_lv)$name == "lambda"]
+```
+
+The smoothing parameter of diet 3, `r fmt(lam_lv[3], 3)`, is `r fmt(lam_lv[3] / mean(lam_lv[1:2]), 2)`
+times the mean of those of diets 1 and 2 (`r fmt(lam_lv[1], 3)` and
+`r fmt(lam_lv[2], 3)`), so its curve bends more, and that of diet 4,
+`r fmt(lam_lv[4], 3)`, is in between. The model with one parameter is
 the model with four under three equality constraints, and the constrained
 values are inside the range of the parameters, so the likelihood ratio has
 three degrees of freedom:
 
 ```{r}
 #| label: lr-by
-l_sh <- as.numeric(logLik(fit_sh, type = "marginal"))
-l_lv <- as.numeric(logLik(fit_lv, type = "marginal"))
+l_sh <- as.numeric(logLik(fit_sh, loglik_type = "marginal"))
+l_lv <- as.numeric(logLik(fit_lv, loglik_type = "marginal"))
 lr_by <- 2 * (l_lv - l_sh)
 lr_by
 pchisq(lr_by, df = 3, lower.tail = FALSE)
@@ -374,10 +394,21 @@ fit_shu <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet) +
 g_shu <- mgcv::gam(weight ~ Diet + s(Time, bs = "bs", k = 8, by = Diet, id = 1) +
                      s(Chick, bs = "re") + s(Chick, Time, bs = "re"),
                    data = ChickWeight, method = "REML")
+fit_shu_e <- statmod(weight ~ Diet + s(Time, bspline_smooth(k = 8), by = Diet) +
+                       random(~ Time | Chick, correlated = FALSE),
+                     distrib = gaussian1_distrib(), data = ChickWeight,
+                     outer_criterion = reml(information = expected_info()))
 max(abs(fitted(fit_shu) - fitted(g_shu)))
 edf_mu <- function(fit) sum(fit@edf$edf[fit@edf$parameter == "mu"])
-c(statmod = edf_mu(fit_shu), mgcv = sum(g_shu$edf))
+c(observed = edf_mu(fit_shu), expected = edf_mu(fit_shu_e),
+  mgcv = sum(g_shu$edf))
 ```
+
+The fitted values agree. The effective degrees of freedom of `mgcv` come from
+the expected information, as in @sec-gam, so they equal those of the fit with
+`information = expected_info()` in the criterion, and differ by
+`r fmt(100 * abs(edf_mu(fit_shu) / sum(g_shu$edf) - 1), 3)` per cent from the
+ones stored under the default observed information.
 
 @fig-diets shows the curve of a typical chick of each diet with its 95%
 Bayesian band, and the curve of the model with one smoothing parameter for
@@ -534,7 +565,7 @@ $\tfrac12\chi^2_0 + \tfrac12\chi^2_1$:
 
 ```{r}
 #| label: lr-rsm
-l_rsm <- as.numeric(logLik(fit_rsm, type = "marginal"))
+l_rsm <- as.numeric(logLik(fit_rsm, loglik_type = "marginal"))
 lr_rsm <- 2 * (l_rsm - l_sh)
 lr_rsm
 0.5 * pchisq(lr_rsm, df = 1, lower.tail = FALSE)
@@ -555,11 +586,18 @@ rbind(day = nd33$Time, straight = d3_sh$fit, smooth = d3_rsm$fit)
 rbind(straight = d3_sh$se, smooth = d3_rsm$se)
 ```
 
+```{r}
+#| label: diets-excess
+#| include: false
+excess33 <- predict(fit_sh, what = "mu", newdata = nd33[1, ])[[1]] -
+  ChickWeight$weight[r33][1]
+```
+
 The curve of diet 3 is the same in the two models to within
 `r fmt(max(abs(d3_sh$fit - d3_rsm$fit)), 0)`
 grams. Its band is much wider at hatching when the deviations are smooth,
 and a little wider from the first week on, although the residual standard
-deviation is three times smaller. As in
+deviation is `r fmt(exp(coef(fit_sh)$sigma[[1]]) / exp(coef(fit_rsm)$sigma[[1]]), 1)` times smaller. As in
 @sec-gamm-band, most of the standard error of a typical curve is the variation
 among chicks, and with smooth deviations the chicks vary in the shape of their
 curves as well as in their level and slope.
@@ -570,7 +608,7 @@ its diet. With a smooth deviation it follows the chick's own weights: chicks
 33 and 11 stop growing in the last week, and chicks 29 and 7 grow faster than
 the curve of their diet in the third week. The straight deviation cannot
 describe these shapes, and to come close to the late weights of chick 33 it
-puts the weight at birth about 20 grams too high.
+puts the weight at birth `r fmt(excess33, 0)` grams too high.
 
 ```{r}
 #| label: fig-gs
@@ -654,8 +692,8 @@ $\tfrac12\chi^2_0 + \tfrac12\chi^2_1$ [@self1987]:
 
 ```{r}
 #| label: lr-sigma
-lr_sg <- 2 * (as.numeric(logLik(fit_sg, type = "marginal")) -
-                as.numeric(logLik(fit_sg0, type = "marginal")))
+lr_sg <- 2 * (as.numeric(logLik(fit_sg, loglik_type = "marginal")) -
+                as.numeric(logLik(fit_sg0, loglik_type = "marginal")))
 lr_sg
 0.5 * pchisq(lr_sg, df = 1, lower.tail = FALSE)
 c(without = hyper(fit_sg0)$estimate[2], with = hyper(fit_sg)$estimate[2])
@@ -708,14 +746,14 @@ fit_ml <- statmod(weight ~ s(Time, bspline_smooth(k = 8)),
 g_ml <- mgcv::gam(weight ~ s(Time, bs = "bs", k = 8), data = ChickWeight,
                   method = "ML")
 c(statmod = exp(coef(fit_ml)$sigma[[1]]), mgcv = sqrt(g_ml$sig2))
-c(statmod = as.numeric(logLik(fit_ml, type = "marginal")), mgcv = -g_ml$gcv.ubre)
+c(statmod = as.numeric(logLik(fit_ml, loglik_type = "marginal")), mgcv = -g_ml$gcv.ubre)
 ```
 
 The two maxima differ: they are maxima of two slightly different models.
 
 @fig-sigma shows the residual standard deviation of a typical chick against
 time, with the interval that holds the standard deviation of 95% of the
-chicks (`interval = "group"`, @sec-glmm-predict).
+chicks (`interval = group_interval()`, @sec-glmm-predict).
 
 ```{r}
 #| label: fig-sigma
@@ -725,7 +763,7 @@ chicks (`interval = "group"`, @sec-glmm-predict).
 nd_s <- data.frame(Time = tg, Diet = factor(1, levels = levels(ChickWeight$Diet)),
                    Chick = "new")
 sg <- predict(fit_sg, what = "sigma", newdata = nd_s, random = "zero",
-              interval = "group")
+              interval = group_interval())
 sg_lev <- c("typical chick", "95% of the chicks")
 sg_df <- data.frame(Time = rep(tg, times = 3),
                     sigma = c(sg$fit, sg$lower, sg$upper),
@@ -851,8 +889,8 @@ ratio:
 
 ```{r}
 #| label: lr-owls
-lr_ow <- 2 * (as.numeric(logLik(fit_ow2, type = "marginal")) -
-                as.numeric(logLik(fit_ow, type = "marginal")))
+lr_ow <- 2 * (as.numeric(logLik(fit_ow2, loglik_type = "marginal")) -
+                as.numeric(logLik(fit_ow, loglik_type = "marginal")))
 lr_ow_tmb <- 2 * (as.numeric(logLik(tmb_ow2)) - as.numeric(logLik(tmb_ow)))
 c(statmod = lr_ow, glmmTMB = lr_ow_tmb)
 ```
@@ -916,8 +954,8 @@ we compare the two models with a likelihood ratio on two degrees of freedom:
 
 ```{r}
 #| label: lr-lags
-lr_id <- 2 * (as.numeric(logLik(fit_free, type = "marginal")) -
-                as.numeric(logLik(fit_id, type = "marginal")))
+lr_id <- 2 * (as.numeric(logLik(fit_free, loglik_type = "marginal")) -
+                as.numeric(logLik(fit_id, loglik_type = "marginal")))
 lr_id
 pchisq(lr_id, df = 2, lower.tail = FALSE)
 fit_free@edf[3:5, c("term", "edf")]
@@ -938,28 +976,37 @@ the part is wanted:
 
 ```{r}
 #| label: part-band
-part_band <- function(fit, prefix, rows = NULL, type = "bayesian") {
+part_band <- function(fit, prefix, rows = NULL,
+                      vcov_type = bayesian_vcov()) {
   X <- as.matrix(model.matrix(fit))
   if (!is.null(rows)) X <- X[rows, , drop = FALSE]
   keep <- Reduce(`|`, lapply(prefix, function(p) startsWith(colnames(X), p)))
   nm <- colnames(X)[keep]
   Xk <- X[, nm, drop = FALSE]
-  V <- as.matrix(vcov(fit, type = type)[paste0("mu:", nm), paste0("mu:", nm)])
+  V <- as.matrix(vcov(fit, vcov_type = vcov_type)[paste0("mu:", nm), paste0("mu:", nm)])
   data.frame(fit = drop(Xk %*% coef(fit)$mu[nm]),
              se = sqrt(rowSums((Xk %*% V) * Xk)))
 }
 ```
 
 On the model of @sec-gamm-intercept the part `s(Time)` is the contribution of
-the smooth, which sums to zero over the data, and it has the value and the
-standard error that `mgcv` reports with `type = "terms"`:
+the smooth, which sums to zero over the data. Its value is the one that
+`mgcv` reports with `type = "terms"`. The standard error is also the one of
+`mgcv` when we choose the expected information, because `mgcv` builds its
+variance from $X^\top X/\sigma^2 + S$, as for the bands above. The default
+observed information gives a standard error that differs from it in the third
+decimal:
 
 ```{r}
 #| label: part-mgcv
-p_ri <- part_band(fit_ri, prefix = "s(Time).")
+p_ri <- part_band(fit_ri, prefix = "s(Time).",
+                  vcov_type = bayesian_vcov(information = expected_info()))
+p_ri_obs <- part_band(fit_ri, prefix = "s(Time).")
 t_ri <- predict(g_ri, type = "terms", se.fit = TRUE)
-c(fit = max(abs(p_ri$fit - t_ri$fit[, "s(Time)"])),
-  se = max(abs(p_ri$se - t_ri$se.fit[, "s(Time)"])))
+rbind(expected = c(fit = max(abs(p_ri$fit - t_ri$fit[, "s(Time)"])),
+                   se = max(abs(p_ri$se - t_ri$se.fit[, "s(Time)"]))),
+      observed = c(fit = max(abs(p_ri_obs$fit - t_ri$fit[, "s(Time)"])),
+                   se = max(abs(p_ri_obs$se - t_ri$se.fit[, "s(Time)"]))))
 ```
 
 The contribution of a curve sums to zero over the data, and its band leaves
@@ -1022,11 +1069,17 @@ lag_at <- function(fit, k, i) {
 hot1 <- which.max(chicagoNMMAPS$temp1)
 hot2 <- which.max(chicagoNMMAPS$temp2)
 cold2 <- which.min(abs(chicagoNMMAPS$temp2 + 15))
+lag_diff <- sapply(1:3, function(k) {
+  pre <- paste0(labs[k], ".")
+  abs(exp(part_band(fit_free, prefix = pre)$fit -
+            part_band(fit_id, prefix = pre)$fit) - 1)
+})
+share_lag <- mean(apply(lag_diff, 1, max) < 0.005)
 ```
 
 The three temperatures are strongly correlated, so each curve is the effect
 of the temperature of one day with the temperatures of the other two days
-held fixed. On 98 days of 100 the two models give curves that differ by less
+held fixed. On `r fmt(100 * share_lag, 0)` days of 100 the two models give curves that differ by less
 than half a percent in the rate. The shared parameter changes the curves at
 their ends, where the data are few, and most of all the curve of the same
 day: with its own parameter this curve is smoother, flatter on the coldest
@@ -1060,7 +1113,7 @@ fit_lid <- statmod(weight ~ Diet +
                      random(~ Time | Chick),
                    distrib = gaussian1_distrib(), data = ChickWeight)
 hyper(fit_lid)[, c("name", "estimate")]
-l_lid <- as.numeric(logLik(fit_lid, type = "marginal"))
+l_lid <- as.numeric(logLik(fit_lid, loglik_type = "marginal"))
 lr_lid <- 2 * (l_lv - l_lid)
 lr_lid
 pchisq(lr_lid, df = 2, lower.tail = FALSE)
@@ -1076,6 +1129,7 @@ equality constraints, and the likelihood ratio does not reject them: diets 1,
 assert_gamm_ok(
   fits = list(ri = fit_ri, rs = fit_rs, sh = fit_sh, lv = fit_lv, shu = fit_shu,
               rsm = fit_rsm,
+              shu_e = fit_shu_e,
               sg0 = fit_sg0, sg = fit_sg, ml = fit_ml, ow = fit_ow, ow2 = fit_ow2,
               id = fit_id, free = fit_free, lid = fit_lid),
   ref = list(g_ri = g_ri, tmb_rs = tmb_rs, g_shu = g_shu, tmb_sg = tmb_sg,

@@ -54,7 +54,7 @@ assert_gamm_ok <- function(fits, ref, data, claims) {
     stop("Part II chapter 9: ", what, " no longer agrees with the package.",
          call. = FALSE)
   }
-  ml <- function(f) as.numeric(logLik(f, type = "marginal"))
+  ml <- function(f) as.numeric(logLik(f, loglik_type = "marginal"))
   near <- function(a, b, tol) {
     a <- as.numeric(a); b <- as.numeric(b)
     length(a) == length(b) && all(is.finite(a)) &&
@@ -118,11 +118,20 @@ assert_gamm_ok <- function(fits, ref, data, claims) {
   Xg[, grepl("Chick", colnames(Xg))] <- 0
   sem <- function(V) sqrt(rowSums((Xg %*% V) * Xg))
   ses <- function(f, ty) {
-    predict(f, what = "mu", newdata = ndt, random = "zero", se = TRUE, type = ty)$se
+    predict(f, what = "mu", newdata = ndt, random = "zero", se = TRUE,
+            vcov_type = ty)$se
   }
-  if (max(abs(ses(fits$ri, "bayesian") / sem(g$Vp) - 1)) > 1e-4 ||
-      max(abs(ses(fits$ri, "frequentist") / sem(g$Ve) - 1)) > 1e-4) {
+  # mgcv's Vp and Ve are built from X'X / sigma^2 + S, the EXPECTED information;
+  # under the default observed information the bands differ by about 1e-4
+  ei <- expected_info()
+  if (max(abs(ses(fits$ri, bayesian_vcov(information = ei)) / sem(g$Vp) - 1)) > 1e-7 ||
+      max(abs(ses(fits$ri, frequentist_vcov(information = ei)) / sem(g$Ve) - 1)) > 1e-7) {
     fail("the bands of the typical curve against mgcv")
+  }
+  dd <- c(max(abs(ses(fits$ri, bayesian_vcov()) / sem(g$Vp) - 1)),
+          max(abs(ses(fits$ri, frequentist_vcov()) / sem(g$Ve) - 1)))
+  if (any(dd < 1e-5) || any(dd > 1e-3)) {
+    fail("the difference of the default bands from mgcv")
   }
   bb <- claims$bands
   sb <- bb$bayesian$se; sf <- bb$frequentist$se; su <- bb$unconditional$se
@@ -130,20 +139,26 @@ assert_gamm_ok <- function(fits, ref, data, claims) {
   if (!(all(sf < sb) && all(su >= sb * (1 - 1e-6)) && max(su / sb) < 1.1 &&
         min(sf) > 0.8 && max(sf) < 1.6 && sb[101] > 4 * sb[1] &&
         all(abs(sdm[tg >= 7] / sb[tg >= 7] - 1) < 0.1) &&
-        near(sb, ses(fits$rs, "bayesian"), 1e-12))) {
+        near(sb, ses(fits$rs, bayesian_vcov()), 1e-12))) {
     fail("the three bands of the typical curve")
   }
   # the contribution of the smooth is mgcv's type = "terms", computed here from
   # the coefficients and vcov() rather than by part_band()
   Xr <- as.matrix(model.matrix(fits$ri))
   ks <- startsWith(colnames(Xr), "s(Time).")
-  Vs <- as.matrix(vcov(fits$ri)[paste0("mu:", colnames(Xr)[ks]),
-                                paste0("mu:", colnames(Xr)[ks])])
+  nmk <- paste0("mu:", colnames(Xr)[ks])
+  Vs <- as.matrix(vcov(fits$ri, vcov_type = bayesian_vcov(information = ei))[nmk, nmk])
+  Vo <- as.matrix(vcov(fits$ri)[nmk, nmk])
   ft <- drop(Xr[, ks] %*% fits$ri@coefficients$mu[ks])
   st <- sqrt(rowSums((Xr[, ks] %*% Vs) * Xr[, ks]))
+  so <- sqrt(rowSums((Xr[, ks] %*% Vo) * Xr[, ks]))
   tt_ <- stats::predict(g, type = "terms", se.fit = TRUE)
+  # mgcv's standard error is the expected-information one; the default
+  # observed information differs from it in the third decimal
+  dobs <- max(abs(so - tt_$se.fit[, "s(Time)"]))
   if (max(abs(ft - tt_$fit[, "s(Time)"])) > 1e-3 ||
-      max(abs(st - tt_$se.fit[, "s(Time)"])) > 1e-4 ||
+      max(abs(st - tt_$se.fit[, "s(Time)"])) > 1e-6 ||
+      !(dobs > 1e-4 && dobs < 1e-2) ||
       !near(claims$part_ri$fit, ft, 1e-10) || !near(claims$part_ri$se, st, 1e-10)) {
     fail("the contribution of the smooth against mgcv")
   }
@@ -160,8 +175,12 @@ assert_gamm_ok <- function(fits, ref, data, claims) {
     fail("the four smoothing parameters")
   }
   edf_mu <- function(f) sum(f@edf$edf[f@edf$parameter == "mu"])
+  # mgcv's edf is the one of the expected information
   if (max(abs(fitted(fits$shu) - fitted(ref$g_shu))) > 1e-4 ||
-      !near(edf_mu(fits$shu), sum(ref$g_shu$edf), 1e-4)) {
+      !S7::S7_inherits(fits$shu_e@methods$edf_information,
+                       distributions7::ExpectedInfo) ||
+      !near(edf_mu(fits$shu_e), sum(ref$g_shu$edf), 1e-6) ||
+      !(abs(edf_mu(fits$shu) / sum(ref$g_shu$edf) - 1) > 1e-5)) {
     fail("the uncorrelated slopes with a factor by against mgcv")
   }
   # the curves of the diets: diet 3 heaviest and diet 1 lightest at day 21
@@ -264,7 +283,7 @@ assert_gamm_ok <- function(fits, ref, data, claims) {
   nd <- data.frame(Time = c(2, 10, 20),
                    Diet = factor(1, levels = levels(CW$Diet)), Chick = "new")
   gs <- predict(fits$sg, what = "sigma", newdata = nd, random = "zero",
-                interval = "group")
+                interval = group_interval())
   cs <- predict(fits$sg, what = "link:sigma", newdata = nd, random = "zero",
                 se = TRUE)
   s <- sqrt(cs$se^2 + hs[4]^2)

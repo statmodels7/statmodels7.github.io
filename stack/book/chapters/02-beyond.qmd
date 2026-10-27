@@ -45,9 +45,9 @@ fit1 <- statmod(accel ~ s(times, bspline_smooth(k = 20)) |
 The summary of @sec-model contains the line "95% intervals, bayesian
 variance". Every standard error of a penalized model depends on a choice of
 variance matrix, and `statmodels7` offers three of them. As in @sec-model,
-let $H$ be the Fisher information of the coefficients at the fit, and let
-$S$ be the matrix of second derivatives of the penalty. The first two
-matrices are
+let $H$ be the information matrix of the coefficients at the fit (the
+observed information by default), and let $S$ be the matrix of second
+derivatives of the penalty. The first two matrices are
 $$
 V_b = (H + S)^{-1}, \qquad V_f = (H + S)^{-1} H (H + S)^{-1} .
 $$
@@ -73,27 +73,48 @@ $V_\theta$ is their variance, which we read from the curvature of the REML
 criterion. The matrix $J$ measures how far the estimated coefficients move
 when a smoothing parameter moves.
 
-We choose among the three matrices with the argument `type` of `vcov()`,
-`confint()`, `summary()` and `predict()`. We print the same three rows and
+We choose among the three matrices with the argument `vcov_type` of `vcov()`,
+`confint()`, `summary()` and `predict()`, which takes the object
+`bayesian_vcov()`, `frequentist_vcov()` or `unconditional_vcov()`. We print the same three rows and
 columns as in @sec-model under each matrix:
 
 ```{r}
 #| label: vcov-types
 keep <- c("mu:(Intercept)", "mu:s(times).lin", "sigma:(Intercept)")
-vcov(fit1, type = "bayesian")[keep, keep]
-vcov(fit1, type = "frequentist")[keep, keep]
-vcov(fit1, type = "unconditional")[keep, keep]
+vcov(fit1, vcov_type = bayesian_vcov())[keep, keep]
+vcov(fit1, vcov_type = frequentist_vcov())[keep, keep]
+vcov(fit1, vcov_type = unconditional_vcov())[keep, keep]
 ```
 
-The first two matrices have a zero block between `mu` and `sigma`, as in
-@sec-model. The third matrix does not. The smoothing parameters of the two
-equations are estimated together, so a change of one of them moves the
+With the default observed information the three matrices have a block
+between `mu` and `sigma` that is not zero, as in @sec-model. Under the
+expected information the first two matrices have a zero block, as in
+@sec-model, and the third matrix does not. The smoothing parameters of the
+two equations are estimated together, so a change of one of them moves the
 coefficients of both equations, and the term $J V_\theta J^\top$ connects
-them. The function `confint()` takes the same argument:
+them. We measure the block by its largest absolute value under the
+expected information, which we choose with the argument `information` of
+each variance object:
+
+```{r}
+#| label: vcov-blocks
+nm <- rownames(vcov(fit1))
+block <- function(V) {
+  max(abs(V[startsWith(nm, "mu:"), startsWith(nm, "sigma:")]))
+}
+exp_info <- expected_info()
+vb <- vcov(fit1, vcov_type = bayesian_vcov(information = exp_info))
+vf <- vcov(fit1, vcov_type = frequentist_vcov(information = exp_info))
+vu <- vcov(fit1, vcov_type = unconditional_vcov(information = exp_info))
+c(bayesian = block(vb), frequentist = block(vf), unconditional = block(vu))
+```
+
+The first two values are exactly zero and the third is not. The function
+`confint()` takes the same argument:
 
 ```{r}
 #| label: confint-types
-confint(fit1, parm = keep, type = "unconditional")
+confint(fit1, parm = keep, vcov_type = unconditional_vcov())
 ```
 
 We compare the three standard errors of the fitted mean on a grid of 200
@@ -103,11 +124,12 @@ times:
 #| label: se-types
 grid <- data.frame(times = seq(from = min(mcycle$times),
                                to = max(mcycle$times), length.out = 200))
-pb <- predict(fit1, what = "mu", newdata = grid, se = TRUE, type = "bayesian")
+pb <- predict(fit1, what = "mu", newdata = grid, se = TRUE,
+              vcov_type = bayesian_vcov())
 pf <- predict(fit1, what = "mu", newdata = grid, se = TRUE,
-              type = "frequentist")
+              vcov_type = frequentist_vcov())
 pu <- predict(fit1, what = "mu", newdata = grid, se = TRUE,
-              type = "unconditional")
+              vcov_type = unconditional_vcov())
 head(pb, n = 3)
 head(pf, n = 3)
 head(pu, n = 3)
@@ -179,11 +201,12 @@ for (k in 1:40) {
   fit <- statmod(y ~ s(x), distrib = gaussian1_distrib(),
                  data = sim$data[[k]])
   truth <- sim$theta[[k]]$mu
-  p_b <- predict(fit, what = "mu", newdata = xd, se = TRUE, type = "bayesian")
+  p_b <- predict(fit, what = "mu", newdata = xd, se = TRUE,
+                 vcov_type = bayesian_vcov())
   p_f <- predict(fit, what = "mu", newdata = xd, se = TRUE,
-                 type = "frequentist")
+                 vcov_type = frequentist_vcov())
   p_u <- predict(fit, what = "mu", newdata = xd, se = TRUE,
-                 type = "unconditional")
+                 vcov_type = unconditional_vcov())
   cover[k, "bayesian"] <- mean(p_b$lower <= truth & truth <= p_b$upper)
   cover[k, "frequentist"] <- mean(p_f$lower <= truth & truth <= p_f$upper)
   cover[k, "unconditional"] <- mean(p_u$lower <= truth & truth <= p_u$upper)
@@ -271,14 +294,14 @@ $$
 where $\pi$ is the gaussian density of $b$. `statmodels7` computes the
 integral by the Laplace method, which is exact for a gaussian response.
 REML also integrates the unpenalized coefficients $\beta_0$ and $\beta_1$
-[@patterson1971]. The argument `type = "marginal"` of `logLik()` returns the
+[@patterson1971]. The argument `loglik_type = "marginal"` of `logLik()` returns the
 criterion that the fit maximized: the REML criterion by default, and the
 marginal log-likelihood when the fit used `outer_criterion = ml()`.
 
 ```{r}
 #| label: loglik-ortho
 logLik(reml1)
-logLik(reml1, type = "marginal")
+logLik(reml1, loglik_type = "marginal")
 logLik(lme1)
 ```
 
@@ -350,26 +373,26 @@ $K = 0.05$ with each of the four:
 ```{r}
 #| label: test-puro
 statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
-             test = "wald")
+             test = wald_test())
 statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
-             test = "lr")
+             test = lr_test())
 statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
-             test = "score")
+             test = score_test())
 statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
-             test = "gradient")
+             test = gradient_test())
 ```
 
 ```{r}
 #| label: test-numbers
 #| include: false
 t_w <- statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
-                    test = "wald")
+                    test = wald_test())
 t_l <- statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
-                    test = "lr")
+                    test = lr_test())
 t_s <- statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
-                    test = "score")
+                    test = score_test())
 t_g <- statmod_test(fit_p, param = "mu", coefname = "nl.K", value = 0.05,
-                    test = "gradient")
+                    test = gradient_test())
 ```
 
 The four statistics range from `r fmt(t_s@statistic)` for the score test to
@@ -412,10 +435,10 @@ which has approximately a standard gaussian distribution, and its heading is
 
 ```{r}
 #| label: summary-lr
-summary(fit_p, test = "lr")
+summary(fit_p, test = lr_test())
 ```
 
-Each row needs one restricted fit, so `summary(test = "lr")` costs a few
+Each row needs one restricted fit, so `summary(test = lr_test())` costs a few
 more fits than `summary()`. Only the statistic and the p-value change. The
 interval of each row is still the Wald interval, and the next section
 explains how to replace it.
@@ -438,7 +461,7 @@ later chapter estimates the persistence of the filter through a partial
 autocorrelation, and `confint()` reports by default the autoregressive
 coefficient computed from it. This default is `readable = TRUE`. A test holds
 one working coordinate at a value, so an inverted interval exists only for
-the working coordinates, and `confint()` with `test` other than `"wald"`
+the working coordinates, and `confint()` with a `test` other than `wald_test()`
 requires `readable = FALSE`. In the Michaelis–Menten model the coefficients
 are $V_m$ and $K$ themselves, so this argument does not change the result
 here:
@@ -446,16 +469,16 @@ here:
 ```{r}
 #| label: invert-puro
 confint(fit_p, parm = "mu:nl.K")
-confint(fit_p, parm = "mu:nl.K", test = "lr", readable = FALSE)
-confint(fit_p, parm = "mu:nl.K", test = "score", readable = FALSE)
-confint(fit_p, parm = "mu:nl.K", test = "gradient", readable = FALSE)
+confint(fit_p, parm = "mu:nl.K", test = lr_test(), readable = FALSE)
+confint(fit_p, parm = "mu:nl.K", test = score_test(), readable = FALSE)
+confint(fit_p, parm = "mu:nl.K", test = gradient_test(), readable = FALSE)
 ```
 
 ```{r}
 #| label: invert-numbers
 #| include: false
 ciw <- confint(fit_p, parm = "mu:nl.K")
-cil <- confint(fit_p, parm = "mu:nl.K", test = "lr", readable = FALSE)
+cil <- confint(fit_p, parm = "mu:nl.K", test = lr_test(), readable = FALSE)
 k_hat <- ciw$estimate
 ```
 
@@ -532,8 +555,8 @@ has approximately a $\chi^2$ distribution with one degree of freedom:
 
 ```{r}
 #| label: lr-ortho
-l1 <- logLik(ml1, type = "marginal")
-l2 <- logLik(ml2, type = "marginal")
+l1 <- logLik(ml1, loglik_type = "marginal")
+l2 <- logLik(ml2, loglik_type = "marginal")
 lr <- 2 * (as.numeric(l2) - as.numeric(l1))
 lr
 pchisq(lr, df = 1, lower.tail = FALSE)
@@ -565,8 +588,8 @@ is not a likelihood ratio statistic [@pinheiro2000, sec. 2.4]:
 #| label: reml-diff
 reml2 <- statmod(distance ~ I(age - 11) + Sex + random(~ I(age - 11) | Subject),
                  distrib = gaussian1_distrib(), data = Orthodont)
-2 * (as.numeric(logLik(reml2, type = "marginal")) -
-       as.numeric(logLik(reml1, type = "marginal")))
+2 * (as.numeric(logLik(reml2, loglik_type = "marginal")) -
+       as.numeric(logLik(reml1, loglik_type = "marginal")))
 ```
 
 We use `reml()` to estimate the variances of one model, and `ml()` to
@@ -578,14 +601,14 @@ The test of @sec-beyond-tests gives a third answer for the coefficient of
 ```{r}
 #| label: test-sex
 statmod_test(reml2, param = "mu", coefname = "SexFemale", value = 0,
-             test = "lr")
+             test = lr_test())
 ```
 
 ```{r}
 #| label: sex-numbers
 #| include: false
 t_sex <- statmod_test(reml2, param = "mu", coefname = "SexFemale", value = 0,
-                      test = "lr")
+                      test = lr_test())
 ```
 
 This statistic is `r fmt(t_sex@statistic)`, against `r fmt(lr)` from the
@@ -679,14 +702,14 @@ pz$fit * exp(tau^2 / 2)
 ```
 
 With the argument `interval` we choose which uncertainty the interval
-describes. With `interval = "confidence"`, the default, it describes the
-uncertainty of the estimates. With `interval = "group"` it also includes the
+describes. With `interval = confidence_interval()`, the default, it describes the
+uncertainty of the estimates. With `interval = group_interval()` it also includes the
 variation of $b$, so it covers the mean $\exp(x^\top\beta + b)$ of a new
 patient. On the log scale this interval is
 $x^\top\hat\beta \pm 1.96\sqrt{\mathrm{se}^2 + \hat\tau^2}$, where se is the
 standard error of $x^\top\hat\beta$.
 
-With `what = "response"` and `interval = "prediction"` the interval
+With `what = "response"` and `interval = prediction_interval()` the interval
 describes the number of seizures $Y$ that a new patient has in one period.
 Three things make $Y$ uncertain: the estimate of $x^\top\beta$, the random
 intercept $b$ of the patient, and the Poisson variation of $Y$ around its
@@ -705,10 +728,10 @@ quantile of this distribution, and the prediction `fit` is its median.
 ```{r}
 #| label: predict-intervals
 pg <- predict(fit_e, what = "mu", newdata = new, se = TRUE, random = "zero",
-              interval = "group")
+              interval = group_interval())
 pg
 pr <- predict(fit_e, what = "response", newdata = new, se = TRUE,
-              random = "zero", interval = "prediction")
+              random = "zero", interval = prediction_interval())
 pr
 ```
 
@@ -734,9 +757,9 @@ lb <- seq(min(epil$lbase), max(epil$lbase), length.out = 60)
 gnew <- new[rep(1, 60), ]; gnew$lbase <- lb
 gz <- predict(fit_e, what = "mu", newdata = gnew, se = TRUE, random = "zero")
 gg <- predict(fit_e, what = "mu", newdata = gnew, se = TRUE, random = "zero",
-              interval = "group")
+              interval = group_interval())
 gr <- predict(fit_e, what = "response", newdata = gnew, se = TRUE,
-              random = "zero", interval = "prediction")
+              random = "zero", interval = prediction_interval())
 pl <- epil$trt == "placebo"
 ep_bands <- data.frame(
   lbase = rep(lb, times = 2),
@@ -870,21 +893,41 @@ to the unpenalized coefficients, the intercept and the linear part of the
 smooth, and the other $\tau_\mu - 2$ to the penalized ones. REML integrates
 both kinds, so it divides by $n - \tau_\mu$. ML integrates only the
 penalized coefficients, so it divides by $n - (\tau_\mu - 2)$. The joint
-mode integrates nothing and divides by $n$:
+mode integrates nothing and divides by $n$.
+
+These formulas hold when $\tau_\mu$ is computed from the expected
+information, which has no block between the equation of the mean and that of
+$\sigma$ (@sec-model-compare). The slot `edf` of a fit stores the degrees of
+freedom of the information that its outer criterion reads, and the default is
+the observed information, whose shares differ slightly. We therefore fit the
+two models again with `information = expected_info()` in the criterion. The
+estimates of $\sigma$ and of the smoothing parameter do not change:
 
 ```{r}
 #| label: outer-by-hand
 n <- nrow(mcycle)
-rss <- sum((mcycle$accel - fitted(fit0))^2)
-tau_mu <- sum(fit0@edf$edf[fit0@edf$parameter == "mu"])
+fit0_e <- statmod(accel ~ s(times, bspline_smooth(k = 20)),
+                  distrib = gaussian1_distrib(), data = mcycle,
+                  outer_criterion = reml(information = expected_info()))
+fit0_ml_e <- statmod(accel ~ s(times, bspline_smooth(k = 20)),
+                     distrib = gaussian1_distrib(), data = mcycle,
+                     outer_criterion = ml(information = expected_info()))
+rss <- sum((mcycle$accel - fitted(fit0_e))^2)
+tau_mu <- sum(fit0_e@edf$edf[fit0_e@edf$parameter == "mu"])
 tau_mu
 sqrt(rss / (n - tau_mu))
-rss_ml <- sum((mcycle$accel - fitted(fit0_ml))^2)
-tau_ml <- sum(fit0_ml@edf$edf[fit0_ml@edf$parameter == "mu"])
+rss_ml <- sum((mcycle$accel - fitted(fit0_ml_e))^2)
+tau_ml <- sum(fit0_ml_e@edf$edf[fit0_ml_e@edf$parameter == "mu"])
 sqrt(rss_ml / (n - (tau_ml - 2)))
 rss_none <- sum((mcycle$accel - fitted(fit0_none))^2)
 sqrt(rss_none / n)
 ```
+
+The three values are the estimates of $\sigma$ that the fits `fit0`,
+`fit0_ml` and `fit0_none` return. With the degrees of freedom stored in `fit0`,
+which come from the observed information, the first formula gives
+`r fmt(sqrt(sum((mcycle$accel - fitted(fit0))^2) / (n - sum(fit0@edf$edf[fit0@edf$parameter == "mu"]))), 3)`
+instead of `r fmt(exp(coef(fit0)$sigma), 3)`.
 
 A criterion that integrates a coefficient accounts for the fact that the
 coefficient was estimated from the same data. The joint mode does not, so
@@ -1069,7 +1112,8 @@ assert_beyond_ok(
   fits = list(fit0 = fit0, fit1 = fit1, reml1 = reml1, reml2 = reml2,
               ml1 = ml1, ml2 = ml2, puro = fit_p, epil = fit_e,
               fit1_s = fit1_s, fit0_none = fit0_none, fit0_ml = fit0_ml,
-              fit0_held = fit0_held, fit_w = fit_w, fit_big = fit_big,
+              fit0_held = fit0_held, fit0_e = fit0_e, fit0_ml_e = fit0_ml_e,
+              fit_w = fit_w, fit_big = fit_big,
               fit_prec = fit_prec, fit_i = fit_i, fit_t4 = fit_t4),
   ref = list(lme1 = lme1, lme1_ml = lme1_ml, lme2_ml = lme2_ml,
              nls_p = nls_p, lm_w = lm_w, glm_i = glm_i),

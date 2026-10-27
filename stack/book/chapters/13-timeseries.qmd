@@ -770,15 +770,17 @@ summary(fit_ingarch)
 tsc_id <- tscount::tsglm(discoveries, model = list(past_obs = 1, past_mean = 1),
                          link = "identity", distr = "poisson")
 cf_i <- coef(fit_ingarch)$mu
-cbind(statmod = c(intercept = cf_i[["(Intercept)"]] * (1 - cf_i[["gas.xi1"]]),
-                  beta_1 = cf_i[["gas.kappa1"]],
-                  alpha_1 = cf_i[["gas.xi1"]] - cf_i[["gas.kappa1"]]),
-      tscount = coef(tsc_id))
-c(statmod = logLik(fit_ingarch), tscount = logLik(tsc_id))
+cmp_ing <- cbind(statmod = c(intercept = cf_i[["(Intercept)"]] * (1 - cf_i[["gas.xi1"]]),
+                       beta_1 = cf_i[["gas.kappa1"]],
+                       alpha_1 = cf_i[["gas.xi1"]] - cf_i[["gas.kappa1"]]),
+                 tscount = coef(tsc_id))
+cmp_ing
+ll_ing <- c(statmod = logLik(fit_ingarch), tscount = logLik(tsc_id))
+ll_ing
 ```
 
-The estimates agree to two decimals, and the log-likelihoods differ by less
-than 0.001, because the two recursions start from different values.
+The largest difference between the estimates is `r fmt(max(abs(cmp_ing[, "statmod"] - cmp_ing[, "tscount"])), 4)`,
+and the log-likelihoods differ by `r format(signif(abs(ll_ing[["statmod"]] - ll_ing[["tscount"]]), 2), scientific = FALSE)`, because the two recursions start from different values.
 
 ### The logarithmic link
 
@@ -1182,7 +1184,7 @@ fit_ov_ml <- statmod(follicles ~ 0 + sin(2 * pi * Time) + cos(2 * pi * Time) +
                      distrib = gaussian1_distrib(), data = Ovary,
                      outer_criterion = ml())
 l0 <- logLik(fit_ov)
-l1 <- logLik(fit_ov_ml, type = "marginal")
+l1 <- logLik(fit_ov_ml, loglik_type = "marginal")
 lr_ov <- 2 * (as.numeric(l1) - as.numeric(l0))
 lr_ov
 0.5 * pchisq(lr_ov, df = 1, lower.tail = FALSE)
@@ -1216,8 +1218,8 @@ fit_ov_int <- statmod(follicles ~ sin(2 * pi * Time) + cos(2 * pi * Time) +
                       distrib = gaussian1_distrib(), data = Ovary,
                       outer_criterion = ml())
 summary(fit_ov_int)
-c(intercept = logLik(fit_ov_int, type = "marginal"),
-  level = logLik(fit_ov_ml, type = "marginal"))
+c(intercept = logLik(fit_ov_int, loglik_type = "marginal"),
+  level = logLik(fit_ov_ml, loglik_type = "marginal"))
 ```
 
 ```{r}

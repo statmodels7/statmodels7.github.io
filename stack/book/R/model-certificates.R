@@ -11,9 +11,12 @@
 #                standardized to mean zero and sd one, and the interval of
 #                the smoothing parameter is symmetric on the log scale and
 #                positive; hyper() reports the lambda the summary prints;
-#   coef         vcov() is 21 by 21, its block between mu and sigma is
-#                exactly zero and so is the block of the expected information,
-#                the information of the mean is X' diag(1/sigma^2) X; the
+#   coef         vcov() is 21 by 21; under expected_info() its block between mu
+#                and sigma is exactly zero and under the default observed
+#                information it is not, with zero rows (to rounding) for the
+#                unpenalized coefficients; the observed block of the
+#                information is 2 sum (y - mu) x z / sigma^2;
+#                the expected information of the mean is X' diag(1/sigma^2) X; the
 #                confint() rows are the estimate +- qnorm(0.975) se with se the
 #                square root of the diagonal of vcov();
 #   residuals    fitted() is predict(mu); the quantile residuals are
@@ -80,8 +83,13 @@ assert_model_ok <- function(f0, f1, data, claims) {
   V <- stats::vcov(f0)
   if (!identical(dim(V), c(21L, 21L))) fail("the size of vcov()")
   imu <- grep("^mu:", rownames(V)); isg <- grep("^sigma:", rownames(V))
-  if (any(V[imu, isg] != 0)) fail("the zero block of vcov()")
-  H <- -hessian(f1, expected = TRUE)
+  Ve <- stats::vcov(f0, vcov_type = bayesian_vcov(information = expected_info()))
+  if (any(Ve[imu, isg] != 0)) fail("the zero block of vcov() under expected_info()")
+  if (max(abs(V[imu, isg])) < 1e-3) fail("the nonzero block of the default vcov()")
+  if (max(abs(V[c("mu:(Intercept)", "mu:s(times).lin"), isg])) > 1e-10) {
+    fail("the unpenalized rows of the block of the default vcov()")
+  }
+  H <- -hessian(f1, information = expected_info())
   offs <- cumsum(c(0L, vapply(de, function(e) e$npar, integer(1))))
   i_mu <- offs[1] + seq_len(de$mu$npar)
   i_sg <- offs[2] + seq_len(de$sigma$npar)
@@ -89,6 +97,12 @@ assert_model_ok <- function(f0, f1, data, claims) {
     fail("the zero block between the mean and the spread")
   }
   sg1 <- predict(f1, what = "sigma", data)
+  mu1 <- predict(f1, what = "mu", data)
+  Ho <- -hessian(f1, information = observed_info())
+  B <- 2 * crossprod(Xmu * (data$accel - mu1) / sg1^2, as.matrix(de$sigma$X))
+  if (rel(Ho[i_mu, i_sg], B) > 1e-8 || max(abs(B)) < 1e-3) {
+    fail("the observed cross block 2 sum (y - mu) x z / sigma^2")
+  }
   if (rel(H[i_mu, i_mu], crossprod(Xmu, Xmu / sg1^2)) > 1e-8) {
     fail("the weights of the information of the mean")
   }
@@ -164,15 +178,52 @@ assert_model_ok <- function(f0, f1, data, claims) {
       shares[[paste(par, bk)]] <- cols
     }
   }
-  Fm <- solve(H + S, H)
+  # the stored count reads the information that the fit records for it,
+  # which under the default reml() is the observed one
+  He <- -hessian(f1, information = f1@methods$edf_information)
+  if (!S7::S7_inherits(f1@methods$edf_information, distributions7::ObservedInfo)) {
+    fail("the information of the effective degrees of freedom")
+  }
+  Fm <- solve(He + S, He)
   got <- vapply(shares, function(cols) sum(diag(Fm)[cols]), numeric(1))
   ref <- stats::setNames(f1@edf$edf, paste(f1@edf$parameter, f1@edf$term))
   ref <- ref[names(got)]
   if (anyNA(ref) || rel(got, ref) > 1e-8) fail("the effective degrees of freedom")
+  # sigma = sqrt(RSS / (n - tau_mu)) holds when tau_mu is the share of the
+  # mean in the trace of (H + S)^{-1} H with H the EXPECTED information,
+  # because that H has no block between mu and sigma. The shares stored in
+  # f0 come from the observed information and give a value that differs in
+  # the fifth digit, as the chapter states.
   rss <- sum((data$accel - mu0)^2)
   tmu <- sum(f0@edf$edf[f0@edf$parameter == "mu"])
   s0 <- unique(round(sg0, 12))
-  if (length(s0) != 1L || rel(s0, sqrt(rss / (nrow(data) - tmu))) > 1e-5 ||
+  fe <- claims$f0_exp
+  if (!S7::S7_inherits(fe@methods$edf_information, distributions7::ExpectedInfo)) {
+    fail("the information of the effective degrees of freedom of the refit")
+  }
+  tmu_e <- sum(fe@edf$edf[fe@edf$parameter == "mu"])
+  sp0 <- f0@spec; de0 <- statmod_design(sp0)
+  offs0 <- cumsum(c(0L, vapply(de0, function(e) e$npar, integer(1))))
+  H0 <- -hessian(f0, information = expected_info())
+  S0 <- matrix(0, nrow(H0), nrow(H0))
+  for (k in seq_along(de0)) {
+    par <- names(de0)[k]
+    for (bk in names(de0[[k]]$blocks)) {
+      pen <- modelterms7::term_penalty(sp0@terms[[par]][[bk]])
+      cols <- offs0[k] + de0[[k]]$blocks[[bk]]
+      if (!is.null(pen)) {
+        S0[cols, cols] <- as.matrix(penalties7::penalty_hessian(
+          pen, f0@coefficients[[par]][de0[[k]]$blocks[[bk]]],
+          list(lambda = f0@hyper[[par]][[bk]][["lambda"]])))
+      }
+    }
+  }
+  tmu_h <- sum(diag(solve(H0 + S0, H0))[offs0[1] + seq_len(de0$mu$npar)])
+  if (length(s0) != 1L || rel(tmu_e, tmu_h) > 1e-4 ||
+      rel(exp(fe@coefficients$sigma[[1]]), s0) > 1e-8 ||
+      rel(s0, sqrt(rss / (nrow(data) - tmu_h))) > 1e-8 ||
+      rel(s0, sqrt(rss / (nrow(data) - tmu_e))) > 1e-8 ||
+      !(rel(s0, sqrt(rss / (nrow(data) - tmu))) > 1e-6) ||
       !(s0 > sqrt(rss / nrow(data)))) fail("the constant scale")
 
   # --- certificate -------------------------------------------------------------

@@ -229,13 +229,49 @@ keep <- c("mu:(Intercept)", "mu:s(times).lin", "sigma:(Intercept)")
 V[keep, keep]
 ```
 
-The covariances between the coefficients of `mu` and the coefficient of
-`sigma` are exactly zero. For the gaussian distribution the mean and the
-standard deviation carry separate information, so the block of the Fisher
-information that connects the two equations is zero, and so is the
-corresponding block of the variance matrix. The covariance between the
-intercept of `mu` and the linear part of the smooth is zero up to rounding,
-because the linear column has mean zero.
+The covariances between the intercept of `sigma` and the two unpenalized
+coefficients of `mu` are zero up to rounding. To see why, and what happens
+to the other coefficients, we write the log-likelihood of observation $i$
+as $\ell_i = -\log\sigma_i - (y_i - \mu_i)^2 / (2\sigma_i^2)$ plus a
+constant, with $\mu_i = x_i^\top \beta$ and $\log\sigma_i = z_i^\top
+\gamma$. Here $y_i$ is the response, $x_i$ and $z_i$ are the rows of the
+design matrices of the two equations (the smooth included), and $\beta$ and
+$\gamma$ are their coefficient vectors. The derivative of $\ell_i$ with
+respect to $\beta$ is $(y_i - \mu_i) x_i / \sigma_i^2$, and differentiating
+it with respect to $\gamma$ through $\log\sigma_i$ gives the cross
+derivative
+$$
+\frac{\partial^2 \ell_i}{\partial \beta \, \partial \gamma^\top}
+= -\frac{2 (y_i - \mu_i)}{\sigma_i^2} \, x_i z_i^\top .
+$$
+The expectation of $y_i - \mu_i$ is zero, so the block of the expected
+(Fisher) information that connects the two equations is exactly zero: the
+mean and the standard deviation of the gaussian distribution are orthogonal
+parameters. In the observed information of a sample the block is
+$\sum_i 2 (y_i - \mu_i) x_i z_i^\top / \sigma_i^2$, which is not zero in
+general because the residuals of a sample are not centered against every
+column. The penalized score equation of $\beta$ sets $\sum_i (y_i - \mu_i)
+x_i / \sigma_i^2$ equal to the gradient of the penalty, which is zero for an
+unpenalized column. Since `fit0` has a constant $\sigma$, so that $z_i = 1$,
+the block vanishes for the intercept and for the linear part of the smooth,
+and it does not vanish for the penalized coefficients.
+
+The standard errors use the observed information by default. We choose the
+expected information with `vcov_type = bayesian_vcov(information =
+expected_info())`. We print the rows and columns of the two intercepts and
+of the seventh penalized coefficient of the smooth under each:
+
+```{r}
+#| label: vcov-information
+nz <- c("mu:(Intercept)", "mu:s(times).z7", "sigma:(Intercept)")
+V_exp <- vcov(fit0, vcov_type = bayesian_vcov(information = expected_info()))
+V_exp[nz, nz]
+V[nz, nz]
+```
+
+The first matrix has the zero block. The second, which is the default, has
+a covariance between `mu:s(times).z7` and `sigma:(Intercept)` equal to
+`r signif(V["mu:s(times).z7", "sigma:(Intercept)"], 3)`.
 
 The function `confint()` returns a data frame with one row for each
 coefficient: the estimate, the standard error and the two ends of a 95%
@@ -559,8 +595,9 @@ ggplot(res01, aes(x = times, y = r)) +
 A penalized coefficient does not count as a whole parameter, because the
 penalty limits how far it can move. So we need another way to count the
 parameters of a penalized fit. Let $\tilde\beta$ be the estimate without the
-penalty, let $H$ be the Fisher information of the coefficients at the fit,
-and let $S$ be the matrix of second derivatives of the penalty. One Newton
+penalty, let $H$ be the information matrix of the coefficients at the fit
+(the observed information here, because REML reads it by default), and let
+$S$ be the matrix of second derivatives of the penalty. One Newton
 step from $\tilde\beta$ towards the penalized estimate gives
 $$
 \hat\beta = (H+S)^{-1} H \tilde\beta .
@@ -629,21 +666,40 @@ goes down from `r fmt(AIC(fit0), 1)` to `r fmt(AIC(fit1), 1)` and cBIC from
 second model is better.
 
 The effective degrees of freedom also give the estimate of $\sigma$ in the
-first model. REML estimates $\sigma$ as $\sqrt{\mathrm{RSS}/(n - \tau_\mu)}$,
-where RSS is the residual sum of squares and $\tau_\mu$ is the effective
-degrees of freedom of the equation of the mean. This is the value that
-`lme()` and `mgcv` report. The maximum likelihood estimate
-$\sqrt{\mathrm{RSS}/n}$ is smaller, because the residuals of a fitted mean
-are smaller than the errors:
+first model. When $H$ is the expected information, REML estimates $\sigma$ as
+$\sqrt{\mathrm{RSS}/(n - \tau_\mu)}$, where RSS is the residual sum of squares
+and $\tau_\mu$ is the effective degrees of freedom of the equation of the
+mean. This is the value that `lme()` and `mgcv` report. The expected
+information has a zero block between the two equations, so the share of the
+mean in the trace of $F$ depends only on $X^\top W X$. The observed
+information has the nonzero block of @sec-model-coef, which changes the
+trace. The slot `edf` of `fit0` holds the shares from the observed
+information, and with them the formula no longer returns $\hat\sigma$ exactly.
+We obtain the shares of the expected information by fitting the model again
+with `outer_criterion = reml(information = expected_info())`, an argument
+that @sec-beyond-outer explains. This fit has the same estimate of $\sigma$:
 
 ```{r}
 #| label: sigma-reml
+fit0_exp <- statmod(accel ~ s(times, bspline_smooth(k = 20)),
+                    distrib = gaussian1_distrib(), data = mcycle,
+                    outer_criterion = reml(information = expected_info()))
 rss <- sum((mcycle$accel - fitted(fit0))^2)
-tau_mu <- sum(fit0@edf$edf[fit0@edf$parameter == "mu"])
-sqrt(rss / (nrow(mcycle) - tau_mu))
-sqrt(rss / nrow(mcycle))
+tau_obs <- sum(fit0@edf$edf[fit0@edf$parameter == "mu"])
+tau_exp <- sum(fit0_exp@edf$edf[fit0_exp@edf$parameter == "mu"])
+c(observed = tau_obs, expected = tau_exp)
+sqrt(rss / (nrow(mcycle) - c(observed = tau_obs, expected = tau_exp)))
 s0
 ```
+
+The degrees of freedom are `r fmt(tau_obs, 3)` under the observed information
+and `r fmt(tau_exp, 3)` under the expected one. The formula returns
+`r fmt(sqrt(rss / (nrow(mcycle) - tau_obs)), 3)` with the first and
+`r fmt(sqrt(rss / (nrow(mcycle) - tau_exp)), 3)` with the second, and the
+second is the estimate `r fmt(s0, 3)` of the fit. The maximum likelihood
+estimate $\sqrt{\mathrm{RSS}/n}$ is `r fmt(sqrt(rss / nrow(mcycle)), 3)`,
+which is smaller because the residuals of a fitted mean are smaller than the
+errors.
 
 ## Did the fit converge? {#sec-model-certificate}
 
@@ -766,5 +822,6 @@ their spread changes with time in the same way.
 #| include: false
 assert_model_ok(fit0, fit1, mcycle,
                 claims = list(ci0 = ci0, keep = keep, p0 = p0, grid = grid,
+                              f0_exp = fit0_exp,
                               new = new, sim = sim, sims = sims))
 ```

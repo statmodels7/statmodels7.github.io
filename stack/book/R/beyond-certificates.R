@@ -23,7 +23,7 @@
 #                is U' I^{-1} U with U by numDeriv on the gaussian log-likelihood
 #                at the restricted ML fit and I the expected information there;
 #                the gradient statistic is U_K (K_hat - 0.05); none rejects at
-#                5%; the column r of summary(test = "lr") is the signed root;
+#                5%; the column r of summary(test = lr_test()) is the signed root;
 #   invert       at the ends of the likelihood ratio interval the ML profile,
 #                computed with lm() at K held, is the chi-squared quantile; the
 #                Wald interval is symmetric and the likelihood ratio one is not;
@@ -70,7 +70,7 @@ assert_beyond_ok <- function(fits, ref, data, claims) {
   f1 <- fits$fit1
   sp <- f1@spec
   de <- statmod_design(sp)
-  H <- -hessian(f1, expected = TRUE)
+  H <- -hessian(f1, information = expected_info())
   offs <- cumsum(c(0L, vapply(de, function(e) e$npar, integer(1))))
   S <- matrix(0, nrow(H), nrow(H))
   nm <- character(0)
@@ -89,15 +89,27 @@ assert_beyond_ok <- function(fits, ref, data, claims) {
   Vb <- solve(H + S)
   Vf <- Vb %*% H %*% Vb
   dimnames(Vb) <- dimnames(Vf) <- list(nm, nm)
-  vb <- stats::vcov(f1, type = "bayesian")
-  vf <- stats::vcov(f1, type = "frequentist")
-  vu <- stats::vcov(f1, type = "unconditional")
+  vb <- stats::vcov(f1, vcov_type = bayesian_vcov(
+    information = expected_info()))
+  vf <- stats::vcov(f1, vcov_type = frequentist_vcov(
+    information = expected_info()))
+  vu <- stats::vcov(f1, vcov_type = unconditional_vcov(
+    information = expected_info()))
   if (rel(vb[nm, nm], Vb) > 1e-6) fail("the Bayesian variance")
   if (rel(vf[nm, nm], Vf) > 1e-6) fail("the frequentist variance")
   imu <- grep("^mu:", nm); isg <- grep("^sigma:", nm)
   if (any(vb[nm[imu], nm[isg]] != 0) || any(vf[nm[imu], nm[isg]] != 0) ||
       all(vu[nm[imu], nm[isg]] == 0)) {
     fail("the mu-sigma block of the three variances")
+  }
+  blk <- function(v) max(abs(v[nm[imu], nm[isg]]))
+  if (blk(stats::vcov(f1, vcov_type = bayesian_vcov())[nm, nm]) < 1e-3 ||
+      blk(stats::vcov(f1, vcov_type = frequentist_vcov())[nm, nm]) < 1e-3 ||
+      blk(stats::vcov(f1, vcov_type = unconditional_vcov())[nm, nm]) < 1e-3) {
+    fail("the nonzero mu-sigma block of the default variances")
+  }
+  if (!identical(c(blk(vb), blk(vf)), c(0, 0)) || !(blk(vu) > 0)) {
+    fail("the block values printed under the expected information")
   }
   ev <- eigen(vu - vb, symmetric = TRUE, only.values = TRUE)$values
   if (min(ev) < -1e-8 * max(abs(ev), 1)) fail("the unconditional variance")
@@ -131,7 +143,7 @@ assert_beyond_ok <- function(fits, ref, data, claims) {
     fail("the standard deviations and the correlation of Orthodont")
   }
   if (rel(exp(r1@coefficients$sigma), l1$sigma) > 1e-5) fail("sigma of Orthodont")
-  lm_ <- logLik(r1, type = "marginal")
+  lm_ <- logLik(r1, loglik_type = "marginal")
   if (rel(as.numeric(lm_), as.numeric(stats::logLik(l1))) > 1e-6 ||
       attr(lm_, "df") != 6) {
     fail("the marginal log-likelihood of Orthodont")
@@ -179,13 +191,13 @@ assert_beyond_ok <- function(fits, ref, data, claims) {
   if (!all(vapply(tests, function(t) t@p.value > 0.05, logical(1)))) {
     fail("the four p-values")
   }
-  sl <- summary(fits$puro, test = "lr")@tables$mu[[1]]$table
+  sl <- summary(fits$puro, test = lr_test())@tables$mu[[1]]$table
   t0 <- statmod_test(fits$puro, param = "mu", coefname = "nl.K", value = 0,
-                     test = "lr")
+                     test = lr_test())
   rK <- sl[grepl("nl.K", sl$name), ]
   sc <- setdiff(names(rK), c("name", "estimate", "se", "p_value", "lower", "upper"))
   if (!length(sc) || abs(abs(as.numeric(rK[[sc[1]]])) - sqrt(t0@statistic)) > 1e-6) {
-    fail("the signed root of summary(test = \"lr\")")
+    fail("the signed root of summary(test = lr_test())")
   }
 
   # --- invert -------------------------------------------------------------------
@@ -223,8 +235,8 @@ assert_beyond_ok <- function(fits, ref, data, claims) {
   # --- lr ----------------------------------------------------------------------
   an <- stats::anova(ref$lme1_ml, ref$lme2_ml)
   if (abs(claims$lr - an$L.Ratio[2]) > 1e-4) fail("the likelihood ratio for Sex")
-  dreml <- 2 * (as.numeric(logLik(fits$reml2, type = "marginal")) -
-                  as.numeric(logLik(fits$reml1, type = "marginal")))
+  dreml <- 2 * (as.numeric(logLik(fits$reml2, loglik_type = "marginal")) -
+                  as.numeric(logLik(fits$reml1, loglik_type = "marginal")))
   if (abs(dreml - claims$lr) < 0.1) fail("the REML difference")
   if (!(claims$t_sex@statistic > claims$lr)) fail("the test on Sex")
   sd_int <- function(m) as.numeric(nlme::VarCorr(m)[1, "StdDev"])
@@ -280,10 +292,43 @@ assert_beyond_ok <- function(fits, ref, data, claims) {
   s_of <- function(f) exp(f@coefficients$sigma[[1]])
   rss_of <- function(f) sum((mc$accel - stats::fitted(f))^2)
   tmu_of <- function(f) sum(f@edf$edf[f@edf$parameter == "mu"])
+  # the share of the mean in tr[(H + S)^{-1} H] with H the EXPECTED information,
+  # assembled here from the penalties; sigma = sqrt(RSS / (n - tau_mu)) holds
+  # for that share and not for the one stored under the observed information
+  tmu_exp <- function(f) {
+    sp <- f@spec; dd <- statmod_design(sp)
+    of <- cumsum(c(0L, vapply(dd, function(e) e$npar, integer(1))))
+    H <- -hessian(f, information = expected_info())
+    S <- matrix(0, nrow(H), nrow(H))
+    for (k in seq_along(dd)) {
+      par <- names(dd)[k]
+      for (bk in names(dd[[k]]$blocks)) {
+        pen <- modelterms7::term_penalty(sp@terms[[par]][[bk]])
+        cols <- of[k] + dd[[k]]$blocks[[bk]]
+        if (!is.null(pen)) {
+          S[cols, cols] <- as.matrix(penalties7::penalty_hessian(
+            pen, f@coefficients[[par]][dd[[k]]$blocks[[bk]]],
+            list(lambda = f@hyper[[par]][[bk]][["lambda"]])))
+        }
+      }
+    }
+    sum(diag(solve(H + S, H))[of[1] + seq_len(dd$mu$npar)])
+  }
   f0 <- fits$fit0; fn <- fits$fit0_none; fm <- fits$fit0_ml; fh <- fits$fit0_held
-  if (rel(s_of(f0), sqrt(rss_of(f0) / (n - tmu_of(f0)))) > 1e-5 ||
-      rel(s_of(fm), sqrt(rss_of(fm) / (n - tmu_of(fm) + 2))) > 1e-5 ||
-      rel(s_of(fn), sqrt(rss_of(fn) / n)) > 1e-6) {
+  f0e <- fits$fit0_e; fme <- fits$fit0_ml_e
+  for (fe in list(f0e, fme)) {
+    if (!S7::S7_inherits(fe@methods$edf_information, distributions7::ExpectedInfo)) {
+      fail("the information of the effective degrees of freedom of the refits")
+    }
+  }
+  if (rel(s_of(f0e), s_of(f0)) > 1e-8 || rel(s_of(fme), s_of(fm)) > 1e-8 ||
+      rel(tmu_of(f0e), tmu_exp(f0)) > 1e-4 || rel(tmu_of(fme), tmu_exp(fm)) > 1e-4) {
+    fail("the refits under the expected information")
+  }
+  if (rel(s_of(f0), sqrt(rss_of(f0) / (n - tmu_exp(f0)))) > 1e-8 ||
+      rel(s_of(fm), sqrt(rss_of(fm) / (n - tmu_exp(fm) + 2))) > 1e-8 ||
+      rel(s_of(fn), sqrt(rss_of(fn) / n)) > 1e-6 ||
+      !(rel(s_of(f0), sqrt(rss_of(f0) / (n - tmu_of(f0)))) > 1e-6)) {
     fail("the three estimates of sigma")
   }
   if (!(s_of(fn) < s_of(fm) && s_of(fm) < s_of(f0))) fail("the order of the three sigmas")
@@ -292,7 +337,7 @@ assert_beyond_ok <- function(fits, ref, data, claims) {
   hh <- hyper(fh)
   if (!isTRUE(hh$held) || hh$source != "fixed" || hh$estimate != 1e-3 ||
       !(fh@edf$edf[2] < f0@edf$edf[2]) ||
-      rel(s_of(fh), sqrt(rss_of(fh) / (n - tmu_of(fh)))) > 1e-5) {
+      rel(s_of(fh), sqrt(rss_of(fh) / (n - tmu_exp(fh)))) > 1e-8) {
     fail("the held smoothing parameter")
   }
 

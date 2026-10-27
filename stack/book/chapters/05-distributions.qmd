@@ -7,6 +7,7 @@ source("R/_setup.R")
 source("R/families-certificates.R")
 chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"
 fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
 ```
 
 In the previous chapters the distribution of the response was gaussian,
@@ -98,12 +99,33 @@ cmp_ht
 c(statmod_ml = as.numeric(logLik(fit_ht_ml)), gamlss = as.numeric(logLik(gl_ht)))
 ```
 
-The two sets of estimates agree to five digits, and the log-likelihoods agree
-to the printed digits. With the default stopping rule of `gamlss` the
-agreement is about three digits, because that rule stops the iteration before
-the maximum. The fits with `outer_criterion = NULL` and with
-`ml(marginal = "none")` give the same estimates to about five digits, since
-there is nothing to integrate out.
+```{r}
+#| label: heavy-digits
+#| include: false
+gl_ht0 <- gamlss::gamlss(GAG ~ Age, sigma.formula = ~ Age,
+                         family = gamlss.dist::TF, data = GAGurine,
+                         trace = FALSE)
+fit_ht_null <- statmod(GAG ~ Age | sigma ~ Age, distrib = student_t1_distrib(),
+                       data = GAGurine, outer_criterion = NULL)
+fit_ht_none <- statmod(GAG ~ Age | sigma ~ Age, distrib = student_t1_distrib(),
+                       data = GAGurine, outer_criterion = ml(marginal = "none"))
+sm_vec <- function(f) unlist(coef(f)[c("mu", "sigma", "nu")], use.names = FALSE)
+gl_vec <- function(g) c(coef(g, what = "mu"), coef(g, what = "sigma"),
+                        coef(g, what = "nu"))
+digits <- function(a, b) floor(-log10(max(abs(a / b - 1))))
+dig_gl <- digits(sm_vec(fit_ht_ml), gl_vec(gl_ht))
+dig_gl0 <- digits(sm_vec(fit_ht_ml), gl_vec(gl_ht0))
+rel_none <- max(abs(sm_vec(fit_ht_null) / sm_vec(fit_ht_none) - 1))
+diff_ll <- abs(as.numeric(logLik(fit_ht_ml)) - as.numeric(logLik(gl_ht)))
+```
+
+The two sets of estimates agree to `r dig_gl` significant digits, and the
+log-likelihoods differ by `r format(signif(diff_ll, 2), scientific = FALSE)`.
+With the default stopping rule of `gamlss` the agreement is `r dig_gl0` digits,
+because that rule stops the iteration before the maximum. The fits with
+`outer_criterion = NULL` and with `ml(marginal = "none")` give
+estimates whose largest relative difference is
+`r format(signif(rel_none, 1), scientific = FALSE)`, since there is nothing to integrate out.
 
 @fig-heavy shows the two fitted models. The band of each model runs from the
 5% to the 95% quantile of the fitted distribution at each age, so it should
@@ -177,7 +199,7 @@ age:
 
 ```{r}
 #| label: fit-heavy-nu
-crit_e <- reml(hessian = "expected")
+crit_e <- reml(information = expected_info())
 fit_ht0 <- statmod(GAG ~ Age | sigma ~ Age, distrib = student_t1_distrib(),
                    data = GAGurine, outer_criterion = crit_e)
 summary(fit_ht0)
@@ -187,7 +209,7 @@ fit_ht1 <- statmod(GAG ~ Age | sigma ~ Age | nu ~ Age,
 summary(fit_ht1)
 ```
 
-The criterion of these two fits is `reml(hessian = "expected")`. The default
+The criterion of these two fits is `reml(information = expected_info())`. The default
 REML criterion evaluates the curvature of the log-likelihood with the observed
 information, and for a $t$ distribution with small $\nu$ the observed
 information of the mean is not positive at the observations far from the
@@ -206,8 +228,8 @@ they use the same criterion:
 
 ```{r}
 #| label: heavy-nu-lr
-l0_ht <- logLik(fit_ht0, type = "marginal")
-l1_ht <- logLik(fit_ht1, type = "marginal")
+l0_ht <- logLik(fit_ht0, loglik_type = "marginal")
+l1_ht <- logLik(fit_ht1, loglik_type = "marginal")
 lr_ht <- 2 * (as.numeric(l1_ht) - as.numeric(l0_ht))
 lr_ht
 pchisq(lr_ht, df = 1, lower.tail = FALSE)
@@ -310,9 +332,9 @@ fit_ss <- statmod(Price ~ Horsepower, distrib = skewnormal2_distrib(),
 summary(fit_ss)
 rbind(direct = c(slope = coef(fit_sn1)$mu[["Horsepower"]],
                  logLik = as.numeric(logLik(fit_sn1)),
-                 marginal = as.numeric(logLik(fit_sn1, type = "marginal"))),
+                 marginal = as.numeric(logLik(fit_sn1, loglik_type = "marginal"))),
       centered = c(coef(fit_ss)$mu[["Horsepower"]], as.numeric(logLik(fit_ss)),
-                  as.numeric(logLik(fit_ss, type = "marginal"))))
+                  as.numeric(logLik(fit_ss, loglik_type = "marginal"))))
 ```
 
 The slopes and the log-likelihoods agree. The intercepts differ, because the
@@ -501,13 +523,22 @@ phi_table <- data.frame(
              as.numeric(logLik(tmb_be)), as.numeric(logLik(fit_b0))),
   row.names = c("statmod, ml()", "gamlss BE", "glmmTMB", "statmod, default"))
 phi_table
-rbind(statmod_ml = coef(fit_b0_ml)$mu, gamlss = coef(gl_be, what = "mu"),
-      glmmTMB = glmmTMB::fixef(tmb_be)$cond)
+coef_be <- rbind(statmod_ml = coef(fit_b0_ml)$mu, gamlss = coef(gl_be, what = "mu"),
+                 glmmTMB = glmmTMB::fixef(tmb_be)$cond)
+coef_be
 ```
 
-The three packages give the same coefficients and the same precision to three
-digits, and the same log-likelihood. The default criterion of `statmod()` gives a precision that is
-about two percent smaller, because it integrates the two coefficients of the
+```{r}
+#| label: beta-numbers
+#| include: false
+digits_phi <- floor(-log10(max(abs(phi_table$phi[2:3] / phi_table$phi[1] - 1),
+                                   abs(sweep(coef_be[2:3, ], 2, coef_be[1, ], "/") - 1))))
+```
+
+The three packages give the same coefficients and the same precision to
+`r digits_phi` significant digits, and the same log-likelihood. The default
+criterion of `statmod()` gives a precision that is `r pct(1 - phi_table$phi[4] / phi_table$phi[1])`
+smaller, because it integrates the two coefficients of the
 mean out of the likelihood, as it did for the gamma distribution in
 @sec-glm-positive.
 
@@ -521,8 +552,8 @@ the likelihood ratio of the marginal log-likelihoods:
 fit_b1 <- statmod(agr ~ Education | phi ~ Education, distrib = beta1_distrib(),
                   data = swiss_p)
 summary(fit_b1)
-l0_b <- logLik(fit_b0, type = "marginal")
-l1_b <- logLik(fit_b1, type = "marginal")
+l0_b <- logLik(fit_b0, loglik_type = "marginal")
+l1_b <- logLik(fit_b1, loglik_type = "marginal")
 lr_b <- 2 * (as.numeric(l1_b) - as.numeric(l0_b))
 lr_b
 pchisq(lr_b, df = 1, lower.tail = FALSE)
@@ -851,13 +882,16 @@ d_fixed@params
 fit_fx <- statmod(fq, distrib = d_fixed, data = quine, outer_criterion = ml())
 summary(fit_fx)
 glm_fx <- glm(fq, family = MASS::negative.binomial(theta = 1.5), data = quine)
-rbind(statmod = coef(fit_fx)$mu, glm = coef(glm_fx))
-c(statmod = as.numeric(logLik(fit_fx)), glm = as.numeric(logLik(glm_fx)))
+cmp_fx <- rbind(statmod = coef(fit_fx)$mu, glm = coef(glm_fx))
+cmp_fx
+ll_fx <- c(statmod = as.numeric(logLik(fit_fx)), glm = as.numeric(logLik(glm_fx)))
+ll_fx
+digits_fx <- floor(-log10(max(abs(cmp_fx[1, ] / cmp_fx[2, ] - 1))))
 ```
 
-The distribution has the parameter `mu` only. The coefficients agree to about
-four digits, which is the precision of the iteration of `glm()`, and the
-log-likelihoods agree to the printed digits. The same wrapper applies to any family: the equation for
+The distribution has the parameter `mu` only. The coefficients agree to
+`r digits_fx` significant digits, which is the precision of the iteration of `glm()`, and the
+log-likelihoods differ by `r format(signif(abs(ll_fx[[1]] - ll_fx[[2]]), 2), scientific = FALSE)`. The same wrapper applies to any family: the equation for
 `nu` of a Student $t$ model is replaced by a known degrees of freedom with
 `fixed(student_t1_distrib(), nu = 4)`.
 

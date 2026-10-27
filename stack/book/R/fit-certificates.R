@@ -103,8 +103,10 @@
   # estimate without moving the objective, and it is the objective that the
   # methods are all maximizing.
   ll <- c(fisher = fit@loglik)
-  for (m in c("newton", "bfgs")) {
-    alt <- tryCatch(fit_distrib(d, y, method = m), error = function(e) NULL)
+  methods <- list(newton = optimizers7::newton(), bfgs = optimizers7::bfgs())
+  for (m in names(methods)) {
+    alt <- tryCatch(fit_distrib(d, y, method = methods[[m]]),
+                    error = function(e) NULL)
     if (!is.null(alt) && alt@converged) ll[m] <- alt@loglik
   }
   if (length(ll) > 1 && diff(range(ll)) > 1e-4 * (abs(ll[[1]]) + 1)) {

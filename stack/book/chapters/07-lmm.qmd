@@ -7,6 +7,7 @@ source("R/_setup.R")
 source("R/lmm-certificates.R")
 chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
 fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
 dec <- function(x, s = 3) format(signif(x, s), scientific = FALSE, big.mark = ",")
 ```
 
@@ -66,7 +67,7 @@ lme_ri <- nlme::lme(distance ~ I(age - 11) + Sex, random = ~ 1 | Subject,
 nlme::fixef(lme_ri)
 nlme::VarCorr(lme_ri)
 logLik(lme_ri)
-logLik(fit_ri, type = "marginal")
+logLik(fit_ri, loglik_type = "marginal")
 ```
 
 The fixed effects, the two standard deviations and the restricted
@@ -127,9 +128,10 @@ lme_rs <- nlme::lme(distance ~ I(age - 11) + Sex, random = ~ 1 | Subject,
                     weights = nlme::varIdent(form = ~ 1 | Sex),
                     data = Orthodont)
 ratio <- coef(lme_rs$modelStruct$varStruct, unconstrained = FALSE)
-c(Male = lme_rs$sigma, Female = lme_rs$sigma * ratio[["Female"]])
+sd_sex <- c(Male = lme_rs$sigma, Female = lme_rs$sigma * ratio[["Female"]])
+sd_sex
 logLik(lme_rs)
-logLik(fit_rs, type = "marginal")
+logLik(fit_rs, loglik_type = "marginal")
 ```
 
 The two models have the same fixed effects, so we can compare them with their
@@ -137,14 +139,15 @@ restricted log-likelihoods (@sec-beyond-lr):
 
 ```{r}
 #| label: lr-ri-sigma
-l0 <- logLik(fit_ri, type = "marginal")
-l1 <- logLik(fit_rs, type = "marginal")
+l0 <- logLik(fit_ri, loglik_type = "marginal")
+l1 <- logLik(fit_rs, loglik_type = "marginal")
 lr_sex <- 2 * (as.numeric(l1) - as.numeric(l0))
 lr_sex
 pchisq(lr_sex, df = 1, lower.tail = FALSE)
 ```
 
-The girls have a residual standard deviation less than half that of the boys,
+The girls have a residual standard deviation of `r fmt(sd_sex[["Female"]], 2)`
+against `r fmt(sd_sex[["Male"]], 2)` for the boys, a ratio of `r fmt(sd_sex[["Female"]] / sd_sex[["Male"]], 2)`,
 and the test rejects a common value.
 
 ## A random slope {#sec-lmm-slope}
@@ -180,7 +183,7 @@ param_value(log_cholesky(2), eta = hyper(fit_sc)$estimate)
 lmer_sc <- lme4::lmer(Reaction ~ Days + (Days | Subject), data = sleepstudy)
 lme4::VarCorr(lmer_sc)$Subject[, ]
 logLik(lmer_sc)
-logLik(fit_sc, type = "marginal")
+logLik(fit_sc, loglik_type = "marginal")
 ```
 
 The two covariance matrices and the two restricted log-likelihoods are the
@@ -200,7 +203,7 @@ fit_su <- statmod(Reaction ~ Days + random(~ Days | Subject,
 summary(fit_su)
 lmer_su <- lme4::lmer(Reaction ~ Days + (Days || Subject), data = sleepstudy)
 lme4::VarCorr(lmer_su)
-logLik(fit_su, type = "marginal")
+logLik(fit_su, loglik_type = "marginal")
 ```
 
 The block of the random effects has one hyperparameter for each effect:
@@ -212,8 +215,8 @@ restricted log-likelihoods tests the correlation:
 
 ```{r}
 #| label: lr-uncor
-lr_cor <- 2 * (as.numeric(logLik(fit_sc, type = "marginal")) -
-                 as.numeric(logLik(fit_su, type = "marginal")))
+lr_cor <- 2 * (as.numeric(logLik(fit_sc, loglik_type = "marginal")) -
+                 as.numeric(logLik(fit_su, loglik_type = "marginal")))
 lr_cor
 pchisq(lr_cor, df = 1, lower.tail = FALSE)
 ```
@@ -293,7 +296,7 @@ the same fit as singular:
 lmer_bd <- lme4::lmer(y ~ t + (t | id), data = bd)
 lme4::isSingular(lmer_bd)
 logLik(lmer_bd)
-logLik(fit_bd, type = "marginal")
+logLik(fit_bd, loglik_type = "marginal")
 ```
 
 The model with a random intercept alone has almost the same restricted
@@ -303,8 +306,8 @@ log-likelihood:
 #| label: lr-boundary
 fit_bd0 <- statmod(y ~ t + random(~ 1 | id), distrib = gaussian1_distrib(),
                    data = bd)
-lr_bd <- 2 * (as.numeric(logLik(fit_bd, type = "marginal")) -
-                as.numeric(logLik(fit_bd0, type = "marginal")))
+lr_bd <- 2 * (as.numeric(logLik(fit_bd, loglik_type = "marginal")) -
+                as.numeric(logLik(fit_bd0, loglik_type = "marginal")))
 lr_bd
 ```
 
@@ -415,9 +418,9 @@ lme_dg <- nlme::lme(score ~ Machine,
                     data = Machines)
 data.frame(
   structure = c("unstructured", "compound symmetry", "diagonal"),
-  statmod = c(logLik(fit_un, type = "marginal"),
-              logLik(fit_cs, type = "marginal"),
-              logLik(fit_dg, type = "marginal")),
+  statmod = c(logLik(fit_un, loglik_type = "marginal"),
+              logLik(fit_cs, loglik_type = "marginal"),
+              logLik(fit_dg, loglik_type = "marginal")),
   lme = c(logLik(lme_un), logLik(lme_cs), logLik(lme_dg)))
 ```
 
@@ -428,9 +431,9 @@ structures with the unstructured one:
 
 ```{r}
 #| label: lr-structures
-l_un <- as.numeric(logLik(fit_un, type = "marginal"))
-l_cs <- as.numeric(logLik(fit_cs, type = "marginal"))
-l_dg <- as.numeric(logLik(fit_dg, type = "marginal"))
+l_un <- as.numeric(logLik(fit_un, loglik_type = "marginal"))
+l_cs <- as.numeric(logLik(fit_cs, loglik_type = "marginal"))
+l_dg <- as.numeric(logLik(fit_dg, loglik_type = "marginal"))
 lr_cs <- 2 * (l_un - l_cs)
 lr_dg <- 2 * (l_un - l_dg)
 pchisq(lr_cs, df = 4, lower.tail = FALSE)
@@ -464,7 +467,7 @@ c(cvar_A = 1 / Om[1, 1], var_A = S_pr[1, 1], pcor_AC = pc_ac,
 ```
 
 The fixed effects are those of `fit_un`, and so is the restricted
-log-likelihood (`r fmt(as.numeric(logLik(fit_pr, type = "marginal")), 4)`).
+log-likelihood (`r fmt(as.numeric(logLik(fit_pr, loglik_type = "marginal")), 4)`).
 The summary reports the quantities that the precision matrix
 $\Omega = \Sigma_b^{-1}$ gives directly, and not the standard deviations and
 correlations of `fit_un`, which we compute from $\Sigma_b = \Omega^{-1}$ when
@@ -560,7 +563,7 @@ tmb_ar <- glmmTMB::glmmTMB(y ~ time + ar1(0 + time_g | id), data = ar,
                            REML = TRUE)
 glmmTMB::VarCorr(tmb_ar)
 logLik(tmb_ar)
-logLik(fit_ar, type = "marginal")
+logLik(fit_ar, loglik_type = "marginal")
 ```
 
 The two fits are the same.
@@ -602,7 +605,7 @@ lme_ne <- nlme::lme(score ~ Machine, random = ~ 1 | Worker / Machine,
                     data = Machines)
 nlme::VarCorr(lme_ne)
 logLik(lme_ne)
-logLik(fit_ne, type = "marginal")
+logLik(fit_ne, loglik_type = "marginal")
 ```
 
 The nested model is the compound symmetry model of @sec-lmm-structures in
@@ -658,7 +661,7 @@ lmer_cr <- lme4::lmer(diameter ~ (1 | plate) + (1 | sample),
                       data = Penicillin)
 lme4::VarCorr(lmer_cr)
 logLik(lmer_cr)
-logLik(fit_cr, type = "marginal")
+logLik(fit_cr, loglik_type = "marginal")
 ```
 
 The standard deviations and the restricted log-likelihood are those of
@@ -679,7 +682,7 @@ fit_ds <- statmod(distance ~ I(age - 11) + Sex + random(~ 1 | Subject) |
                     sigma ~ random(~ 1 | Subject),
                   distrib = gaussian1_distrib(), data = Orthodont)
 summary(fit_ds)
-logLik(fit_ds, type = "marginal")
+logLik(fit_ds, loglik_type = "marginal")
 ```
 
 The equation of `sigma` now has its own block of 27 random intercepts, one
@@ -740,8 +743,8 @@ log-likelihoods:
 
 ```{r}
 #| label: lr-shared
-lr_sh <- 2 * (as.numeric(logLik(fit_sh, type = "marginal")) -
-                as.numeric(logLik(fit_ds, type = "marginal")))
+lr_sh <- 2 * (as.numeric(logLik(fit_sh, loglik_type = "marginal")) -
+                as.numeric(logLik(fit_ds, loglik_type = "marginal")))
 lr_sh
 pchisq(lr_sh, df = 1, lower.tail = FALSE)
 ```
@@ -1221,13 +1224,14 @@ $z^\top\Sigma_b z = \tau_0^2 + 2d\,\tau_{01} + d^2\tau_1^2$, so the group
 interval widens with the days.
 
 **How the estimation enters a prediction interval.** The argument
-`predictive` chooses how the third source enters `interval = "prediction"`:
+`predictive` of `prediction_interval()` chooses how the third source enters
+the interval:
 
 | `predictive` | what it does with the estimates | cost |
 |---|---|---|
-| `"plugin"` | holds them at their values, so the estimation error is ignored | none |
-| `"averaged"` (default) | averages over their approximate sampling distribution, $\mathrm{N}(\hat\theta, \widehat{V})$ with $\widehat{V}$ from `vcov()` | none |
-| `"bootstrap"` | simulates `n_boot` data sets from the fit, refits the model on each, and averages over the refits | one fit per data set |
+| `pred_plugin()` | holds them at their values, so the estimation error is ignored | none |
+| `pred_averaged()` (default) | averages over their approximate sampling distribution, $\mathrm{N}(\hat\theta, \widehat{V})$ with $\widehat{V}$ from `vcov()` | none |
+| `pred_bootstrap()` | simulates `n` data sets from the fit, refits the model on each, and averages over the refits | one fit per data set |
 
 The averaged interval is a normal approximation of the bootstrap one
 [@harris1989]. Both are frequentist: what they average over is the estimate
@@ -1247,9 +1251,9 @@ The term $\mathrm{se}_0^2$ has the same origin: it is the error in
 $x^\top\hat\beta$. The plug-in interval leaves out both terms.
 
 **The bootstrap in detail.** Two choices define it. The argument
-`boot_refit` says what is estimated again on each simulated data set:
+`refit` of `pred_bootstrap()` says what is estimated again on each simulated data set:
 
-| `boot_refit` | estimated again | held at the fit's values |
+| `refit` | estimated again | held at the fit's values |
 |---|---|---|
 | `"coefficients"` (default) | the coefficients of every equation, including $\sigma$, which REML estimates | $\Sigma_b$ and the smoothing parameters |
 | `"full"` | everything, including $\Sigma_b$ | nothing |
@@ -1272,10 +1276,10 @@ standard errors by hand at day 9:
 ```{r}
 #| label: predict-group
 p_group <- predict(fit_sc, what = "mu", newdata = new, se = TRUE,
-                   random = "zero", interval = "group")
+                   random = "zero", interval = group_interval())
 p_group
 p_pred <- predict(fit_sc, what = "response", newdata = new, se = TRUE,
-                  random = "zero", interval = "prediction")
+                  random = "zero", interval = prediction_interval())
 p_pred
 S_sc <- param_value(log_cholesky(2), eta = hyper(fit_sc)$estimate)
 z9 <- c(1, 9)
@@ -1289,21 +1293,52 @@ The three values of `predictive` at day 9:
 
 ```{r}
 #| label: predict-predictive
-ends <- sapply(c("plugin", "averaged", "bootstrap"), function(pv) {
+predictives <- list(plugin = pred_plugin(), averaged = pred_averaged(),
+                    bootstrap = pred_bootstrap(n = 100))
+ends <- sapply(predictives, function(pv) {
   set.seed(1)
   p <- predict(fit_sc, what = "response", newdata = new[3, ],
-               random = "zero", interval = "prediction",
-               predictive = pv, n_boot = 100)
+               random = "zero",
+               interval = prediction_interval(predictive = pv))
   c(lower = p$lower, upper = p$upper, width = p$upper - p$lower)
 })
 round(ends, 2)
 ```
 
-The three intervals differ by a few percent, because 18 subjects and 180
-measurements estimate the fixed effects and $\sigma$ well. In a small sample
-the difference matters. We simulated 200 regressions with 12 observations
-and a new observation for each, and the 95% intervals covered it 90.0% of
-the time (plug-in), 95.0% (averaged) and 94.5% (bootstrap).
+```{r}
+#| label: predictive-numbers
+#| include: false
+w_ends <- ends["width", ]
+w_diff <- (max(w_ends) - min(w_ends)) / min(w_ends)
+source("R/predictive-coverage.R")
+cov_file <- "predictive-coverage.rds"
+# the stored result is reused only while the prediction code is the one that
+# produced it: the key is a checksum of that code and of the simulation
+pred_code <- c("predict.StatmodFit", "predictive_bootstrap",
+               "predictive_mixture", "predictive_response", "predictive_cov")
+key_file <- tempfile()
+writeLines(c(unlist(lapply(pred_code, function(nm)
+  deparse(get(nm, envir = asNamespace("statmodels7"))))),
+  deparse(pred_cover_one)), con = key_file)
+cov_key <- unname(tools::md5sum(key_file))
+cached <- if (file.exists(cov_file)) readRDS(cov_file) else NULL
+if (is.list(cached) && identical(cached$key, cov_key)) {
+  cover_pred <- cached$cover
+} else {
+  cover_pred <- t(vapply(1:200, pred_cover_one, logical(3)))
+  saveRDS(list(key = cov_key, cover = cover_pred), file = cov_file)
+}
+cover_pct <- colMeans(cover_pred)
+```
+
+The widths of the three intervals differ by `r pct(w_diff)` between the
+narrowest and the widest, because 18 subjects and 180 measurements estimate
+the fixed effects and $\sigma$ well. In a small sample the difference
+matters. We simulate `r nrow(cover_pred)` regressions with 12 observations
+and a new observation for each, and the 95% intervals cover it
+`r pct(cover_pct[["plugin"]])` of the time (plug-in),
+`r pct(cover_pct[["averaged"]])` (averaged) and
+`r pct(cover_pct[["bootstrap"]])` (bootstrap).
 
 @fig-predict-new shows the three intervals over the days, with the data of
 the 18 subjects.
@@ -1316,9 +1351,9 @@ the 18 subjects.
 dd <- data.frame(Days = seq(from = 0, to = 9, length.out = 50), Subject = "new")
 gz <- predict(fit_sc, what = "mu", newdata = dd, se = TRUE, random = "zero")
 gg <- predict(fit_sc, what = "mu", newdata = dd, se = TRUE, random = "zero",
-              interval = "group")
+              interval = group_interval())
 gr <- predict(fit_sc, what = "response", newdata = dd, se = TRUE,
-              random = "zero", interval = "prediction")
+              random = "zero", interval = prediction_interval())
 band_lev <- c("confidence interval", "group interval")
 bands_new <- data.frame(
   Days = rep(dd$Days, times = 2),
@@ -1441,7 +1476,7 @@ The nodes $b_k$ are fixed, so the interval does not depend on the random
 seed. The standard deviation of $y$ uses the variance of $f_b$, and it is
 `NA` when $f_b$ has no variance, as for the Cauchy distribution.
 
-With `predictive = "averaged"`, the default, the predictor of each node $w$
+With `predictive = pred_averaged()`, the default, the predictor of each node $w$
 or $b_k$ is also averaged over the approximate distribution of the
 estimates, as for the gaussian distribution. When the variance of that
 predictor is much larger than $\sigma^2$, the function averaged turns from 0
@@ -1450,7 +1485,7 @@ to 1 over a short range, and `predict()` integrates it with `quad_vec()` of
 
 We predict a new group of the simulated data of @sec-lmm-heavy at $x = 0.5$
 under the gaussian, the Student t and the logistic distributions. We hold
-the estimates at their values (`predictive = "plugin"`), so that the
+the estimates at their values (`predictive = pred_plugin()`), so that the
 intervals differ only by $f_b$:
 
 ```{r}
@@ -1459,8 +1494,8 @@ new_g <- data.frame(x = 0.5, g = "new")
 heavy_pred <- t(sapply(list(gaussian = fit_hg, "Student t" = fit_ht,
                             logistic = fit_lo), function(f) {
   p <- predict(f, what = "response", newdata = new_g, se = TRUE,
-               random = "zero", interval = "prediction",
-               predictive = "plugin")
+               random = "zero",
+               interval = prediction_interval(predictive = pred_plugin()))
   c(fit = p$fit, se = p$se, lower = p$lower, upper = p$upper,
     width = p$upper - p$lower)
 }))
@@ -1489,8 +1524,9 @@ G_t <- function(y) {
       dgamma(w, shape = nu_t / 2, rate = nu_t / 2)
   }, lower = 0, upper = Inf, rel.tol = 1e-10)$value
 }
-c(lower = G_t(heavy_pred["Student t", "lower"]),
-  upper = G_t(heavy_pred["Student t", "upper"]))
+g_t <- c(lower = G_t(heavy_pred["Student t", "lower"]),
+         upper = G_t(heavy_pred["Student t", "upper"]))
+g_t
 ```
 
 For the logistic distribution with scale $s$ we compute $G$ at the two ends
@@ -1506,15 +1542,30 @@ G_l <- function(y) {
     pnorm((y - mu_l - b) / sigma_l) * dlogis(b, location = 0, scale = s_l)
   }, lower = -Inf, upper = Inf, rel.tol = 1e-10)$value
 }
-c(lower = G_l(heavy_pred["logistic", "lower"]),
-  upper = G_l(heavy_pred["logistic", "upper"]))
+g_l <- c(lower = G_l(heavy_pred["logistic", "lower"]),
+         upper = G_l(heavy_pred["logistic", "upper"]))
+g_l
 ```
 
-The thousand nodes put the ends at the 2.5% and 97.5% quantiles of $G$ to
-about six decimals. With 5000 random draws, which `predict()` used before,
-the ends moved by about 0.05 from one seed to the next.
+```{r}
+#| label: predict-heavy-seeds
+#| include: false
+err_G <- max(abs(c(g_t, g_l) - c(0.025, 0.975, 0.025, 0.975)))
+mc_ends <- sapply(1:20, function(seed) {
+  set.seed(seed)
+  w <- rgamma(n = 5000, shape = nu_t / 2, rate = nu_t / 2)
+  y <- mu_t + sigma_t * rnorm(n = 5000) + s_t * rnorm(n = 5000) / sqrt(w)
+  quantile(y, probs = c(0.025, 0.975))
+})
+sd_mc <- mean(apply(mc_ends, 1, sd))
+```
 
-The group interval (`interval = "group"`) covers the mean
+The thousand nodes of `predict()` put the ends at the 2.5% and 97.5% quantiles of $G$
+to within `r format(signif(err_G, 1), scientific = TRUE)` in probability. With 5000 random draws, the
+method that `predict()` used before, the ends of the Student t interval have a
+standard deviation of `r fmt(sd_mc, 2)` over 20 seeds.
+
+The group interval (`interval = group_interval()`) covers the mean
 $x^\top\beta + b$ of a new group. Its ends are the quantiles of
 $x^\top\hat\beta + e + b$, where $e \sim \mathrm{N}(0, \mathrm{se}_0)$ is
 the error of the estimate: `predict()` computes them with the scale mixture
@@ -1527,9 +1578,9 @@ distribution with $\hat\nu < 2$:
 #| label: predict-heavy-group
 group_heavy <- rbind(
   "Student t" = predict(fit_ht, what = "mu", newdata = new_g,
-                        random = "zero", interval = "group"),
+                        random = "zero", interval = group_interval()),
   logistic = predict(fit_lo, what = "mu", newdata = new_g, random = "zero",
-                     interval = "group"))
+                     interval = group_interval()))
 group_heavy
 ```
 
@@ -1562,5 +1613,6 @@ assert_lmm_ok(
                 op = op, par_tml = par_tml, mode_b = mode_b,
                 exact_loglik = exact_loglik, rmse_exact = rmse_exact,
                 rmse_laplace = rmse_laplace, nu_seeds = nu_seeds,
-                heavy_pred = heavy_pred, group_heavy = group_heavy))
+                heavy_pred = heavy_pred, group_heavy = group_heavy,
+                cover_pred = cover_pred))
 ```

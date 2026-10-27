@@ -43,7 +43,7 @@ assert_glmm_ok <- function(fits, ref, data, claims) {
     stop("Part II chapter 8: ", what, " no longer agrees with the package.",
          call. = FALSE)
   }
-  ml <- function(f) as.numeric(logLik(f, type = "marginal"))
+  ml <- function(f) as.numeric(logLik(f, loglik_type = "marginal"))
   near <- function(a, b, tol) {
     a <- as.numeric(a); b <- as.numeric(b)
     length(a) == length(b) && all(is.finite(a)) &&
@@ -145,20 +145,27 @@ assert_glmm_ok <- function(fits, ref, data, claims) {
   zr <- claims$zinb_re
   tr <- claims$tmb_zinb_re
   sd_zr <- attr(glmmTMB::VarCorr(tr)$zi[[1]], "stddev")
+  # the marginal log-likelihood of the unconverged fit is not pinned: it is
+  # read at a point where the criterion is not at a maximum (above)
   if (state(zr) %in% c("converged", "boundary") ||
       !is.na(as.numeric(stats::logLik(tr))) ||
       !near(hy(zr)[2], sd_zr, 0.05) ||
       abs(coef(zr)$zi[[1]] - glmmTMB::fixef(tr)$zi[[1]]) < 0.2 ||
-      abs(as.numeric(stats::logLik(zr, type = "marginal")) + 817.823) > 1e-3) {
+      !is.finite(as.numeric(stats::logLik(zr, loglik_type = "marginal")))) {
     fail("the random effect on the zero inflation of the negative binomial")
   }
-  # and the summary gives its two standard deviations no standard error
-  zt <- unlist(lapply(summary(zr)@tables, function(eq) lapply(eq, function(bl) {
-    tb <- bl$table
-    if (is.data.frame(tb) && "role" %in% names(tb)) tb$se[tb$role == "estimated"]
-  })))
-  if (length(zt) != 2L || any(is.finite(zt))) {
-    fail("the random effect on the zero inflation of the negative binomial")
+  # on the observed information the variance does not exist at that point
+  if (!inherits(try(stats::vcov(zr), silent = TRUE), "try-error") ||
+      !inherits(try(summary(zr), silent = TRUE), "try-error")) {
+    fail("the indefinite observed information of the zero-inflated fit")
+  }
+  # and on the expected information the fit converges with a variance
+  ze <- claims$zinb_re_e
+  Ve <- stats::vcov(ze, vcov_type = bayesian_vcov(information = expected_info()))
+  if (!identical(state(ze), "converged") || !all(is.finite(diag(Ve))) ||
+      any(diag(Ve) <= 0) ||
+      !all(eigen(Ve, symmetric = TRUE, only.values = TRUE)$values > 0)) {
+    fail("the zero-inflated fit on the expected information")
   }
 
   # --- the typical group and the average group ---------------------------------

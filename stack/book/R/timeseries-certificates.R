@@ -639,7 +639,7 @@ assert_timeseries_ok <- function(fits, ref, data, claims) {
   d0 <- ns$statmod_design(f0@spec)
   m0 <- ns$statmod_marginal(f0@spec, d0, f0@coefficients, f0@hyper, ml(),
                             basis = ns$integrated_basis(f0@spec, d0, "ml"))
-  lm1 <- as.numeric(logLik(fits$ov_ml, type = "marginal"))
+  lm1 <- as.numeric(logLik(fits$ov_ml, loglik_type = "marginal"))
   if (abs(m0$value - ll(fits$ov)) > 1e-3 ||
       rel(claims$lr_ov, 2 * (lm1 - ll(fits$ov))) > 1e-12 ||
       !(claims$lr_ov > 0) ||
@@ -659,7 +659,7 @@ assert_timeseries_ok <- function(fits, ref, data, claims) {
   if (rel(claims$fc_ov, xb1 + fh) > 1e-10) fail("the forecast of mare 1")
   # the random intercept goes to the shared model, the level of each mare has
   # the larger maximized marginal likelihood, and lev_ml is tau/(1 - beta)
-  li <- as.numeric(logLik(fits$ov_int, type = "marginal"))
+  li <- as.numeric(logLik(fits$ov_int, loglik_type = "marginal"))
   if (!(claims$tau_int < 1e-2) ||
       !(lm1 > li) ||
       rel(claims$lev_ml, hyper(fits$ov_ml)$estimate /

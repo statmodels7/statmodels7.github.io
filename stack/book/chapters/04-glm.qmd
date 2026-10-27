@@ -366,7 +366,8 @@ bwt_links <- data.frame(
 bwt_links
 ```
 
-The four log-likelihoods differ by less than one unit, so the data do not
+The four log-likelihoods differ by at most
+`r fmt(diff(range(bwt_links$logLik)), 2)` units, so the data do not
 choose among them. The logit link is the usual choice because its
 coefficients are log odds ratios.
 
@@ -429,17 +430,30 @@ phi_table["statmod, default", "phi"]
 
 The estimate of `glm()` is different in kind. It is the moment estimate, the
 Pearson statistic divided by $n - 2$, and it is
-`r fmt(phi_table["glm, Pearson", "phi"], 4)`, larger than the others. The standard errors of the coefficients of the mean are proportional
-to $\sqrt\phi$, so `glm()` reports larger standard errors than `statmod()`,
-in the ratio of the square roots of the two estimates:
+`r fmt(phi_table["glm, Pearson", "phi"], 4)`, larger than the others. The
+function `glm()` computes the standard errors of the coefficients of the mean
+from the expected (Fisher) information, which is proportional to $1/\phi$, so
+its standard errors are proportional to $\sqrt\phi$. The log link is not the
+canonical link of the gamma distribution, so the expected and the observed
+information of the mean differ, and `statmod()` uses the observed one by
+default. With `information = expected_info()` the standard errors of the two
+functions are in the ratio of the square roots of the two estimates of
+$\phi$. With the default they are not:
 
 ```{r}
 #| label: gamma-se
-se_gam <- sqrt(diag(vcov(fit_gam)))[["mu:Age"]]
+se_exp <- sqrt(diag(vcov(fit_gam, vcov_type = bayesian_vcov(
+  information = expected_info()))))[["mu:Age"]]
+se_obs <- sqrt(diag(vcov(fit_gam)))[["mu:Age"]]
 se_glm <- summary(glm_gam)$coefficients["Age", "Std. Error"]
-c(statmod = se_gam, glm = se_glm, ratio = se_glm / se_gam)
+c(expected = se_exp, observed = se_obs, glm = se_glm)
+c(expected = se_glm / se_exp, observed = se_glm / se_obs)
 sqrt(phi_table["glm, Pearson", "phi"] / phi_table["statmod, default", "phi"])
 ```
+
+The default standard error of the age, `r fmt(se_obs, 5)`, is
+`r fmt(100 * (1 - se_obs / se_exp), 1)` per cent smaller than the one of the
+expected information, `r fmt(se_exp, 5)`.
 
 The log-likelihood depends on the dispersion too. `logLik()` of `statmod()`
 evaluates the gamma density at its estimate of $\phi$. `logLik()` of `glm()`
@@ -671,7 +685,8 @@ fit_q_nb2_ml <- statmod(formula_q, distrib = negbin2_distrib(), data = quine,
 c(reml = exp(coef(fit_q_nb2)$theta), ml = exp(coef(fit_q_nb2_ml)$theta),
   glm.nb = glm_q_nb$theta)
 max(abs(coef(fit_q_nb2_ml)$mu - coef(glm_q_nb)))
-max(abs(coef(fit_q_nb2)$mu - coef(glm_q_nb)))
+move_nb <- max(abs(coef(fit_q_nb2)$mu - coef(glm_q_nb)))
+move_nb
 c(statmod_ml = as.numeric(logLik(fit_q_nb2_ml)),
   glm.nb = as.numeric(logLik(glm_q_nb)))
 ```
@@ -679,7 +694,7 @@ c(statmod_ml = as.numeric(logLik(fit_q_nb2_ml)),
 The REML estimate of the dispersion removes the bias that comes from
 estimating the seven coefficients of the mean, in the same way as in
 @sec-lm-linear, where REML gave the residual variance $\mathrm{RSS}/(n - p)$.
-The coefficients of the mean move by less than $10^{-3}$.
+The coefficients of the mean move by at most `r fmt(move_nb, 5)`.
 
 ### Proportions that vary too much
 
@@ -726,10 +741,10 @@ cbind(binomial = se_bin, beta_binomial = se_bb, ratio = se_bb / se_bin)
 c(binomial = AIC(fit_b_bin), beta_binomial = AIC(fit_b_bb))
 ```
 
-The ratio of the two standard errors is about 2.6. Its square, 6.6, is of the
-same size as the Pearson ratio of the binomial fit, and as the factor
+The ratio of the two standard errors should be close to the square root of
+the Pearson ratio of the binomial fit, and to the square root of the factor
 $1 + 19 \cdot 0.5/1.5$ by which the true variance exceeds the binomial one.
-We compute the three numbers:
+We compute the three squared numbers:
 
 ```{r}
 #| label: betabinom-pearson
@@ -739,6 +754,19 @@ x2_b / (nrow(sim_bb$data) - 2)
 1 + 19 * 0.5 / 1.5
 (se_bb / se_bin)^2
 ```
+
+```{r}
+#| label: betabinom-numbers
+#| include: false
+ratio_se <- se_bb / se_bin
+pearson_b <- x2_b / (nrow(sim_bb$data) - 2)
+design_b <- 1 + 19 * 0.5 / 1.5
+```
+
+The ratio of the two standard errors is about `r fmt(mean(ratio_se), 1)`.
+Its square, `r fmt(mean(ratio_se^2), 1)`, is of the same size as the Pearson
+ratio of the binomial fit, `r fmt(pearson_b, 1)`, and as the factor
+`r fmt(design_b, 1)`.
 
 ## A dispersion with covariates {#sec-glm-dispersion}
 
@@ -781,8 +809,8 @@ coefficient of the age:
 
 ```{r}
 #| label: gamma-phi-lr
-l0_gam <- logLik(fit_gam, type = "marginal")
-l1_gam <- logLik(fit_gam_phi, type = "marginal")
+l0_gam <- logLik(fit_gam, loglik_type = "marginal")
+l1_gam <- logLik(fit_gam_phi, loglik_type = "marginal")
 lr_gam <- 2 * (as.numeric(l1_gam) - as.numeric(l0_gam))
 lr_gam
 pchisq(lr_gam, df = 1, lower.tail = FALSE)
@@ -802,8 +830,8 @@ learner status:
 fit_q_theta <- statmod(Days ~ Eth + Sex + Age + Lrn | theta ~ Eth + Lrn,
                        distrib = negbin2_distrib(), data = quine)
 summary(fit_q_theta)
-l0_q <- logLik(fit_q_nb2, type = "marginal")
-l1_q <- logLik(fit_q_theta, type = "marginal")
+l0_q <- logLik(fit_q_nb2, loglik_type = "marginal")
+l1_q <- logLik(fit_q_theta, loglik_type = "marginal")
 lr_q <- 2 * (as.numeric(l1_q) - as.numeric(l0_q))
 lr_q
 pchisq(lr_q, df = 2, lower.tail = FALSE)

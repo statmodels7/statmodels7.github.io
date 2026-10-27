@@ -79,8 +79,8 @@ DISTRIBS$logistic <- list(
   $\\mathbb{E}[\\ell_{\\sigma\\sigma\\sigma}] = (\\pi^{2}+2)/(2\\sigma^{3})$,
   $\\mathbb{E}[\\ell_{\\mu^{4}}] = 1/(15\\sigma^{4})$, the rest zero by symmetry);
   the two that remain require $\\int w^{k}\\operatorname{sech}^{4}w\\tanh^{2}w\\,dw$
-  for $k = 2, 4$ and are **open**. In the meantime `approx = \"integrate\"`
-  supplies them to within Monte Carlo noise."
+  for $k = 2, 4$ and are **open**. In the meantime `method = expect_integrate()`
+  supplies them by numerical quadrature."
 )
 
 DISTRIBS$student_t <- list(
@@ -119,8 +119,11 @@ DISTRIBS$laplace <- list(
   ld = function(y, th) -log(2 * th$sigma) - abs(y - th$mu) / th$sigma,
   grid = function(th) seq(-8, 9, length.out = 40),
   note = "The one non-regular member of the catalog: $\\ell$ has a kink at
-  $y = \\mu$, the observed information in $\\mu$ is identically zero, and the
-  Fisher information $1/\\sigma^{2}$ can only be recovered from the score. See
+  $y = \\mu$, and the observed second derivative in $\\mu$ is zero almost
+  everywhere. The point mass at the kink is missed by any average of pointwise
+  values, so `expect_integrate(identity = \"hessian\")` signals an error. The
+  Fisher information $1/\\sigma^{2}$ is recovered from the score identity
+  $-\\mathbb{E}[\\ell_\\mu^{2}]$, with `identity = \"score\"`. See
   @sec-nonregular. `params_smooth` records this, and it is the reason that
   property exists at all. `laplace2` carries the same law in location and
   rate."
@@ -1074,20 +1077,40 @@ assert_distributions_ok <- function() {
     stop("The location-scale closed form for dF/dmu no longer holds.", call. = FALSE)
   }
 
-  # The non-regular section makes three specific numerical claims; pin them.
-  # (a) the shipped Laplace has a closed-form E[H], so approx is ignored and all
-  #     strategies return -1/sigma^2;
-  # (b) on a bare Laplace without closed forms, bartlett recovers -1/sigma^2 while
-  #     integrate and mc, which both average the a.e.-zero observed l_mumu,
-  #     return zero.
+  # The nonregular family makes four numerical claims; pin them.
+  # (a) the shipped Laplace has a closed-form E[H]; an explicit method is used
+  #     and not ignored. The score identity (integrate, mc) and opg return
+  #     -1/sigma^2 for the mu-mu component; the Hessian identity signals an
+  #     error that names identity = "score", because the observed second
+  #     derivative in mu is zero almost everywhere and the point mass at the
+  #     kink is missed by any average of pointwise values, whereas -E[l_mu^2]
+  #     is valid;
+  # (b) a bare Laplace with no closed forms behaves in the same way.
   lap <- laplace_distrib()
   th <- list(mu = 0, sigma = 2)
-  shipped <- vapply(c("opg", "bartlett", "integrate", "mc"), function(a) {
-    distrib_expected_hessian(lap, 0, th, approx = a)$mu_mu
+  set.seed(1)
+  score_methods <- list(bartlett = expect_integrate(identity = "score"),
+                        mc = expect_mc(identity = "score"))
+  shipped <- vapply(score_methods, function(a) {
+    distrib_expected_hessian(lap, 0, th, method = a)$mu_mu
   }, numeric(1))
-  if (max(abs(shipped + 0.25)) > 1e-12) {
-    stop("The shipped Laplace no longer ignores 'approx'; the non-regular section is stale.",
-         call. = FALSE)
+  if (abs(shipped[["bartlett"]] + 0.25) > 1e-8 || abs(shipped[["mc"]] + 0.25) > 1e-8) {
+    stop("The shipped Laplace under an explicit score method no longer returns ",
+         "-1/sigma^2: ", paste(names(shipped), shipped, collapse = ", "), call. = FALSE)
+  }
+  hessian_error <- function(d, a) {
+    tryCatch({
+      distrib_expected_hessian(d, 0, th, method = a)
+      NA_character_
+    }, error = function(e) conditionMessage(e))
+  }
+  for (a in list(expect_integrate(identity = "hessian"), expect_integrate(),
+                 expect_mc(identity = "hessian"), expect_mc())) {
+    msg <- hessian_error(lap, a)
+    if (is.na(msg) || !grepl("identity = \"score\"", msg, fixed = TRUE)) {
+      stop("The Hessian identity on the Laplace no longer signals an error that ",
+           "names identity = \"score\".", call. = FALSE)
+    }
   }
   BareLap <- S7::new_class("BareLapGate", parent = continuous_distrib, package = NULL)
   S7::method(distrib_pdf, BareLap) <- function(distrib, y, theta, log = FALSE) {
@@ -1113,29 +1136,33 @@ assert_distributions_ok <- function() {
   )
   set.seed(1)
   strat <- c(
-    opg       = distrib_expected_hessian(bare, 0, th, approx = "opg")$mu_mu,
-    bartlett  = distrib_expected_hessian(bare, 0, th, approx = "bartlett")$mu_mu,
-    integrate = distrib_expected_hessian(bare, 0, th, approx = "integrate")$mu_mu,
-    mc        = distrib_expected_hessian(bare, 0, th, approx = "mc")$mu_mu
+    opg       = distrib_expected_hessian(bare, 0, th, method = expect_opg())$mu_mu,
+    bartlett  = distrib_expected_hessian(bare, 0, th,
+                                         method = expect_integrate(identity = "score"))$mu_mu,
+    mc        = distrib_expected_hessian(bare, 0, th,
+                                         method = expect_mc(identity = "score"))$mu_mu
   )
   # (c) opg, the default, is the same score-based quantity with the expectation
   #     dropped. AWAY FROM THE KINK it is exact to machine precision, the
   #     squared score of a Laplace being 1/sigma^2 almost surely rather than in
   #     expectation; AT the kink it is zero, because sign(0) is 0 and that one
-  #     observation's score vanishes. The section prints both, so both are
-  #     pinned -- and the second is what stops the first from being written as
-  #     an unqualified claim.
-  opg_away <- distrib_expected_hessian(bare, 1, th, approx = "opg")$mu_mu
+  #     observation's score vanishes.
+  opg_away <- distrib_expected_hessian(bare, 1, th, method = expect_opg())$mu_mu
   if (abs(opg_away + 0.25) > 1e-12 || abs(strat[["opg"]]) > 1e-12) {
     stop("The bare-Laplace opg claims are stale: away from the kink ",
          round(opg_away, 6), ", at the kink ", round(strat[["opg"]], 6),
-         "; the section says -0.25 and 0.", call. = FALSE)
+         "; the text says -0.25 and 0.", call. = FALSE)
   }
-  if (abs(strat[["bartlett"]] + 0.25) > 1e-6 ||
-      abs(strat[["integrate"]]) > 1e-8 || abs(strat[["mc"]]) > 1e-8) {
-    stop("The bare-Laplace strategy comparison no longer matches the prose of the ",
-         "non-regular section: ", paste(names(strat), round(strat, 4), collapse = ", "),
-         call. = FALSE)
+  if (abs(strat[["bartlett"]] + 0.25) > 1e-6 || abs(strat[["mc"]] + 0.25) > 1e-6) {
+    stop("The bare-Laplace score identity no longer returns -1/sigma^2: ",
+         paste(names(strat), round(strat, 4), collapse = ", "), call. = FALSE)
+  }
+  for (a in list(expect_integrate(), expect_mc())) {
+    msg <- hessian_error(bare, a)
+    if (is.na(msg) || !grepl("identity = \"score\"", msg, fixed = TRUE)) {
+      stop("The Hessian identity on a bare Laplace no longer signals an error that ",
+           "names identity = \"score\".", call. = FALSE)
+    }
   }
   invisible(TRUE)
 }
@@ -1181,7 +1208,8 @@ bartlett_certificate <- function(ids = c("gaussian", "gamma", "beta", "poisson",
         cand <- c(paste(a, b, sep = "_"), paste(b, a, sep = "_"))
         cand[cand %in% hess_names(params)][1]
       }
-      lhs <- distrib_deriv3(d, 0, th, expected = TRUE, approx = "integrate")[[nm]][1]
+      lhs <- distrib_deriv3(d, 0, th, expected = TRUE,
+                           method = expect_integrate())[[nm]][1]
       rhs <- -expectation(d, function(y, theta) {
         g <- distrib_gradient(d, y, theta)
         H <- distrib_hessian(d, y, theta)

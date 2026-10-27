@@ -115,12 +115,19 @@ all.equal(target = unname(vcov(lm_lin)), current = unname(V_mu))
 
 The matrix `V` has one more row and one more column, for the intercept of
 $\log\sigma$. The estimates of the mean and of $\sigma$ carry separate
-information, so the covariances between that coefficient and the others are
-zero, as in @sec-model-coef:
+information. Under the expected information the covariances between that
+coefficient and the others are exactly zero, as in @sec-model-coef. Under the
+default observed information they come from the block
+$2\sum_i (y_i - \mu_i) x_i/\sigma^2$, and this sum is zero here because the
+residuals of a least squares fit are orthogonal to every column of $X$. The
+covariances are then zero up to rounding, of the order of $10^{-18}$ against
+the variance `r signif(V[5, 5], 3)` of the intercept of $\log\sigma$:
 
 ```{r}
 #| label: vcov-sigma
 V[5, ]
+V_exp <- vcov(fit_lin, vcov_type = bayesian_vcov(information = expected_info()))
+V_exp[5, ]
 ```
 
 ### Tests and intervals
@@ -196,7 +203,7 @@ log-likelihood of `lm()`:
 
 ```{r}
 #| label: reml-lin
-logLik(fit_lin, type = "marginal")
+logLik(fit_lin, loglik_type = "marginal")
 logLik(lm_lin, REML = TRUE)
 ```
 
@@ -425,7 +432,7 @@ restricted log-likelihood of `gls()`:
 
 ```{r}
 #| label: gls-cars-loglik
-logLik(fit_c1, type = "marginal")
+logLik(fit_c1, loglik_type = "marginal")
 logLik(gls_c1)
 ```
 
@@ -496,8 +503,8 @@ constant standard deviation is the model with $\gamma_1 = 0$:
 
 ```{r}
 #| label: lr-cars
-l0 <- logLik(fit_c0, type = "marginal")
-l1 <- logLik(fit_c1, type = "marginal")
+l0 <- logLik(fit_c0, loglik_type = "marginal")
+l1 <- logLik(fit_c1, loglik_type = "marginal")
 lr <- 2 * (as.numeric(l1) - as.numeric(l0))
 lr
 pchisq(lr, df = 1, lower.tail = FALSE)
@@ -554,7 +561,7 @@ gls_s1 <- gls(count ~ spray, data = InsectSprays,
               weights = varIdent(form = ~ 1 | spray), method = "REML")
 gls_s1$sigma
 coef(gls_s1$modelStruct$varStruct, unconstrained = FALSE)
-logLik(fit_s1, type = "marginal")
+logLik(fit_s1, loglik_type = "marginal")
 logLik(gls_s1)
 ```
 
@@ -659,9 +666,9 @@ the same REML criterion:
 logLik(fit_g1)
 logLik(fit_g2)
 logLik(fit_g3)
-logLik(fit_g1, type = "marginal")
-logLik(fit_g2, type = "marginal")
-logLik(fit_g3, type = "marginal")
+logLik(fit_g1, loglik_type = "marginal")
+logLik(fit_g2, loglik_type = "marginal")
+logLik(fit_g3, loglik_type = "marginal")
 ```
 
 The REML criterion is the same because it integrates only the coefficients

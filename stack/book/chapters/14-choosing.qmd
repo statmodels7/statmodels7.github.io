@@ -87,7 +87,7 @@ families:
 ```{r}
 #| label: species-table
 pearson_ratio <- function(fit) {
-  r <- residuals(fit, type = "pearson")
+  r <- residuals(fit, residual_type = "pearson")
   sum(r^2) / (nobs(fit) - sum(fit@edf$edf))
 }
 sp_table <- data.frame(
@@ -411,12 +411,16 @@ $\lambda$, as @sec-penalized-hyper describes.
 
 ```{r}
 #| label: fit-rent-lasso
-rent_bic <- statmod(R ~ s(Fl) + s(A) + lasso(~ B + H + L + loc),
-                    distrib = gamma1_distrib(), data = rent)
+time_bic <- system.time(
+  rent_bic <- statmod(R ~ s(Fl) + s(A) + lasso(~ B + H + L + loc),
+                      distrib = gamma1_distrib(), data = rent)
+)[["elapsed"]]
 set.seed(4)
-rent_cv <- statmod(R ~ s(Fl) + s(A) + lasso(~ B + H + L + loc),
-                   distrib = gamma1_distrib(), data = rent,
-                   sparse_criterion = cv())
+time_cv <- system.time(
+  rent_cv <- statmod(R ~ s(Fl) + s(A) + lasso(~ B + H + L + loc),
+                     distrib = gamma1_distrib(), data = rent,
+                     sparse_criterion = cv())
+)[["elapsed"]]
 hyper(rent_bic)
 hyper(rent_cv)
 ```
@@ -446,7 +450,7 @@ column `B1` has no estimate. The lasso codes all the levels of the first
 factor of its formula, the two columns of `B` add up to the intercept, and
 the fit reports the second column as not identified. @sec-penalized-choose
 compares the three criteria of a lasso on the crime data. Cross-validation refits the model on each fold, so it
-costs about ten times as much as BIC.
+costs `r fmt(time_cv / time_bic, 0)` times as much as BIC in these fits.
 
 ### The Student t and its information
 
@@ -469,7 +473,7 @@ c(gaussian = caic(film_g), t = caic(film_t))
 The $t$ distribution has $\hat\nu = `r fmt(exp(coef(film_t)$nu[[1]]), 1)`$
 degrees of freedom and a cAIC lower by
 `r fmt(caic(film_g) - caic(film_t), 0)`. The REML criterion of these fits
-uses the observed information in its determinant. The argument `hessian`
+uses the observed information in its determinant. The argument `information`
 of `reml()` and `ml()` replaces it with the expected information, which for
 a $t$ distribution is positive definite at every point, while the observed
 information of the location is not positive at an observation far in the
@@ -478,7 +482,7 @@ tails:
 ```{r}
 #| label: fit-film-expected
 film_te <- statmod(f_film, distrib = student_t1_distrib(), data = film90,
-                   outer_criterion = reml(hessian = "expected"))
+                   outer_criterion = reml(information = expected_info()))
 c(observed = exp(coef(film_t)$nu[[1]]), expected = exp(coef(film_te)$nu[[1]]))
 c(observed = as.numeric(logLik(film_t)), expected = as.numeric(logLik(film_te)))
 ```
@@ -658,7 +662,7 @@ $t$ distribution is positive definite everywhere:
 ```{r}
 #| label: fit-gag-expected
 gag_e <- statmod(f_nu, distrib = student_t1_distrib(), data = GAGurine,
-                 outer_criterion = reml(hessian = "expected"))
+                 outer_criterion = reml(information = expected_info()))
 statmod_certificate(gag_e)$state
 c(criterion = gag_e@criterion, logLik = as.numeric(logLik(gag_e)))
 coef(gag_e)$nu
@@ -676,7 +680,7 @@ mode, gives a start through `start_from()`:
 gag_0 <- statmod(f_nu, distrib = student_t1_distrib(), data = GAGurine,
                  outer_criterion = NULL)
 gag_je <- statmod(f_nu, distrib = student_t1_distrib(), data = GAGurine,
-                  outer_criterion = reml(hessian = "expected"),
+                  outer_criterion = reml(information = expected_info()),
                   start = start_from(gag_0))
 gag_jo <- statmod(f_nu, distrib = student_t1_distrib(), data = GAGurine,
                   start = start_from(gag_0))
@@ -886,8 +890,8 @@ cv_p <- colMeans(cover_p)
 
 The Wald intervals contain the true $K$ in `r pct(cv_p[["wald"]])` of the
 data sets and the intervals of `nls()` in `r pct(cv_p[["nls"]])`, against a
-nominal 95%. With 200 data sets the standard error of each proportion is
-about 1.5%. For small samples we can use the parametric bootstrap of
+nominal 95%. With `r nrow(cover_p)` data sets the standard error of each proportion is
+about `r pct(sqrt(0.95 * 0.05 / nrow(cover_p)))`. For small samples we can use the parametric bootstrap of
 @sec-breakpoints-bootstrap instead of the gaussian limit.
 
 ```{r}

@@ -260,14 +260,25 @@ fit_p40 <- statmod(accel ~ s(times, pspline_smooth(k = 40)),
 hyper(fit_ad)[, c("name", "estimate")]
 g_ad <- mgcv::gam(accel ~ s(times, bs = "ad", k = 40, m = 5), data = mcycle,
                   method = "REML")
-c(statmod = edf_mu(fit_ad), mgcv = sum(g_ad$edf))
+fit_ad_e <- statmod(accel ~ s(times, adaptive_smooth(k = 40, m = 5)),
+                    distrib = gaussian1_distrib(), data = mcycle,
+                    outer_criterion = reml(information = expected_info()))
+c(observed = edf_mu(fit_ad), expected = edf_mu(fit_ad_e),
+  mgcv = sum(g_ad$edf))
 max(abs(fitted(fit_ad) - fitted(g_ad)))
 data.frame(edf = c(edf_mu(fit_p40), edf_mu(fit_ad)),
            AIC = c(AIC(fit_p40), AIC(fit_ad)),
            row.names = c("pspline", "adaptive"))
 ```
 
-The adaptive smooth agrees with `mgcv`'s `bs = "ad"`. The five smoothing
+The adaptive smooth agrees with `mgcv`'s `bs = "ad"`. The effective degrees
+of freedom that `mgcv` reports come from the expected information, and those
+stored in `fit_ad` from the default observed information. The fit with
+`information = expected_info()` in the criterion has the same fitted curve and
+effective degrees of freedom that differ from the ones of `mgcv` by
+`r fmt(100 * abs(edf_mu(fit_ad_e) / sum(g_ad$edf) - 1), 2)` per cent, against
+`r fmt(100 * abs(edf_mu(fit_ad) / sum(g_ad$edf) - 1), 2)` per cent for the
+stored ones. The five smoothing
 parameters span many orders of magnitude: the curve is smoothed strongly where
 the weight is large and little where it is small. The adaptive smooth uses
 fewer effective degrees of freedom than the P-spline and has the smaller AIC.
@@ -492,15 +503,17 @@ fit_tf3 <- statmod(temp ~ s(doy, fourier_smooth(k = 9, lower = 0, upper = 366,
                                                 null_space = "keep")),
                    distrib = gaussian1_distrib(), data = chic)
 names(coef(fit_tf3)$mu)[2:5]
-data.frame(edf = c(edf_mu(fit_tf), edf_mu(fit_tf2), edf_mu(fit_tf3)),
-           AIC = c(AIC(fit_tf), AIC(fit_tf2), AIC(fit_tf3)),
-           row.names = c("harmonic", "second derivative", "two harmonics"))
+tab_op <- data.frame(edf = c(edf_mu(fit_tf), edf_mu(fit_tf2), edf_mu(fit_tf3)),
+                     AIC = c(AIC(fit_tf), AIC(fit_tf2), AIC(fit_tf3)),
+                     row.names = c("harmonic", "second derivative",
+                                   "two harmonics"))
+tab_op
 ```
 
 The three penalties give close fits. The yearly temperature is close to one
 sine wave, and the harmonic operator shrinks the curve toward that wave, while
 the penalty on the second derivative shrinks it toward a constant. The
-three values of AIC are within two units of each other, and the operator
+three values of AIC are within `r fmt(diff(range(tab_op$AIC)), 1)` units of each other, and the operator
 with two harmonics has the smallest AIC and the fewest effective degrees of
 freedom.
 
@@ -742,11 +755,20 @@ fit_vc <- statmod(y ~ s(x, bspline_smooth(k = 10)) +
 names(coef(fit_vc)$mu)[c(1:3, 11:13)]
 g_vc <- mgcv::gam(y ~ s(x, bs = "bs", k = 10) + s(x, bs = "bs", k = 10, by = z),
                   data = vc, method = "REML")
-c(statmod = edf_mu(fit_vc), mgcv = sum(g_vc$edf))
+fit_vc_e <- statmod(y ~ s(x, bspline_smooth(k = 10)) +
+                      s(x, bspline_smooth(k = 10), by = z),
+                    distrib = gaussian1_distrib(), data = vc,
+                    outer_criterion = reml(information = expected_info()))
+c(observed = edf_mu(fit_vc), expected = edf_mu(fit_vc_e),
+  mgcv = sum(g_vc$edf))
 max(abs(fitted(fit_vc) - fitted(g_vc)))
 ```
 
-The coefficients of the second term have the prefix `s(x):z`, the name that
+The effective degrees of freedom of `mgcv` agree with those of the fit that
+uses the expected information in the criterion, as they did for the adaptive
+smooth, and the stored ones differ from them by
+`r fmt(100 * abs(edf_mu(fit_vc) / sum(g_vc$edf) - 1), 3)` per cent. The
+coefficients of the second term have the prefix `s(x):z`, the name that
 `mgcv` gives the term too. The fitted coefficient of $z$ at a value of $x$ is
 the difference between the predictions at $z = 1$ and at $z = 0$:
 
@@ -903,12 +925,14 @@ $1/\sigma$:
 g_ts <- mgcv::gam(list(temp ~ s(doy, bs = "cp", k = 10), ~ s(doy, bs = "cp", k = 8)),
                   family = mgcv::gaulss(), data = chic,
                   knots = list(doy = c(0, 366)))
-1 / predict(g_ts, newdata = days, type = "response")[, 2]
+sd_mgcv <- 1 / predict(g_ts, newdata = days, type = "response")[, 2]
+sd_mgcv
 ```
 
 The smooths differ (the cyclic P-spline of `mgcv` has a penalty on the
 differences of the coefficients), and the fitted standard
-deviations agree to about 0.05 degrees. @fig-chic-sigma shows the band of two
+deviations agree to within `r fmt(max(abs(as.numeric(predict(fit_ts, what = "sigma", newdata = days)) - as.numeric(sd_mgcv))), 2)`
+degrees at the four days. @fig-chic-sigma shows the band of two
 standard deviations around the mean.
 
 ```{r}
@@ -1073,9 +1097,9 @@ assert_gam_ok(
               tc = fit_tc, tf = fit_tf, tf2 = fit_tf2, tf3 = fit_tf3,
               lg = fit_lg, d20 = fit_d20, h20 = fit_h20, d60 = fit_d60,
               h60 = fit_h60, w2 = fit_w2, we = fit_we,
-              ad = fit_ad, p40 = fit_p40, c1 = fit_c1, c2 = fit_c2,
+              ad = fit_ad, ad_e = fit_ad_e, p40 = fit_p40, c1 = fit_c1, c2 = fit_c2,
               c3 = fit_c3, cs = fit_cs, cl = fit_cl, cs0 = fit_cs0,
-              vc = fit_vc, te = fit_te, ti = fit_ti, ta = fit_ta,
+              vc = fit_vc, vc_e = fit_vc_e, te = fit_te, ti = fit_ti, ta = fit_ta,
               ts = fit_ts, dp = fit_dp, dn = fit_dn, ls = fit_ls,
               r20 = fit_r20),
   ref = list(b20 = g_b20, o1 = g_o1, o3 = g_o3, ps = g_ps, cc = g_cc,

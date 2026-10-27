@@ -103,7 +103,17 @@ assert_gam_ok <- function(fits, ref, data, claims) {
     fail("the Fourier smooth against the cyclic one")
   }
   if (!(AIC(fits$b20) < AIC(fits$lg))) fail("the Legendre smooth's AIC")
-  if (!same(fits$ad, ref$ad, tol_fit = 0.05)) fail("the adaptive smooth against mgcv")
+  # mgcv's edf is the Fisher-weighted one; the stored edf of the default
+  # observed information is within 3e-3 of it, and that of the refit under
+  # expected_info() within 3e-4, with the same fitted curve
+  if (!same(fits$ad, ref$ad, tol_edf = 3e-3, tol_fit = 0.05) ||
+      !same(fits$ad_e, ref$ad, tol_edf = 3e-4, tol_fit = 0.05) ||
+      !S7::S7_inherits(fits$ad_e@methods$edf_information,
+                       distributions7::ExpectedInfo) ||
+      !(abs(edf(fits$ad_e) - sum(ref$ad$edf)) < abs(edf(fits$ad) - sum(ref$ad$edf))) ||
+      gap(fits$ad, fits$ad_e) > 1e-2) {
+    fail("the adaptive smooth against mgcv")
+  }
   la <- hyper(fits$ad)$estimate
   if (!(max(la) / min(la) > 1e6)) fail("the spread of the adaptive smoothing parameters")
   if (!(edf(fits$ad) < edf(fits$p40) && AIC(fits$ad) < AIC(fits$p40))) {
@@ -155,7 +165,12 @@ assert_gam_ok <- function(fits, ref, data, claims) {
             newdata = data.frame(Time = 21, Diet = factor(d, levels = levels(cw$Diet))))
   }, numeric(1))
   if (which.max(d21) != 3L) fail("the heaviest diet at day 21")
-  if (!same(fits$vc, ref$vc, tol_edf = 1e-5, tol_fit = 1e-5)) {
+  # mgcv's edf is the one of the expected information, as for the adaptive smooth
+  if (!same(fits$vc_e, ref$vc, tol_edf = 1e-5, tol_fit = 1e-5) ||
+      !S7::S7_inherits(fits$vc_e@methods$edf_information,
+                       distributions7::ExpectedInfo) ||
+      !same(fits$vc, ref$vc, tol_edf = 1e-3, tol_fit = 1e-5) ||
+      !(abs(edf(fits$vc) - sum(ref$vc$edf)) > 1e-5 * sum(ref$vc$edf))) {
     fail("the varying coefficient against mgcv")
   }
   if (!("s(x):z.const" %in% names(coef(fits$vc)$mu))) fail("the constant of the varying coefficient")

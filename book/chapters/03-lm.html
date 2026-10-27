@@ -454,7 +454,7 @@ y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
 <span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -14.175512    effective df 5.00</span></span>
 <span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 38.351    cBIC 48.478</span></span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.36 s</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.35 s</span></span>
 <span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.6e-15   min eigen 0.034</span></span>
 <span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.3e-11   min eigen 1</span></span>
 <span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>lm_lin <span class="ot">&lt;-</span> <span class="fu">lm</span>(Gas <span class="sc">~</span> Temp <span class="sc">*</span> Insul, <span class="at">data =</span> whiteside)</span>
@@ -532,13 +532,19 @@ y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
 <span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="fu">all.equal</span>(<span class="at">target =</span> <span class="fu">unname</span>(<span class="fu">vcov</span>(lm_lin)), <span class="at">current =</span> <span class="fu">unname</span>(V_mu))</span>
 <span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The matrix <code>V</code> has one more row and one more column, for the intercept of <span class="math inline">\(\log\sigma\)</span>. The estimates of the mean and of <span class="math inline">\(\sigma\)</span> carry separate information, so the covariances between that coefficient and the others are zero, as in <a href="01-model.html#sec-model-coef" class="quarto-xref"><span>Section 1.4</span></a>:</p>
+<p>The matrix <code>V</code> has one more row and one more column, for the intercept of <span class="math inline">\(\log\sigma\)</span>. The estimates of the mean and of <span class="math inline">\(\sigma\)</span> carry separate information. Under the expected information the covariances between that coefficient and the others are exactly zero, as in <a href="01-model.html#sec-model-coef" class="quarto-xref"><span>Section 1.4</span></a>. Under the default observed information they come from the block <span class="math inline">\(2\sum_i (y_i - \mu_i) x_i/\sigma^2\)</span>, and this sum is zero here because the residuals of a least squares fit are orthogonal to every column of <span class="math inline">\(X\)</span>. The covariances are then zero up to rounding, of the order of <span class="math inline">\(10^{-18}\)</span> against the variance 0.00962 of the intercept of <span class="math inline">\(\log\sigma\)</span>:</p>
 <div class="cell" data-layout-align="center">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>V[<span class="dv">5</span>, ]</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     mu:(Intercept)            mu:Temp      mu:InsulAfter mu:Temp:InsulAfter </span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        0.000000000        0.000000000        0.000000000        0.000000000 </span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      -1.416914e-18      -4.525770e-19      -1.493778e-18       2.795777e-19 </span></span>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  sigma:(Intercept) </span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        0.009615385</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       9.615385e-03</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>V_exp <span class="ot">&lt;-</span> <span class="fu">vcov</span>(fit_lin, <span class="at">vcov_type =</span> <span class="fu">bayesian_vcov</span>(<span class="at">information =</span> <span class="fu">expected_info</span>()))</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>V_exp[<span class="dv">5</span>, ]</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     mu:(Intercept)            mu:Temp      mu:InsulAfter mu:Temp:InsulAfter </span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        0.000000000        0.000000000        0.000000000        0.000000000 </span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  sigma:(Intercept) </span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        0.009615385</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="tests-and-intervals" class="level3">
@@ -605,7 +611,7 @@ y_i \sim \mathrm{N}(\mu_i, \sigma), \qquad
 </div>
 <p>The REML criterion that <code>statmod()</code> maximized is the restricted log-likelihood of <code>lm()</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_lin, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_lin, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -23.65996 (df=5)</span></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(lm_lin, <span class="at">REML =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -23.65996 (df=5)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -706,9 +712,9 @@ Figure&nbsp;3.1: Weekly gas consumption against the outside temperature, before 
 <span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>                        <span class="at">data =</span> shops,</span>
 <span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>                        <span class="at">linpar_control =</span> <span class="fu">linpar_options</span>(<span class="at">sparse =</span> <span class="cn">TRUE</span>)))</span>
 <span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>t_dense[[<span class="st">"elapsed"</span>]]</span>
-<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.8</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.7</span></span>
 <span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>t_sparse[[<span class="st">"elapsed"</span>]]</span>
-<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.35</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.33</span></span>
 <span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(<span class="fu">model.matrix</span>(fit_dense))</span>
 <span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] "matrix" "array"</span></span>
 <span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(<span class="fu">model.matrix</span>(fit_sparse))</span>
@@ -754,9 +760,9 @@ y_i \sim \mathrm{N}(\mu_i, \sigma_i), \qquad
 <span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [identity link]</span></span>
 <span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate    se      z      p  lower  upper</span></span>
-<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -12.12  4.75 -2.552 0.0107 -21.43 -2.814</span></span>
-<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   speed           3.539 0.359  9.858 &lt;1e-16  2.835  4.242</span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se      z       p  lower  upper</span></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -12.12  5.024 -2.413 0.01581 -21.97 -2.277</span></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   speed           3.539 0.3832  9.235 &lt; 1e-16  2.788   4.29</span></span>
 <span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
 <span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
@@ -796,7 +802,7 @@ y_i \sim \mathrm{N}(\mu_i, \sigma_i), \qquad
 </div>
 <p>The two fits agree, and the REML criterion that <code>statmod()</code> maximized is the restricted log-likelihood of <code>gls()</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_c1, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_c1, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(gls_c1)</span>
 <span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -826,8 +832,8 @@ Figure&nbsp;3.2: Stopping distance against speed. The line is the fitted mean. T
 </div>
 <p>Is the change of the standard deviation real? The two models have the same equation for the mean, so their REML criteria integrate the same coefficients out of the likelihood. They are marginal likelihoods of the same data, and we can compare them with a likelihood ratio test <span class="citation" data-cites="pinheiro2000">(<a href="A2-references.html#ref-pinheiro2000" role="doc-biblioref">Pinheiro and Bates 2000, sec. 5.2</a>)</span>. This is not the case of <a href="02-beyond.html#sec-beyond-lr" class="quarto-xref"><span>Section 2.5</span></a>, where the two models had different unpenalized terms in the mean. The model with a constant standard deviation is the model with <span class="math inline">\(\gamma_1 = 0\)</span>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>l0 <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_c0, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>l1 <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_c1, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>l0 <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_c0, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>l1 <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_c1, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>lr <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (<span class="fu">as.numeric</span>(l1) <span class="sc">-</span> <span class="fu">as.numeric</span>(l0))</span>
 <span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>lr</span>
 <span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 6.371165</span></span>
@@ -873,7 +879,7 @@ Figure&nbsp;3.2: Stopping distance against speed. The line is the fitted mean. T
 <span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(gls_s1<span class="sc">$</span>modelStruct<span class="sc">$</span>varStruct, <span class="at">unconstrained =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         B         C         D         E         F </span></span>
 <span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 0.9050145 0.4185346 0.5303716 0.3670072 1.3165615</span></span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_s1, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_s1, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
 <span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -177.8599 (df=12)</span></span>
 <span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(gls_s1)</span>
 <span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -177.8599 (df=12)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -944,11 +950,11 @@ Figure&nbsp;3.3: Insect counts for the six insecticides, with the 95% interval o
 <span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -203.1027 (df=4)</span></span>
 <span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g3)</span>
 <span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -203.1027 (df=4)</span></span>
-<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g1, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g1, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
 <span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span>
-<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g2, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g2, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
 <span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span>
-<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g3, <span class="at">type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_g3, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
 <span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -201.6767 (df=4)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The REML criterion is the same because it integrates only the coefficients of the mean, and the three second parameters do not depend on the mean. Their standard errors are also multiplied by 2:</p>

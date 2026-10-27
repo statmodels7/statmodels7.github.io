@@ -157,10 +157,15 @@ assert_glm_ok <- function(fits, ref, data, claims) {
       abs(phi["glm, deviance / n", "phi"] / (g$deviance / n) - 1) > 1e-10) {
     fail("the dispersions of glm")
   }
-  se_a <- sqrt(diag(stats::vcov(f)))[["mu:Age"]]
+  # glm() reads the Fisher information; the log link is not canonical for the
+  # gamma, so the default observed information gives another standard error
+  se_a <- sqrt(diag(stats::vcov(
+    f, vcov_type = bayesian_vcov(information = expected_info()))))[["mu:Age"]]
+  se_o <- sqrt(diag(stats::vcov(f)))[["mu:Age"]]
   se_g <- summary(g)$coefficients["Age", "Std. Error"]
-  if (abs(se_g / se_a / sqrt(phi["glm, Pearson", "phi"] /
-                             phi["statmod, default", "phi"]) - 1) > 1e-3) {
+  rt <- sqrt(phi["glm, Pearson", "phi"] / phi["statmod, default", "phi"])
+  if (abs(se_g / se_a / rt - 1) > 1e-6 || !(abs(se_g / se_o / rt - 1) > 1e-2) ||
+      !(se_o < se_a)) {
     fail("the ratio of the standard errors")
   }
   mu_g <- stats::fitted(g)
@@ -221,10 +226,10 @@ assert_glm_ok <- function(fits, ref, data, claims) {
       !(AIC(fb) < AIC(fn) - 100)) fail("the beta-binomial fit")
 
   # --- a dispersion with covariates -----------------------------------------
-  lr_g <- 2 * (as.numeric(logLik(fits$gam_phi, type = "marginal")) -
-                 as.numeric(logLik(fits$gam, type = "marginal")))
-  lr_q <- 2 * (as.numeric(logLik(fits$q_theta, type = "marginal")) -
-                 as.numeric(logLik(fits$q_nb2, type = "marginal")))
+  lr_g <- 2 * (as.numeric(logLik(fits$gam_phi, loglik_type = "marginal")) -
+                 as.numeric(logLik(fits$gam, loglik_type = "marginal")))
+  lr_q <- 2 * (as.numeric(logLik(fits$q_theta, loglik_type = "marginal")) -
+                 as.numeric(logLik(fits$q_nb2, loglik_type = "marginal")))
   if (abs(lr_g - claims$lr_gam) > 1e-8 || abs(lr_q - claims$lr_q) > 1e-8) {
     fail("the likelihood ratios")
   }

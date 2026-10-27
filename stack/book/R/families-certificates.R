@@ -69,7 +69,7 @@ assert_families_ok <- function(fits, ref, data, claims) {
     fail("the coverage of the bands")
   }
   if (!(coef(fits$ht1)$nu[["Age"]] < 0)) fail("the sign of the age effect on nu")
-  lr <- 2 * (ll(fits$ht1, type = "marginal") - ll(fits$ht0, type = "marginal"))
+  lr <- 2 * (ll(fits$ht1, loglik_type = "marginal") - ll(fits$ht0, loglik_type = "marginal"))
   if (abs(lr - claims$lr_ht) > 1e-8 || !(stats::pchisq(lr, 1, lower.tail = FALSE) < 0.01)) {
     fail("the likelihood ratio of nu ~ Age")
   }
@@ -95,8 +95,8 @@ assert_families_ok <- function(fits, ref, data, claims) {
   # the same slope, and the direct fit converges from its moment start
   if (statmod_certificate(fits$sn1)$state != "converged" ||
       abs(ll(fits$sn1) - ll(fits$ss)) > 1e-3 ||
-      abs(as.numeric(logLik(fits$sn1, type = "marginal")) -
-            as.numeric(logLik(fits$ss, type = "marginal"))) > 1e-3 ||
+      abs(as.numeric(logLik(fits$sn1, loglik_type = "marginal")) -
+            as.numeric(logLik(fits$ss, loglik_type = "marginal"))) > 1e-3 ||
       abs(coef(fits$sn1)$mu[["Horsepower"]] -
             coef(fits$ss)$mu[["Horsepower"]]) > 1e-4) {
     fail("the direct and the centred skew normal")
@@ -134,7 +134,7 @@ assert_families_ok <- function(fits, ref, data, claims) {
   if (rel(ph$phi[1:3], rep(ph$phi[1], 3)) > 1e-3 || !(ph$phi[4] < ph$phi[1])) {
     fail("the precision of the beta fits")
   }
-  lrb <- 2 * (ll(fits$b1, type = "marginal") - ll(fits$b0, type = "marginal"))
+  lrb <- 2 * (ll(fits$b1, loglik_type = "marginal") - ll(fits$b0, loglik_type = "marginal"))
   if (abs(lrb - claims$lr_b) > 1e-8 || !(stats::pchisq(lrb, 1, lower.tail = FALSE) > 0.05)) {
     fail("the likelihood ratio of the precision equation")
   }

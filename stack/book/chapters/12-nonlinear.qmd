@@ -7,6 +7,7 @@ source("R/_setup.R")
 source("R/nonlinear-certificates.R")
 chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
 fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
 ```
 
 In a nonlinear model a parameter of the distribution, on the scale of its
@@ -401,7 +402,7 @@ cbind(statmod = c(coef(fit_or)$mu[c("nl.Asym.(Intercept)", "nl.xmid",
                   sigma = exp(coef(fit_or)$sigma[["(Intercept)"]])),
       nlme = c(nlme::fixef(nlme_or),
                as.numeric(nlme::VarCorr(nlme_or)[, "StdDev"])))
-c(statmod = logLik(fit_or, type = "marginal"), nlme = logLik(nlme_or))
+c(statmod = logLik(fit_or, loglik_type = "marginal"), nlme = logLik(nlme_or))
 ```
 
 ```{r}
@@ -409,7 +410,7 @@ c(statmod = logLik(fit_or, type = "marginal"), nlme = logLik(nlme_or))
 #| include: false
 tau_or <- hyper(fit_or)$estimate
 tau_nlme <- as.numeric(nlme::VarCorr(nlme_or)[1, "StdDev"])
-ll_or <- as.numeric(logLik(fit_or, type = "marginal"))
+ll_or <- as.numeric(logLik(fit_or, loglik_type = "marginal"))
 ll_nlme <- as.numeric(logLik(nlme_or))
 ```
 
@@ -445,18 +446,28 @@ nlme_or_ml <- nlme::nlme(circumference ~ SSlogis(age, Asym, xmid, scal),
                          start = c(Asym = 190, xmid = 700, scal = 350),
                          method = "ML")
 summary(nlme_or_ml)
-cbind(statmod = c(coef(fit_or_ml)$mu[c("nl.Asym.(Intercept)", "nl.xmid",
-                                       "nl.scal")],
+cmp_or <- cbind(statmod = c(coef(fit_or_ml)$mu[c("nl.Asym.(Intercept)", "nl.xmid",
+                                                    "nl.scal")],
                   tau = hyper(fit_or_ml)$estimate,
                   sigma = exp(coef(fit_or_ml)$sigma[["(Intercept)"]])),
       nlme = c(nlme::fixef(nlme_or_ml),
                as.numeric(nlme::VarCorr(nlme_or_ml)[, "StdDev"])))
-c(statmod = logLik(fit_or_ml, type = "marginal"), nlme = logLik(nlme_or_ml))
+cmp_or
+ll_or <- c(statmod = logLik(fit_or_ml, loglik_type = "marginal"),
+           nlme = logLik(nlme_or_ml))
+ll_or
 ```
 
-The two maxima differ by less than 0.001, ours being the larger. The fixed
-effects agree to three significant digits, and the two standard deviations
-within one percent.
+```{r}
+#| label: nl-ml-numbers
+#| include: false
+rel_or <- abs(cmp_or[, "statmod"] / cmp_or[, "nlme"] - 1)
+```
+
+The two maxima differ by `r format(signif(ll_or[["statmod"]] - ll_or[["nlme"]], 2), scientific = FALSE)`,
+ours being the larger. The fixed effects agree to within
+`r pct(max(rel_or[1:3]), 2)`, and the two standard deviations to within
+`r pct(max(rel_or[4:5]), 2)`.
 
 The argument `random` of `predict()` sets the random effects aside. With
 `random = "zero"` every tree is given $b_i = 0$, which is the curve of a
@@ -555,13 +566,13 @@ cbind(statmod = c(coef(fit_th)$mu[c("nl.lKe", "nl.lKa.(Intercept)",
                   sigma = exp(coef(fit_th)$sigma[["(Intercept)"]])),
       nlme = c(nlme::fixef(nlme_th),
                as.numeric(nlme::VarCorr(nlme_th)[, "StdDev"])))
-c(statmod = logLik(fit_th, type = "marginal"), nlme = logLik(nlme_th))
+c(statmod = logLik(fit_th, loglik_type = "marginal"), nlme = logLik(nlme_th))
 ```
 
 ```{r}
 #| label: nl-theoph-numbers
 #| include: false
-ll_th <- as.numeric(logLik(fit_th, type = "marginal"))
+ll_th <- as.numeric(logLik(fit_th, loglik_type = "marginal"))
 ll_th_nlme <- as.numeric(logLik(nlme_th))
 ```
 
@@ -758,7 +769,7 @@ cf_dec <- coef(fit_dec)$mu
 ```
 
 The position of the change is $\hat\psi = `r fmt(cf_dec[["nl.r.jump.psi1"]], 2)`$,
-between day 17 and day 18, and it has a standard error because the step is
+between day `r floor(cf_dec[["nl.r.jump.psi1"]])` and day `r ceiling(cf_dec[["nl.r.jump.psi1"]])`, and it has a standard error because the step is
 smooth. The logarithm of the rate rises by
 `r fmt(cf_dec[["nl.r.jump.delta1"]], 3)`, against 0.5 in the simulation. We
 compare the model with the one without a change:
