@@ -363,7 +363,8 @@ d_garch <- abs(as.numeric(logLik(fit_garch)) - rugarch::likelihood(garch_n))
 
 The estimates agree to two decimals, and the log-likelihoods differ by
 `r fmt(d_garch, 3)`: `rugarch` starts the recursion at the mean of the
-squared residuals, and we start it at $\gamma_0$. The identity link does not
+squared residuals, and we start it at $\gamma_0$
+(@sec-timeseries-start compares the two starts). The identity link does not
 keep $\sigma_t^2$ positive by itself. At these estimates $\omega_G$,
 $\alpha_G$ and $\beta_G$ are positive, so every $\sigma_t^2$ is positive, as
 in the GARCH model.
@@ -428,6 +429,74 @@ ggplot(data.frame(year = yr, r = abs(dax$r)), aes(x = year)) +
   scale_x_continuous(breaks = seq(ceiling(min(yr)), floor(max(yr)))) +
   labs(x = "year", y = "absolute return (%)")
 ```
+
+### The start of the recursion {#sec-timeseries-start}
+
+The recursion needs a value of $f_1$, and the argument `init` of `gas()`
+chooses between two. With `init = "level"`, the default, the recursion
+starts at its level, $f_1 = 0$, so the first predictor is the intercept:
+$\log \sigma_1 = \gamma_0$ in the model on the logarithm of the scale and
+$\sigma_1^2 = \gamma_0$ in the GARCH model. With `init = "static"` the first
+predictor equals the predictor of the same model without the term, which
+`statmod()` fits first. Here that model is $r_t \sim \mathrm{N}(\mu, \sigma)$
+with a constant scale, so the recursion starts at the standard deviation of
+the whole series. This is close to the start of `rugarch`, which sets
+$\sigma_1^2$ to the mean of the squared residuals. We fit both models again
+with the static start:
+
+```{r}
+#| label: ts-fit-start
+fit_garch_s <- statmod(r ~ 1 | sigma2 ~ gas(p = 1, q = 1, time = day,
+                                            scaling = 1, init = "static"),
+                       distrib = gaussian2_distrib(link_sigma2 = identity_link()),
+                       data = dax)
+fit_dax_s <- statmod(r ~ 1 | sigma ~ gas(p = 1, q = 1, time = day,
+                                         init = "static"),
+                     distrib = gaussian1_distrib(), data = dax)
+summary(fit_dax_s)
+cbind(log_scale = c(level = logLik(fit_dax), static = logLik(fit_dax_s),
+                    rugarch = NA),
+      garch = c(level = logLik(fit_garch), static = logLik(fit_garch_s),
+                rugarch = rugarch::likelihood(garch_n)))
+```
+
+```{r}
+#| label: ts-start-numbers
+#| include: false
+d_start <- as.numeric(logLik(fit_dax_s)) - as.numeric(logLik(fit_dax))
+sd_50 <- sd(dax$r[1:50])
+lev_level <- exp(coef(fit_dax)$sigma[["(Intercept)"]])
+lev_static <- exp(coef(fit_dax_s)$sigma[["(Intercept)"]])
+d_n_s <- as.numeric(logLik(fit_garch_s)) - as.numeric(logLik(fit_dax_s))
+```
+
+With the static start the log-likelihood of the GARCH model agrees with that
+of `rugarch` to two decimals, and the model on the logarithm of the scale
+gains `r fmt(d_start, 2)`. For these returns the static start is
+the better of the two. The series opens on a turbulent period: the standard
+deviation of the first 50 days is `r fmt(sd_50, 2)`, and that of the whole
+series is `r fmt(sd(dax$r), 2)`. With the level start the intercept fixes
+both the first scale and the level to which the scale returns, so one
+parameter has to serve two purposes. With the static start the first scale
+comes from the model without the term, and the intercept describes the
+level alone ($e^{\hat\gamma_0}$ is `r fmt(lev_static, 3)` with the static
+start and `r fmt(lev_level, 3)` with the level start).
+
+The level start also gives both likelihoods a second maximum, at a
+persistence very close to one. At that maximum the level hardly pulls the
+filter back, so the intercept acts as the initial value of the recursion,
+and its estimate puts the level of the scale far above the standard
+deviation of the series. The fits above do not reach that maximum, and with
+the static start it disappears. The comparison of the two models does not
+change: with the static start the GARCH model is still the better one, by
+`r fmt(d_n_s, 1)`.
+
+The level start remains the default because it is the better choice when the
+filter runs on a panel and its level $\omega$ varies by group, as in the
+models of @sec-timeseries-panels with a random effect of the mare in
+$\omega$. Each series then starts at the level of its own group. The static start begins every series at the prediction of the model
+without the term, and the transient from that value to the level of the
+group costs likelihood. The other fits of this chapter keep the default.
 
 ### A heavy-tailed distribution
 
@@ -1780,7 +1849,8 @@ assert_timeseries_ok(
               ov_int = fit_ov_int, ov_al = fit_ov_al, gey = fit_gey,
               gey3 = fit_gey3, gey_d = fit_gey_d, gey_d0 = fit_gey_d0,
               dax_r = fit_dax_r, dax_lev = fit_dax_lev, dax_nu = fit_dax_nu,
-              dax_nu2 = fit_dax_nu2),
+              dax_nu2 = fit_dax_nu2, dax_s = fit_dax_s,
+              garch_s = fit_garch_s),
   ref = list(arima_nile = arima_nile, garch_n = garch_n, garch_t = garch_t,
              tsc_p = tsc_p, tsc_nb = tsc_nb, acd = acd, tsc_id = tsc_id,
              acd_lin = acd_lin, gls_ov = gls_ov,

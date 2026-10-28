@@ -17,6 +17,9 @@
 #             maximum; rugarch's log-likelihood is a GARCH recursion written
 #             out at its estimates; GARCH is the larger with the gaussian
 #             distribution, and the two standard deviations correlate;
+#             with the static start the DAX filter written out from the
+#             static standard deviation, at a maximum and above the level
+#             start, the GARCH within 5e-3 of rugarch and still the larger;
 #             the spelling with omega free and no intercept gives the same
 #             likelihood at omega = beta0 (1 - beta);
 #   families  the Student t filter written out with its bounded score; the t
@@ -186,8 +189,8 @@ assert_timeseries_ok <- function(fits, ref, data, claims) {
   r <- data$dax$r
   m <- length(r)
   # log sigma_t = g0 + f_t, f_t = a s_{t-1} + b f_{t-1}, f_1 = 0
-  scale_ll <- function(mu, g0, a, b, score, dens) {
-    f <- 0
+  scale_ll <- function(mu, g0, a, b, score, dens, f1 = 0) {
+    f <- f1
     out <- 0
     for (t in seq_len(m)) {
       if (t > 1L) f <- a * score((r[t - 1L] - mu) / sp) + b * f
@@ -227,6 +230,24 @@ assert_timeseries_ok <- function(fits, ref, data, claims) {
       !(stats::cor(predict(fits$dax, what = "sigma"),
                    as.numeric(rugarch::sigma(ref$garch_n))) > 0.8)) {
     fail("the comparison with the gaussian GARCH model")
+  }
+  # the static start: log sigma_1 is the log scale of r ~ N(mu, sigma) fitted
+  # by statmod() (REML, so the standard deviation with divisor m - 1)
+  s0 <- stats::sd(r)
+  cs <- coef(fits$dax_s)
+  ps <- c(cs$mu[["(Intercept)"]], cs$sigma[["(Intercept)"]],
+          cs$sigma[["gas.kappa1"]], cs$sigma[["gas.xi1"]])
+  if (abs(scale_ll(ps[1], ps[2], ps[3], ps[4], gs, gd, log(s0) - ps[2]) -
+          ll(fits$dax_s)) > 1e-7) {
+    fail("the DAX log-likelihood with the static start")
+  }
+  nlls <- function(p) -scale_ll(p[1], p[2], exp(p[3]), tanh(p[4]), gs, gd,
+                                log(s0) - p[2])
+  if (!at_max(nlls, c(ps[1], ps[2], log(ps[3]), atanh(ps[4]))) ||
+      !(ll(fits$dax_s) > ll(fits$dax)) ||
+      abs(ll(fits$garch_s) - rugarch::likelihood(ref$garch_n)) > 5e-3 ||
+      !(ll(fits$garch_s) > ll(fits$dax_s))) {
+    fail("the comparison of the level and static starts")
   }
 
   # --- families: Student t and Poisson ------------------------------------------
