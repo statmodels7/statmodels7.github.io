@@ -1,0 +1,541 @@
+# Graphs of a fit {#sec-graphs}
+
+```{r}
+#| label: setup-03
+#| include: false
+source("R/_setup.R")
+source("R/plot-certificates.R")
+```
+
+The first two chapters read a fit through numbers: `summary()`, `coef()`,
+`confint()`, `residuals()` and `predict()`. This chapter draws the same
+quantities. The function `autoplot()` takes a fit and returns a graph of the
+effect of a term, of the fitted distribution or of the residuals, and
+`plot()` prints that graph. The later chapters add the graphs of their own
+terms, and the last section of this chapter lists which chapter shows each of
+them.
+
+We use four fits. The first two are the models of @sec-model for the
+motorcycle data, one with a constant standard deviation and one with a smooth
+standard deviation. The third is the Poisson model of insurance claims of
+@sec-beyond-weights, which has two factors, an ordered factor and an offset,
+and the fourth is a negative binomial model of the number of fish species in
+a lake, a count with a discrete distribution.
+
+## The function plot() {#sec-graphs-entry}
+
+We fit the two motorcycle models again.
+
+```{r}
+#| label: fits-mcycle
+library(statmodels7)
+data(mcycle, package = "MASS")
+fit0 <- statmod(accel ~ s(times, bspline_smooth(k = 20)),
+                distrib = gaussian1_distrib(), data = mcycle)
+fit1 <- statmod(accel ~ s(times, bspline_smooth(k = 20)) |
+                  sigma ~ s(times, bspline_smooth(k = 10)),
+                distrib = gaussian1_distrib(), data = mcycle)
+summary(fit0)
+summary(fit1)
+```
+
+With no argument other than the fit, `plot()` draws four diagnostic graphs.
+Three of them read the quantile residuals, which we introduced in
+@sec-model-resid. For observation $i$ with fitted distribution function
+$\hat F_i$, the quantile residual is $r_i = \Phi^{-1}(\hat F_i(y_i))$, where
+$\Phi$ is the standard gaussian distribution function. If the model is right,
+the residuals are standard gaussian whatever the distribution of the response.
+
+```{r}
+#| label: fig-plot-default
+#| fig-cap: "The four default graphs of the model with a constant standard deviation: the observed density of the response with the densities of simulated responses, the worm plot, the calibration of the predicted quantiles and the residuals against the rank of the predicted median."
+#| fig-height: 6
+plot(fit0)
+```
+
+The upper left graph compares the observed density of the acceleration, the
+dark curve, with the densities of 200 responses that we simulate from the
+fitted model, the grey curves. If the model describes the data, the observed
+density lies among the simulated ones. The upper right graph is the worm plot,
+which plots each sorted residual minus the gaussian quantile that it should
+have, so that a departure from the model shows as a departure from the
+horizontal axis. The lower left graph is the calibration of the predicted
+quantiles. For each probability $p$ on the horizontal axis, the vertical axis
+shows the fraction of the observations at or below the quantile
+$\hat F_i^{-1}(p)$ that the model predicts for them. The lower right graph
+shows the residuals against the rank of the median that the model predicts for
+each observation. Section @sec-graphs-diagnostics describes the four graphs in
+detail.
+
+For this model the upper left graph shows the problem at once. The observed
+density has a higher and narrower peak than the simulated densities, and a
+bump near $-110$ that most of them do not have. The model uses one standard
+deviation for all times, as we saw in @sec-model-resid, and the simulated
+responses are too spread out in the quiet phase and not spread out enough in
+the middle phase.
+
+The function `plot()` prints the graph and returns it without printing it
+again. The function `autoplot()` draws the same graph and only returns it,
+as an object of the package `ggplot2`, so we can store it, add layers to it
+and save it. Both functions have the same arguments:
+
+* `term`, the name of a term as `summary()` prints it, or the name of a
+  variable. A variable selects every term of an equation that reads it, so
+  `term = "times"` names the smooth of `times`;
+* `param`, the name of the equation, such as `"mu"` or `"sigma"`. It can be
+  omitted when the term belongs to one equation only;
+* `plot_type`, an object that selects the graph. Each type of graph is a
+  function whose name starts with `plot_`, and its arguments are the options
+  of the graph;
+* `data`, the data frame of the fit. The fit does not keep its data, so
+  a graph that reads a covariate needs it.
+
+We see what happens when `data` is missing. The call below requests the effect
+of `times` and does not pass the data:
+
+```{r}
+#| label: no-data
+tryCatch(autoplot(fit0, term = "times"),
+         error = function(e) conditionMessage(e))
+```
+
+The types of graph come in three kinds. A graph of a term (for example
+`plot_effect()`) needs the argument `term`. A graph of the fitted distribution
+(for example `plot_quantiles()`) describes the whole model and takes neither
+`term` nor `param`; the equation of `plot_param()` is an option of the type.
+A diagnostic graph (for example `plot_worm()`) compares the fit with the
+data. When we give `term` and no `plot_type`, the graph is `plot_effect()` for
+most terms, and the later chapters introduce the terms that have another
+default. When we give neither `term` nor `plot_type`, the graph is the group of
+four diagnostic graphs above.
+
+## The effect of a term {#sec-graphs-effect}
+
+The mean of `fit0` is $\mu_i = \beta_0 + f(t_i)$, where $t_i$ is the time of
+observation $i$, $\beta_0$ the intercept and $f$ the smooth function of time.
+The effect of the term `times` is the curve $f$, drawn as `statmod()`
+estimates it, that is with the constraint that makes the smooth sum to zero
+over the observed times (@sec-model-summary).
+
+```{r}
+#| label: fig-effect-mu
+#| fig-cap: "Effect of time on the mean of the acceleration, with a 95% band and the partial residuals."
+autoplot(fit0, term = "times", data = mcycle)
+```
+
+The band is the estimate plus and minus 1.96 standard errors, computed from
+the variance matrix that `vcov()` returns by default (@sec-beyond-variances).
+The points are the partial residuals $f(t_i) + (z_i - \eta_i)$, where $\eta_i$
+is the predictor of observation $i$ and $z_i$ is the working response of the
+equation: $z_i = \eta_i + s_i / w_i$, with $s_i$ the derivative of the
+log-likelihood of observation $i$ with respect to $\eta_i$ and $w_i$ the
+expected information in $\eta_i$. For the mean of a gaussian distribution with
+the identity link, $z_i - \eta_i = y_i - \hat\mu_i$, so each point is the
+observation without the intercept, $y_i - \beta_0$, and the distance of a
+point from the curve is the residual of the observation. The marks along the
+horizontal axis show the observed times.
+
+The same graph is available for the other equations of the model. The
+standard deviation of `fit1` has its own smooth of time, and we draw its
+effect on $\log\sigma$, the scale on which the equation is written.
+
+```{r}
+#| label: fig-effect-sigma
+#| fig-cap: "Effect of time on the logarithm of the standard deviation, with a 95% band and the partial residuals."
+autoplot(fit1, term = "times", param = "sigma", data = mcycle)
+```
+
+For the equation of a scale parameter the partial residuals are not
+symmetric around the curve. The working response of $\log\sigma$ is
+$z_i = \eta_i + \big((y_i - \mu_i)^2/\sigma_i^2 - 1\big)/2$, whose
+distribution is skewed: in the middle of the range most points lie below the
+curve and a few lie far above it.
+
+A factor is drawn with one estimate and one interval for each level. We show
+it with the insurance model of @sec-beyond-weights. The response `Claims` is the
+number of claims of a group of policy holders, `Holders` is the number of
+policy holders, and the offset `log(Holders)` turns the equation into a model
+for the rate of claims per policy holder.
+
+```{r}
+#| label: fit-insurance
+data(Insurance, package = "MASS")
+fit_i <- statmod(Claims ~ offset(log(Holders)) + District + Group + Age,
+                 distrib = poisson_distrib(), data = Insurance)
+summary(fit_i)
+```
+
+```{r}
+#| label: fig-effect-age-link
+#| fig-cap: "Effect of the age of the driver on the logarithm of the expected number of claims per policy holder."
+autoplot(fit_i, term = "Age", data = Insurance)
+```
+
+The vertical axis of @fig-effect-age-link is the contribution of `Age` to the
+predictor $\log\mu_i$, the logarithm of the expected number of claims. The
+argument `scale = "response"` draws the parameter itself, $\mu = \exp(\eta)$.
+On this scale the effect of a term depends on the other terms of the model, so
+the graph needs a value for each of them. The variables that we do not give take
+the median of the data, for a number, or the first level, for a factor. The
+offset variable `Holders` is one of them. We choose the value 100 for it with the argument `at`.
+
+```{r}
+#| label: fig-effect-age-response
+#| fig-cap: "Expected number of claims for each age class, for the first district and the first group of cars and 100 policy holders."
+autoplot(fit_i, term = "Age",
+         plot_type = plot_effect(scale = "response", at = list(Holders = 100)),
+         data = Insurance)
+```
+
+The graph does not draw partial residuals on the response scale.
+
+## The fitted distribution {#sec-graphs-distribution}
+
+A model of this toolkit has a distribution of the response at every value of
+the covariates, so we can draw quantities of that distribution that no
+single term describes. These graphs take no `term`. They are the parameter
+against a covariate, the quantiles, the density and the moments. In each of
+them the covariate is given by the argument `over`, and the other covariates
+are held at their median or first level, or at the values of the argument
+`at`.
+
+The function `plot_param()` draws one parameter of the distribution against a
+covariate, with a band from `predict()`.
+
+```{r}
+#| label: fig-param
+#| fig-cap: "The standard deviation of the acceleration against time, with a 95% band."
+autoplot(fit1, plot_type = plot_param(param = "sigma", over = "times"),
+         data = mcycle)
+```
+
+The function `plot_quantiles()` draws the curves $t \mapsto F^{-1}(p; \hat\theta(t))$
+of the quantiles of the response, for the probabilities of the argument
+`probs`, which are 0.05, 0.25, 0.5, 0.75 and 0.95 by default. For the gaussian
+distribution of `fit1` the quantile curve of probability $p$ is
+$\hat\mu(t) + \hat\sigma(t)\,\Phi^{-1}(p)$. The graph also shows the
+observations, so we can count how many fall outside the outer curves.
+
+```{r}
+#| label: fig-quantiles
+#| fig-cap: "Quantiles of the acceleration given the time after impact, at the probabilities 0.05, 0.25, 0.5, 0.75 and 0.95."
+autoplot(fit1, plot_type = plot_quantiles(over = "times"), data = mcycle)
+```
+
+The function `plot_density()` draws the fitted density at chosen values of the
+covariates. The argument `at` is a data frame with one row for each density.
+Without `over`, the densities are drawn on a common horizontal axis.
+
+```{r}
+#| label: fig-density
+#| fig-cap: "Fitted densities of the acceleration at four times after impact."
+at_times <- data.frame(times = c(10, 20, 30, 45))
+autoplot(fit1, plot_type = plot_density(at = at_times), data = mcycle)
+```
+
+With `over = "times"` the same densities are drawn in the plane of the data,
+each one standing on its value of time and turned sideways, so we can compare
+the shape of the density with the observations around it.
+
+```{r}
+#| label: fig-density-over
+#| fig-cap: "The same densities, drawn sideways at their times, with the observations."
+autoplot(fit1, plot_type = plot_density(at = at_times, over = "times"),
+         data = mcycle)
+```
+
+The function `plot_moments()` draws the mean, the variance, the standard
+deviation, the skewness or the kurtosis of the distribution against a
+covariate. Each moment is computed from the parameters by the generics of
+`distributions7`, so the graph is not the graph of a parameter. For the
+gaussian distribution the mean is $\mu$ and the standard deviation is
+$\sigma$, and for most other families the two differ.
+
+```{r}
+#| label: fig-moments
+#| fig-cap: "The mean and the standard deviation of the acceleration against time."
+autoplot(fit1, plot_type = plot_moments(over = "times",
+                                   moments = c("mean", "std_dev")),
+         data = mcycle)
+```
+
+The same graphs describe a distribution on the integers. The data frame
+`species` gives the number of fish species `fish` in 70 lakes and the area
+`lake` of each lake [@stasinopoulos2017], and we fit a negative binomial
+distribution to the count with the logarithm of the area as the covariate.
+
+```{r}
+#| label: fit-species
+data(species, package = "gamlss.data")
+species$log_lake <- log(species$lake)
+sp <- statmod(fish ~ log_lake, distrib = negbin2_distrib(), data = species,
+              outer_criterion = ml())
+summary(sp)
+```
+
+For a discrete distribution the quantile function is a step function, so
+`plot_quantiles()` draws steps, and `plot_density()` draws the probability of
+each integer as a bar.
+
+```{r}
+#| label: fig-species-quantiles
+#| fig-cap: "Quantiles of the number of fish species given the logarithm of the area of the lake."
+autoplot(sp, plot_type = plot_quantiles(over = "log_lake"), data = species)
+```
+
+```{r}
+#| label: fig-species-density
+#| fig-cap: "Fitted probabilities of the number of species for three values of the logarithm of the area."
+autoplot(sp, plot_type = plot_density(at = data.frame(log_lake = c(2, 5, 8))),
+         data = species)
+```
+
+## Diagnostics {#sec-graphs-diagnostics}
+
+The diagnostic graphs compare the fitted model with the data in two ways. The
+graph `plot_ppc()` compares the response itself with responses simulated from
+the model, and the others read the quantile residuals $r_i$ defined above. We
+describe each one with the quantity that it draws.
+
+The function `plot_ppc()` draws the observed density of the response over the
+densities of `n_sim` responses that `simulate()` draws from the fitted model.
+The simulated responses vary as the response does, and they do not carry the
+uncertainty of the estimates. The graph is the one that we saw first in
+@fig-plot-default. With the argument `statistic`, the graph is the histogram
+of a number computed on each simulated response, with the value on the
+observed response as a vertical line. A statistic that targets a suspected
+problem shows it more sharply than the densities. The responses of `mcycle` are
+in the order of time, so the first 20 are the quiet phase before the impact,
+and the model with a constant standard deviation should not simulate a quiet
+phase. We take the standard deviation of the first 20 responses as the
+statistic.
+
+```{r}
+#| label: fig-ppc-statistic
+#| fig-cap: "Standard deviation of the first 20 responses in 200 responses simulated from the model with a constant standard deviation, with the value of the observed response as a vertical line."
+early_sd <- function(y) sd(y[1:20])
+autoplot(fit0, plot_type = plot_ppc(statistic = early_sd, seed = 1),
+         data = mcycle)
+```
+
+The observed value lies far to the left of the simulated ones. The same graph
+of densities for the model with a smooth standard deviation shows no such
+departure.
+
+```{r}
+#| label: fig-ppc
+#| fig-cap: "Observed density of the acceleration and the densities of 200 responses simulated from the model with a smooth standard deviation."
+autoplot(fit1, plot_type = plot_ppc(seed = 1), data = mcycle)
+```
+
+The observed density lies among the simulated densities along its whole range.
+
+The function `plot_qq()` sorts the residuals as
+$r_{(1)} \le \dots \le r_{(n)}$ and plots $r_{(i)}$ against
+$\Phi^{-1}(p_i)$, where $p_i$ is the $i$-th value that `ppoints()` returns for
+$n$ observations. The band of level $1 - \alpha$ at position $i$ is the
+interval from the $\alpha/2$ quantile to the $1 - \alpha/2$ quantile of the
+$i$-th order statistic of $n$ uniform variables, mapped by $\Phi^{-1}$. That
+order statistic has the beta distribution with parameters $i$ and $n + 1 - i$.
+The argument `band = "simulated"` replaces this band with the pointwise
+interval of the sorted residuals of `n_sim` responses simulated from the fit.
+
+```{r}
+#| label: fig-qq
+#| fig-cap: "Quantile-quantile graph of the model with a smooth standard deviation, with the band from the order statistics."
+autoplot(fit1, plot_type = plot_qq(), data = mcycle)
+```
+
+The worm plot of `plot_worm()` draws $r_{(i)} - \Phi^{-1}(p_i)$ against
+$\Phi^{-1}(p_i)$, with the band detrended in the same way. A mean of the
+residuals different from zero shows as a shift of the points from the axis, a
+wrong variance as a slope, a wrong skewness as a U shape and a wrong kurtosis
+as an S shape. With the argument `over`, the observations are divided into
+classes of a covariate of equal size, and the worm plot is drawn once for each
+class. The model `fit0` has a constant standard deviation, and
+@fig-worm-over shows the consequence.
+
+```{r}
+#| label: fig-worm-over
+#| fig-cap: "Worm plots of the model with a constant standard deviation within four classes of time."
+autoplot(fit0, plot_type = plot_worm(over = "times"), data = mcycle)
+```
+
+In the first class the points slope downward. The residuals of the early
+observations have a smaller spread than the standard gaussian distribution,
+which means that the model overstates the standard deviation there. The graph
+of the residuals against the covariate, drawn by `plot_residuals()`, shows the
+same pattern as @fig-resid0.
+
+```{r}
+#| label: fig-residuals-times
+#| fig-cap: "Quantile residuals of the model with a constant standard deviation against time. The line is a smooth of the residuals."
+autoplot(fit0, plot_type = plot_residuals(against = "times"), data = mcycle)
+```
+
+The model `fit1` has a standard deviation that depends on time, and the same
+worm plot shows no trend in any of the four classes.
+
+```{r}
+#| label: fig-worm-over1
+#| fig-cap: "Worm plots of the model with a smooth standard deviation within four classes of time."
+autoplot(fit1, plot_type = plot_worm(over = "times"), data = mcycle)
+```
+
+The graph `plot_pit()` is the histogram of the values
+$u_i = \hat F_i(y_i)$ of the fitted distribution function at the
+observations. If the model is right, the $u_i$ are uniform on $(0, 1)$, and
+the graph draws the density scale with the uniform density and a binomial
+band for each bin. A U shape shows a response more dispersed than the model, a
+hump shows one less dispersed, and a slope shows a bias in the location.
+
+```{r}
+#| label: fig-pit
+#| fig-cap: "Histogram of the probability integral transform of the model with a smooth standard deviation."
+autoplot(fit1, plot_type = plot_pit(bins = 10), data = mcycle)
+```
+
+The graph `plot_calibration()` draws, for each probability $p$ of the
+argument `probs`, the observed coverage
+$\hat c(p) = n^{-1}\sum_i 1\{u_i \le p\}$ against $p$. Under a correct model
+$\hat c(p)$ has mean $p$ and variance $p(1 - p)/n$, which gives the band
+$p \pm 1.96\sqrt{p(1 - p)/n}$. With `over`, there is one graph for each class
+of a covariate.
+
+```{r}
+#| label: fig-calibration
+#| fig-cap: "Observed coverage of the predicted quantiles of the model with a smooth standard deviation, in four classes of time."
+autoplot(fit1, plot_type = plot_calibration(over = "times"), data = mcycle)
+```
+
+For a discrete distribution the distribution function jumps at each integer,
+and the residual is randomized between the two values of $\hat F_i$ at the
+jump, as @sec-model-resid explains. The argument `seed` of the diagnostic
+types makes the randomization reproducible. We draw the probability integral
+transform of the model for the number of species.
+
+```{r}
+#| label: fig-pit-species
+#| fig-cap: "Histogram of the randomized probability integral transform of the negative binomial model for the number of species."
+autoplot(sp, plot_type = plot_pit(bins = 10, seed = 1), data = species)
+```
+
+The group of four graphs that `plot()` draws without arguments is also the
+value of `diagnostics()`, which returns the graphs as a named list when we
+need to draw them one by one. The argument `plot_types` of `diagnostics()`
+takes a list of other diagnostic graphs.
+
+```{r}
+#| label: diagnostics-list
+names(diagnostics(fit1))
+```
+
+## The data behind a graph {#sec-graphs-data}
+
+A graph is built in two steps. The generic `plot_data()` computes the
+quantities to draw and returns them as a list of data frames, and the generic
+`plot_layers()` turns the list into the layers of the graph. The first step
+needs the term and a short description of where it sits, a list with the
+equation, the name of the term, its variables and the data. For the effect of
+@fig-effect-mu we write it in full.
+
+```{r}
+#| label: plot-data
+term_name <- "s(times, bspline_smooth(k = 20))"
+ctx <- list(param = "mu", name = term_name, vars = "times", cols = NULL,
+            data = mcycle)
+d <- plot_data(plot_effect(), fit0@spec@terms$mu[[term_name]], fit0, ctx = ctx)
+names(d)
+head(d$curve, n = 3)
+head(d$points, n = 3)
+```
+
+The data frame `curve` holds the grid of times, the estimate of the effect and
+the two ends of the band, and `points` holds the partial residuals. We check
+the estimate against `predict()`. The predictor of `mu` at the grid is the
+intercept plus the effect, so the effect is the prediction minus the
+intercept. The partial residuals of a gaussian mean with the identity link
+are the effect at the observed times plus the response residuals.
+
+```{r}
+#| label: plot-data-check
+grid <- data.frame(times = d$curve$x)
+intercept <- coef(fit0)$mu[["(Intercept)"]]
+effect <- predict(fit0, what = "mu", newdata = grid) - intercept
+max(abs(d$curve$fit - effect))
+
+at_obs <- data.frame(times = d$points$x)
+effect_obs <- predict(fit0, what = "mu", newdata = at_obs) - intercept
+partial <- residuals(fit0, residual_type = "response") + effect_obs
+max(abs(d$points$y - partial))
+```
+
+Both differences are at the level of rounding error.
+
+The band is the effect plus and minus 1.96 standard errors, where the standard
+error comes from the block of the variance matrix that belongs to the
+coefficients of the smooth.
+
+Because `autoplot()` returns a `ggplot2` object, we can change it as we change
+any other. We add a title and a label with `labs()`, draw a further layer, or
+save the figure with `ggsave()`.
+
+```{r}
+#| label: fig-modify
+#| fig-cap: "The effect of time with a title added by `labs()` and a vertical line at the time of the minimum of the curve."
+p <- autoplot(fit0, term = "times", plot_type = plot_effect(residuals = FALSE),
+              data = mcycle)
+t_min <- d$curve$x[which.min(d$curve$fit)]
+p + geom_vline(xintercept = t_min, linetype = "dashed") +
+  labs(title = "Effect of time on the mean acceleration")
+```
+
+## The graphs of the other chapters {#sec-graphs-others}
+
+Each type of graph is shown in the chapter that introduces the terms or the
+models it describes. The table lists the graphs, the kind of each one and the
+chapter of its first use. The kinds are described in @sec-graphs-entry.
+
+| Function | Kind | Draws | Chapter |
+|---|---|---|---|
+| `plot_effect()` | term | contribution of a term to the predictor, or the parameter, with the partial residuals | this chapter |
+| `plot_param()` | model | one parameter against a covariate | this chapter |
+| `plot_quantiles()` | model | quantiles of the response against a covariate | this chapter |
+| `plot_density()` | model | fitted densities at chosen covariate values | this chapter |
+| `plot_moments()` | model | mean, variance, standard deviation, skewness or kurtosis against a covariate | this chapter |
+| `plot_qq()` | diagnostic | sorted quantile residuals against gaussian quantiles | this chapter |
+| `plot_worm()` | diagnostic | the quantile-quantile graph with the line removed | this chapter |
+| `plot_residuals()` | diagnostic | quantile residuals against a covariate or the predicted median | this chapter |
+| `plot_pit()` | diagnostic | histogram of the probability integral transform | this chapter |
+| `plot_calibration()` | diagnostic | observed coverage of the predicted quantiles | this chapter |
+| `plot_ppc()` | diagnostic | the observed density of the response, or a statistic, against simulated responses | this chapter |
+| `plot_derivative()` | term | derivative of a smooth, with the zones where the band excludes zero | @sec-gam |
+| `plot_surface()` | term | the smooth of two covariates, with contours | @sec-gam |
+| `plot_caterpillar()` | term | the estimated effect of each group of a random effect | @sec-lmm |
+| `plot_prior()` | term | the prior of a random effect against the histogram of its estimates | @sec-lmm |
+| `plot_random_cov()` | term | two random coefficients of each group, with the estimated covariance | @sec-lmm |
+| `plot_curves()` | term | a curve for each group of a random smooth | @sec-gamm |
+| `plot_shrinkage()` | term | penalized and unpenalized estimates of the coefficients | @sec-penalized |
+| `plot_path()` | term | coefficients of a penalized term against the hyperparameter | @sec-penalized |
+| `plot_criterion()` | term | the criterion against the hyperparameter | @sec-penalized |
+| `plot_breakpoint()` | term | a broken line with the interval of the break-point and its profile | @sec-breakpoints |
+| `plot_filter()` | term | the filtered parameter of a score-driven term | @sec-timeseries |
+| `plot_news_impact()` | term | the update of a filter against the standardized residual | @sec-timeseries |
+| `plot_states()` | term | probabilities of the states of a regime term | @sec-timeseries |
+| `plot_regime_density()` | term | the density of the response in each regime | @sec-timeseries |
+| `plot_acf()` | diagnostic | autocorrelation of the residuals or of their squares | @sec-timeseries |
+| `plot_score()` | diagnostic | contribution of each observation to the score | @sec-choosing |
+| `plot_influence()` | diagnostic | leverage or Cook distance of each observation | @sec-choosing |
+
+: The graphs of a fit {#tbl-graph-types}
+
+A term written by the user has the graph `plot_effect()` without further work.
+@sec-own-terms shows how to write the method of `plot_data()` that gives a
+term a graph of its own.
+
+```{r}
+#| label: gate-03
+#| include: false
+assert_graphs_ok(fit0, fit1, fit_i, sp, mcycle, Insurance, species,
+                 chapter = readLines("chapters/03-graphs.qmd"))
+```

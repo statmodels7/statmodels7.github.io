@@ -24,7 +24,11 @@ suppressMessages({
   pkgload::load_all(file.path(.toolkit_root, "basis7"), quiet = TRUE, export_all = FALSE)
   pkgload::load_all(file.path(.toolkit_root, "penalties7"), quiet = TRUE, export_all = FALSE)
   pkgload::load_all(file.path(.toolkit_root, "modelterms7"), quiet = TRUE, export_all = FALSE)
-  pkgload::load_all(file.path(.toolkit_root, "statmodels7"), quiet = TRUE, export_all = FALSE)
+  # STATMODELS7_SRC points the render at another working tree of the package
+  # (a worktree whose changes are not yet in the master of the checkout).
+  pkgload::load_all(Sys.getenv("STATMODELS7_SRC",
+                               file.path(.toolkit_root, "statmodels7")),
+                    quiet = TRUE, export_all = FALSE)
 })
 
 knitr::opts_chunk$set(

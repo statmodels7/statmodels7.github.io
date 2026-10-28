@@ -256,7 +256,7 @@ assert_breakpoint_ok <- function(fits, ref, data, claims) {
   }
   th <- as.data.frame(claims$tab_h)
   big <- th$h >= 0.5
-  if (th$converged[th$h == 0.1] != 0 || any(th$converged[th$h >= 0.25] != 1) ||
+  if (any(th$converged != 1) || !(th$se_psi[th$h == 0.1] > 100) ||
       any(diff(th$se_psi[big]) <= 0) || any(diff(th$logLik[th$h >= 0.25]) >= 0) ||
       !all(th$se_psi[big] < 5)) {
     fail("the table of widths on the Nile")
