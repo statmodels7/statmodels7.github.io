@@ -79,22 +79,24 @@ residual sum of squares. The logarithm of the concentration falls by
 `r fmt(-(cf_gag[["seg.beta"]] + cf_gag[["seg.gamma1"]]), 3)` per year after
 it. The two log-likelihoods differ slightly, because `statmodels7` estimates
 $\sigma$ by REML, as `lm()` does, and `logLik()` of `segmented` reads the
-maximum likelihood estimate. @fig-gag-seg shows the fitted lines.
+maximum likelihood estimate.
+
+For a break-point term, `autoplot()` draws the graph `plot_breakpoint()`
+(@sec-graphs describes the graphs of a fit). The graph shows the contribution
+of the term to the predictor with its 95% band and the partial residuals. The
+estimated position is a dashed vertical line, and its 95% interval, which
+inverts the likelihood ratio test of the position, is a bar at the bottom.
+The inset shows the profile of the criterion over the position, which for a
+gaussian mean is the likelihood ratio statistic of each position against
+the estimate, with the 0.95 quantile of a $\chi^2_1$ as a dotted line. @fig-gag-seg shows this graph for the GAG
+data.
 
 ```{r}
 #| label: fig-gag-seg
-#| fig-cap: "Logarithm of the GAG concentration against age, with the fitted model of one break-point. The vertical line marks the estimated position."
-#| echo: false
+#| fig-cap: "Contribution of the term `seg(Age)` to the mean of the logarithm of the GAG concentration, with its 95% band and the partial residuals. The dashed line marks the estimated position and the bar its 95% interval. The inset shows the profile of the criterion over the position."
 #| fig-height: 3.8
-ga2 <- data.frame(Age = seq(min(GAGurine$Age), max(GAGurine$Age),
-                            length.out = 400))
-ga2$mu <- predict(fit_gag, what = "mu", newdata = ga2)
-ggplot(GAGurine, aes(x = Age, y = lGAG)) +
-  geom_point(colour = book_grey, size = 0.9) +
-  geom_line(data = ga2, aes(y = mu, colour = "fitted mean"), linewidth = 0.9) +
-  geom_vline(data = data.frame(psi = psi_gag$estimate),
-             aes(xintercept = psi, colour = "fitted mean"), linetype = 3) +
-  labs(x = "age (years)", y = "log GAG")
+autoplot(fit_gag, term = "Age", data = GAGurine) +
+  labs(x = "age (years)")
 ```
 
 ### Is there a break-point?
@@ -185,26 +187,29 @@ observed ages, and at `r fmt(s_gag2$psi[1, "Est."], 3)` years in the fit of
 has no derivative in $\psi$ at an observed value of the covariate, and the
 minimum of the residual sum of squares can fall exactly there
 (@sec-breakpoints-locate explains how the positions are found).
-@fig-gag-two compares the two models.
+@fig-gag-two compares the two models. The graph `plot_param()` draws the
+mean of the model with two break-points with its 95% band, and we add the
+data, the mean of the model with one break-point and the estimated positions
+as layers.
 
 ```{r}
 #| label: fig-gag-two
-#| fig-cap: "Logarithm of the GAG concentration against age, with the fitted models of one and two break-points. The vertical lines mark the estimated positions."
-#| echo: false
+#| fig-cap: "Logarithm of the GAG concentration against age. The solid line and the band are the fitted mean of the model with two break-points, and the dashed line is the fitted mean of the model with one break-point. The dotted vertical lines mark the estimated positions, in black for two break-points and in red for one."
 #| fig-height: 3.8
-ga2_long <- rbind(
-  data.frame(Age = ga2$Age, mu = ga2$mu, model = "one break-point"),
-  data.frame(Age = ga2$Age, model = "two break-points",
-             mu = predict(fit_gag2, what = "mu", newdata = ga2[, "Age", drop = FALSE])))
-vl_gag <- data.frame(
-  psi = c(psi_gag$estimate, cf_gag2[c("seg.psi1", "seg.psi2")]),
-  model = c("one break-point", "two break-points", "two break-points"))
-ggplot(GAGurine, aes(x = Age, y = lGAG)) +
-  geom_point(colour = book_grey, size = 0.9) +
-  geom_line(data = ga2_long, aes(y = mu, colour = model, linetype = model),
-            linewidth = 0.9) +
-  geom_vline(data = vl_gag, aes(xintercept = psi, colour = model),
-             linetype = 3) +
+ga2 <- data.frame(Age = seq(from = min(GAGurine$Age), to = max(GAGurine$Age),
+                            length.out = 400))
+ga2$mu <- predict(fit_gag, what = "mu", newdata = ga2)
+autoplot(fit_gag2, plot_type = plot_param(param = "mu", over = "Age",
+                                          n_grid = 400),
+         data = GAGurine) +
+  geom_point(aes(x = Age, y = lGAG), data = GAGurine, colour = "grey60",
+             size = 0.8) +
+  geom_line(aes(x = Age, y = mu), data = ga2, colour = book_palette[2],
+            linetype = "dashed") +
+  geom_vline(xintercept = cf_gag2[c("seg.psi1", "seg.psi2")],
+             linetype = "dotted") +
+  geom_vline(xintercept = psi_gag$estimate, linetype = "dotted",
+             colour = book_palette[2]) +
   labs(x = "age (years)", y = "log GAG")
 ```
 
@@ -250,22 +255,20 @@ years the rate changes by
 almost constant, and after it the rate grows by
 `r fmt(100 * (exp(cf_down[["seg.beta"]] + cf_down[["seg.gamma1"]]) - 1), 1)`
 percent a year. @fig-down shows the observed rates per 1,000 births with the
-fitted rate, which we obtain from `predict()` with `births = 1000` in
-`newdata`, so that the offset gives the rate per 1,000 births.
+fitted rate. The graph `plot_param()` draws the mean with `births` held at
+1000 by the argument `at`, so that the offset gives the rate per 1,000
+births, and we add the observed rates and the position as layers.
 
 ```{r}
 #| label: fig-down
-#| fig-cap: "Cases of Down syndrome per 1,000 births against the age of the mother, on the logarithmic scale, with the fitted rate. The vertical line marks the estimated break-point."
-#| echo: false
+#| fig-cap: "Cases of Down syndrome per 1,000 births against the age of the mother, on the logarithmic scale, with the fitted rate and its 95% band. The dotted vertical line marks the estimated break-point."
 #| fig-height: 3.6
-ag <- data.frame(age = seq(min(down$age), max(down$age), length.out = 300),
-                 births = 1000)
-ag$rate <- predict(fit_down, what = "mu", newdata = ag)
-ggplot(down, aes(x = age, y = 1000 * cases / births)) +
-  geom_point(colour = book_grey) +
-  geom_line(data = ag, aes(y = rate, colour = "fitted rate"), linewidth = 0.9) +
-  geom_vline(data = data.frame(psi = cf_down[["seg.psi1"]]),
-             aes(xintercept = psi, colour = "fitted rate"), linetype = 3) +
+autoplot(fit_down, plot_type = plot_param(param = "mu", over = "age",
+                                          at = list(births = 1000)),
+         data = down) +
+  geom_point(aes(x = age, y = 1000 * cases / births), data = down,
+             colour = "grey40") +
+  geom_vline(xintercept = cf_down[["seg.psi1"]], linetype = "dotted") +
   scale_y_log10() +
   labs(x = "age of the mother (years)", y = "cases per 1,000 births")
 ```
@@ -326,18 +329,19 @@ one. The mean flow is `r fmt(cf_nile[["(Intercept)"]], 0)` before the step
 and `r fmt(cf_nile[["(Intercept)"]] + cf_nile[["jump.delta1"]], 0)` after it,
 a drop of `r fmt(-cf_nile[["jump.delta1"]], 0)` with a standard error of
 `r fmt(ci_nile["mu:jump.delta1", "se"], 1)`. @fig-nile-step shows the series with
-the fitted step.
+the fitted step. The band of `plot_param()` is conditional on the position,
+as the standard errors are. A fine grid of years (`n_grid`) draws the step
+as a vertical line.
 
 ```{r}
 #| label: fig-nile-step
-#| fig-cap: "Annual flow of the Nile at Aswan, with the fitted step."
-#| echo: false
+#| fig-cap: "Annual flow of the Nile at Aswan, with the fitted step and its 95% band conditional on the position."
 #| fig-height: 3.4
-nile$step <- predict(fit_nile, what = "mu", newdata = nile)
-ggplot(nile, aes(x = year)) +
-  geom_line(aes(y = flow), colour = book_grey) +
-  geom_step(aes(y = step, colour = "fitted step"), linewidth = 0.9) +
-  labs(x = "year", y = expression(flow ~ (10^8 ~ m^3)))
+autoplot(fit_nile, plot_type = plot_param(param = "mu", over = "year",
+                                          n_grid = 1000),
+         data = nile) +
+  geom_line(aes(x = year, y = flow), data = nile, colour = "grey60") +
+  labs(y = expression(flow ~ (10^8 ~ m^3)))
 ```
 
 ### A bootstrap for the position {#sec-breakpoints-bootstrap}
@@ -438,15 +442,14 @@ the fitted mean.
 
 ```{r}
 #| label: fig-coal
-#| fig-cap: "Number of coal-mining disasters in Britain in each year, with the fitted mean of the Poisson model with one change of level."
-#| echo: false
+#| fig-cap: "Number of coal-mining disasters in Britain in each year (vertical bars), with the fitted mean of the Poisson model with one change of level and its 95% band conditional on the position."
 #| fig-height: 3.4
-coal_y$mu <- predict(fit_coal, what = "mu", newdata = coal_y)
-ggplot(coal_y, aes(x = year)) +
-  geom_segment(aes(xend = year, y = 0, yend = count), colour = book_grey,
-               linewidth = 0.8) +
-  geom_step(aes(y = mu, colour = "fitted mean"), linewidth = 0.9) +
-  labs(x = "year", y = "disasters")
+autoplot(fit_coal, plot_type = plot_param(param = "mu", over = "year",
+                                          n_grid = 1000),
+         data = coal_y) +
+  geom_segment(aes(x = year, xend = year, y = 0, yend = count),
+               data = coal_y, colour = "grey60") +
+  labs(y = "disasters")
 ```
 
 ### A change of level and of slope
@@ -492,24 +495,20 @@ level only keeps one slope on both sides.
 
 ```{r}
 #| label: fig-jseg
-#| fig-cap: "Simulated data with a change of level and of slope at 6, and the fitted means of jseg(), seg() and x + jump()."
-#| echo: false
+#| fig-cap: "Simulated data with a change of level and of slope at 6. The solid line and the band are the fitted mean of jseg(), the dashed line the fitted mean of seg() and the dotted line the fitted mean of x + jump()."
 #| fig-height: 3.6
-xg <- data.frame(x = seq(0, 10, length.out = 500))
-jseg_fits <- rbind(
-  data.frame(x = xg$x, model = "jseg()",
-             mu = predict(fit_jseg, what = "mu", newdata = xg)),
-  data.frame(x = xg$x, model = "seg()",
-             mu = predict(fit_seg0, what = "mu", newdata = xg)),
-  data.frame(x = xg$x, model = "x + jump()",
-             mu = predict(fit_jump0, what = "mu", newdata = xg)))
-jseg_fits$model <- factor(jseg_fits$model, levels = c("jseg()", "seg()",
-                                                      "x + jump()"))
-ggplot(sim, aes(x = x, y = y)) +
-  geom_point(colour = book_grey, size = 0.9) +
-  geom_line(data = jseg_fits, aes(y = mu, colour = model, linetype = model),
-            linewidth = 0.9) +
-  labs(x = "x", y = "y")
+xg <- data.frame(x = seq(from = 0, to = 10, length.out = 500))
+xg$seg <- predict(fit_seg0, what = "mu", newdata = xg)
+xg$jump <- predict(fit_jump0, what = "mu", newdata = xg)
+autoplot(fit_jseg, plot_type = plot_param(param = "mu", over = "x",
+                                          n_grid = 500),
+         data = sim) +
+  geom_point(aes(x = x, y = y), data = sim, colour = "grey60", size = 0.8) +
+  geom_line(aes(x = x, y = seg), data = xg, colour = book_palette[2],
+            linetype = "dashed") +
+  geom_line(aes(x = x, y = jump), data = xg, colour = book_palette[1],
+            linetype = "dotted", linewidth = 0.8) +
+  labs(y = "y")
 ```
 
 ### A change of level and of slope in a Gamma model
@@ -553,19 +552,16 @@ conditional on it. @fig-gamma-jseg shows the two fits.
 
 ```{r}
 #| label: fig-gamma-jseg
-#| fig-cap: "Simulated Gamma responses with a change of level and of slope of the log mean at 4, with the fitted means of jseg() and seg()."
-#| echo: false
+#| fig-cap: "Simulated Gamma responses with a change of level and of slope of the log mean at 4. The solid line and the band are the fitted mean of jseg(), and the dashed line is the fitted mean of seg()."
 #| fig-height: 3.6
-gam_fits <- rbind(
-  data.frame(x = xg$x, model = "jseg()",
-             mu = predict(fit_gj, what = "mu", newdata = xg)),
-  data.frame(x = xg$x, model = "seg()",
-             mu = predict(fit_gs, what = "mu", newdata = xg)))
-ggplot(sim_g, aes(x = x, y = y)) +
-  geom_point(colour = book_grey, size = 0.9) +
-  geom_line(data = gam_fits, aes(y = mu, colour = model, linetype = model),
-            linewidth = 0.9) +
-  labs(x = "x", y = "y")
+xg$gs <- predict(fit_gs, what = "mu", newdata = xg[, "x", drop = FALSE])
+autoplot(fit_gj, plot_type = plot_param(param = "mu", over = "x",
+                                        n_grid = 500),
+         data = sim_g) +
+  geom_point(aes(x = x, y = y), data = sim_g, colour = "grey60", size = 0.8) +
+  geom_line(aes(x = x, y = gs), data = xg, colour = book_palette[2],
+            linetype = "dashed") +
+  labs(y = "y")
 ```
 
 ## Locating the break-points {#sec-breakpoints-locate}
@@ -780,16 +776,14 @@ the BIC.
 
 ```{r}
 #| label: fig-glob-npsi
-#| fig-cap: "Yearly anomaly of the global temperature, with the fit of the number of changes of slope chosen by the BIC. The vertical lines mark the estimated positions."
-#| echo: false
+#| fig-cap: "Yearly anomaly of the global temperature, with the fitted mean and its 95% band for the number of changes of slope chosen by the BIC. The dotted vertical lines mark the estimated positions."
 #| fig-height: 3.6
-yg <- data.frame(Year = seq(min(globTempAnom$Year), max(globTempAnom$Year),
-                            length.out = 500))
-yg$mu <- predict(fit_bic, what = "mu", newdata = yg)
-ggplot(globTempAnom, aes(x = Year, y = Anomaly)) +
-  geom_point(colour = book_grey, size = 0.9) +
-  geom_line(data = yg, aes(y = mu, colour = "fitted mean"), linewidth = 0.9) +
-  geom_vline(xintercept = psi_bic, colour = book_palette[1], linetype = 3) +
+autoplot(fit_bic, plot_type = plot_param(param = "mu", over = "Year",
+                                         n_grid = 500),
+         data = globTempAnom) +
+  geom_point(aes(x = Year, y = Anomaly), data = globTempAnom,
+             colour = "grey60", size = 0.8) +
+  geom_vline(xintercept = psi_bic, linetype = "dotted") +
   labs(x = "year", y = "anomaly (degrees C)")
 ```
 
@@ -1228,27 +1222,24 @@ other over a year or two, and with yearly data this is almost the same model.
 
 ```{r}
 #| label: fig-nile-smooth
-#| fig-cap: "Annual flow of the Nile from 1880 to 1920, with the fitted means of the sharp step and of the three smoothed steps."
-#| echo: false
+#| fig-cap: "Annual flow of the Nile from 1880 to 1920. The solid line and the band are the fitted mean of the sharp step, and the other lines are the fitted means of the three smoothed steps."
 #| fig-height: 3.8
-yw <- data.frame(year = seq(1880, 1920, length.out = 801))
+yw <- data.frame(year = seq(from = 1880, to = 1920, length.out = 801))
 nile_smooth <- rbind(
-  data.frame(year = yw$year, model = "sharp step",
-             mu = predict(fit_nile, what = "mu", newdata = yw)),
   data.frame(year = yw$year, model = "probit",
              mu = predict(fit_np, what = "mu", newdata = yw)),
   data.frame(year = yw$year, model = "quintic",
              mu = predict(fit_nq, what = "mu", newdata = yw)),
   data.frame(year = yw$year, model = "hyperbolic",
              mu = predict(fit_nh, what = "mu", newdata = yw)))
-nile_smooth$model <- factor(nile_smooth$model,
-                            levels = c("sharp step", "probit", "quintic",
-                                       "hyperbolic"))
-ggplot(nile[nile$year >= 1880 & nile$year <= 1920, ], aes(x = year, y = flow)) +
-  geom_point(colour = book_grey) +
-  geom_line(data = nile_smooth, aes(y = mu, colour = model, linetype = model),
-            linewidth = 0.8) +
-  labs(x = "year", y = expression(flow ~ (10^8 ~ m^3)))
+autoplot(fit_nile, plot_type = plot_param(param = "mu", over = "year",
+                                          n_grid = 2000),
+         data = nile) +
+  geom_point(aes(x = year, y = flow), data = nile, colour = "grey60") +
+  geom_line(aes(x = year, y = mu, colour = model, linetype = model),
+            data = nile_smooth) +
+  coord_cartesian(xlim = c(1880, 1920)) +
+  labs(y = expression(flow ~ (10^8 ~ m^3)))
 ```
 
 ### The width of the smoothing
@@ -1580,40 +1571,34 @@ way, and it confirms that the standard deviation changes its slope:
 statmod_breakpoint_test(fit_ss)
 ```
 
-@fig-mcycle shows the data with the fitted mean and the band of two standard
-deviations of the `jseg()` model, and the fitted standard deviation of the
-three models.
+@fig-mcycle shows the data with the fitted median and the 2.5% and 97.5%
+quantiles of the `jseg()` model, which are the mean plus or minus 1.96
+fitted standard deviations, and the fitted standard deviation of the three
+models.
 
 ```{r}
 #| label: fig-mcycle
-#| fig-cap: "Left: acceleration against time, with the fitted mean and the band of plus or minus two fitted standard deviations of the jseg() model. Right: fitted standard deviation of the acceleration against time for the three break-point terms in the equation of sigma."
-#| echo: false
+#| fig-cap: "Left: acceleration against time, with the fitted median and the 2.5% and 97.5% quantiles of the jseg() model. Right: fitted standard deviation of the acceleration against time, for jseg() with its 95% band (solid), for seg() (dashed) and for jump() (dotted)."
 #| fig-height: 3.8
 #| fig-width: 9
-tt <- data.frame(times = seq(min(mcycle$times), max(mcycle$times), length.out = 400))
-m_sjs <- predict(fit_sjs, what = "mu", newdata = tt)
-sd_sjs <- predict(fit_sjs, what = "sigma", newdata = tt)
-p_mean <- ggplot(mcycle, aes(x = times, y = accel)) +
-  geom_point(colour = book_grey, size = 0.9) +
-  geom_ribbon(data = data.frame(times = tt$times, lo = m_sjs - 2 * sd_sjs,
-                                hi = m_sjs + 2 * sd_sjs),
-              aes(x = times, ymin = lo, ymax = hi), inherit.aes = FALSE,
-              fill = book_palette[1], alpha = 0.15) +
-  geom_line(data = data.frame(times = tt$times, mu = m_sjs),
-            aes(y = mu), colour = book_palette[1], linewidth = 0.9) +
+library(patchwork)
+tt <- data.frame(times = seq(from = min(mcycle$times), to = max(mcycle$times),
+                             length.out = 400))
+tt$seg <- predict(fit_ss, what = "sigma", newdata = tt[, "times", drop = FALSE])
+tt$jump <- predict(fit_sj, what = "sigma", newdata = tt[, "times", drop = FALSE])
+p_mean <- autoplot(fit_sjs, plot_type = plot_quantiles(over = "times",
+                                                       probs = c(0.025, 0.5, 0.975)),
+                   data = mcycle) +
   labs(x = "time (ms)", y = "acceleration (g)")
-sd_lines <- rbind(
-  data.frame(times = tt$times, model = "jseg()", sd = sd_sjs),
-  data.frame(times = tt$times, model = "seg()",
-             sd = predict(fit_ss, what = "sigma", newdata = tt)),
-  data.frame(times = tt$times, model = "jump()",
-             sd = predict(fit_sj, what = "sigma", newdata = tt)))
-sd_lines$model <- factor(sd_lines$model, levels = c("jseg()", "seg()", "jump()"))
-p_sd <- ggplot(sd_lines, aes(x = times, y = sd, colour = model,
-                             linetype = model)) +
-  geom_line(linewidth = 0.9) +
-  labs(x = "time (ms)", y = expression(hat(sigma)))
-patchwork::wrap_plots(p_mean, p_sd, ncol = 2)
+p_sd <- autoplot(fit_sjs, plot_type = plot_param(param = "sigma", over = "times",
+                                                 n_grid = 400),
+                 data = mcycle) +
+  geom_line(aes(x = times, y = seg), data = tt, colour = book_palette[2],
+            linetype = "dashed") +
+  geom_line(aes(x = times, y = jump), data = tt, colour = book_palette[1],
+            linetype = "dotted", linewidth = 0.8) +
+  labs(x = "time (ms)", y = "standard deviation (g)")
+p_mean | p_sd
 ```
 
 ```{r}

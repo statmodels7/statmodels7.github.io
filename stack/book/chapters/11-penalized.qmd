@@ -115,6 +115,20 @@ c(statmod = fit_ridge@criterion, mgcv = -g_ridge$gcv.ubre)
 The two packages give the same $\lambda$, the same fitted values and the
 same REML criterion.
 
+The graph `plot_criterion()` draws the REML criterion against $\log\lambda$,
+with the other hyperparameters at their estimates, and the effective degrees
+of freedom of the term on a second axis (@sec-graphs describes the graphs of a
+fit). @fig-ridge-crit shows that the criterion of the ridge has a single
+maximum, at $\hat\lambda$, and that the effective degrees of freedom fall from
+15 to almost zero as $\lambda$ grows.
+
+```{r}
+#| label: fig-ridge-crit
+#| fig-cap: "REML criterion of the ridge on the `UScrime` data against the logarithm of $\\lambda$ (solid line, left axis), with the effective degrees of freedom of the term (dashed line, right axis). The point marks the estimate."
+autoplot(fit_ridge, term = "ridge(xs, standardize = TRUE)",
+         plot_type = plot_criterion())
+```
+
 ### The lasso penalty
 
 ```{r}
@@ -834,6 +848,44 @@ same weight as the others. To fit them, the lasso keeps
 in the mean. The model of $\sigma$ removes these covariates and lowers BIC by
 `r fmt(BIC(fit_sig0) - BIC(fit_sig1), 0)`.
 
+The graph `plot_shrinkage()` compares the coefficients of a penalized block
+(filled points) with the coefficients of the same model without the penalty
+of that term (open circles), and an arrow joins the two. @fig-sigma-shrinkage
+draws it for the lasso of the mean in the two models. With a constant
+$\sigma$, the penalized estimates of `x4` and `x5` are not zero. With the
+model of $\sigma$, the lasso moves both coefficients to zero.
+
+```{r}
+#| label: fig-sigma-shrinkage
+#| fig-cap: "Coefficients of the lasso of the mean in the simulated data, penalized (filled) and without the penalty of the term (open). Left: the model with a constant standard deviation. Right: the model with a lasso on the logarithm of the standard deviation."
+#| fig-height: 3.8
+#| fig-width: 9
+library(patchwork)
+g0 <- autoplot(fit_sig0, term = "lasso(xx)",
+               plot_type = plot_shrinkage(sort = FALSE)) +
+  labs(title = "constant sigma")
+g1 <- autoplot(fit_sig1, term = "lasso(xx)", param = "mu",
+               plot_type = plot_shrinkage(sort = FALSE)) +
+  labs(title = "sigma ~ lasso(xx)")
+(g0 | g1) & coord_cartesian(xlim = c(-0.6, 1.2))
+```
+
+The graph `plot_path()` draws the coefficients of a penalized block against
+$\log\lambda$. For a lasso it refits the model at each value of $\lambda$,
+from the largest to the smallest, and a second axis counts the coefficients
+that are not zero. Unlike the path of `statmod()` in @sec-penalized-hyper,
+this path holds the coefficients of the other equations at their fitted
+values, so $\sigma$ does not change along it. @fig-sigma-path shows the path
+of the lasso of the mean in the model with a constant $\sigma$. The
+coefficients of `x1` and `x2` enter first, and the coefficients of `x4` and
+`x5` enter before the chosen value of $\lambda$, which the dashed line marks.
+
+```{r}
+#| label: fig-sigma-path
+#| fig-cap: "Path of the lasso of the mean in the model with a constant standard deviation (solid lines, left axis), with the number of coefficients that are not zero (dotted line, right axis). The dashed line marks the chosen value of $\\lambda$."
+autoplot(fit_sig0, term = "lasso(xx)", plot_type = plot_path())
+```
+
 The degrees of freedom $\nu$ of a Student $t$ distribution can also have a
 penalized equation. We simulate a response with scale $\exp(-0.5)$ and
 $\log\nu_i = 1 + 0.8\,x_{i5}$, so the tails are heavier where $x_5$ is
@@ -910,30 +962,18 @@ g_b <- glmnet::glmnet(x = model.matrix(bx, data = Boston)[, -1],
 max(abs(as.numeric(coef(g_b))[-1] - coef(fit_b)$mu[is_l]))
 ```
 
-@fig-boston shows the smooth of `lstat`, with the other covariates at their
-medians.
+@fig-boston shows the smooth of `lstat`, which is its contribution to the
+predictor of the mean of the logarithm of the value, with its 95% band. The
+points are the partial residuals: the effect at the observed value of `lstat`
+plus the residual of the observation, so that they carry the same adjustment
+for the other covariates as the curve.
 
 ```{r}
 #| label: fig-boston
-#| fig-cap: "Logarithm of the median value of the houses against the proportion of the population of lower status, with the fitted curve and its 95% band, the other covariates at their medians."
-#| echo: false
+#| fig-cap: "Effect of the proportion of the population of lower status on the predictor of the mean of the logarithm of the median value of the houses, with its 95% band and the partial residuals."
 #| fig-height: 3.8
-lg <- seq(from = min(Boston$lstat), to = max(Boston$lstat), length.out = 100)
-nd_b <- data.frame(lstat = lg)
-for (v in all.vars(bx)) nd_b[[v]] <- median(Boston[[v]])
-pb <- predict(fit_b, what = "mu", newdata = nd_b, se = TRUE)
-band_b <- data.frame(lstat = lg, fit = pb$fit, lower = pb$lower,
-                     upper = pb$upper)
-ggplot(Boston, aes(x = lstat, y = lmedv)) +
-  geom_point(colour = book_grey, size = 0.6) +
-  geom_ribbon(data = band_b, aes(x = lstat, ymin = lower, ymax = upper,
-                                 fill = "95% band"),
-              inherit.aes = FALSE, alpha = 0.2) +
-  geom_line(data = band_b, aes(x = lstat, y = fit, colour = "fitted curve"),
-            linewidth = 0.9) +
-  scale_colour_manual(values = chalk) +
-  scale_fill_manual(values = chalk) +
-  labs(x = "lstat (%)", y = "log median value")
+autoplot(fit_b, term = "lstat", data = Boston) +
+  labs(x = "lstat (%)")
 ```
 
 A random effect works in the same way. The data frame `Cars93`, which we

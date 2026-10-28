@@ -261,28 +261,18 @@ stationary is not a product of two intervals, so their intervals are built on
 the scale of the coefficients and can leave $(-1, 1)$, as the interval of
 $\xi_1$ does here. Lagged scores are added in the same way with `p`, each
 with a loading of its own. @fig-ts-nile shows the flows with the mean of the
-first model and its 95% confidence band, which `predict()` computes with
-`se = TRUE`.
+first model and its 95% confidence band. The type `plot_filter()` of
+@sec-graphs draws the parameter that a `gas()` term filters, against the
+variable named by `time`, with the band that `predict()` computes with
+`se = TRUE`. With `response = TRUE` it also draws the observations.
 
 ```{r}
 #| label: fig-ts-nile
 #| fig-cap: "Annual flow of the Nile with the mean of the score-driven model and its 95% confidence band."
-#| echo: false
 #| fig-height: 3.8
-band_nile <- predict(fit_nile, what = "mu", se = TRUE)
-band_df <- data.frame(year = nile$year, fit = band_nile$fit,
-                      lower = band_nile$lower, upper = band_nile$upper)
-ggplot(nile, aes(x = year, y = flow)) +
-  geom_ribbon(data = band_df, aes(x = year, ymin = lower, ymax = upper,
-                                  fill = "95% band"),
-              inherit.aes = FALSE, alpha = 0.2) +
-  geom_point(colour = book_grey, size = 1.2) +
-  geom_line(data = band_df, aes(x = year, y = fit,
-                                colour = "mean of the model"),
-            linewidth = 0.9) +
-  scale_colour_manual(values = chalk, guide = guide_legend(order = 1)) +
-  scale_fill_manual(values = chalk, guide = guide_legend(order = 2)) +
-  labs(x = "year", y = expression(flow ~ (10^8 ~ m^3)))
+autoplot(fit_nile, term = "gas(p = 1, q = 1, time = year)",
+         plot_type = plot_filter(response = TRUE)) +
+  labs(y = expression(flow ~ (10^8 ~ m^3)))
 ```
 
 ## Volatility {#sec-timeseries-volatility}
@@ -407,26 +397,26 @@ Both models have four parameters. With the gaussian distribution the GARCH
 model has the larger log-likelihood, by `r fmt(d_n, 1)`. The two fitted
 standard deviations follow the same quiet and turbulent periods (their
 correlation over the days is `r fmt(cor(sd_gas, sd_garch), 2)`), and
-@fig-ts-dax shows them over the returns.
+@fig-ts-dax shows them over the returns. The graph of `plot_filter()` draws
+the standard deviation of the score-driven model with its band against
+`day`, the variable named by `time`. We add the absolute returns and the
+standard deviation of the GARCH model as layers, and we label the first
+trading day of each year with the year.
 
 ```{r}
 #| label: fig-ts-dax
-#| fig-cap: "Absolute daily returns of the DAX, with the standard deviation of the score-driven model on the logarithm of the scale and of the GARCH(1, 1) model, both with a gaussian distribution."
-#| echo: false
+#| fig-cap: "Absolute daily returns of the DAX, with the standard deviation of the score-driven model on the logarithm of the scale and its 95% band (solid line) and of the GARCH(1, 1) model (dashed line), both with a gaussian distribution."
 #| fig-height: 3.8
 yr <- as.numeric(time(EuStockMarkets))[-1]
-sd_names <- c("logarithm of the scale", "GARCH(1, 1)")
-curves_dax <- data.frame(
-  year = rep(yr, times = 2), sd = c(sd_gas, sd_garch),
-  curve = factor(rep(sd_names, each = length(yr)), levels = sd_names))
-ggplot(data.frame(year = yr, r = abs(dax$r)), aes(x = year)) +
-  geom_linerange(aes(ymin = 0, ymax = r), colour = book_grey,
-                 linewidth = 0.3) +
-  geom_line(data = curves_dax, aes(y = sd, colour = curve, linetype = curve),
-            linewidth = 0.6) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c(1, 2)) +
-  scale_x_continuous(breaks = seq(ceiling(min(yr)), floor(max(yr)))) +
+first_day <- sapply(1992:1998, function(y) which(yr >= y)[1])
+garch_sd <- data.frame(day = dax$day, sd = sd_garch)
+autoplot(fit_dax, term = "gas(p = 1, q = 1, time = day)", param = "sigma",
+         plot_type = plot_filter()) +
+  geom_linerange(aes(x = day, ymin = 0, ymax = abs(r)), data = dax,
+                 colour = book_grey, linewidth = 0.3, alpha = 0.6) +
+  geom_line(aes(x = day, y = sd), data = garch_sd, colour = rust,
+            linetype = "dashed") +
+  scale_x_continuous(breaks = first_day, labels = 1992:1998) +
   labs(x = "year", y = "absolute return (%)")
 ```
 
@@ -571,22 +561,18 @@ enters through $z_t^2$; the $t$ model bounds their effect.
 
 ```{r}
 #| label: fig-ts-dax-t
-#| fig-cap: "Standard deviation of the DAX returns under the score-driven model with a gaussian distribution and with a Student t distribution, over the absolute returns. For the t distribution the standard deviation is the scale times the square root of nu/(nu - 2)."
-#| echo: false
+#| fig-cap: "Standard deviation of the DAX returns under the score-driven model with a gaussian distribution, with its 95% band (solid line), and with a Student t distribution (dashed line), over the absolute returns. For the t distribution the standard deviation is the scale times the square root of nu/(nu - 2)."
 #| fig-height: 3.8
-sd_t <- predict(fit_dax_t, what = "sigma") * sqrt(nu_dax / (nu_dax - 2))
-sdt_names <- c("gaussian", "Student t")
-curves_dax_t <- data.frame(
-  year = rep(yr, times = 2), sd = c(sd_gas, sd_t),
-  curve = factor(rep(sdt_names, each = length(yr)), levels = sdt_names))
-ggplot(data.frame(year = yr, r = abs(dax$r)), aes(x = year)) +
-  geom_linerange(aes(ymin = 0, ymax = r), colour = book_grey,
-                 linewidth = 0.3) +
-  geom_line(data = curves_dax_t, aes(y = sd, colour = curve, linetype = curve),
-            linewidth = 0.6) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c(1, 2)) +
-  scale_x_continuous(breaks = seq(ceiling(min(yr)), floor(max(yr)))) +
+sd_t <- data.frame(day = dax$day,
+                   sd = predict(fit_dax_t, what = "sigma") *
+                     sqrt(nu_dax / (nu_dax - 2)))
+autoplot(fit_dax, term = "gas(p = 1, q = 1, time = day)", param = "sigma",
+         plot_type = plot_filter()) +
+  geom_linerange(aes(x = day, ymin = 0, ymax = abs(r)), data = dax,
+                 colour = book_grey, linewidth = 0.3, alpha = 0.6) +
+  geom_line(aes(x = day, y = sd), data = sd_t, colour = rust,
+            linetype = "dashed") +
+  scale_x_continuous(breaks = first_day, labels = 1992:1998) +
   labs(x = "year", y = "absolute return (%)")
 ```
 
@@ -610,6 +596,49 @@ ggplot(curves_score, aes(x = z, y = score)) +
   scale_linewidth_manual(values = c(0.9, 0.9, 0.5)) +
   coord_cartesian(ylim = c(-1, 12)) +
   labs(x = "standardized observation z", y = "score")
+```
+
+The score enters the recursion multiplied by the loading, so the change of
+the predictor that an observation causes is the loading times the score of
+@fig-ts-score. The type `plot_news_impact()` draws this update as a function
+of the standardized observation $z$, for the fitted loading of each model
+(@fig-ts-news). Under the gaussian distribution the update grows without
+bound, and under the $t$ distribution it levels off.
+
+```{r}
+#| label: fig-ts-news
+#| fig-cap: "Update of the predictor of the log-scale caused by an observation, against the standardized observation, for the fitted score-driven models with a gaussian distribution (left) and with a Student t distribution (right)."
+#| fig-height: 3.4
+#| fig-width: 9
+library(patchwork)
+news_gauss <- autoplot(fit_dax, term = "gas(p = 1, q = 1, time = day)",
+                       param = "sigma", plot_type = plot_news_impact()) +
+  labs(title = "gaussian")
+news_t <- autoplot(fit_dax_t, term = "gas(p = 1, q = 1, time = day)",
+                   param = "sigma", plot_type = plot_news_impact()) +
+  labs(title = "Student t")
+news_gauss | news_t
+```
+
+```{r}
+#| label: ts-acf-numbers
+#| include: false
+acf_sq <- stats::acf(residuals(fit_dax_t)^2, lag.max = 30,
+                     plot = FALSE)$acf[-1]
+n_acf_out <- sum(abs(acf_sq) > 1.96 / sqrt(nrow(dax)))
+```
+
+A model of the variance should leave no dependence in the squares of its
+residuals. The type `plot_acf()` with `squared = TRUE` draws the
+autocorrelation of the squared quantile residuals with the limits
+$\pm 1.96/\sqrt{n}$ (@fig-ts-acf). For the model with the $t$ distribution,
+`r n_acf_out` of the 30 autocorrelations lie outside the limits.
+
+```{r}
+#| label: fig-ts-acf
+#| fig-cap: "Autocorrelation of the squared quantile residuals of the score-driven model with a Student t distribution, with the limits of plus and minus 1.96 over the square root of the number of returns."
+#| fig-height: 3.4
+autoplot(fit_dax_t, plot_type = plot_acf(squared = TRUE))
 ```
 
 ## Several filtered parameters {#sec-timeseries-joint}
@@ -782,31 +811,23 @@ the figure shows the scale $\sigma_t$ and not the standard deviation.
 
 ```{r}
 #| label: fig-ts-dax-nu
-#| fig-cap: "Top: absolute daily returns of the DAX with the scale of the model with filtered scale and degrees of freedom (d = 1/2). Bottom: the filtered degrees of freedom, with the constant estimate of the model of the previous section as a dotted line."
-#| echo: false
+#| fig-cap: "The model with filtered scale and degrees of freedom (d = 1/2). Top: the filtered degrees of freedom with their 95% band, and the constant estimate of the model of the previous section as a dotted line. Bottom: the filtered scale with its band, over the absolute daily returns of the DAX."
 #| fig-height: 5
-pan_nu <- c("scale", "degrees of freedom")
-sd_nu <- predict(fit_dax_nu2, what = "sigma")
-nu_ret <- data.frame(x = yr, hi = abs(dax$r),
-                     panel = factor(pan_nu[1], levels = pan_nu))
-nu_sd <- data.frame(x = yr, y = sd_nu,
-                    panel = factor(pan_nu[1], levels = pan_nu))
-nu_df <- data.frame(x = yr, y = nu_t,
-                    panel = factor(pan_nu[2], levels = pan_nu))
-nu_const <- data.frame(y = nu_dax, panel = factor(pan_nu[2], levels = pan_nu))
-ggplot(mapping = aes(x = x)) +
-  geom_linerange(data = nu_ret, aes(ymin = 0, ymax = hi),
-                 colour = book_grey, linewidth = 0.3) +
-  geom_line(data = nu_sd, aes(y = y), colour = chalk, linewidth = 0.6) +
-  geom_line(data = nu_df, aes(y = y), colour = rust, linewidth = 0.5) +
-  geom_hline(data = nu_const, aes(yintercept = y), colour = grey,
-             linetype = 3) +
-  facet_wrap(~panel, ncol = 1, scales = "free_y", strip.position = "left") +
-  scale_x_continuous(breaks = seq(ceiling(min(yr)), floor(max(yr)))) +
-  labs(x = "year", y = NULL) +
-  theme(strip.placement = "outside", strip.background = element_blank(),
-        strip.text = element_text(size = rel(1)))
+autoplot(fit_dax_nu2, term = "gas_joint", param = "sigma",
+         plot_type = plot_filter()) +
+  geom_linerange(aes(x = day, ymin = 0, ymax = abs(r)),
+                 data = transform(dax, param = "sigma"), colour = book_grey,
+                 linewidth = 0.3, alpha = 0.6) +
+  geom_hline(aes(yintercept = nu), data = data.frame(param = "nu", nu = nu_dax),
+             colour = grey, linetype = "dotted") +
+  scale_x_continuous(breaks = first_day, labels = 1992:1998) +
+  labs(x = "year", y = NULL)
 ```
+
+The two filters form one recursion, so `plot_filter()` names the term
+`gas_joint` and draws a panel for each filtered parameter. The layers that
+we add carry the column `param`, which places them in the panel of that
+parameter.
 
 ## Counts {#sec-timeseries-counts}
 
@@ -944,26 +965,20 @@ On these counts the score-driven models have the larger log-likelihood, by
 `r fmt(d_tsc_p, 2)` with the Poisson distribution and by
 `r fmt(d_tsc_nb, 2)` with the negative binomial. @fig-ts-disc shows the
 counts with the means of the Poisson and negative binomial score-driven
-models.
+models. The graph of `plot_filter()` draws the Poisson model with its band
+and the counts, and the other two means are layers.
 
 ```{r}
 #| label: fig-ts-disc
-#| fig-cap: "Number of great discoveries in each year, with the means of the score-driven Poisson and negative binomial models and the mean of the constant model."
-#| echo: false
+#| fig-cap: "Number of great discoveries in each year, with the mean of the score-driven Poisson model and its 95% band (solid line), the mean of the score-driven negative binomial model (dashed line) and the mean of the constant model (dotted line)."
 #| fig-height: 3.6
-disc_names <- c("Poisson", "negative binomial", "constant mean")
-curves_disc <- data.frame(
-  year = rep(disc$year, times = 3),
-  n = c(predict(fit_disc, what = "mu"), predict(fit_disc_gnb, what = "mu"),
-        rep(mean(disc$n), nrow(disc))),
-  curve = factor(rep(disc_names, each = nrow(disc)), levels = disc_names))
-ggplot(disc, aes(x = year, y = n)) +
-  geom_point(colour = book_grey, size = 1.2) +
-  geom_line(data = curves_disc, aes(colour = curve, linetype = curve),
-            linewidth = 0.8) +
-  scale_colour_manual(values = c(chalk, rust, ink)) +
-  scale_linetype_manual(values = c(1, 2, 3)) +
-  labs(x = "year", y = "discoveries")
+nb_mean <- data.frame(year = disc$year, n = predict(fit_disc_gnb, what = "mu"))
+autoplot(fit_disc, term = "gas(p = 1, q = 1, time = year)",
+         plot_type = plot_filter(response = TRUE)) +
+  geom_line(aes(x = year, y = n), data = nb_mean, colour = rust,
+            linetype = "dashed") +
+  geom_hline(yintercept = mean(disc$n), colour = ink, linetype = "dotted") +
+  labs(y = "discoveries")
 ```
 
 ## Durations, positive measurements and proportions {#sec-timeseries-families}
@@ -1114,43 +1129,28 @@ cf_belt <- coef(fit_belt)$mu
 
 With the filter beside it the law lowers the logit of the front-seat share
 by `r fmt(-cf_belt[["law"]], 3)`. @fig-ts-families shows the fitted means of
-the three series.
+the three series, each drawn by `plot_filter()` with its band and its
+observations.
 
 ```{r}
 #| label: fig-ts-families
-#| fig-cap: "Three score-driven models with other families: the first 200 trade durations with the mean of the logarithmic ACD model, the hormone levels with the mean of the gamma model, and the share of front-seat passengers with the mean of the beta model. The dashed line in the last panel marks the seat-belt law."
-#| echo: false
+#| fig-cap: "Three score-driven models with other families: the first 200 trade durations with the mean of the logarithmic ACD model, the hormone levels with the mean of the gamma model, and the share of front-seat passengers with the mean of the beta model, each with its 95% band. The dashed line in the last panel marks the seat-belt law, from February 1983."
 #| fig-height: 3.4
 #| fig-width: 9
-fam_obs <- rbind(
-  data.frame(x = 1:200, y = dur$x[1:200], panel = "durations (exponential)"),
-  data.frame(x = lhd$t, y = lhd$y, panel = "hormone (gamma)"),
-  data.frame(x = 1969 + (belts$month - 1) / 12, y = belts$share,
-             panel = "front-seat share (beta)"))
-fam_fit <- rbind(
-  data.frame(x = 1:200, y = predict(fit_acd, what = "mu")[1:200],
-             panel = "durations (exponential)"),
-  data.frame(x = lhd$t, y = predict(fit_lh, what = "mu"),
-             panel = "hormone (gamma)"),
-  data.frame(x = 1969 + (belts$month - 1) / 12,
-             y = predict(fit_belt, what = "mu"),
-             panel = "front-seat share (beta)"))
-lev_fam <- c("durations (exponential)", "hormone (gamma)",
-             "front-seat share (beta)")
-fam_obs$panel <- factor(fam_obs$panel, levels = lev_fam)
-fam_fit$panel <- factor(fam_fit$panel, levels = lev_fam)
-ggplot(fam_obs, aes(x = x, y = y)) +
-  geom_point(aes(colour = "observations"), size = 0.9) +
-  geom_line(data = fam_fit, aes(colour = "mean of the model"),
-            linewidth = 0.8) +
-  geom_vline(data = data.frame(x = 1983 + 1 / 12,
-                               panel = factor("front-seat share (beta)",
-                                              levels = lev_fam)),
-             aes(xintercept = x), linetype = 2, colour = ink) +
-  facet_wrap(~panel, nrow = 1, scales = "free") +
-  scale_colour_manual(values = c("observations" = book_grey,
-                                 "mean of the model" = chalk)) +
-  labs(x = NULL, y = NULL)
+g_acd <- autoplot(fit_acd, term = "gas(p = 1, q = 1, time = i)",
+                  plot_type = plot_filter(response = TRUE)) +
+  coord_cartesian(xlim = c(1, 200)) +
+  labs(title = "durations (exponential)", x = "trade", y = NULL)
+g_lh <- autoplot(fit_lh, term = "gas(p = 1, q = 1, time = t)",
+                 plot_type = plot_filter(response = TRUE)) +
+  labs(title = "hormone (gamma)", x = "sample", y = NULL)
+g_belt <- autoplot(fit_belt, term = "gas(p = 1, q = 1, time = month)",
+                   plot_type = plot_filter(response = TRUE)) +
+  geom_vline(xintercept = which(belts$law == 1)[1], linetype = "dashed",
+             colour = ink) +
+  labs(title = "front-seat share (beta)", x = "month from January 1969",
+       y = NULL)
+g_acd | g_lh | g_belt
 ```
 
 ## Panels of short series {#sec-timeseries-panels}
@@ -1340,37 +1340,35 @@ of the three models.
 
 ```{r}
 #| label: fig-ts-ovary
-#| fig-cap: "Number of large follicles over one cycle for three mares, with the means of the model with shared parameters, of the model with a level for each mare and of the model with a level and a loading for each mare."
-#| echo: false
+#| fig-cap: "Number of large follicles over one cycle for three mares, with the mean of the model with a level for each mare and its 95% band (solid line), the mean of the model with shared parameters (dotted line) and the mean of the model with a level and a loading for each mare (dashed line)."
 #| fig-height: 3.6
 #| fig-width: 9
 b_om <- cf_om[paste0("gas.omega.random.", levels(Ovary$Mare))]
 names(b_om) <- levels(Ovary$Mare)
 sel_ov <- names(sort(b_om))[c(1, 6, 11)]
-sel_ov <- sel_ov[order(as.numeric(sel_ov))]
-m_sh <- predict(fit_ov, what = "mu", newdata = Ovary)
-m_om <- predict(fit_ov_om, what = "mu", newdata = Ovary)
-m_al <- predict(fit_ov_al, what = "mu", newdata = Ovary)
 rows_ov <- as.character(Ovary$Mare) %in% sel_ov
-obs_ov <- data.frame(Time = Ovary$Time[rows_ov],
-                     follicles = Ovary$follicles[rows_ov],
-                     panel = factor(paste("mare", Ovary$Mare[rows_ov]),
-                                    levels = paste("mare", sel_ov)))
-ov_names <- c("shared", "level by mare", "level and loading")
-curves_ov <- data.frame(
-  Time = rep(obs_ov$Time, times = 3), panel = rep(obs_ov$panel, times = 3),
-  follicles = c(m_sh[rows_ov], m_om[rows_ov], m_al[rows_ov]),
-  curve = factor(rep(ov_names, each = nrow(obs_ov)), levels = ov_names))
-ggplot(obs_ov, aes(x = Time, y = follicles)) +
-  geom_point(colour = book_grey) +
-  geom_line(data = curves_ov, aes(colour = curve, linetype = curve,
-                                  linewidth = curve)) +
-  facet_wrap(~panel, nrow = 1) +
-  scale_colour_manual(values = c(ink, chalk, rust)) +
-  scale_linetype_manual(values = c(3, 1, 2)) +
-  scale_linewidth_manual(values = c(0.6, 0.9, 0.7)) +
-  coord_cartesian(ylim = range(Ovary$follicles)) +
+other_ov <- data.frame(
+  x = Ovary$Time[rows_ov], group = as.character(Ovary$Mare[rows_ov]),
+  shared = predict(fit_ov, what = "mu", newdata = Ovary)[rows_ov],
+  level_loading = predict(fit_ov_al, what = "mu", newdata = Ovary)[rows_ov])
+autoplot(fit_ov_om,
+         term = "gas(p = 1, q = 1, omega ~ 1 + random(~1 | Mare), by = Mare, time = Time)",
+         plot_type = plot_filter(response = TRUE, groups = sel_ov)) +
+  geom_line(aes(x = x, y = shared), data = other_ov, colour = ink,
+            linetype = "dotted") +
+  geom_line(aes(x = x, y = level_loading), data = other_ov, colour = rust,
+            linetype = "dashed") +
   labs(x = "time in the cycle", y = "follicles")
+```
+
+The graph of `plot_filter()` for a panel draws one group in each panel, and
+the argument `groups` selects the mares. The panels are named by the column
+`group`, so the layers of the other two models carry that column.
+
+```{r}
+#| label: ts-ovary-mean
+#| include: false
+m_om <- predict(fit_ov_om, what = "mu", newdata = Ovary)
 ```
 
 The argument `random` of `predict()` cannot set these random effects aside.
@@ -1615,58 +1613,38 @@ model is common to the two states.
 
 @fig-ts-geyser shows the first 100 waiting times with the mean of the model,
 which `predict()` computes as the average of the two means weighted by the
-probabilities of the states. The background shows the most probable state of
-each eruption, and the lower panel the probability of the long state.
-
-```{r}
-#| label: ts-state-runs
-#| include: false
-# consecutive runs of the most probable state, as rectangles for a background
-state_runs <- function(x, prob) {
-  s <- max.col(as.matrix(prob), ties.method = "first")
-  r <- rle(s)
-  end <- cumsum(r$lengths)
-  start <- end - r$lengths + 1
-  step <- if (length(x) > 1) median(diff(x)) / 2 else 0.5
-  data.frame(xmin = x[start] - step, xmax = x[end] + step,
-             state = factor(paste("state", r$values)))
-}
-```
+probabilities of the states, and the lower panel the probability of each
+state. The upper panel is an ordinary graph of `ggplot2`, the lower one is
+drawn by `plot_states()`, and the operator `/` of `patchwork` stacks them.
 
 ```{r}
 #| label: fig-ts-geyser
-#| fig-cap: "Top: the first 100 waiting times of Old Faithful with the mean of the two-state model; the background shows the most probable state of each eruption. Bottom: the probability that each waiting time belongs to the long state, given the whole series."
-#| echo: false
-#| fig-height: 5
+#| fig-cap: "Top: the first 100 waiting times of Old Faithful with the mean of the two-state model. Bottom: the probability of each state given the whole series; regime 1 is the short state and regime 2 the long state."
+#| fig-height: 5.4
 ii <- 1:100
-pan_gey <- c("waiting (min)", "P(long state)")
-on_gey <- function(df, k) {
-  df$panel <- factor(pan_gey[k], levels = pan_gey)
-  df
-}
-runs_gey <- on_gey(state_runs(ii, st_gey[ii, ]), k = 1)
-ggplot(mapping = aes(x = x, y = y)) +
-  geom_rect(data = runs_gey, aes(xmin = xmin, xmax = xmax, ymin = -Inf,
-                                 ymax = Inf, fill = state),
-            inherit.aes = FALSE, alpha = 0.18) +
-  geom_blank(data = on_gey(data.frame(x = NA_real_, y = c(0, 1)), k = 2)) +
-  geom_point(data = on_gey(data.frame(x = ii, y = geyser$waiting[ii]), k = 1),
-             colour = book_grey, size = 1.2) +
-  geom_line(data = on_gey(data.frame(x = ii,
-                                     y = predict(fit_gey, what = "mu")[ii]),
-                          k = 1),
-            aes(colour = "mean of the model"), linewidth = 0.7) +
-  geom_linerange(data = on_gey(data.frame(x = ii, y = st_gey$state2[ii]),
-                               k = 2),
-                 aes(ymin = 0, ymax = y), colour = rust, linewidth = 0.8) +
-  facet_wrap(~panel, ncol = 1, scales = "free_y", strip.position = "left") +
-  scale_colour_manual(values = chalk) +
-  scale_fill_manual(values = c("state 1" = "#5B7DB1", "state 2" = rust),
-                    breaks = c("state 1", "state 2"),
-                    labels = c("short state", "long state")) +
-  labs(x = "eruption", y = NULL) +
-  theme(strip.placement = "outside", strip.background = element_blank(),
-        strip.text = element_text(size = rel(1)))
+mean_gey <- data.frame(eruption = ii, waiting = geyser$waiting[ii],
+                       mean = predict(fit_gey, what = "mu")[ii])
+g_mean <- ggplot(mean_gey, aes(x = eruption)) +
+  geom_point(aes(y = waiting), colour = book_grey) +
+  geom_line(aes(y = mean), colour = chalk) +
+  labs(x = NULL, y = "waiting (min)")
+g_states <- autoplot(fit_gey, term = "regime(k = 2)",
+                     plot_type = plot_states()) +
+  coord_cartesian(xlim = c(1, 100)) +
+  labs(title = NULL, x = "eruption")
+g_mean / g_states
+```
+
+The graph of `plot_states()` covers the whole series as stacked areas, so we
+limit it to the first 100 eruptions with `coord_cartesian()`. The type `plot_regime_density()` draws the density of
+the response under each state, at the fitted parameters (@fig-ts-geyser-density).
+
+```{r}
+#| label: fig-ts-geyser-density
+#| fig-cap: "Density of the waiting time under each state of the two-state model."
+#| fig-height: 3.4
+autoplot(fit_gey, term = "regime(k = 2)", plot_type = plot_regime_density()) +
+  labs(x = "waiting (min)")
 ```
 
 ### More states, and more than one start
@@ -1700,28 +1678,23 @@ where the transition probabilities of the third state are not defined, so
 the likelihood ratio between them has no $\chi^2$ reference
 [@davies1987]. The criteria do not have this problem. @fig-ts-geyser3 shows
 the first 100 waiting times with the mean of the three-state model and the
-most probable state of each eruption.
+probability of each state.
 
 ```{r}
 #| label: fig-ts-geyser3
-#| fig-cap: "The first 100 waiting times of Old Faithful with the mean of the three-state model. The background shows the most probable state of each eruption."
-#| echo: false
-#| fig-height: 3.4
-st_gey3 <- statmod_latent(fit_gey3)
-runs_gey3 <- state_runs(ii, st_gey3[ii, ])
-ggplot(data.frame(x = ii, y = geyser$waiting[ii]), aes(x = x, y = y)) +
-  geom_rect(data = runs_gey3, aes(xmin = xmin, xmax = xmax, ymin = -Inf,
-                                  ymax = Inf, fill = state),
-            inherit.aes = FALSE, alpha = 0.18) +
-  geom_point(colour = book_grey, size = 1.2) +
-  geom_line(data = data.frame(x = ii, y = predict(fit_gey3, what = "mu")[ii]),
-            aes(colour = "mean of the model"), linewidth = 0.7) +
-  scale_colour_manual(values = chalk) +
-  scale_fill_manual(values = c("state 1" = "#5B7DB1", "state 2" = "#C49A2C",
-                               "state 3" = rust),
-                    breaks = c("state 1", "state 2", "state 3"),
-                    labels = sprintf("state %d, mean %.1f", 1:3, mu_gey3)) +
-  labs(x = "eruption", y = "waiting (min)")
+#| fig-cap: "Top: the first 100 waiting times of Old Faithful with the mean of the three-state model. Bottom: the probability of each of the three states given the whole series."
+#| fig-height: 5.4
+mean_gey3 <- data.frame(eruption = ii, waiting = geyser$waiting[ii],
+                        mean = predict(fit_gey3, what = "mu")[ii])
+g_mean3 <- ggplot(mean_gey3, aes(x = eruption)) +
+  geom_point(aes(y = waiting), colour = book_grey) +
+  geom_line(aes(y = mean), colour = chalk) +
+  labs(x = NULL, y = "waiting (min)")
+g_states3 <- autoplot(fit_gey3, term = "regime(k = 3, n_start = 3)",
+                      plot_type = plot_states()) +
+  coord_cartesian(xlim = c(1, 100)) +
+  labs(title = NULL, x = "eruption")
+g_mean3 / g_states3
 ```
 
 ## Regimes with covariates, and on the scale {#sec-timeseries-regime-more}
@@ -1794,45 +1767,26 @@ staying in the quiet state is `r fmt(cdr[["regime.p1.1"]], 3)` and that of
 staying in the turbulent state `r fmt(cdr[["regime.p2.2"]], 3)`. With the
 gaussian distribution this model has a lower AIC than the score-driven model
 of @sec-timeseries-volatility. @fig-ts-dax-regime shows the fitted standard
-deviation over the absolute returns, with the most probable state of each day
-in the background, and the probability of the turbulent state. `predict()`
+deviation over the absolute returns, and the probability of each state,
+drawn by `plot_states()`. `predict()`
 gives the standard deviation as the exponential of the predictor averaged
 over the probabilities of the states.
 
 ```{r}
 #| label: fig-ts-dax-regime
-#| fig-cap: "Top: absolute daily returns of the DAX with the standard deviation of the two-state model on the scale; the background shows the most probable state of each day. Bottom: the probability of the turbulent state, given the whole series."
-#| echo: false
-#| fig-height: 5
-pan_reg <- c("absolute return (%)", "P(turbulent state)")
-reg_ret <- data.frame(x = yr, hi = abs(dax$r),
-                      panel = factor(pan_reg[1], levels = pan_reg))
-reg_sd <- data.frame(x = yr, y = predict(fit_dax_r, what = "sigma"),
-                     panel = factor(pan_reg[1], levels = pan_reg))
-reg_prob <- data.frame(x = yr, y = st_dax$state2,
-                       panel = factor(pan_reg[2], levels = pan_reg))
-reg_lim <- data.frame(x = NA_real_, y = c(0, 1),
-                      panel = factor(pan_reg[2], levels = pan_reg))
-runs_dax <- state_runs(yr, st_dax)
-ggplot(mapping = aes(x = x)) +
-  geom_rect(data = runs_dax, aes(xmin = xmin, xmax = xmax, ymin = -Inf,
-                                 ymax = Inf, fill = state),
-            inherit.aes = FALSE, alpha = 0.18) +
-  geom_blank(data = reg_lim, aes(y = y)) +
-  geom_linerange(data = reg_ret, aes(ymin = 0, ymax = hi),
-                 colour = book_grey, linewidth = 0.3) +
-  geom_line(data = reg_sd, aes(y = y, colour = "standard deviation"),
-            linewidth = 0.6) +
-  geom_line(data = reg_prob, aes(y = y), colour = rust, linewidth = 0.5) +
-  facet_wrap(~panel, ncol = 1, scales = "free_y", strip.position = "left") +
-  scale_colour_manual(values = chalk) +
-  scale_fill_manual(values = c("state 1" = "#5B7DB1", "state 2" = rust),
-                    breaks = c("state 1", "state 2"),
-                    labels = c("quiet state", "turbulent state")) +
-  scale_x_continuous(breaks = seq(ceiling(min(yr)), floor(max(yr)))) +
-  labs(x = "year", y = NULL) +
-  theme(strip.placement = "outside", strip.background = element_blank(),
-        strip.text = element_text(size = rel(1)))
+#| fig-cap: "Top: absolute daily returns of the DAX with the standard deviation of the two-state model on the scale. Bottom: the probability of each state given the whole series; regime 1 is the quiet state and regime 2 the turbulent state."
+#| fig-height: 5.4
+sd_reg <- data.frame(day = dax$day, r = abs(dax$r),
+                     sd = predict(fit_dax_r, what = "sigma"))
+g_sd <- ggplot(sd_reg, aes(x = day)) +
+  geom_linerange(aes(ymin = 0, ymax = r), colour = book_grey,
+                 linewidth = 0.3) +
+  geom_line(aes(y = sd), colour = chalk) +
+  labs(x = NULL, y = "absolute return (%)")
+g_reg <- autoplot(fit_dax_r, term = "regime(k = 2)", param = "sigma",
+                  plot_type = plot_states()) +
+  labs(title = NULL, x = "year")
+(g_sd / g_reg) & scale_x_continuous(breaks = first_day, labels = 1992:1998)
 ```
 
 ```{r}

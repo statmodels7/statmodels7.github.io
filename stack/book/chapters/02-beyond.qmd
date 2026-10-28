@@ -953,28 +953,23 @@ The column `held` of `hyper()` is `TRUE`, and the column `source` is
 times the REML estimate, so the smooth is stiffer and uses
 `r fmt(fit0_held@edf$edf[2])` effective degrees of freedom instead of
 `r fmt(fit0@edf$edf[2])`. @fig-held shows the two fitted curves. The
-criterion still runs, because it still estimates $\sigma$.
+criterion still runs, because it still estimates $\sigma$. The type
+`plot_param()` of @sec-graphs draws the mean of the first model with its 95%
+band, and we add the data and the mean of the model with the held smoothing
+parameter as layers of `ggplot2`.
 
 ```{r}
 #| label: fig-held
-#| fig-cap: "The fitted mean of the first motorcycle model with the smoothing parameter estimated by REML and held at 0.001."
-#| echo: false
+#| fig-cap: "The fitted mean of the first motorcycle model with the smoothing parameter estimated by REML (solid line, with its 95% band) and held at 0.001 (dashed line)."
 #| fig-height: 3.8
-ph <- predict(fit0_held, what = "mu", newdata = grid)
-p0 <- predict(fit0, what = "mu", newdata = grid)
-fits <- c("lambda estimated by REML", "lambda held at 0.001")
-held <- data.frame(times = rep(grid$times, times = 2), fit = c(p0, ph),
-                   curve = factor(rep(fits, each = nrow(grid)),
-                                  levels = fits))
-ggplot(mcycle, aes(x = times)) +
-  geom_point(aes(y = accel, shape = "data"), colour = book_grey, size = 1.1) +
-  geom_line(aes(y = fit, colour = curve, linetype = curve), data = held,
-            linewidth = 0.8) +
-  scale_shape_manual(values = 16) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c("solid", "dashed")) +
-  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
-         linetype = guide_legend(order = 2)) +
+held <- data.frame(times = grid$times,
+                   fit = predict(fit0_held, what = "mu", newdata = grid))
+autoplot(fit0, plot_type = plot_param(param = "mu", over = "times"),
+         data = mcycle) +
+  geom_point(aes(x = times, y = accel), data = mcycle, colour = "grey50",
+             size = 1) +
+  geom_line(aes(x = times, y = fit), data = held, linetype = "dashed",
+            colour = rust) +
   labs(x = "time after impact (ms)", y = "acceleration (g)")
 ```
 

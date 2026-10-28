@@ -124,28 +124,29 @@ data.frame(order = 1:3,
 In `mgcv` the order is the second element of `m`. The fits agree again. On
 these data the penalty on the first derivative gives the most effective
 degrees of freedom and the most wiggly curve, and the penalty on the third
-derivative the fewest. @fig-boston-order shows the three curves.
+derivative the fewest. @fig-boston-order shows the three curves. The graph
+`plot_param()` of @sec-graphs-distribution draws the mean of the fit with
+the penalty on the second derivative and its 95% band, and we add the data
+and the other two curves as layers of `ggplot2`.
 
 ```{r}
 #| label: fig-boston-order
-#| fig-cap: "Median value of the homes against the percentage of lower-status population, with the smooths fitted with a penalty on the first, second and third derivative."
-#| echo: false
+#| fig-cap: "Median value of the homes against the percentage of lower-status population, with the smooths fitted with a penalty on the second derivative (solid, with its 95% band), on the first derivative (dashed) and on the third derivative (dotted)."
 #| fig-height: 4
 lg <- data.frame(lstat = seq(from = min(Boston$lstat), to = max(Boston$lstat),
                              length.out = 200))
 order_lines <- data.frame(
-  lstat = rep(lg$lstat, times = 3),
+  lstat = rep(lg$lstat, times = 2),
   medv = c(predict(fit_o1, what = "mu", newdata = lg),
-           predict(fit_b20, what = "mu", newdata = lg),
            predict(fit_o3, what = "mu", newdata = lg)),
-  curve = factor(rep(1:3, each = nrow(lg)),
-                 labels = c("order 1", "order 2", "order 3")))
-ggplot(Boston, aes(x = lstat, y = medv)) +
-  geom_point(colour = book_grey, size = 0.8) +
-  geom_line(data = order_lines, aes(colour = curve, linetype = curve),
-            linewidth = 0.8) +
-  scale_colour_manual(values = c(rust, chalk, ink)) +
-  scale_linetype_manual(values = c("dashed", "solid", "dotted")) +
+  curve = rep(c("order 1", "order 3"), each = nrow(lg)))
+autoplot(fit_b20, plot_type = plot_param(param = "mu", over = "lstat"),
+         data = Boston) +
+  geom_point(aes(x = lstat, y = medv), data = Boston, colour = "grey60",
+             size = 0.8) +
+  geom_line(aes(x = lstat, y = medv, linetype = curve), data = order_lines,
+            colour = rust) +
+  scale_linetype_manual(values = c("dashed", "dotted")) +
   labs(x = "lower-status population (%)", y = "median value (1000 $)")
 ```
 
@@ -288,22 +289,18 @@ flat there.
 
 ```{r}
 #| label: fig-adaptive
-#| fig-cap: "Head acceleration against time, with the P-spline smooth and the adaptive smooth, both with 40 basis functions."
-#| echo: false
+#| fig-cap: "Head acceleration against time, with the adaptive smooth (solid, with its 95% band) and the P-spline smooth (dashed), both with 40 basis functions."
 #| fig-height: 4
 mg <- data.frame(times = seq(from = min(mcycle$times), to = max(mcycle$times),
                              length.out = 300))
-adapt_lines <- data.frame(
-  times = rep(mg$times, times = 2),
-  accel = c(predict(fit_p40, what = "mu", newdata = mg),
-            predict(fit_ad, what = "mu", newdata = mg)),
-  curve = factor(rep(1:2, each = nrow(mg)), labels = c("P-spline", "adaptive")))
-ggplot(mcycle, aes(x = times, y = accel)) +
-  geom_point(colour = book_grey, size = 1) +
-  geom_line(data = adapt_lines, aes(colour = curve, linetype = curve),
-            linewidth = 0.8) +
-  scale_colour_manual(values = c(rust, chalk)) +
-  scale_linetype_manual(values = c("dashed", "solid")) +
+p40_line <- data.frame(times = mg$times,
+                       accel = predict(fit_p40, what = "mu", newdata = mg))
+autoplot(fit_ad, plot_type = plot_param(param = "mu", over = "times"),
+         data = mcycle) +
+  geom_point(aes(x = times, y = accel), data = mcycle, colour = "grey60",
+             size = 1) +
+  geom_line(aes(x = times, y = accel), data = p40_line, colour = rust,
+            linetype = "dashed") +
   labs(x = "time after impact (ms)", y = "acceleration (g)")
 ```
 
@@ -644,25 +641,25 @@ cycle has a large second derivative, and this penalty removes it. With the
 operator, the sine and the cosine of the year are free coefficients of the
 smooth, and the residual standard deviation falls from
 `r fmt(exp(coef(fit_c1)$sigma[[1]]))` to `r fmt(exp(coef(fit_c2)$sigma[[1]]))`
-parts per million. @fig-co2 shows the last five years.
+parts per million. @fig-co2 shows the last five years. The graph
+`plot_param()` draws the mean over the whole range of the data, so we give it
+a grid of 2000 points, which resolves the yearly cycle, and we restrict the
+horizontal axis with `coord_cartesian()`.
 
 ```{r}
 #| label: fig-co2
-#| fig-cap: "Monthly CO2 concentration at Mauna Loa from 1993 to 1997, with the smooth penalized on the second derivative and the smooth penalized by the operator whose null space holds a trend and a yearly cycle."
-#| echo: false
+#| fig-cap: "Monthly CO2 concentration at Mauna Loa from 1993 to 1997, with the smooth penalized by the operator whose null space holds a trend and a yearly cycle (solid, with its 95% band) and the smooth penalized on the second derivative (dashed)."
 #| fig-height: 3.8
 last <- co2d$t >= 1993
-co2_lines <- data.frame(
-  t = rep(co2d$t[last], times = 2),
-  y = c(fitted(fit_c1)[last], fitted(fit_c2)[last]),
-  curve = factor(rep(1:2, each = sum(last)),
-                 labels = c("second derivative", "trend and cycle")))
-ggplot(co2d[last, ], aes(x = t, y = y)) +
-  geom_point(colour = book_grey, size = 1.1) +
-  geom_line(data = co2_lines, aes(colour = curve, linetype = curve),
-            linewidth = 0.8) +
-  scale_colour_manual(values = c(rust, chalk)) +
-  scale_linetype_manual(values = c("dashed", "solid")) +
+c1_line <- data.frame(t = co2d$t[last], y = fitted(fit_c1)[last])
+autoplot(fit_c2, plot_type = plot_param(param = "mu", over = "t",
+                                        n_grid = 2000),
+         data = co2d) +
+  geom_point(aes(x = t, y = y), data = co2d[last, ], colour = "grey60",
+             size = 1.1) +
+  geom_line(aes(x = t, y = y), data = c1_line, colour = rust,
+            linetype = "dashed") +
+  coord_cartesian(xlim = c(1993, 1998), ylim = c(354, 368)) +
   labs(x = "year", y = "CO2 (ppm)")
 ```
 
@@ -709,25 +706,19 @@ max(abs(fitted(fit_cs0) - fitted(g_cs0)))
 ```
 
 @fig-chick shows the four curves of the model with the shared smoothing
-parameter and an equation for $\sigma$. On diet 3 the chicks grow fastest.
+parameter and an equation for $\sigma$. The graph `plot_effect()` of
+@sec-graphs-effect draws a smooth with a factor `by` as one curve for each
+level, and with `scale = "response"` each curve is the mean of its diet,
+main effect included. On diet 3 the chicks grow fastest.
 
 ```{r}
 #| label: fig-chick
-#| fig-cap: "Weight of the chicks against time, with the fitted mean curve of each diet (shared smoothing parameter, sigma linear in time)."
-#| echo: false
+#| fig-cap: "Weight of the chicks against time, with the fitted mean curve of each diet and its 95% band (shared smoothing parameter, sigma linear in time)."
 #| fig-height: 4
-tg <- seq(from = 0, to = 21, length.out = 100)
-chick_lines <- do.call(rbind, lapply(levels(ChickWeight$Diet), function(d) {
-  nd <- data.frame(Time = tg, Diet = factor(d, levels = levels(ChickWeight$Diet)))
-  data.frame(Time = tg, weight = predict(fit_cs, what = "mu", newdata = nd),
-             curve = paste("diet", d))
-}))
-ggplot(ChickWeight, aes(x = Time, y = weight)) +
-  geom_point(colour = book_grey, size = 0.6) +
-  geom_line(data = chick_lines, aes(colour = curve, linetype = curve),
-            linewidth = 0.8) +
-  scale_colour_manual(values = book_palette[1:4]) +
-  scale_linetype_manual(values = c("solid", "dashed", "dotted", "dotdash")) +
+autoplot(fit_cs, term = "Time", param = "mu",
+         plot_type = plot_effect(scale = "response"), data = ChickWeight) +
+  geom_point(aes(x = Time, y = weight), data = ChickWeight, colour = "grey60",
+             size = 0.6) +
   labs(x = "day", y = "weight (g)")
 ```
 
@@ -849,25 +840,20 @@ data.frame(edf = c(edf_mu(fit_te), edf_mu(fit_ti), edf_mu(fit_ta)),
 
 The additive model has a much larger AIC: the elevation is not a sum of a
 function of $x$ and a function of $y$. The two tensor products are close.
-@fig-topo shows the fitted surface of the anisotropic model as a map.
+@fig-topo shows the fitted surface of the anisotropic model as a map, drawn
+by the graph `plot_surface()`. The graph shows the effect of the term, which
+is the elevation minus the intercept
+(`r fmt(coef(fit_te)$mu[["(Intercept)"]], 1)` feet), on a colour scale
+symmetric about zero, with contour lines. The small dots mark the cells in
+which the pointwise 95% interval of the effect contains zero, so in those
+cells the elevation is not distinguishable from the mean elevation.
 
 ```{r}
 #| label: fig-topo
-#| fig-cap: "The fitted elevation of the `topo` data, in feet. The points are the 52 measured locations."
-#| echo: false
+#| fig-cap: "The effect of `te(x, y)` on the mean elevation of the `topo` data, in feet. The small dots mark the cells where the 95% interval of the effect contains zero, and the large points are the 52 measured locations."
 #| fig-height: 5
-gx <- seq(from = min(topo$x), to = max(topo$x), length.out = 60)
-gy <- seq(from = min(topo$y), to = max(topo$y), length.out = 60)
-gt <- expand.grid(x = gx, y = gy)
-zt <- matrix(predict(fit_te, what = "mu", newdata = gt), nrow = length(gx))
-topo_grid <- data.frame(gt, z = as.vector(zt))
-ggplot(topo_grid, aes(x = x, y = y)) +
-  geom_raster(aes(fill = z)) +
-  geom_contour(aes(z = z), breaks = pretty(range(zt), n = 10),
-               colour = "grey25", linewidth = 0.3) +
-  geom_point(data = topo, colour = rust, size = 1.1) +
-  scale_fill_gradientn(colours = hcl.colors(30, "Greens 3", rev = TRUE)) +
-  coord_fixed(expand = FALSE, clip = "off") +
+autoplot(fit_te, term = "te(x, y)", plot_type = plot_surface(), data = topo) +
+  geom_point(aes(x = x, y = y), data = topo, colour = "grey15", size = 1.3) +
   labs(x = "x (50 ft)", y = "y (50 ft)")
 ```
 
@@ -932,29 +918,17 @@ sd_mgcv
 The smooths differ (the cyclic P-spline of `mgcv` has a penalty on the
 differences of the coefficients), and the fitted standard
 deviations agree to within `r fmt(max(abs(as.numeric(predict(fit_ts, what = "sigma", newdata = days)) - as.numeric(sd_mgcv))), 2)`
-degrees at the four days. @fig-chic-sigma shows the band of two
-standard deviations around the mean.
+degrees at the four days. @fig-chic-sigma shows the 2.5% and 97.5% quantiles
+of the fitted distribution, $\hat\mu \pm 1.96\hat\sigma$, drawn by the graph
+`plot_quantiles()`. The band between them is wider in winter than in summer.
 
 ```{r}
 #| label: fig-chic-sigma
-#| fig-cap: "Mean daily temperature in Chicago against the day of the year, with the fitted mean and the band of plus and minus two fitted standard deviations."
-#| echo: false
+#| fig-cap: "Mean daily temperature in Chicago against the day of the year, with the fitted median (solid) and the 2.5% and 97.5% quantiles of the fitted distribution (dashed)."
 #| fig-height: 3.8
-ms <- predict(fit_ts, what = "mu", newdata = dg)
-ss <- predict(fit_ts, what = "sigma", newdata = dg)
-sig_lines <- data.frame(
-  doy = rep(dg$doy, times = 3),
-  temp = c(ms, ms + 2 * ss, ms - 2 * ss),
-  curve = factor(rep(c(1, 2, 2), each = nrow(dg)),
-                 labels = c("mean", "mean plus and minus 2 sigma")),
-  line = rep(1:3, each = nrow(dg)))
-ggplot(chic, aes(x = doy, y = temp)) +
-  geom_point(colour = book_grey, size = 0.4) +
-  geom_line(data = sig_lines,
-            aes(colour = curve, linetype = curve, group = line),
-            linewidth = 0.8) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c("solid", "dashed")) +
+autoplot(fit_ts, plot_type = plot_quantiles(over = "doy",
+                                            probs = c(0.025, 0.5, 0.975)),
+         data = chic) +
   labs(x = "day of the year", y = "temperature (C)")
 ```
 
@@ -997,32 +971,49 @@ c(Poisson = AIC(fit_dp), negbin2 = AIC(fit_dn))
 The ratio is `r fmt(sum((chic$death - mu_dp)^2 / mu_dp) / (nrow(chic) - edf_mu(fit_dp)))`,
 so the deaths vary more than a Poisson distribution allows. The dispersion
 $\theta$ of the negative binomial model is the same in the two packages, and
-the negative binomial model has the smaller AIC. @fig-deaths shows the fitted
-ratio of the death rate at each temperature to the rate at 20 degrees, with
-the other covariates held fixed.
+the negative binomial model has the smaller AIC. @fig-deaths shows the
+smooth of the temperature in the negative binomial model, drawn by the graph
+`plot_effect()` on the scale of the link. The link of `mu` is the logarithm,
+so the difference between the effects at two temperatures is the logarithm
+of the ratio of the death rates at those temperatures, with the other
+covariates held fixed.
 
 ```{r}
 #| label: fig-deaths
-#| fig-cap: "Ratio of the daily death rate at each temperature to the rate at 20 degrees Celsius, from the negative binomial model, with a 95% pointwise interval."
-#| echo: false
+#| fig-cap: "Effect of the temperature on the logarithm of the daily death rate, from the negative binomial model, with a 95% pointwise interval."
 #| fig-height: 3.8
-tt <- data.frame(temp = seq(from = -20, to = 32, length.out = 100),
-                 time = median(chic$time), dow = "Monday")
-ref <- data.frame(temp = 20, time = median(chic$time), dow = "Monday")
-pe <- predict(fit_dn, what = "link:mu", newdata = tt, se = TRUE)
-e0 <- predict(fit_dn, what = "link:mu", newdata = ref)
-deaths_curve <- data.frame(temp = tt$temp, ratio = exp(pe$fit - e0),
-                           lower = exp(pe$lower - e0),
-                           upper = exp(pe$upper - e0))
-ggplot(deaths_curve, aes(x = temp)) +
-  geom_hline(yintercept = 1, linetype = "dotted", colour = book_grey) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = "95% interval"),
-              alpha = 0.2) +
-  geom_line(aes(y = ratio, colour = "rate ratio"), linewidth = 0.8) +
-  scale_colour_manual(values = chalk) +
-  scale_fill_manual(values = chalk) +
-  guides(colour = guide_legend(order = 1), fill = guide_legend(order = 2)) +
-  labs(x = "temperature (C)", y = "rate ratio")
+autoplot(fit_dn, term = "temp", plot_type = plot_effect(residuals = FALSE),
+         data = chic) +
+  labs(x = "temperature (C)")
+```
+
+```{r}
+#| label: deaths-derivative-zones
+#| include: false
+p_der <- autoplot(fit_dn, term = "temp", plot_type = plot_derivative(),
+                  data = chic)
+der_band <- Filter(function(d) all(c("ymin", "ymax") %in% names(d)),
+                   lapply(seq_along(p_der$layers),
+                          function(i) layer_data(p_der, i)))[[1]]
+der_pos <- min(der_band$x[der_band$ymin > 0 & der_band$x > 0])
+der_neg <- range(der_band$x[der_band$ymax < 0])
+```
+
+The rate is lowest near 20 degrees and grows quickly above it. The graph
+`plot_derivative()` draws the first derivative of the smooth with its 95%
+band, which tells us where the rate changes with the temperature. In
+@fig-deaths-derivative the band lies above zero from
+`r fmt(der_pos, 1)` degrees upwards, so there the rate grows with the
+temperature beyond the uncertainty of the estimate. The band lies below zero
+between `r fmt(der_neg[1], 1)` and `r fmt(der_neg[2], 1)` degrees, where the
+rate falls as the temperature rises.
+
+```{r}
+#| label: fig-deaths-derivative
+#| fig-cap: "First derivative of the effect of the temperature on the logarithm of the daily death rate, with a 95% pointwise band."
+#| fig-height: 3.8
+autoplot(fit_dn, term = "temp", plot_type = plot_derivative(), data = chic) +
+  labs(x = "temperature (C)")
 ```
 
 ## A lasso on the coefficients of a smooth {#sec-gam-lasso}
@@ -1070,21 +1061,16 @@ path of a penalty with a kink has no derivative.
 
 ```{r}
 #| label: fig-lasso
-#| fig-cap: "Head acceleration against time, with the smooth penalized on the second derivative and the smooth with a lasso penalty on its Demmler-Reinsch coefficients."
-#| echo: false
+#| fig-cap: "Head acceleration against time, with the smooth with a lasso penalty on its Demmler-Reinsch coefficients (solid, with its 95% band) and the smooth penalized on the second derivative (dashed)."
 #| fig-height: 4
-lasso_lines <- data.frame(
-  times = rep(mg$times, times = 2),
-  accel = c(predict(fit_r20, what = "mu", newdata = mg),
-            predict(fit_ls, what = "mu", newdata = mg)),
-  curve = factor(rep(1:2, each = nrow(mg)),
-                 labels = c("roughness penalty", "lasso")))
-ggplot(mcycle, aes(x = times, y = accel)) +
-  geom_point(colour = book_grey, size = 1) +
-  geom_line(data = lasso_lines, aes(colour = curve, linetype = curve),
-            linewidth = 0.8) +
-  scale_colour_manual(values = c(rust, chalk)) +
-  scale_linetype_manual(values = c("dashed", "solid")) +
+r20_line <- data.frame(times = mg$times,
+                       accel = predict(fit_r20, what = "mu", newdata = mg))
+autoplot(fit_ls, plot_type = plot_param(param = "mu", over = "times"),
+         data = mcycle) +
+  geom_point(aes(x = times, y = accel), data = mcycle, colour = "grey60",
+             size = 1) +
+  geom_line(aes(x = times, y = accel), data = r20_line, colour = rust,
+            linetype = "dashed") +
   labs(x = "time after impact (ms)", y = "acceleration (g)")
 ```
 

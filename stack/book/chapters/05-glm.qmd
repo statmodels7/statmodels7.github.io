@@ -262,38 +262,32 @@ The three models have the same number of parameters, so their log-likelihoods
 compare directly. The probit link has the largest log-likelihood, but the
 differences are small: with only 12 batches the data cannot separate the
 links well. @fig-links shows why. The three curves are close in the middle of
-the range of doses and differ at the ends.
+the range of doses and differ at the ends. The type `plot_param()` of
+@sec-graphs draws the probability of the logit model for the males with its
+95% band, and we add the curves of the other two links and the observed
+proportions as layers of `ggplot2`.
 
 ```{r}
 #| label: fig-links
-#| fig-cap: "Proportion of dead male moths against the log-dose, with the fitted probability of the additive model under three links."
-#| echo: false
+#| fig-cap: "Proportion of dead male moths against the log-dose (points), with the fitted probability of the additive model under the logit link (solid, with its 95% band), the probit link (dashed) and the complementary log-log link (dotted)."
 #| fig-height: 3.8
+males <- data.frame(sex = factor("M", levels = levels(budworm$sex)))
 grid <- data.frame(ldose = seq(from = 0, to = 5, length.out = 100),
-                   sex = factor("M", levels = levels(budworm$sex)),
-                   numdead = 0, n = 20)
-p_logit <- predict(fit_bw_logit, what = "mu", newdata = grid)
-p_probit <- predict(fit_bw_probit, what = "mu", newdata = grid)
-p_cloglog <- predict(fit_bw_cloglog, what = "mu", newdata = grid)
-males <- budworm$sex == "M"
-links <- c("logit", "probit", "cloglog")
-bw_obs <- data.frame(ldose = budworm$ldose[males],
-                     prop = budworm$numdead[males] / budworm$n[males])
-bw_fit <- data.frame(ldose = rep(grid$ldose, times = 3),
-                     prop = c(p_logit, p_probit, p_cloglog),
-                     link = factor(rep(links, each = nrow(grid)),
-                                   levels = links))
-ggplot(bw_obs, aes(x = ldose, y = prop)) +
-  geom_point(aes(shape = "observed proportion"), colour = book_grey,
-             size = 1.8) +
-  geom_line(aes(colour = link, linetype = link), data = bw_fit,
-            linewidth = 0.8) +
-  scale_shape_manual(values = 16) +
-  scale_colour_manual(values = c(chalk, rust, "grey15")) +
-  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
-  coord_cartesian(xlim = c(0, 5), ylim = c(0, 1)) +
-  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
-         linetype = guide_legend(order = 2)) +
+                   sex = males$sex, numdead = 0, n = 20)
+other_links <- data.frame(
+  ldose = rep(grid$ldose, times = 2),
+  prop = c(predict(fit_bw_probit, what = "mu", newdata = grid),
+           predict(fit_bw_cloglog, what = "mu", newdata = grid)),
+  link = rep(c("probit", "cloglog"), each = nrow(grid)))
+observed_m <- subset(budworm, sex == "M")
+autoplot(fit_bw_logit, plot_type = plot_param(param = "mu", over = "ldose",
+                                              at = males),
+         data = budworm) +
+  geom_line(aes(x = ldose, y = prop, linetype = link), data = other_links,
+            colour = rust) +
+  geom_point(aes(x = ldose, y = numdead / n), data = observed_m,
+             colour = "grey40", size = 1.8) +
+  scale_linetype_manual(values = c(probit = "dashed", cloglog = "dotted")) +
   labs(x = "log-dose", y = "proportion dead")
 ```
 
@@ -495,31 +489,28 @@ The effective number of parameters of the smooth model is
 `r fmt(sum(fit_gam_s@edf$edf), 1)`, against 3 for the linear model.
 @fig-gag shows that the curve is steeper for the youngest children than a
 straight line on the log scale can be. The smooth terms are the subject of a
-later chapter.
+later chapter. The figure draws the mean of the smooth model with
+`plot_param()` and adds the data and the means of the two linear models as
+layers.
 
 ```{r}
 #| label: fig-gag
-#| fig-cap: "GAG concentration against age, with three fitted means: gamma with a linear log-mean, inverse gaussian with a linear log-mean, and gamma with a smooth log-mean."
-#| echo: false
+#| fig-cap: "GAG concentration against age, with three fitted means: gamma with a smooth log-mean (solid, with its 95% band), gamma with a linear log-mean (dashed) and inverse gaussian with a linear log-mean (dotted)."
 #| fig-height: 3.8
 ga <- data.frame(Age = seq(from = 0, to = 17, length.out = 200))
-m_gam <- predict(fit_gam, what = "mu", newdata = ga)
-m_ig <- predict(fit_ig, what = "mu", newdata = ga)
-m_gs <- predict(fit_gam_s, what = "mu", newdata = ga)
-gag_models <- c("gamma, linear", "inverse gaussian, linear", "gamma, smooth")
-gag_fit <- data.frame(Age = rep(ga$Age, times = 3),
-                      GAG = c(m_gam, m_ig, m_gs),
-                      model = factor(rep(gag_models, each = nrow(ga)),
-                                     levels = gag_models))
-ggplot(GAGurine, aes(x = Age, y = GAG)) +
-  geom_point(aes(shape = "data"), colour = book_grey, size = 1.1) +
-  geom_line(aes(colour = model, linetype = model), data = gag_fit,
-            linewidth = 0.8) +
-  scale_shape_manual(values = 16) +
-  scale_colour_manual(values = c(chalk, rust, "grey15")) +
-  scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
-  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
-         linetype = guide_legend(order = 2)) +
+linear_fits <- data.frame(
+  Age = rep(ga$Age, times = 2),
+  GAG = c(predict(fit_gam, what = "mu", newdata = ga),
+          predict(fit_ig, what = "mu", newdata = ga)),
+  model = rep(c("gamma, linear", "inverse gaussian, linear"),
+              each = nrow(ga)))
+autoplot(fit_gam_s, plot_type = plot_param(param = "mu", over = "Age"),
+         data = GAGurine) +
+  geom_point(aes(x = Age, y = GAG), data = GAGurine, colour = "grey60",
+             size = 1) +
+  geom_line(aes(x = Age, y = GAG, linetype = model), data = linear_fits,
+            colour = rust) +
+  scale_linetype_manual(values = c("dashed", "dotted")) +
   labs(x = "age (years)", y = "GAG")
 ```
 

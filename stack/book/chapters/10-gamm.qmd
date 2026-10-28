@@ -164,44 +164,34 @@ between two restricted log-likelihoods, like the likelihood ratio above, is
 the same in both packages.
 
 @fig-chicks shows the curve of a typical chick, with $b_i = 0$, and the
-curves of five chicks.
+curves of five chicks. The graph `plot_param()` of @sec-graphs-distribution
+draws the mean with the random effects at zero, which is the curve of a
+typical chick, with its 95% band. We add the weights and the fitted curves of
+the five chicks as layers.
 
 ```{r}
 #| label: fig-chicks
-#| fig-cap: "Weight against time for five chicks, with each chick's fitted curve and the curve of a typical chick (random intercept and slope)."
-#| echo: false
+#| fig-cap: "Weight against time for five chicks, with each chick's fitted curve, and the curve of a typical chick with its 95% band (random intercept and slope)."
 #| fig-height: 4
 tg <- seq(from = 0, to = 21, length.out = 100)
 pick <- c("1", "13", "16", "18", "35")
-cols <- book_palette[1:5]
-chick_lev <- c(paste("chick", pick), "typical chick")
 in_pick <- ChickWeight$Chick %in% pick
-chick_pts <- data.frame(
-  Time = ChickWeight$Time[in_pick], weight = ChickWeight$weight[in_pick],
-  curve = factor(paste("chick", ChickWeight$Chick[in_pick]), levels = chick_lev))
-chick_fit <- do.call(rbind, lapply(seq_along(pick), function(k) {
-  nd <- data.frame(Time = tg, Chick = factor(pick[k],
-                                             levels = levels(ChickWeight$Chick)))
+chick_pts <- data.frame(Time = ChickWeight$Time[in_pick],
+                        weight = ChickWeight$weight[in_pick],
+                        chick = as.character(ChickWeight$Chick[in_pick]))
+chick_fit <- do.call(rbind, lapply(pick, function(ck) {
+  nd <- data.frame(Time = tg,
+                   Chick = factor(ck, levels = levels(ChickWeight$Chick)))
   data.frame(Time = tg, weight = predict(fit_rs, what = "mu", newdata = nd),
-             curve = chick_lev[k])
+             chick = ck)
 }))
-nd0 <- data.frame(Time = tg, Chick = factor("1", levels = levels(ChickWeight$Chick)))
-chick_fit <- rbind(chick_fit, data.frame(
-  Time = tg, weight = predict(fit_rs, what = "mu", newdata = nd0, random = "zero"),
-  curve = chick_lev[6]))
-chick_fit$curve <- factor(chick_fit$curve, levels = chick_lev)
-ggplot(ChickWeight, aes(x = Time, y = weight)) +
-  geom_point(colour = book_grey, size = 0.6, alpha = 0.4) +
-  geom_point(data = chick_pts, aes(colour = curve, shape = curve), size = 1.2) +
-  geom_line(data = chick_fit,
-            aes(colour = curve, linetype = curve, linewidth = curve)) +
-  scale_colour_manual(values = c(cols, "black"), limits = chick_lev) +
-  scale_shape_manual(values = c(rep(16, 5), NA), limits = chick_lev) +
-  scale_linetype_manual(values = c(rep("solid", 5), "dashed"),
-                        limits = chick_lev) +
-  scale_linewidth_manual(values = c(rep(0.6, 5), 1.2), limits = chick_lev) +
-  guides(colour = guide_legend(nrow = 1), shape = guide_legend(nrow = 1),
-         linetype = guide_legend(nrow = 1), linewidth = guide_legend(nrow = 1)) +
+autoplot(fit_rs, plot_type = plot_param(param = "mu", over = "Time"),
+         data = ChickWeight) +
+  geom_point(aes(x = Time, y = weight), data = ChickWeight, colour = "grey60",
+             size = 0.6, alpha = 0.4) +
+  geom_point(aes(x = Time, y = weight, colour = chick), data = chick_pts,
+             size = 1.2) +
+  geom_line(aes(x = Time, y = weight, colour = chick), data = chick_fit) +
   labs(x = "day", y = "weight (g)")
 ```
 
@@ -412,42 +402,36 @@ ones stored under the default observed information.
 
 @fig-diets shows the curve of a typical chick of each diet with its 95%
 Bayesian band, and the curve of the model with one smoothing parameter for
-each diet. The two curves of a diet are close to each other and well inside
+each diet. The graph `plot_effect()` with `scale = "response"` draws a smooth
+with a factor `by` as one curve for each level, with the random effects at
+zero, and we add the observed weights as points, the curves of the second
+model as dashed lines of the same colours, and one panel for each diet with
+`facet_wrap()`. The two curves of a diet are close to each other and well inside
 the band. The bands of the four diets overlap during the first week, and the
 curves separate in the second and third weeks, when diet 3 gives the heaviest
 chicks and diet 1 the lightest.
 
 ```{r}
 #| label: fig-diets
-#| fig-cap: "Weight against time for the chicks of each diet. The solid curve is a typical chick of the diet in the model with one smoothing parameter, with its 95% Bayesian band (shaded); the dashed curve is the model with one smoothing parameter for each diet."
-#| echo: false
-#| fig-height: 6
-diet_lev <- paste("diet", 1:4)
-diet_mod <- c("one smoothing parameter", "one for each diet")
-diet_obs <- data.frame(Time = ChickWeight$Time, weight = ChickWeight$weight,
-                       diet = factor(paste("diet", ChickWeight$Diet),
-                                     levels = diet_lev))
-diet_fit <- do.call(rbind, lapply(1:4, function(d) {
+#| fig-cap: "Weight against time for the chicks of each diet (points) and a typical chick of the diet. The solid curves are the model with one smoothing parameter, with their 95% Bayesian bands (shaded); the dashed curves are the model with one smoothing parameter for each diet."
+#| fig-height: 5.6
+lv_fit <- do.call(rbind, lapply(levels(ChickWeight$Diet), function(d) {
   nd <- data.frame(Time = tg, Diet = factor(d, levels = levels(ChickWeight$Diet)),
                    Chick = factor("1", levels = levels(ChickWeight$Chick)))
-  pd <- predict(fit_sh, what = "mu", newdata = nd, random = "zero", se = TRUE)
-  pl <- predict(fit_lv, what = "mu", newdata = nd, random = "zero")
-  data.frame(Time = rep(tg, times = 2), weight = c(pd$fit, pl),
-             lower = c(pd$lower, rep(NA, length(tg))),
-             upper = c(pd$upper, rep(NA, length(tg))),
-             model = rep(diet_mod, each = length(tg)), diet = diet_lev[d])
+  data.frame(Time = tg, weight = predict(fit_lv, what = "mu", newdata = nd,
+                                         random = "zero"),
+             group = factor(d, levels = levels(ChickWeight$Diet)))
 }))
-diet_fit$model <- factor(diet_fit$model, levels = diet_mod)
-diet_fit$diet <- factor(diet_fit$diet, levels = diet_lev)
-ggplot(diet_obs, aes(x = Time, y = weight)) +
-  geom_point(colour = book_grey, size = 0.6, alpha = 0.5) +
-  geom_ribbon(data = diet_fit[diet_fit$model == diet_mod[1], ],
-              aes(ymin = lower, ymax = upper), fill = chalk, alpha = 0.3) +
-  geom_line(data = diet_fit, aes(colour = model, linetype = model),
-            linewidth = 0.9) +
-  facet_wrap(~ diet, ncol = 2) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c("solid", "dashed")) +
+obs <- data.frame(Time = ChickWeight$Time, weight = ChickWeight$weight,
+                  group = ChickWeight$Diet)
+autoplot(fit_sh, term = "Time", param = "mu",
+         plot_type = plot_effect(scale = "response"), data = ChickWeight) +
+  geom_point(aes(x = Time, y = weight), data = obs, colour = "grey60",
+             size = 0.6) +
+  geom_line(aes(x = Time, y = weight, colour = group), data = lv_fit,
+            linetype = "dashed") +
+  facet_wrap(facets = vars(group),
+             labeller = as_labeller(function(d) paste("diet", d))) +
   labs(x = "day", y = "weight (g)")
 ```
 
@@ -657,6 +641,21 @@ ggplot(gs_obs, aes(x = Time, y = weight)) +
   labs(x = "day", y = "weight (g)")
 ```
 
+The graph `plot_curves()` draws the smooth deviations $g_i(t)$ of all the
+chicks, one thin curve for each chick over the days on which it was weighed.
+In @fig-curves the deviations are close to zero in the first days and spread
+out in the second and third weeks, and some of them bend: a chick can depart
+from the curve of its diet in shape as well as in level.
+
+```{r}
+#| label: fig-curves
+#| fig-cap: "The smooth deviation of each of the 50 chicks from the curve of its diet, in the model with a random smooth."
+#| fig-height: 4
+autoplot(fit_rsm, term = "random(~s(Time, bspline_smooth(k = 6)) | Chick)",
+         plot_type = plot_curves(), data = ChickWeight) +
+  labs(x = "day", y = "deviation (g)")
+```
+
 ## Smooths and random effects in sigma {#sec-gamm-sigma}
 
 The spread of the weights around a chick's curve also grows with age, and some
@@ -752,30 +751,26 @@ c(statmod = as.numeric(logLik(fit_ml, loglik_type = "marginal")), mgcv = -g_ml$g
 The two maxima differ: they are maxima of two slightly different models.
 
 @fig-sigma shows the residual standard deviation of a typical chick against
-time, with the interval that holds the standard deviation of 95% of the
-chicks (`interval = group_interval()`, @sec-glmm-predict).
+time, drawn by `plot_param()` with its 95% confidence band, and the interval
+that holds the standard deviation of 95% of the chicks
+(`interval = group_interval()`, @sec-glmm-predict), which we add as a layer.
 
 ```{r}
 #| label: fig-sigma
-#| fig-cap: "Residual standard deviation of the weight against time: a typical chick (solid) and the interval that holds 95% of the chicks (dashed)."
-#| echo: false
+#| fig-cap: "Residual standard deviation of the weight against time: a typical chick with its 95% confidence band (solid line and band) and the interval that holds 95% of the chicks (dashed)."
 #| fig-height: 3.8
 nd_s <- data.frame(Time = tg, Diet = factor(1, levels = levels(ChickWeight$Diet)),
                    Chick = "new")
 sg <- predict(fit_sg, what = "sigma", newdata = nd_s, random = "zero",
               interval = group_interval())
-sg_lev <- c("typical chick", "95% of the chicks")
-sg_df <- data.frame(Time = rep(tg, times = 3),
-                    sigma = c(sg$fit, sg$lower, sg$upper),
-                    curve = factor(rep(sg_lev[c(1, 2, 2)], each = length(tg)),
-                                   levels = sg_lev),
-                    piece = rep(c("fit", "lower", "upper"), each = length(tg)))
-ggplot(sg_df, aes(x = Time, y = sigma)) +
-  geom_line(aes(linetype = curve, linewidth = curve, group = piece),
-            colour = chalk) +
+sg_group <- data.frame(Time = tg, lower = sg$lower, upper = sg$upper)
+autoplot(fit_sg, plot_type = plot_param(param = "sigma", over = "Time"),
+         data = ChickWeight) +
+  geom_line(aes(x = Time, y = lower), data = sg_group, colour = rust,
+            linetype = "dashed") +
+  geom_line(aes(x = Time, y = upper), data = sg_group, colour = rust,
+            linetype = "dashed") +
   expand_limits(y = 0) +
-  scale_linetype_manual(values = c("solid", "dashed")) +
-  scale_linewidth_manual(values = c(0.9, 0.5)) +
   labs(x = "day", y = "sigma (g)")
 ```
 
@@ -827,37 +822,38 @@ when it arrives near midnight and near 3:00. The model has no interaction
 between the food treatment and the time, so on the log scale the two curves
 differ by a constant, and the food-deprived nestlings call more at every hour.
 The bands are widest at the two ends of the night, where few parents
-arrived.
+arrived. The graph `plot_param()` draws the curve of the food-deprived
+nestlings. With `at` we hold the other covariates at the values of a
+typical nest with a male parent, and `logBroodSize = 0` gives the calls per
+nestling. We add the curve and the band of the satiated nestlings, and the
+observed calls per nestling, as layers.
 
 ```{r}
 #| label: fig-owls
-#| fig-cap: "Calls per nestling against the arrival time of the parent, for a typical nest with a male parent: food-deprived (solid) and satiated (dashed) nestlings, with 95% Bayesian bands (shaded). The points are the observed calls per nestling."
-#| echo: false
+#| fig-cap: "Calls per nestling against the arrival time of the parent, for a typical nest with a male parent: food-deprived (solid, band in blue) and satiated (dashed, band in rust) nestlings, with 95% Bayesian bands. The points are the observed calls per nestling."
 #| fig-height: 3.8
 ag <- seq(from = min(Owls$ArrivalTime), to = max(Owls$ArrivalTime),
           length.out = 100)
-food <- c("Deprived", "Satiated")
-food_lev <- c("deprived", "satiated")
-owl_fit <- do.call(rbind, lapply(1:2, function(k) {
-  nd <- data.frame(ArrivalTime = ag,
-                   FoodTreatment = factor(food[k], levels(Owls$FoodTreatment)),
-                   SexParent = factor("Male", levels(Owls$SexParent)),
-                   logBroodSize = 0, Nest = "new")
-  po <- predict(fit_ow, what = "mu", newdata = nd, random = "zero", se = TRUE)
-  data.frame(ArrivalTime = ag, fit = po$fit, lower = po$lower,
-             upper = po$upper, food = food_lev[k])
-}))
-owl_fit$food <- factor(owl_fit$food, levels = food_lev)
+nd_sat <- data.frame(ArrivalTime = ag,
+                     FoodTreatment = factor("Satiated", levels(Owls$FoodTreatment)),
+                     SexParent = factor("Male", levels(Owls$SexParent)),
+                     logBroodSize = 0, Nest = "new")
+po <- predict(fit_ow, what = "mu", newdata = nd_sat, random = "zero", se = TRUE)
+owl_sat <- data.frame(ArrivalTime = ag, fit = po$fit, lower = po$lower,
+                      upper = po$upper)
 owl_obs <- data.frame(ArrivalTime = Owls$ArrivalTime,
                       calls = Owls$SiblingNegotiation / Owls$BroodSize)
-ggplot(owl_fit, aes(x = ArrivalTime)) +
-  geom_point(data = owl_obs, aes(y = calls), colour = book_grey, size = 0.6,
-             alpha = 0.5) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = food), alpha = 0.25) +
-  geom_line(aes(y = fit, colour = food, linetype = food), linewidth = 0.9) +
-  scale_colour_manual(values = c(rust, chalk)) +
-  scale_fill_manual(values = c(rust, chalk)) +
-  scale_linetype_manual(values = c("solid", "dashed")) +
+autoplot(fit_ow, plot_type = plot_param(param = "mu", over = "ArrivalTime",
+                                        at = list(FoodTreatment = "Deprived",
+                                                  SexParent = "Male",
+                                                  logBroodSize = 0)),
+         data = Owls) +
+  geom_point(aes(x = ArrivalTime, y = calls), data = owl_obs,
+             colour = "grey60", size = 0.6, alpha = 0.5) +
+  geom_ribbon(aes(x = ArrivalTime, ymin = lower, ymax = upper),
+              data = owl_sat, fill = rust, alpha = 0.2) +
+  geom_line(aes(x = ArrivalTime, y = fit), data = owl_sat, colour = rust,
+            linetype = "dashed") +
   labs(x = "arrival time (hours)", y = "calls per nestling")
 ```
 
@@ -967,12 +963,13 @@ it spends `r fmt(fit_free@edf$edf[3], 1)` effective degrees of freedom of its
 7 coefficients, against `r fmt(fit_free@edf$edf[4], 1)` and
 `r fmt(fit_free@edf$edf[5], 1)` for the two previous days.
 
-To draw the three curves we need the contribution $f_k(T)$ of each of them,
-which is one part of the predictor, and `predict()` returns the whole
-predictor. We build the part, with its standard error, from the columns of the
-design and from the same rows and columns of `vcov()`. The function
-`part_band()` takes the prefixes of the columns and the rows of the data where
-the part is wanted:
+The graph `plot_effect()` draws the contribution $f_k(T)$ of one smooth to
+the predictor with its band. To read the contribution at chosen rows of the
+data, and to compare it with `mgcv`, we need the same quantity as numbers,
+and `predict()` returns the whole predictor. We build the part, with its
+standard error, from the columns of the design and from the same rows and
+columns of `vcov()`. The function `part_band()` takes the prefixes of the
+columns and the rows of the data where the part is wanted:
 
 ```{r}
 #| label: part-band
@@ -1010,53 +1007,35 @@ rbind(expected = c(fit = max(abs(p_ri$fit - t_ri$fit[, "s(Time)"])),
 ```
 
 The contribution of a curve sums to zero over the data, and its band leaves
-out the uncertainty of the intercept. @fig-lags shows
-the three curves of the two models as ratios of the death rate,
-$\exp\{f_k(T)\}$, with their 95% bands.
+out the uncertainty of the intercept. @fig-lags shows the three curves of the
+two models on the scale of the logarithm of the death rate, so that the
+difference between two values of a curve is the logarithm of a rate ratio.
+Each panel is drawn by `plot_effect()` for the model with the shared
+parameter, and we add the curve of the model with one parameter for each lag
+as a dashed line. The operator `|` of the package `patchwork` places the
+three graphs side by side.
 
 ```{r}
 #| label: fig-lags
-#| fig-cap: "Ratio of the daily death rate to the rate at the average of the smooth, against the temperature of the same day (lag 0) and of the two days before (lags 1 and 2), with one shared smoothing parameter (solid, band shaded) and one for each lag (dashed, band dashed)."
-#| echo: false
+#| fig-cap: "Contribution of the temperature of the same day (lag 0) and of the two days before (lags 1 and 2) to the logarithm of the daily death rate, with one shared smoothing parameter (solid, with its 95% band) and one for each lag (dashed)."
 #| fig-height: 3.6
+#| fig-width: 9
+library(patchwork)
 labs <- c("s(temp)", "s(temp1)", "s(temp2)")
 vars <- c("temp", "temp1", "temp2")
-lag_lev <- paste("lag", 0:2)
-lag_mod <- c("one shared smoothing parameter", "one for each lag")
-lo <- function(b) exp(b$fit - 1.96 * b$se)
-hi <- function(b) exp(b$fit + 1.96 * b$se)
-lag_df <- do.call(rbind, lapply(1:3, function(k) {
+lag_panel <- function(k) {
   x <- chicagoNMMAPS[[vars[k]]]
   o <- order(x)
-  a <- part_band(fit_id, prefix = paste0(labs[k], "."))[o, ]
-  f <- part_band(fit_free, prefix = paste0(labs[k], "."))[o, ]
-  data.frame(temp = rep(x[o], times = 2),
-             ratio = exp(c(a$fit, f$fit)),
-             lower = c(lo(a), lo(f)), upper = c(hi(a), hi(f)),
-             model = rep(lag_mod, each = length(o)), lag = lag_lev[k])
-}))
-lag_df$model <- factor(lag_df$model, levels = lag_mod)
-lag_df$lag <- factor(lag_df$lag, levels = lag_lev)
-lag_free <- lag_df[lag_df$model == lag_mod[2], ]
-lag_rug <- data.frame(
-  temp = unlist(lapply(vars, function(v) chicagoNMMAPS[[v]]), use.names = FALSE),
-  lag = factor(rep(lag_lev, each = nrow(chicagoNMMAPS)), levels = lag_lev))
-ggplot(lag_df, aes(x = temp)) +
-  geom_hline(yintercept = 1, linetype = "dotted", colour = grey) +
-  geom_ribbon(data = lag_df[lag_df$model == lag_mod[1], ],
-              aes(ymin = lower, ymax = upper), fill = chalk, alpha = 0.3) +
-  geom_line(data = lag_free, aes(y = lower), colour = rust,
-            linetype = "dashed", linewidth = 0.4) +
-  geom_line(data = lag_free, aes(y = upper), colour = rust,
-            linetype = "dashed", linewidth = 0.4) +
-  geom_line(aes(y = ratio, colour = model, linetype = model), linewidth = 0.9) +
-  geom_rug(data = lag_rug, colour = grey, length = unit(0.02, "npc"),
-           alpha = 0.3) +
-  facet_wrap(~ lag, nrow = 1) +
-  scale_y_log10() +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c("solid", "dashed")) +
-  labs(x = "temperature (C)", y = "rate ratio")
+  free <- data.frame(x = x[o],
+                     y = part_band(fit_free, prefix = paste0(labs[k], "."))$fit[o])
+  autoplot(fit_id, term = vars[k], plot_type = plot_effect(residuals = FALSE),
+           data = chicagoNMMAPS) +
+    geom_line(aes(x = x, y = y), data = free, colour = rust,
+              linetype = "dashed") +
+    labs(title = paste("lag", k - 1), x = "temperature (C)",
+         y = "contribution to log rate")
+}
+lag_panel(1) | lag_panel(2) | lag_panel(3)
 ```
 
 ```{r}

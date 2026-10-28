@@ -56,20 +56,20 @@
   mono <- function(w, p) sum(w * r$nodes^p)
   # exactness degrees 13 and 22, checked on the even monomials
   for (p in seq(0, 12, by = 2)) {
-    if (abs(mono(r$wg, p) - 2 / (p + 1)) > 1e-12) {
+    if (abs(mono(r$gauss_weights, p) - 2 / (p + 1)) > 1e-12) {
       out <- c(out, sprintf("G7 is not exact at degree %d", p))
     }
   }
   for (p in seq(0, 22, by = 2)) {
-    if (abs(mono(r$wk, p) - 2 / (p + 1)) > 1e-12) {
+    if (abs(mono(r$kronrod_weights, p) - 2 / (p + 1)) > 1e-12) {
       out <- c(out, sprintf("K15 is not exact at degree %d", p))
     }
   }
   # and one degree beyond each must fail, so the exactness is not vacuous
-  if (abs(mono(r$wg, 14) - 2 / 15) < 1e-10) {
+  if (abs(mono(r$gauss_weights, 14) - 2 / 15) < 1e-10) {
     out <- c(out, "G7 appears exact past its degree, the check is vacuous")
   }
-  if (abs(mono(r$wk, 24) - 2 / 25) < 1e-10) {
+  if (abs(mono(r$kronrod_weights, 24) - 2 / 25) < 1e-10) {
     out <- c(out, "K15 appears exact past its degree, the check is vacuous")
   }
 

@@ -458,9 +458,9 @@ P(Y = y) = \frac{\theta\,(\theta + \lambda y)^{y - 1}\, e^{-\theta - \lambda y}}
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf in [0,1] and non-decreasing            0.00e+00</span></span>
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf agrees with the density                5.55e-17</span></span>
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] quantile/cdf round-trip                  </span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] rng matches the cdf                        1.29e+00</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] expected information vs Monte Carlo        1.13e+00</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] link-scale gradient vs finite differences  5.58e-09</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] rng matches the cdf                        1.55e+00</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] expected information vs Monte Carlo        6.12e-01</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] link-scale gradient vs finite differences  5.94e-09</span></span>
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] gradient vs finite differences             not run</span></span>
 <span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
 <span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] hessian vs finite differences              not run</span></span>
@@ -510,7 +510,7 @@ P(Y = y) = \frac{\theta\,(\theta + \lambda y)^{y - 1}\, e^{-\theta - \lambda y}}
 <span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -195.863173    effective df 8.00</span></span>
 <span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 407.726    cBIC 423.638</span></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.72 s</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.85 s</span></span>
 <span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 8.5e-10   min eigen 0.053</span></span>
 <span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 3.9e-09   min eigen 0.28</span></span>
 <span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>tmb_gp <span class="ot">&lt;-</span> glmmTMB<span class="sc">::</span><span class="fu">glmmTMB</span>(breaks <span class="sc">~</span> wool <span class="sc">*</span> tension, <span class="at">dispformula =</span> <span class="sc">~</span> wool,</span>
@@ -530,6 +530,24 @@ P(Y = y) = \frac{\theta\,(\theta + \lambda y)^{y - 1}\, e^{-\theta - \lambda y}}
 <p>The two fits give the same coefficients and the same log-likelihood. The dispersion of wool <code>A</code> is <span class="math inline">\(\exp(1.542) =
 4.67\)</span>, so its variance is about 4.7 times its mean, and the dispersion of wool <code>B</code> is smaller. <a href="#fig-genpois" class="quarto-xref">Figure&nbsp;<span>16.1</span></a> shows the fitted means with an interval of two standard deviations, <span class="math inline">\(\mu \pm 2\sqrt{\phi\mu}\)</span>.</p>
 <div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>cells <span class="ot">&lt;-</span> <span class="fu">unique</span>(warpbreaks[, <span class="fu">c</span>(<span class="st">"wool"</span>, <span class="st">"tension"</span>)])</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>cells<span class="sc">$</span>mu <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_gp, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> cells)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>cells<span class="sc">$</span>sd <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">predict</span>(fit_gp, <span class="at">what =</span> <span class="st">"phi"</span>, <span class="at">newdata =</span> cells) <span class="sc">*</span> cells<span class="sc">$</span>mu)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>wool_panel <span class="ot">&lt;-</span> <span class="cf">function</span>(w) {</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autoplot</span>(fit_gp, <span class="at">plot_type =</span> <span class="fu">plot_param</span>(<span class="at">param =</span> <span class="st">"mu"</span>, <span class="at">over =</span> <span class="st">"tension"</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>                                          <span class="at">at =</span> <span class="fu">list</span>(<span class="at">wool =</span> w)),</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>           <span class="at">data =</span> warpbreaks) <span class="sc">+</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_jitter</span>(<span class="fu">aes</span>(<span class="at">x =</span> tension, <span class="at">y =</span> breaks),</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>                <span class="at">data =</span> warpbreaks[warpbreaks<span class="sc">$</span>wool <span class="sc">==</span> w, ],</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>                <span class="at">colour =</span> <span class="st">"grey45"</span>, <span class="at">width =</span> <span class="fl">0.08</span>, <span class="at">height =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_errorbar</span>(<span class="fu">aes</span>(<span class="at">x =</span> tension, <span class="at">ymin =</span> mu <span class="sc">-</span> <span class="dv">2</span> <span class="sc">*</span> sd, <span class="at">ymax =</span> mu <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> sd),</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> cells[cells<span class="sc">$</span>wool <span class="sc">==</span> w, ], <span class="at">width =</span> <span class="dv">0</span>,</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>                  <span class="at">colour =</span> book_palette[<span class="dv">2</span>], <span class="at">position =</span> <span class="fu">position_nudge</span>(<span class="at">x =</span> <span class="fl">0.2</span>)) <span class="sc">+</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="fu">paste</span>(<span class="st">"wool"</span>, w), <span class="at">y =</span> <span class="st">"breaks"</span>)</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>(<span class="fu">wool_panel</span>(<span class="st">"A"</span>) <span class="sc">|</span> <span class="fu">wool_panel</span>(<span class="st">"B"</span>)) <span class="sc">&amp;</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">ylim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">max</span>(warpbreaks<span class="sc">$</span>breaks, cells<span class="sc">$</span>mu <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> cells<span class="sc">$</span>sd)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div id="fig-genpois" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
 <figure class="quarto-float quarto-float-fig figure">
@@ -537,20 +555,21 @@ P(Y = y) = \frac{\theta\,(\theta + \lambda y)^{y - 1}\, e^{-\theta - \lambda y}}
 <img src="16-own-distributions_files/figure-html/fig-genpois-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-genpois-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;16.1: Number of warp breaks for each wool and tension. The lines join the fitted means of the generalized Poisson model, and the bars span two standard deviations on either side.
+Figure&nbsp;16.1: Number of warp breaks for each tension, one panel for each wool. The blue points are the fitted means of the generalized Poisson model with their 95% intervals, the rust bars to their right span two standard deviations on either side of the mean, and the grey points are the observations.
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
+<p>The type <code>plot_param()</code> of <a href="03-graphs.html#sec-graphs-distribution" class="quarto-xref"><span>Section 3.3</span></a> works with a family written by the user as with a family of the toolkit, because it reads the parameters through <code>predict()</code>. It draws the mean at the three tensions for the wool named in <code>at</code>, and we add the observations and the interval <span class="math inline">\(\mu \pm 2\sqrt{\phi\mu}\)</span> as layers.</p>
 <p>The negative binomial distribution of <a href="05-glm.html#sec-glm-overdispersion" class="quarto-xref"><span>Section 5.4</span></a> has a variance that grows with the square of the mean. The AIC compares the two assumptions on these data:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fit_gp_nb <span class="ot">&lt;-</span> <span class="fu">statmod</span>(breaks <span class="sc">~</span> wool <span class="sc">*</span> tension <span class="sc">|</span> theta <span class="sc">~</span> wool,</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> warpbreaks,</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                     <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">generalized_poisson =</span> <span class="fu">AIC</span>(fit_gp), <span class="at">negative_binomial =</span> <span class="fu">AIC</span>(fit_gp_nb))</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; generalized_poisson   negative_binomial </span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            407.7263            405.4274</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fit_gp_nb <span class="ot">&lt;-</span> <span class="fu">statmod</span>(breaks <span class="sc">~</span> wool <span class="sc">*</span> tension <span class="sc">|</span> theta <span class="sc">~</span> wool,</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> warpbreaks,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                     <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">generalized_poisson =</span> <span class="fu">AIC</span>(fit_gp), <span class="at">negative_binomial =</span> <span class="fu">AIC</span>(fit_gp_nb))</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; generalized_poisson   negative_binomial </span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            407.7263            405.4274</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The difference is 2.3, too small to prefer one variance function to the other with 54 observations.</p>
 </section>
@@ -567,97 +586,97 @@ Figure&nbsp;16.1: Number of warp breaks for each wool and tension. The lines joi
 \left(\frac{\partial \ell}{\partial \lambda} - \mu\,\frac{\partial \ell}{\partial \theta}\right).
 \]</span> We register it as the method of <code>distrib_gradient()</code>. The method returns a list with one vector for each parameter, on the scale of the parameters:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_gradient, GenPois) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta,</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                                                  <span class="at">scale =</span> <span class="fu">c</span>(<span class="st">"parameter"</span>, <span class="st">"link"</span>),</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                                                  ...) {</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  phi <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  s <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(phi)</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  th <span class="ot">&lt;-</span> mu <span class="sc">/</span> s</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  la <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> <span class="dv">1</span> <span class="sc">/</span> s</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> th <span class="sc">+</span> la <span class="sc">*</span> y</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  d_th <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> th <span class="sc">+</span> (y <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> a <span class="sc">-</span> <span class="dv">1</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  d_la <span class="ot">&lt;-</span> y <span class="sc">*</span> (y <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> a <span class="sc">-</span> y</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">mu =</span> d_th <span class="sc">/</span> s, <span class="at">phi =</span> (d_la <span class="sc">-</span> mu <span class="sc">*</span> d_th) <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> phi <span class="sc">*</span> s))</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>score_gap <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unlist</span>(<span class="fu">distrib_gradient</span>(gp, <span class="at">y =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">12</span>, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">phi =</span> <span class="fl">2.5</span>))) <span class="sc">-</span></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unlist</span>(<span class="fu">numerical_gradient</span>(gp, <span class="at">y =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">12</span>, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">phi =</span> <span class="fl">2.5</span>)))))</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>score_gap</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 5.916095e-11</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_gradient, GenPois) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta,</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                                                  <span class="at">scale =</span> <span class="fu">c</span>(<span class="st">"parameter"</span>, <span class="st">"link"</span>),</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>                                                  ...) {</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  phi <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  s <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(phi)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  th <span class="ot">&lt;-</span> mu <span class="sc">/</span> s</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  la <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> <span class="dv">1</span> <span class="sc">/</span> s</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> th <span class="sc">+</span> la <span class="sc">*</span> y</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  d_th <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> th <span class="sc">+</span> (y <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> a <span class="sc">-</span> <span class="dv">1</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  d_la <span class="ot">&lt;-</span> y <span class="sc">*</span> (y <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> a <span class="sc">-</span> y</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">mu =</span> d_th <span class="sc">/</span> s, <span class="at">phi =</span> (d_la <span class="sc">-</span> mu <span class="sc">*</span> d_th) <span class="sc">/</span> (<span class="dv">2</span> <span class="sc">*</span> phi <span class="sc">*</span> s))</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>score_gap <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unlist</span>(<span class="fu">distrib_gradient</span>(gp, <span class="at">y =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">12</span>, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">phi =</span> <span class="fl">2.5</span>))) <span class="sc">-</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unlist</span>(<span class="fu">numerical_gradient</span>(gp, <span class="at">y =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">12</span>, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">4</span>, <span class="at">phi =</span> <span class="fl">2.5</span>)))))</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>score_gap</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 5.916095e-11</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The closed form and the finite differences agree to <span class="math inline">\(6 \times 10^{-11}\)</span>. With the score registered, the Hessian is one difference of the score, and the derivatives of order three and four are one stencil on the score, which is more accurate than a stencil on the log-density. The same model, fitted again, reaches the same point in less time:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>t_gp_score <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  fit_gp_s <span class="ot">&lt;-</span> <span class="fu">statmod</span>(breaks <span class="sc">~</span> wool <span class="sc">*</span> tension <span class="sc">|</span> phi <span class="sc">~</span> wool, <span class="at">distrib =</span> gp,</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data =</span> warpbreaks, <span class="at">outer_criterion =</span> <span class="fu">ml</span>()))</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">logLik_density =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_gp)),</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">logLik_score =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_gp_s)),</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">seconds_density =</span> t_gp_density, <span class="at">seconds_score =</span> t_gp_score)</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  logLik_density    logLik_score seconds_density   seconds_score </span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       -195.8632       -195.8632          1.7200          0.2500</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>t_gp_score <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  fit_gp_s <span class="ot">&lt;-</span> <span class="fu">statmod</span>(breaks <span class="sc">~</span> wool <span class="sc">*</span> tension <span class="sc">|</span> phi <span class="sc">~</span> wool, <span class="at">distrib =</span> gp,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data =</span> warpbreaks, <span class="at">outer_criterion =</span> <span class="fu">ml</span>()))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">logLik_density =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_gp)),</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">logLik_score =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_gp_s)),</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">seconds_density =</span> t_gp_density, <span class="at">seconds_score =</span> t_gp_score)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  logLik_density    logLik_score seconds_density   seconds_score </span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       -195.8632       -195.8632          1.8500          0.2700</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="a-random-effect" class="level3">
 <h3 class="anchored" data-anchor-id="a-random-effect">A random effect</h3>
 <p>A distribution written by the user takes random effects as a built-in one does. We treat the three tensions as a sample of groups, with a random intercept in the equation of <span class="math inline">\(\mu\)</span>, and compare the fit with <code>glmmTMB()</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fit_gp_r <span class="ot">&lt;-</span> <span class="fu">statmod</span>(breaks <span class="sc">~</span> wool <span class="sc">+</span> <span class="fu">random</span>(<span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> tension) <span class="sc">|</span> phi <span class="sc">~</span> wool,</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                    <span class="at">distrib =</span> gp, <span class="at">data =</span> warpbreaks, <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_gp_r)</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = breaks ~ wool + random(~1 | tension) | phi ~ </span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             wool, distrib = gp, data = warpbreaks, outer_criterion = ml())</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: generalized Poisson     Observations: 54</span></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se      z       p   lower    upper</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     3.429 0.1233   27.8 &lt; 1e-16   3.187     3.67</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   woolB         -0.2066 0.1061 -1.947 0.05153 -0.4146 0.001375</span></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; random(~1 | tension)   [3 coefficients, edf 1.48]</span></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;               estimate      se   lower  upper</span></span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sigma [ml]    0.1543 0.08367 0.05329 0.4466</span></span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   predicted effects (3 levels of tension)</span></span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                     Min.  1st Qu.  Median Mean 3rd Qu.   Max.</span></span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     (Intercept)  -0.1698 -0.08013 0.00953    0 0.08489 0.1603</span></span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === phi   [log link]</span></span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se      z         p  lower   upper</span></span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.804 0.3157  5.713 1.108e-08  1.185   2.422</span></span>
-<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   woolB         -0.7913 0.4426 -1.788   0.07381 -1.659 0.07621</span></span>
-<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -199.646790    effective df 5.48</span></span>
-<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 410.256    cBIC 421.158</span></span>
-<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 530 ms</span></span>
-<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2e-15   min eigen 0.11</span></span>
-<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 7.8e-08   min eigen 0.25</span></span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>fit_gp_ra <span class="ot">&lt;-</span> <span class="fu">statmod</span>(breaks <span class="sc">~</span> wool <span class="sc">+</span> <span class="fu">random</span>(<span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> tension) <span class="sc">|</span> phi <span class="sc">~</span> wool,</span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> gp, <span class="at">data =</span> warpbreaks,</span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>                     <span class="at">outer_criterion =</span> <span class="fu">ml</span>(<span class="at">marginal =</span> <span class="st">"all"</span>))</span>
-<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>tmb_gp_r <span class="ot">&lt;-</span> glmmTMB<span class="sc">::</span><span class="fu">glmmTMB</span>(breaks <span class="sc">~</span> wool <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> tension),</span>
-<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>                             <span class="at">dispformula =</span> <span class="sc">~</span> wool,</span>
-<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>                             <span class="at">family =</span> glmmTMB<span class="sc">::</span><span class="fu">genpois</span>(), <span class="at">data =</span> warpbreaks)</span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
-<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>  <span class="at">fit =</span> <span class="fu">c</span>(<span class="st">"ml()"</span>, <span class="st">"ml(marginal = </span><span class="sc">\"</span><span class="st">all</span><span class="sc">\"</span><span class="st">)"</span>, <span class="st">"glmmTMB"</span>),</span>
-<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>  <span class="at">intercept =</span> <span class="fu">c</span>(<span class="fu">coef</span>(fit_gp_r)<span class="sc">$</span>mu[[<span class="dv">1</span>]], <span class="fu">coef</span>(fit_gp_ra)<span class="sc">$</span>mu[[<span class="dv">1</span>]],</span>
-<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>                glmmTMB<span class="sc">::</span><span class="fu">fixef</span>(tmb_gp_r)<span class="sc">$</span>cond[[<span class="dv">1</span>]]),</span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>  <span class="at">sd =</span> <span class="fu">c</span>(<span class="fu">hyper</span>(fit_gp_r)<span class="sc">$</span>estimate, <span class="fu">hyper</span>(fit_gp_ra)<span class="sc">$</span>estimate,</span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>         <span class="fu">attr</span>(glmmTMB<span class="sc">::</span><span class="fu">VarCorr</span>(tmb_gp_r)<span class="sc">$</span>cond<span class="sc">$</span>tension, <span class="st">"stddev"</span>)),</span>
-<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>  <span class="at">logLik =</span> <span class="fu">c</span>(<span class="fu">logLik</span>(fit_gp_r, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>),</span>
-<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>             <span class="fu">logLik</span>(fit_gp_ra, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>), <span class="fu">logLik</span>(tmb_gp_r)))</span>
-<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                    fit intercept        sd    logLik</span></span>
-<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1                 ml()  3.428744 0.1542810 -202.9709</span></span>
-<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 ml(marginal = "all")  3.423364 0.1542476 -202.9697</span></span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3              glmmTMB  3.423363 0.1542464 -202.9697</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fit_gp_r <span class="ot">&lt;-</span> <span class="fu">statmod</span>(breaks <span class="sc">~</span> wool <span class="sc">+</span> <span class="fu">random</span>(<span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> tension) <span class="sc">|</span> phi <span class="sc">~</span> wool,</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                    <span class="at">distrib =</span> gp, <span class="at">data =</span> warpbreaks, <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_gp_r)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = breaks ~ wool + random(~1 | tension) | phi ~ </span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             wool, distrib = gp, data = warpbreaks, outer_criterion = ml())</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: generalized Poisson     Observations: 54</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se      z       p   lower    upper</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     3.429 0.1233   27.8 &lt; 1e-16   3.187     3.67</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   woolB         -0.2066 0.1061 -1.947 0.05153 -0.4146 0.001375</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; random(~1 | tension)   [3 coefficients, edf 1.48]</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;               estimate      se   lower  upper</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   sigma [ml]    0.1543 0.08367 0.05329 0.4466</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   predicted effects (3 levels of tension)</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                     Min.  1st Qu.  Median Mean 3rd Qu.   Max.</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     (Intercept)  -0.1698 -0.08013 0.00953    0 0.08489 0.1603</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === phi   [log link]</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se      z         p  lower   upper</span></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.804 0.3157  5.713 1.108e-08  1.185   2.422</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   woolB         -0.7913 0.4426 -1.788   0.07381 -1.659 0.07621</span></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -199.646790    effective df 5.48</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 410.256    cBIC 421.158</span></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 640 ms</span></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2e-15   min eigen 0.11</span></span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 7.8e-08   min eigen 0.25</span></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>fit_gp_ra <span class="ot">&lt;-</span> <span class="fu">statmod</span>(breaks <span class="sc">~</span> wool <span class="sc">+</span> <span class="fu">random</span>(<span class="sc">~</span> <span class="dv">1</span> <span class="sc">|</span> tension) <span class="sc">|</span> phi <span class="sc">~</span> wool,</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> gp, <span class="at">data =</span> warpbreaks,</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>                     <span class="at">outer_criterion =</span> <span class="fu">ml</span>(<span class="at">marginal =</span> <span class="st">"all"</span>))</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>tmb_gp_r <span class="ot">&lt;-</span> glmmTMB<span class="sc">::</span><span class="fu">glmmTMB</span>(breaks <span class="sc">~</span> wool <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> tension),</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>                             <span class="at">dispformula =</span> <span class="sc">~</span> wool,</span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>                             <span class="at">family =</span> glmmTMB<span class="sc">::</span><span class="fu">genpois</span>(), <span class="at">data =</span> warpbreaks)</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>  <span class="at">fit =</span> <span class="fu">c</span>(<span class="st">"ml()"</span>, <span class="st">"ml(marginal = </span><span class="sc">\"</span><span class="st">all</span><span class="sc">\"</span><span class="st">)"</span>, <span class="st">"glmmTMB"</span>),</span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>  <span class="at">intercept =</span> <span class="fu">c</span>(<span class="fu">coef</span>(fit_gp_r)<span class="sc">$</span>mu[[<span class="dv">1</span>]], <span class="fu">coef</span>(fit_gp_ra)<span class="sc">$</span>mu[[<span class="dv">1</span>]],</span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>                glmmTMB<span class="sc">::</span><span class="fu">fixef</span>(tmb_gp_r)<span class="sc">$</span>cond[[<span class="dv">1</span>]]),</span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>  <span class="at">sd =</span> <span class="fu">c</span>(<span class="fu">hyper</span>(fit_gp_r)<span class="sc">$</span>estimate, <span class="fu">hyper</span>(fit_gp_ra)<span class="sc">$</span>estimate,</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>         <span class="fu">attr</span>(glmmTMB<span class="sc">::</span><span class="fu">VarCorr</span>(tmb_gp_r)<span class="sc">$</span>cond<span class="sc">$</span>tension, <span class="st">"stddev"</span>)),</span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>  <span class="at">logLik =</span> <span class="fu">c</span>(<span class="fu">logLik</span>(fit_gp_r, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>),</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>             <span class="fu">logLik</span>(fit_gp_ra, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>), <span class="fu">logLik</span>(tmb_gp_r)))</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                    fit intercept        sd    logLik</span></span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1                 ml()  3.428744 0.1542810 -202.9709</span></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 ml(marginal = "all")  3.423364 0.1542476 -202.9697</span></span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3              glmmTMB  3.423363 0.1542464 -202.9697</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The criterion <code>ml()</code> holds the fixed effects of <span class="math inline">\(\mu\)</span> at the joint mode of the fixed and the random effects, and <code>glmmTMB()</code> chooses them to maximize the Laplace approximation of the likelihood. For a count response the two differ slightly, as <a href="09-glmm.html#sec-glmm-poisson" class="quarto-xref"><span>Section 9.1</span></a> explains, and <code>ml(marginal = "all")</code> reproduces <code>glmmTMB()</code>.</p>
 </section>
@@ -669,169 +688,169 @@ f(y) = \frac{c\,k}{\mu}\left(\frac{y}{\mu}\right)^{c - 1}
 \left\{1 + \left(\frac{y}{\mu}\right)^{c}\right\}^{-k - 1}, \qquad y &gt; 0 .
 \]</span> The shape <span class="math inline">\(c\)</span> governs the lower tail and the product <span class="math inline">\(ck\)</span> the upper tail, which decays as <span class="math inline">\(y^{-ck - 1}\)</span>; the log-logistic distribution of <a href="06-distributions.html#sec-distribs-own" class="quarto-xref"><span>Section 6.7</span></a> is the case <span class="math inline">\(k = 1\)</span>. It is also the generalized beta distribution of the second kind of <span class="citation" data-cites="mcdonald1984">McDonald (<a href="A2-references.html#ref-mcdonald1984" role="doc-biblioref">1984</a>)</span> with its third parameter equal to one, which is how <code>gamlss</code> provides it (the family <code>GB2()</code> with <span class="math inline">\(\nu = 1\)</span>). We write the class with the density alone:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Burr <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"Burr"</span>, <span class="at">parent =</span> continuous_distrib)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_pdf, Burr) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta, <span class="at">log =</span> <span class="cn">FALSE</span>, ...) {</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> theta[[<span class="dv">3</span>]]</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  z <span class="ot">&lt;-</span> y <span class="sc">/</span> mu</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  ld <span class="ot">&lt;-</span> <span class="fu">log</span>(cc) <span class="sc">+</span> <span class="fu">log</span>(k) <span class="sc">-</span> <span class="fu">log</span>(mu) <span class="sc">+</span> (cc <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">log</span>(z) <span class="sc">-</span> (k <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">log1p</span>(z<span class="sc">^</span>cc)</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (log) ld <span class="cf">else</span> <span class="fu">exp</span>(ld)</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>burr_distrib <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">link_mu =</span> <span class="fu">log_link</span>(), <span class="at">link_c =</span> <span class="fu">log_link</span>(),</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>                         <span class="at">link_k =</span> <span class="fu">log_link</span>()) {</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Burr</span>(<span class="at">distrib_name =</span> <span class="st">"Burr XII"</span>, <span class="at">dimension =</span> <span class="st">"univariate"</span>,</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>), <span class="at">params =</span> <span class="fu">c</span>(<span class="st">"mu"</span>, <span class="st">"c"</span>, <span class="st">"k"</span>),</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">params_interpretation =</span> <span class="fu">c</span>(<span class="at">mu =</span> <span class="st">"scale"</span>, <span class="at">c =</span> <span class="st">"shape"</span>, <span class="at">k =</span> <span class="st">"shape"</span>),</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>       <span class="at">n_params =</span> <span class="dv">3</span>,</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>       <span class="at">params_bounds =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>), <span class="at">c =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>), <span class="at">k =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>)),</span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">link_params =</span> <span class="fu">list</span>(<span class="at">mu =</span> link_mu, <span class="at">c =</span> link_c, <span class="at">k =</span> link_k))</span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>bd <span class="ot">&lt;-</span> <span class="fu">burr_distrib</span>()</span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>chk_burr <span class="ot">&lt;-</span> <span class="fu">check_distrib</span>(bd, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">800</span>, <span class="at">c =</span> <span class="dv">3</span>, <span class="at">k =</span> <span class="fl">1.5</span>))</span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: Burr XII</span></span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameters:   mu = 800, c = 3, k = 1.5</span></span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 100   Monte Carlo: 200000</span></span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density integrates to 1                     2.74e-10</span></span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density is non-negative                     1.96e-05</span></span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf in [0,1] and non-decreasing             2.46e-02</span></span>
-<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf agrees with the density                 5.03e-14</span></span>
-<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] quantile/cdf round-trip                     5.55e-17</span></span>
-<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] rng matches the cdf                         1.42e+00</span></span>
-<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] expected information vs Monte Carlo         1.36e+00</span></span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] response derivatives vs finite differences  9.38e-13</span></span>
-<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] link-scale gradient vs finite differences   9.99e-09</span></span>
-<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] gradient vs finite differences              not run</span></span>
-<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
-<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] hessian vs finite differences               not run</span></span>
-<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
-<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] deriv3 vs finite differences                not run</span></span>
-<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
-<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] deriv4 vs finite differences                not run</span></span>
-<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
-<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; All 9 checks passed.</span></span>
-<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4 checks not run, for the reasons given above.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>Burr <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"Burr"</span>, <span class="at">parent =</span> continuous_distrib)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_pdf, Burr) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta, <span class="at">log =</span> <span class="cn">FALSE</span>, ...) {</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> theta[[<span class="dv">3</span>]]</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  z <span class="ot">&lt;-</span> y <span class="sc">/</span> mu</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  ld <span class="ot">&lt;-</span> <span class="fu">log</span>(cc) <span class="sc">+</span> <span class="fu">log</span>(k) <span class="sc">-</span> <span class="fu">log</span>(mu) <span class="sc">+</span> (cc <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">log</span>(z) <span class="sc">-</span> (k <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">log1p</span>(z<span class="sc">^</span>cc)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (log) ld <span class="cf">else</span> <span class="fu">exp</span>(ld)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>burr_distrib <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">link_mu =</span> <span class="fu">log_link</span>(), <span class="at">link_c =</span> <span class="fu">log_link</span>(),</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>                         <span class="at">link_k =</span> <span class="fu">log_link</span>()) {</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Burr</span>(<span class="at">distrib_name =</span> <span class="st">"Burr XII"</span>, <span class="at">dimension =</span> <span class="st">"univariate"</span>,</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>       <span class="at">bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>), <span class="at">params =</span> <span class="fu">c</span>(<span class="st">"mu"</span>, <span class="st">"c"</span>, <span class="st">"k"</span>),</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">params_interpretation =</span> <span class="fu">c</span>(<span class="at">mu =</span> <span class="st">"scale"</span>, <span class="at">c =</span> <span class="st">"shape"</span>, <span class="at">k =</span> <span class="st">"shape"</span>),</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>       <span class="at">n_params =</span> <span class="dv">3</span>,</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>       <span class="at">params_bounds =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>), <span class="at">c =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>), <span class="at">k =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="cn">Inf</span>)),</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">link_params =</span> <span class="fu">list</span>(<span class="at">mu =</span> link_mu, <span class="at">c =</span> link_c, <span class="at">k =</span> link_k))</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>bd <span class="ot">&lt;-</span> <span class="fu">burr_distrib</span>()</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>chk_burr <span class="ot">&lt;-</span> <span class="fu">check_distrib</span>(bd, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">800</span>, <span class="at">c =</span> <span class="dv">3</span>, <span class="at">k =</span> <span class="fl">1.5</span>))</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: Burr XII</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameters:   mu = 800, c = 3, k = 1.5</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 100   Monte Carlo: 200000</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density integrates to 1                     2.74e-10</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density is non-negative                     1.96e-05</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf in [0,1] and non-decreasing             2.46e-02</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf agrees with the density                 5.03e-14</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] quantile/cdf round-trip                     5.55e-17</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] rng matches the cdf                         2.25e+00</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] expected information vs Monte Carlo         2.75e+00</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] response derivatives vs finite differences  1.73e-11</span></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] link-scale gradient vs finite differences   1.01e-08</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] gradient vs finite differences              not run</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] hessian vs finite differences               not run</span></span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] deriv3 vs finite differences                not run</span></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] deriv4 vs finite differences                not run</span></span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; All 9 checks passed.</span></span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4 checks not run, for the reasons given above.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The data frame <code>rent</code> of the <code>gamlss.data</code> package gives the monthly rent <code>R</code> of 1969 flats in Munich, with the floor space <code>Fl</code> in square meters, the year of construction <code>A</code> and the location <code>loc</code> in three classes <span class="citation" data-cites="stasinopoulos2017">(<a href="A2-references.html#ref-stasinopoulos2017" role="doc-biblioref">Stasinopoulos et al. 2017</a>)</span>. A first model has a linear effect of the floor space and of the location on the scale, the location on <span class="math inline">\(c\)</span>, and <span class="math inline">\(k\)</span> constant. We fit it with <code>ml()</code> and compare it with <code>gamlss()</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fit_burr_lin <span class="ot">&lt;-</span> <span class="fu">statmod</span>(R <span class="sc">~</span> Fl <span class="sc">+</span> loc <span class="sc">|</span> c <span class="sc">~</span> loc, <span class="at">distrib =</span> bd, <span class="at">data =</span> rent,</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>                        <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_burr_lin)</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = R ~ Fl + loc | c ~ loc, distrib = bd, data = rent, </span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             outer_criterion = ml())</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: Burr XII     Observations: 1969</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate        se     z         p    lower   upper</span></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     6.273    0.1074 58.43   &lt; 1e-16    6.062   6.483</span></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Fl            0.01075 0.0004179 25.72   &lt; 1e-16 0.009926 0.01156</span></span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc2           0.1712    0.0421 4.067 4.766e-05   0.0887  0.2537</span></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc3           0.2322   0.04595 5.053 4.359e-07   0.1421  0.3222</span></span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === c   [log link]</span></span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z      p    lower  upper</span></span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.057 0.06485  16.3 &lt;1e-16   0.9298  1.184</span></span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc2          0.08828 0.06518 1.354 0.1756 -0.03947  0.216</span></span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc3           0.1874 0.06998 2.678 0.0074  0.05027 0.3246</span></span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === k   [log link]</span></span>
-<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se    z         p  lower upper</span></span>
-<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.424 0.2197 6.48 9.159e-11 0.9931 1.854</span></span>
-<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -14000.747621    effective df 8.00</span></span>
-<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 28017.495    cBIC 28062.177</span></span>
-<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 3.42 s</span></span>
-<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.5e-10   min eigen 0.026</span></span>
-<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.6e-09   min eigen 0.042</span></span>
-<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>gl_burr <span class="ot">&lt;-</span> gamlss<span class="sc">::</span><span class="fu">gamlss</span>(R <span class="sc">~</span> Fl <span class="sc">+</span> loc, <span class="at">sigma.formula =</span> <span class="sc">~</span> loc,</span>
-<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>                          <span class="at">nu.formula =</span> <span class="sc">~</span> <span class="dv">1</span>, <span class="at">tau.formula =</span> <span class="sc">~</span> <span class="dv">1</span>,</span>
-<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>                          <span class="at">family =</span> gamlss.dist<span class="sc">::</span><span class="fu">GB2</span>(), <span class="at">data =</span> rent,</span>
-<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>                          <span class="at">nu.start =</span> <span class="dv">1</span>, <span class="at">nu.fix =</span> <span class="cn">TRUE</span>, <span class="at">n.cyc =</span> <span class="dv">200</span>,</span>
-<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>                          <span class="at">trace =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_burr_lin)),</span>
-<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>  <span class="at">gamlss =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(gl_burr)))</span>
-<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   statmod    gamlss </span></span>
-<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -14000.75 -14000.82</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fit_burr_lin <span class="ot">&lt;-</span> <span class="fu">statmod</span>(R <span class="sc">~</span> Fl <span class="sc">+</span> loc <span class="sc">|</span> c <span class="sc">~</span> loc, <span class="at">distrib =</span> bd, <span class="at">data =</span> rent,</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>                        <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_burr_lin)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = R ~ Fl + loc | c ~ loc, distrib = bd, data = rent, </span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             outer_criterion = ml())</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: Burr XII     Observations: 1969</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate        se     z         p    lower   upper</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     6.273    0.1074 58.43   &lt; 1e-16    6.062   6.483</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Fl            0.01075 0.0004179 25.72   &lt; 1e-16 0.009926 0.01156</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc2           0.1712    0.0421 4.067 4.766e-05   0.0887  0.2537</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc3           0.2322   0.04595 5.053 4.359e-07   0.1421  0.3222</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === c   [log link]</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z      p    lower  upper</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.057 0.06485  16.3 &lt;1e-16   0.9298  1.184</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc2          0.08828 0.06518 1.354 0.1756 -0.03947  0.216</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc3           0.1874 0.06998 2.678 0.0074  0.05027 0.3246</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === k   [log link]</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se    z         p  lower upper</span></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.424 0.2197 6.48 9.159e-11 0.9931 1.854</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -14000.747621    effective df 8.00</span></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 28017.495    cBIC 28062.177</span></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 3.58 s</span></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2.5e-10   min eigen 0.026</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.6e-09   min eigen 0.042</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>gl_burr <span class="ot">&lt;-</span> gamlss<span class="sc">::</span><span class="fu">gamlss</span>(R <span class="sc">~</span> Fl <span class="sc">+</span> loc, <span class="at">sigma.formula =</span> <span class="sc">~</span> loc,</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>                          <span class="at">nu.formula =</span> <span class="sc">~</span> <span class="dv">1</span>, <span class="at">tau.formula =</span> <span class="sc">~</span> <span class="dv">1</span>,</span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>                          <span class="at">family =</span> gamlss.dist<span class="sc">::</span><span class="fu">GB2</span>(), <span class="at">data =</span> rent,</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>                          <span class="at">nu.start =</span> <span class="dv">1</span>, <span class="at">nu.fix =</span> <span class="cn">TRUE</span>, <span class="at">n.cyc =</span> <span class="dv">200</span>,</span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>                          <span class="at">trace =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_burr_lin)),</span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>  <span class="at">gamlss =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(gl_burr)))</span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   statmod    gamlss </span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -14000.75 -14000.82</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The log-likelihood of <code>statmod()</code> is 0.08 higher. The algorithm of <code>gamlss()</code> updates one parameter at a time and stops when the global deviance changes by less than its tolerance, here before the maximum; its estimate of <span class="math inline">\(\log k\)</span> is 1.34 against 1.42.</p>
 <section id="smooth-effects" class="level3">
 <h3 class="anchored" data-anchor-id="smooth-effects">Smooth effects</h3>
 <p>The rent grows with the floor space and with the year of construction, and neither effect is linear. We give both a smooth term in the equation of the scale, and we compare the Burr XII model with a gamma model that has the same equation for the mean and the location for the dispersion:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>t_burr_density <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  fit_burr <span class="ot">&lt;-</span> <span class="fu">statmod</span>(R <span class="sc">~</span> <span class="fu">s</span>(Fl) <span class="sc">+</span> <span class="fu">s</span>(A) <span class="sc">+</span> loc <span class="sc">|</span> c <span class="sc">~</span> loc, <span class="at">distrib =</span> bd,</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data =</span> rent))</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_burr)</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = R ~ s(Fl) + s(A) + loc | c ~ loc, distrib = bd, </span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = rent)</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: Burr XII     Observations: 1969</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z         p   lower  upper</span></span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     6.767 0.07735 87.48   &lt; 1e-16   6.615  6.919</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc2            0.156 0.03839 4.063 4.835e-05 0.08074 0.2312</span></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc3           0.2459 0.04135 5.945 2.757e-09  0.1648 0.3269</span></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; s(Fl)   [9 coefficients, edf 1.64]</span></span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  estimate       se     z       p  lower   upper</span></span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lambda [reml]     13220    33770                88.44 1976000</span></span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lin              0.2253 0.008549 26.36 &lt; 1e-16 0.2086  0.2421</span></span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; s(A)   [9 coefficients, edf 4.05]</span></span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  estimate       se     z       p   lower  upper</span></span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lambda [reml]     133.3      118                  23.5  755.9</span></span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lin             0.08477 0.009498 8.925 &lt; 1e-16 0.06616 0.1034</span></span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === c   [log link]</span></span>
-<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z         p  lower  upper</span></span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.121 0.06621 16.93   &lt; 1e-16  0.991   1.25</span></span>
-<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc2           0.1544   0.066 2.339 0.0193490  0.025 0.2837</span></span>
-<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc3           0.2463 0.07074 3.482 0.0004974 0.1077  0.385</span></span>
-<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === k   [log link]</span></span>
-<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate    se     z         p  lower upper</span></span>
-<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    0.8907 0.153 5.821 5.858e-09 0.5908 1.191</span></span>
-<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -13911.864213    effective df 12.68</span></span>
-<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 27849.095    cBIC 27919.936</span></span>
-<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 4.52 s</span></span>
-<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.7e-11   min eigen 0.032</span></span>
-<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2e-08   min eigen 0.043</span></span>
-<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
-<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>fit_rent_gamma <span class="ot">&lt;-</span> <span class="fu">statmod</span>(R <span class="sc">~</span> <span class="fu">s</span>(Fl) <span class="sc">+</span> <span class="fu">s</span>(A) <span class="sc">+</span> loc <span class="sc">|</span> phi <span class="sc">~</span> loc,</span>
-<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>                          <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(), <span class="at">data =</span> rent)</span>
-<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">burr =</span> <span class="fu">summary</span>(fit_burr)<span class="sc">@</span>aic, <span class="at">gamma =</span> <span class="fu">summary</span>(fit_rent_gamma)<span class="sc">@</span>aic)</span>
-<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     burr    gamma </span></span>
-<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 27849.10 27851.31</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>t_burr_density <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  fit_burr <span class="ot">&lt;-</span> <span class="fu">statmod</span>(R <span class="sc">~</span> <span class="fu">s</span>(Fl) <span class="sc">+</span> <span class="fu">s</span>(A) <span class="sc">+</span> loc <span class="sc">|</span> c <span class="sc">~</span> loc, <span class="at">distrib =</span> bd,</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data =</span> rent))</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_burr)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = R ~ s(Fl) + s(A) + loc | c ~ loc, distrib = bd, </span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = rent)</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: Burr XII     Observations: 1969</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z         p   lower  upper</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     6.767 0.07735 87.48   &lt; 1e-16   6.615  6.919</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc2            0.156 0.03839 4.063 4.835e-05 0.08074 0.2312</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc3           0.2459 0.04135 5.945 2.757e-09  0.1648 0.3269</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; s(Fl)   [9 coefficients, edf 1.64]</span></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  estimate       se     z       p  lower   upper</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lambda [reml]     13220    33770                88.44 1976000</span></span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lin              0.2253 0.008549 26.36 &lt; 1e-16 0.2086  0.2421</span></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; s(A)   [9 coefficients, edf 4.05]</span></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  estimate       se     z       p   lower  upper</span></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lambda [reml]     133.3      118                  23.5  755.9</span></span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lin             0.08477 0.009498 8.925 &lt; 1e-16 0.06616 0.1034</span></span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === c   [log link]</span></span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se     z         p  lower  upper</span></span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.121 0.06621 16.93   &lt; 1e-16  0.991   1.25</span></span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc2           0.1544   0.066 2.339 0.0193490  0.025 0.2837</span></span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   loc3           0.2463 0.07074 3.482 0.0004974 0.1077  0.385</span></span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === k   [log link]</span></span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate    se     z         p  lower upper</span></span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    0.8907 0.153 5.821 5.858e-09 0.5908 1.191</span></span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -13911.864213    effective df 12.68</span></span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 27849.095    cBIC 27919.936</span></span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 4.7 s</span></span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 9.7e-11   min eigen 0.032</span></span>
+<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2e-08   min eigen 0.043</span></span>
+<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1 note: print(summary(fit), notes = TRUE)</span></span>
+<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a>fit_rent_gamma <span class="ot">&lt;-</span> <span class="fu">statmod</span>(R <span class="sc">~</span> <span class="fu">s</span>(Fl) <span class="sc">+</span> <span class="fu">s</span>(A) <span class="sc">+</span> loc <span class="sc">|</span> phi <span class="sc">~</span> loc,</span>
+<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a>                          <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(), <span class="at">data =</span> rent)</span>
+<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">burr =</span> <span class="fu">summary</span>(fit_burr)<span class="sc">@</span>aic, <span class="at">gamma =</span> <span class="fu">summary</span>(fit_rent_gamma)<span class="sc">@</span>aic)</span>
+<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;     burr    gamma </span></span>
+<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 27849.10 27851.31</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The two cAIC are close, and the Burr XII model is slightly better. The quantile residuals of <a href="01-model.html#sec-model-resid" class="quarto-xref"><span>Section 1.6</span></a> need the cdf, which for this class is a quadrature of the density at each observation:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>t_resid_density <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(r_burr <span class="ot">&lt;-</span> <span class="fu">residuals</span>(fit_burr))</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">sd =</span> <span class="fu">sd</span>(r_burr), <span class="at">seconds =</span> t_resid_density)</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        sd   seconds </span></span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 0.9944148 1.4500000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>t_resid_density <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(r_burr <span class="ot">&lt;-</span> <span class="fu">residuals</span>(fit_burr))</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">sd =</span> <span class="fu">sd</span>(r_burr), <span class="at">seconds =</span> t_resid_density)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;        sd   seconds </span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 0.9944148 2.8600000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="the-cdf-the-quantile-function-and-the-score" class="level3">
@@ -848,80 +867,82 @@ F^{-1}(p) = \mu\left\{(1 - p)^{-1/k} - 1\right\}^{1/c},
 \frac{\partial \ell}{\partial k} = \frac{1}{k} - \log(1 + z^c).
 \]</span> We register the three methods. The cdf is computed from the logarithm of the survival function, <span class="math inline">\(-k\log(1 + z^c)\)</span>, with <code>expm1()</code>, so that it keeps its precision where <span class="math inline">\(F\)</span> is small:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_cdf, Burr) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, q, theta, <span class="at">lower.tail =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>                                          <span class="at">log.p =</span> <span class="cn">FALSE</span>, ...) {</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> theta[[<span class="dv">3</span>]]</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  log_s <span class="ot">&lt;-</span> <span class="sc">-</span>k <span class="sc">*</span> <span class="fu">log1p</span>((<span class="fu">pmax</span>(q, <span class="dv">0</span>) <span class="sc">/</span> mu)<span class="sc">^</span>cc)</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="cf">if</span> (lower.tail) <span class="sc">-</span><span class="fu">expm1</span>(log_s) <span class="cf">else</span> <span class="fu">exp</span>(log_s)</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (log.p) <span class="fu">log</span>(p) <span class="cf">else</span> p</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_quantile, Burr) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, p, theta,</span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">lower.tail =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">log.p =</span> <span class="cn">FALSE</span>, ...) {</span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> theta[[<span class="dv">3</span>]]</span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (log.p) p <span class="ot">&lt;-</span> <span class="fu">exp</span>(p)</span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span>lower.tail) p <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> p</span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>  mu <span class="sc">*</span> ((<span class="dv">1</span> <span class="sc">-</span> p)<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> k) <span class="sc">-</span> <span class="dv">1</span>)<span class="sc">^</span>(<span class="dv">1</span> <span class="sc">/</span> cc)</span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_gradient, Burr) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta,</span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">scale =</span> <span class="fu">c</span>(<span class="st">"parameter"</span>, <span class="st">"link"</span>),</span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>                                               ...) {</span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> theta[[<span class="dv">3</span>]]</span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>  z <span class="ot">&lt;-</span> y <span class="sc">/</span> mu</span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>  lz <span class="ot">&lt;-</span> <span class="fu">log</span>(z)</span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> z<span class="sc">^</span>cc <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> z<span class="sc">^</span>cc)</span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">mu =</span> cc <span class="sc">*</span> ((k <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> r <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> mu,</span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>       <span class="at">c =</span> <span class="dv">1</span> <span class="sc">/</span> cc <span class="sc">+</span> lz <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> (k <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> r),</span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>       <span class="at">k =</span> <span class="dv">1</span> <span class="sc">/</span> k <span class="sc">-</span> <span class="fu">log1p</span>(z<span class="sc">^</span>cc))</span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>chk_burr_closed <span class="ot">&lt;-</span> <span class="fu">check_distrib</span>(bd, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">800</span>, <span class="at">c =</span> <span class="dv">3</span>, <span class="at">k =</span> <span class="fl">1.5</span>))</span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: Burr XII</span></span>
-<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameters:   mu = 800, c = 3, k = 1.5</span></span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 100   Monte Carlo: 200000</span></span>
-<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density integrates to 1                     2.74e-10</span></span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density is non-negative                     1.96e-05</span></span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf in [0,1] and non-decreasing             2.46e-02</span></span>
-<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf agrees with the density                 3.45e-14</span></span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] quantile/cdf round-trip                     1.80e-16</span></span>
-<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] rng matches the cdf                         3.58e+00</span></span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] gradient vs finite differences              8.63e-11</span></span>
-<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] expected information vs Monte Carlo         1.27e+00</span></span>
-<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] response derivatives vs finite differences  1.63e-12</span></span>
-<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] link-scale gradient vs finite differences   1.02e-08</span></span>
-<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] hessian vs finite differences               not run</span></span>
-<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
-<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] deriv3 vs finite differences                not run</span></span>
-<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
-<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] deriv4 vs finite differences                not run</span></span>
-<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
-<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; All 10 checks passed.</span></span>
-<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 checks not run, for the reasons given above.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_cdf, Burr) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, q, theta, <span class="at">lower.tail =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>                                          <span class="at">log.p =</span> <span class="cn">FALSE</span>, ...) {</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> theta[[<span class="dv">3</span>]]</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  log_s <span class="ot">&lt;-</span> <span class="sc">-</span>k <span class="sc">*</span> <span class="fu">log1p</span>((<span class="fu">pmax</span>(q, <span class="dv">0</span>) <span class="sc">/</span> mu)<span class="sc">^</span>cc)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="cf">if</span> (lower.tail) <span class="sc">-</span><span class="fu">expm1</span>(log_s) <span class="cf">else</span> <span class="fu">exp</span>(log_s)</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (log.p) <span class="fu">log</span>(p) <span class="cf">else</span> p</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_quantile, Burr) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, p, theta,</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">lower.tail =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">log.p =</span> <span class="cn">FALSE</span>, ...) {</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> theta[[<span class="dv">3</span>]]</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (log.p) p <span class="ot">&lt;-</span> <span class="fu">exp</span>(p)</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span>lower.tail) p <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> p</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>  mu <span class="sc">*</span> ((<span class="dv">1</span> <span class="sc">-</span> p)<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> k) <span class="sc">-</span> <span class="dv">1</span>)<span class="sc">^</span>(<span class="dv">1</span> <span class="sc">/</span> cc)</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(distrib_gradient, Burr) <span class="ot">&lt;-</span> <span class="cf">function</span>(distrib, y, theta,</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>                                               <span class="at">scale =</span> <span class="fu">c</span>(<span class="st">"parameter"</span>, <span class="st">"link"</span>),</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>                                               ...) {</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>  mu <span class="ot">&lt;-</span> theta[[<span class="dv">1</span>]]</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>  cc <span class="ot">&lt;-</span> theta[[<span class="dv">2</span>]]</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> theta[[<span class="dv">3</span>]]</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>  z <span class="ot">&lt;-</span> y <span class="sc">/</span> mu</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>  lz <span class="ot">&lt;-</span> <span class="fu">log</span>(z)</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> z<span class="sc">^</span>cc <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> z<span class="sc">^</span>cc)</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">mu =</span> cc <span class="sc">*</span> ((k <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> r <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> mu,</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>       <span class="at">c =</span> <span class="dv">1</span> <span class="sc">/</span> cc <span class="sc">+</span> lz <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> (k <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> r),</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>       <span class="at">k =</span> <span class="dv">1</span> <span class="sc">/</span> k <span class="sc">-</span> <span class="fu">log1p</span>(z<span class="sc">^</span>cc))</span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>chk_burr_closed <span class="ot">&lt;-</span> <span class="fu">check_distrib</span>(bd, <span class="at">theta =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="dv">800</span>, <span class="at">c =</span> <span class="dv">3</span>, <span class="at">k =</span> <span class="fl">1.5</span>))</span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: Burr XII</span></span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parameters:   mu = 800, c = 3, k = 1.5</span></span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Observations: 100   Monte Carlo: 200000</span></span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density integrates to 1                     2.74e-10</span></span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] density is non-negative                     1.96e-05</span></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf in [0,1] and non-decreasing             2.46e-02</span></span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] cdf agrees with the density                 3.45e-14</span></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] quantile/cdf round-trip                     1.80e-16</span></span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] rng matches the cdf                         6.87e-01</span></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] gradient vs finite differences              1.02e-10</span></span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] expected information vs Monte Carlo         1.28e+00</span></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] response derivatives vs finite differences  2.10e-12</span></span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [OK  ] link-scale gradient vs finite differences   9.87e-09</span></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] hessian vs finite differences               not run</span></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] deriv3 vs finite differences                not run</span></span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [ -- ] deriv4 vs finite differences                not run</span></span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;          no method of the family's own: the value is the numerical fallback, which this check would compare with itself</span></span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; All 10 checks passed.</span></span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 checks not run, for the reasons given above.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The table now has a row for the score, because the score is the class’s own method and finite differences of the log-density are an independent check of it. We fit the same model again and compute the residuals with the closed cdf:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>t_burr_closed <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  fit_burr_c <span class="ot">&lt;-</span> <span class="fu">statmod</span>(R <span class="sc">~</span> <span class="fu">s</span>(Fl) <span class="sc">+</span> <span class="fu">s</span>(A) <span class="sc">+</span> loc <span class="sc">|</span> c <span class="sc">~</span> loc, <span class="at">distrib =</span> bd,</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">data =</span> rent))</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>t_resid_closed <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(r_burr_c <span class="ot">&lt;-</span> <span class="fu">residuals</span>(fit_burr_c))</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">methods =</span> <span class="fu">c</span>(<span class="st">"density"</span>, <span class="st">"density, cdf, quantile, score"</span>),</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">logLik =</span> <span class="fu">c</span>(<span class="fu">logLik</span>(fit_burr), <span class="fu">logLik</span>(fit_burr_c)),</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">fit_seconds =</span> <span class="fu">c</span>(t_burr_density, t_burr_closed),</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">residual_seconds =</span> <span class="fu">c</span>(t_resid_density, t_resid_closed))</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                         methods    logLik fit_seconds residual_seconds</span></span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1                       density -13911.86        4.52             1.45</span></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 density, cdf, quantile, score -13911.86        3.30             0.03</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>t_burr_closed <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  fit_burr_c <span class="ot">&lt;-</span> <span class="fu">statmod</span>(R <span class="sc">~</span> <span class="fu">s</span>(Fl) <span class="sc">+</span> <span class="fu">s</span>(A) <span class="sc">+</span> loc <span class="sc">|</span> c <span class="sc">~</span> loc, <span class="at">distrib =</span> bd,</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">data =</span> rent))</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>t_resid_closed <span class="ot">&lt;-</span> <span class="fu">elapsed</span>(r_burr_c <span class="ot">&lt;-</span> <span class="fu">residuals</span>(fit_burr_c))</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">methods =</span> <span class="fu">c</span>(<span class="st">"density"</span>, <span class="st">"density, cdf, quantile, score"</span>),</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">logLik =</span> <span class="fu">c</span>(<span class="fu">logLik</span>(fit_burr), <span class="fu">logLik</span>(fit_burr_c)),</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">fit_seconds =</span> <span class="fu">c</span>(t_burr_density, t_burr_closed),</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">residual_seconds =</span> <span class="fu">c</span>(t_resid_density, t_resid_closed))</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                         methods    logLik fit_seconds residual_seconds</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1                       density -13911.86        4.70             2.86</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2 density, cdf, quantile, score -13911.86        5.22             0.06</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The fit reaches the same point, and the residuals, which needed one quadrature for each of the 1969 observations, now cost one evaluation of a formula. <a href="#fig-burr-qq" class="quarto-xref">Figure&nbsp;<span>16.2</span></a> compares the quantile residuals of the Burr XII model and of the gamma model.</p>
 <div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>(<span class="fu">autoplot</span>(fit_burr_c, <span class="at">plot_type =</span> <span class="fu">plot_qq</span>()) <span class="sc">+</span> <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Burr XII"</span>)) <span class="sc">|</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  (<span class="fu">autoplot</span>(fit_rent_gamma, <span class="at">plot_type =</span> <span class="fu">plot_qq</span>()) <span class="sc">+</span> <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"gamma"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div id="fig-burr-qq" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
 <figure class="quarto-float quarto-float-fig figure">
@@ -929,12 +950,13 @@ F^{-1}(p) = \mu\left\{(1 - p)^{-1/k} - 1\right\}^{1/c},
 <img src="16-own-distributions_files/figure-html/fig-burr-qq-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-burr-qq-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;16.2: Normal quantile plots of the quantile residuals of the Burr XII model (left) and of the gamma model (right) for the Munich rents.
+Figure&nbsp;16.2: Normal quantile plots of the quantile residuals of the Burr XII model (left) and of the gamma model (right) for the Munich rents. The line is the identity and the band is the 95% interval of the order statistics.
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
+<p>The type <code>plot_qq()</code> reads the residuals through the cdf of the family, so for the Burr XII model it uses the closed cdf of the class.</p>
 </section>
 </section>
 <section id="sec-own-link" class="level2" data-number="16.4">
@@ -946,97 +968,114 @@ Figure&nbsp;16.2: Normal quantile plots of the quantile residuals of the Burr XI
 \qquad \alpha &gt; 0 .
 \]</span> With <span class="math inline">\(\alpha = 1\)</span> it is the logit link, and as <span class="math inline">\(\alpha\)</span> tends to zero it tends to the complementary log-log link. The class reads <span class="math inline">\(\alpha\)</span> from <code>link_params</code>, and a constructor sets it:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>ArandaOrdaz <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"ArandaOrdaz"</span>, <span class="at">parent =</span> link)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkfun, ArandaOrdaz) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) {</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> x<span class="sc">@</span>link_params<span class="sc">$</span>alpha</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">log</span>(((<span class="dv">1</span> <span class="sc">-</span> theta)<span class="sc">^</span>(<span class="sc">-</span>a) <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> a)</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkinv, ArandaOrdaz) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta) {</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> x<span class="sc">@</span>link_params<span class="sc">$</span>alpha</span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span> <span class="sc">-</span> (<span class="dv">1</span> <span class="sc">+</span> a <span class="sc">*</span> <span class="fu">exp</span>(eta))<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> a)</span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>ao_link <span class="ot">&lt;-</span> <span class="cf">function</span>(alpha) {</span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ArandaOrdaz</span>(<span class="at">link_name =</span> <span class="fu">sprintf</span>(<span class="st">"aranda-ordaz(%g)"</span>, alpha),</span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>              <span class="at">link_bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="at">link_params =</span> <span class="fu">list</span>(<span class="at">alpha =</span> alpha))</span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="fu">link_fallback_orders</span>(<span class="fu">ao_link</span>(<span class="fl">0.5</span>))</span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $forward</span></span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $inverse</span></span>
-<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
-<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>chk_ao <span class="ot">&lt;-</span> <span class="fu">check_link</span>(<span class="fu">ao_link</span>(<span class="fl">0.5</span>))</span>
-<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Checking S7 Link Object: aranda-ordaz(0.5) </span></span>
-<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [1] Invertibility (Theta space): [PASSED] </span></span>
-<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [2] Invertibility (Eta space):   [PASSED] </span></span>
-<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [3] Strict Monotonicity:         [PASSED] </span></span>
-<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [4] Inverse Function Theorem:    [PASSED] </span></span>
-<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [5] Link Derivatives:            [numerical] </span></span>
-<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [numerical]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>ArandaOrdaz <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"ArandaOrdaz"</span>, <span class="at">parent =</span> link)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkfun, ArandaOrdaz) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) {</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> x<span class="sc">@</span>link_params<span class="sc">$</span>alpha</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">log</span>(((<span class="dv">1</span> <span class="sc">-</span> theta)<span class="sc">^</span>(<span class="sc">-</span>a) <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> a)</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkinv, ArandaOrdaz) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta) {</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> x<span class="sc">@</span>link_params<span class="sc">$</span>alpha</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span> <span class="sc">-</span> (<span class="dv">1</span> <span class="sc">+</span> a <span class="sc">*</span> <span class="fu">exp</span>(eta))<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> a)</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>ao_link <span class="ot">&lt;-</span> <span class="cf">function</span>(alpha) {</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ArandaOrdaz</span>(<span class="at">link_name =</span> <span class="fu">sprintf</span>(<span class="st">"aranda-ordaz(%g)"</span>, alpha),</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>              <span class="at">link_bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="at">link_params =</span> <span class="fu">list</span>(<span class="at">alpha =</span> alpha))</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a><span class="fu">link_fallback_orders</span>(<span class="fu">ao_link</span>(<span class="fl">0.5</span>))</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $forward</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $inverse</span></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>chk_ao <span class="ot">&lt;-</span> <span class="fu">check_link</span>(<span class="fu">ao_link</span>(<span class="fl">0.5</span>))</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Checking S7 Link Object: aranda-ordaz(0.5) </span></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [1] Invertibility (Theta space): [PASSED] </span></span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [2] Invertibility (Eta space):   [PASSED] </span></span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [3] Strict Monotonicity:         [PASSED] </span></span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [4] Inverse Function Theorem:    [PASSED] </span></span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [5] Link Derivatives:            [numerical] </span></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [numerical]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The derivatives of both directions are numerical, and <code>check_link()</code> marks them so. The data frame <code>menarche</code> of the <code>MASS</code> package gives, for 25 groups of girls of increasing mean age, the number of girls who had reached menarche. The parameter <span class="math inline">\(\alpha\)</span> is not estimated by <code>statmod()</code>, because a link is fixed during a fit. We profile the log-likelihood over <span class="math inline">\(\alpha\)</span> and maximize it with <code>optimize()</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>ao_loglik <span class="ot">&lt;-</span> <span class="cf">function</span>(alpha) {</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>               <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> <span class="fu">ao_link</span>(alpha)),</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>               <span class="at">data =</span> menarche)</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f))</span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>ao_opt <span class="ot">&lt;-</span> <span class="fu">optimize</span>(ao_loglik, <span class="at">interval =</span> <span class="fu">c</span>(<span class="fl">0.05</span>, <span class="dv">5</span>), <span class="at">maximum =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>alpha_hat <span class="ot">&lt;-</span> ao_opt<span class="sc">$</span>maximum</span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>fit_ao <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> <span class="fu">ao_link</span>(alpha_hat)),</span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> menarche)</span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_ao)</span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = cbind(Menarche, Total - Menarche) ~ Age, distrib = binomial_distrib(link_mu = ao_link(alpha_hat)), </span></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = menarche)</span></span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: binomial     Observations: 25</span></span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [aranda-ordaz(1.4579) link]</span></span>
-<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z       p  lower  upper</span></span>
-<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -24.67  0.9062 -27.22 &lt; 1e-16 -26.44 -22.89</span></span>
-<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Age              1.92 0.06996  27.45 &lt; 1e-16  1.783  2.057</span></span>
-<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -53.385061    effective df 2.00</span></span>
-<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 110.770    cBIC 113.208</span></span>
-<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 50 ms</span></span>
-<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.5e-09   min eigen 0.0033</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>ao_loglik <span class="ot">&lt;-</span> <span class="cf">function</span>(alpha) {</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>               <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> <span class="fu">ao_link</span>(alpha)),</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>               <span class="at">data =</span> menarche)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(f))</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>ao_opt <span class="ot">&lt;-</span> <span class="fu">optimize</span>(ao_loglik, <span class="at">interval =</span> <span class="fu">c</span>(<span class="fl">0.05</span>, <span class="dv">5</span>), <span class="at">maximum =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>alpha_hat <span class="ot">&lt;-</span> ao_opt<span class="sc">$</span>maximum</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>fit_ao <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> <span class="fu">ao_link</span>(alpha_hat)),</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> menarche)</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_ao)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = cbind(Menarche, Total - Menarche) ~ Age, distrib = binomial_distrib(link_mu = ao_link(alpha_hat)), </span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = menarche)</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: binomial     Observations: 25</span></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [aranda-ordaz(1.4579) link]</span></span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z       p  lower  upper</span></span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -24.67  0.9062 -27.22 &lt; 1e-16 -26.44 -22.89</span></span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Age              1.92 0.06996  27.45 &lt; 1e-16  1.783  2.057</span></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -53.385061    effective df 2.00</span></span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 110.770    cBIC 113.208</span></span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 110 ms</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.5e-09   min eigen 0.0033</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The estimate is <span class="math inline">\(\hat\alpha = 1.458\)</span>. The function <code>glm()</code> accepts a link written by the user as an object of class <code>link-glm</code>, with the link, its inverse and the derivative of the inverse. We write it for the same <span class="math inline">\(\alpha\)</span>, and we fit the logit and the complementary log-log links for comparison:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>ao_glm <span class="ot">&lt;-</span> <span class="cf">function</span>(a) {</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">structure</span>(<span class="fu">list</span>(</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">linkfun =</span> <span class="cf">function</span>(mu) <span class="fu">log</span>(((<span class="dv">1</span> <span class="sc">-</span> mu)<span class="sc">^</span>(<span class="sc">-</span>a) <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> a),</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">linkinv =</span> <span class="cf">function</span>(eta) <span class="dv">1</span> <span class="sc">-</span> (<span class="dv">1</span> <span class="sc">+</span> a <span class="sc">*</span> <span class="fu">exp</span>(eta))<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> a),</span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">mu.eta =</span> <span class="cf">function</span>(eta) <span class="fu">exp</span>(eta) <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">+</span> a <span class="sc">*</span> <span class="fu">exp</span>(eta))<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> a <span class="sc">-</span> <span class="dv">1</span>),</span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">valideta =</span> <span class="cf">function</span>(eta) <span class="cn">TRUE</span>, <span class="at">name =</span> <span class="st">"aranda-ordaz"</span>), <span class="at">class =</span> <span class="st">"link-glm"</span>)</span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>glm_ao <span class="ot">&lt;-</span> <span class="fu">glm</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>              <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link =</span> <span class="fu">ao_glm</span>(alpha_hat)), <span class="at">data =</span> menarche)</span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">statmod =</span> <span class="fu">coef</span>(fit_ao)<span class="sc">$</span>mu, <span class="at">glm =</span> <span class="fu">coef</span>(glm_ao))</span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         (Intercept)      Age</span></span>
-<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod   -24.66814 1.919966</span></span>
-<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; glm       -24.66814 1.919966</span></span>
-<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>fit_logit <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
-<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> <span class="fu">logit_link</span>()),</span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> menarche)</span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>fit_cloglog <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
-<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>                       <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> <span class="fu">cloglog_link</span>()),</span>
-<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>                       <span class="at">data =</span> menarche)</span>
-<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">aranda_ordaz =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_ao)), <span class="at">glm =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(glm_ao)),</span>
-<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">logit =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_logit)),</span>
-<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">cloglog =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_cloglog)))</span>
-<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; aranda_ordaz          glm        logit      cloglog </span></span>
-<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    -53.38506    -53.38506    -55.37763   -101.43629</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>ao_glm <span class="ot">&lt;-</span> <span class="cf">function</span>(a) {</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">structure</span>(<span class="fu">list</span>(</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">linkfun =</span> <span class="cf">function</span>(mu) <span class="fu">log</span>(((<span class="dv">1</span> <span class="sc">-</span> mu)<span class="sc">^</span>(<span class="sc">-</span>a) <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> a),</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">linkinv =</span> <span class="cf">function</span>(eta) <span class="dv">1</span> <span class="sc">-</span> (<span class="dv">1</span> <span class="sc">+</span> a <span class="sc">*</span> <span class="fu">exp</span>(eta))<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> a),</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">mu.eta =</span> <span class="cf">function</span>(eta) <span class="fu">exp</span>(eta) <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">+</span> a <span class="sc">*</span> <span class="fu">exp</span>(eta))<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> a <span class="sc">-</span> <span class="dv">1</span>),</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">valideta =</span> <span class="cf">function</span>(eta) <span class="cn">TRUE</span>, <span class="at">name =</span> <span class="st">"aranda-ordaz"</span>), <span class="at">class =</span> <span class="st">"link-glm"</span>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>glm_ao <span class="ot">&lt;-</span> <span class="fu">glm</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>              <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link =</span> <span class="fu">ao_glm</span>(alpha_hat)), <span class="at">data =</span> menarche)</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">statmod =</span> <span class="fu">coef</span>(fit_ao)<span class="sc">$</span>mu, <span class="at">glm =</span> <span class="fu">coef</span>(glm_ao))</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         (Intercept)      Age</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod   -24.66814 1.919966</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; glm       -24.66814 1.919966</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>fit_logit <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> <span class="fu">logit_link</span>()),</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> menarche)</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>fit_cloglog <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(Menarche, Total <span class="sc">-</span> Menarche) <span class="sc">~</span> Age,</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>                       <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> <span class="fu">cloglog_link</span>()),</span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>                       <span class="at">data =</span> menarche)</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">aranda_ordaz =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_ao)), <span class="at">glm =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(glm_ao)),</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">logit =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_logit)),</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">cloglog =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_cloglog)))</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; aranda_ordaz          glm        logit      cloglog </span></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    -53.38506    -53.38506    -55.37763   -101.43629</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The two fits with the Aranda-Ordaz link agree. The estimate of <span class="math inline">\(\alpha\)</span> lies above one, on the other side of the logit link from the complementary log-log link, and the log-likelihood rises by 1.99 over the logit link, which is the special case <span class="math inline">\(\alpha = 1\)</span>. The likelihood ratio statistic for <span class="math inline">\(\alpha = 1\)</span> is therefore 3.99 on one degree of freedom. <a href="#fig-ao" class="quarto-xref">Figure&nbsp;<span>16.3</span></a> shows the three fitted curves.</p>
 <div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>ages <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Age =</span> <span class="fu">seq</span>(<span class="at">from =</span> <span class="fu">min</span>(menarche<span class="sc">$</span>Age), <span class="at">to =</span> <span class="fu">max</span>(menarche<span class="sc">$</span>Age),</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>                             <span class="at">length.out =</span> <span class="dv">200</span>), <span class="at">Total =</span> <span class="dv">1</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>other_links <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">Age =</span> <span class="fu">rep</span>(ages<span class="sc">$</span>Age, <span class="at">times =</span> <span class="dv">2</span>),</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">p =</span> <span class="fu">c</span>(<span class="fu">predict</span>(fit_logit, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> ages),</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>        <span class="fu">predict</span>(fit_cloglog, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> ages)),</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">link =</span> <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">"logit"</span>, <span class="st">"complementary log-log"</span>), <span class="at">each =</span> <span class="fu">nrow</span>(ages)))</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(fit_ao, <span class="at">plot_type =</span> <span class="fu">plot_param</span>(<span class="at">param =</span> <span class="st">"mu"</span>, <span class="at">over =</span> <span class="st">"Age"</span>),</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">data =</span> menarche) <span class="sc">+</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> Age, <span class="at">y =</span> Menarche <span class="sc">/</span> Total), <span class="at">data =</span> menarche,</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"grey40"</span>, <span class="at">shape =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">x =</span> Age, <span class="at">y =</span> p, <span class="at">linetype =</span> link), <span class="at">data =</span> other_links,</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>            <span class="at">colour =</span> <span class="st">"grey15"</span>) <span class="sc">+</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="at">logit =</span> <span class="st">"dashed"</span>,</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>                                   <span class="st">"complementary log-log"</span> <span class="ot">=</span> <span class="st">"dotted"</span>)) <span class="sc">+</span></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="fu">sprintf</span>(<span class="st">"Aranda-Ordaz link, alpha = %.2f"</span>, alpha_hat),</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"mean age (years)"</span>, <span class="at">y =</span> <span class="st">"proportion reached menarche"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div id="fig-ao" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
 <figure class="quarto-float quarto-float-fig figure">
@@ -1044,7 +1083,7 @@ Figure&nbsp;16.2: Normal quantile plots of the quantile residuals of the Burr XI
 <img src="16-own-distributions_files/figure-html/fig-ao-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-ao-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;16.3: Proportion of girls who had reached menarche against the mean age of each group, with the fitted probability under the Aranda-Ordaz link at the estimated alpha (solid), the logit link (dashed) and the complementary log-log link (dotted).
+Figure&nbsp;16.3: Proportion of girls who had reached menarche against the mean age of each group, with the fitted probability and its 95% interval under the Aranda-Ordaz link at the estimated alpha (solid blue), and the fitted probability under the logit link (dashed) and the complementary log-log link (dotted).
 </figcaption>
 </figure>
 </div>
@@ -1056,24 +1095,24 @@ Figure&nbsp;16.3: Proportion of girls who had reached menarche against the mean 
 \frac{d\mu}{d\eta} = e^{\eta}\,(1 + \alpha e^{\eta})^{-1/\alpha - 1}.
 \]</span> We register it as the method of <code>dlinkinv()</code>. The fallbacks of the higher orders of the inverse link then take one central difference of this analytic first derivative, and <code>check_link()</code> compares it with a finite difference of <code>linkinv()</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(dlinkinv, ArandaOrdaz) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta) {</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> x<span class="sc">@</span>link_params<span class="sc">$</span>alpha</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">exp</span>(eta) <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">+</span> a <span class="sc">*</span> <span class="fu">exp</span>(eta))<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> a <span class="sc">-</span> <span class="dv">1</span>)</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">link_fallback_orders</span>(<span class="fu">ao_link</span>(<span class="fl">0.5</span>))</span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $forward</span></span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $inverse</span></span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1</span></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>chk_ao_d <span class="ot">&lt;-</span> <span class="fu">check_link</span>(<span class="fu">ao_link</span>(<span class="fl">0.5</span>))</span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Checking S7 Link Object: aranda-ordaz(0.5) </span></span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [1] Invertibility (Theta space): [PASSED] </span></span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [2] Invertibility (Eta space):   [PASSED] </span></span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [3] Strict Monotonicity:         [PASSED] </span></span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [4] Inverse Function Theorem:    [PASSED] </span></span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [5] Link Derivatives:            [numerical] </span></span>
-<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [PASSED to order 1, 4 numerical]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(dlinkinv, ArandaOrdaz) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta) {</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> x<span class="sc">@</span>link_params<span class="sc">$</span>alpha</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">exp</span>(eta) <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">+</span> a <span class="sc">*</span> <span class="fu">exp</span>(eta))<span class="sc">^</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">/</span> a <span class="sc">-</span> <span class="dv">1</span>)</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="fu">link_fallback_orders</span>(<span class="fu">ao_link</span>(<span class="fl">0.5</span>))</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $forward</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $inverse</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>chk_ao_d <span class="ot">&lt;-</span> <span class="fu">check_link</span>(<span class="fu">ao_link</span>(<span class="fl">0.5</span>))</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Checking S7 Link Object: aranda-ordaz(0.5) </span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [1] Invertibility (Theta space): [PASSED] </span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [2] Invertibility (Eta space):   [PASSED] </span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [3] Strict Monotonicity:         [PASSED] </span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [4] Inverse Function Theorem:    [PASSED] </span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [5] Link Derivatives:            [numerical] </span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [PASSED to order 1, 4 numerical]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The first order of the inverse link is now analytic and passes the check, and the four orders above it are reported as numerical.</p>
 

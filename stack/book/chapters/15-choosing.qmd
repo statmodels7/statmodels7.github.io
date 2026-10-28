@@ -119,22 +119,24 @@ rbind(negbin2 = c(statmod = logLik(sp_nb2), gamlss = logLik(gl_nbi)),
 The quantile residuals show the difference between the Poisson model and
 the others (@fig-species-resid). We draw them with a fixed seed, because
 the quantile residual of a count is randomized within the jump of the
-distribution function:
+distribution function. The type `plot_qq()` of @sec-graphs-diagnostics
+draws the sorted residuals against the gaussian quantiles, with the identity
+line and the band of the order statistics:
+
+```{r}
+#| label: species-resid
+qr_pois <- residuals(sp_pois, seed = 1)
+qr_nb2 <- residuals(sp_nb2, seed = 1)
+```
 
 ```{r}
 #| label: fig-species-resid
-#| fig-cap: "Quantile residuals of the `species` models against gaussian quantiles. Left: Poisson. Right: negative binomial with variance $\\mu + \\mu^2/\\theta$. The line is the identity."
+#| fig-cap: "Quantile residuals of the `species` models against gaussian quantiles. Left: Poisson. Right: negative binomial with variance $\\mu + \\mu^2/\\theta$. The line is the identity and the band is the 95% interval of the order statistics."
 #| fig-height: 3.6
-qr_pois <- residuals(sp_pois, seed = 1)
-qr_nb2 <- residuals(sp_nb2, seed = 1)
-qq <- data.frame(residual = c(qr_pois, qr_nb2),
-                 model = rep(c("poisson", "negbin2"), each = nrow(species)))
-qq$model <- factor(qq$model, levels = c("poisson", "negbin2"))
-ggplot(qq, aes(sample = residual)) +
-  stat_qq(colour = book_grey, size = 0.9) +
-  geom_abline(intercept = 0, slope = 1, colour = book_palette[1]) +
-  facet_wrap(facets = vars(model), scales = "free_y") +
-  labs(x = "gaussian quantile", y = "quantile residual")
+#| fig-width: 9
+library(patchwork)
+(autoplot(sp_pois, plot_type = plot_qq(seed = 1)) + labs(title = "poisson")) |
+  (autoplot(sp_nb2, plot_type = plot_qq(seed = 1)) + labs(title = "negbin2"))
 ```
 
 The residuals of the negative binomial model lie on the identity line, and
@@ -207,19 +209,20 @@ residuals of the largest rents fall below the identity line.
 
 ```{r}
 #| label: fig-rent-resid
-#| fig-cap: "Quantile residuals of the four `rent` models against gaussian quantiles. The line is the identity."
-#| fig-height: 5
-rq <- data.frame(
-  residual = c(residuals(rent_gamma), residuals(rent_lnorm),
-               residuals(rent_ig), residuals(rent_gg)),
-  model = rep(rent_table$family, each = nrow(rent)))
-rq$model <- factor(rq$model, levels = rent_table$family)
-ggplot(rq, aes(sample = residual)) +
-  stat_qq(colour = book_grey, size = 0.5) +
-  geom_abline(intercept = 0, slope = 1, colour = book_palette[1]) +
-  facet_wrap(facets = vars(model), ncol = 2) +
-  labs(x = "gaussian quantile", y = "quantile residual")
+#| fig-cap: "Quantile residuals of the four `rent` models against gaussian quantiles. The line is the identity and the band is the 95% interval of the order statistics."
+#| fig-height: 6
+rent_fits <- list(gamma = rent_gamma, lognormal = rent_lnorm,
+                  "inverse gaussian" = rent_ig, "generalized gamma" = rent_gg)
+rent_qq <- Map(function(fit, name) {
+  autoplot(fit, plot_type = plot_qq()) + labs(title = name)
+}, rent_fits, names(rent_fits))
+r_range <- range(unlist(lapply(rent_fits, residuals)))
+wrap_plots(rent_qq, ncol = 2) & coord_cartesian(ylim = r_range)
 ```
+
+The function `wrap_plots()` of `patchwork` arranges the four graphs in two
+columns, and the common vertical range lets us compare the tails of the four
+models.
 
 The gamma model with the log link is also a generalized additive model, and
 `mgcv` fits it with the same REML criterion [@wood2017]:
@@ -314,25 +317,26 @@ ML and AIC give the curve of the mean about
 `r fmt(ab_table["reml", "edf"] - 4, 1)` effective degrees of freedom beyond
 its straight line, and BIC, whose penalty grows with $\log n$, gives it
 `r fmt(ab_table["bic", "edf"] - 4, 1)`. @fig-abdom shows the two curves with
-the bands of two standard deviations.
+the bands of two standard deviations. For a gaussian distribution the
+quantiles at the probabilities $\Phi(-2)$, $1/2$ and $\Phi(2)$ are
+$\mu - 2\sigma$, $\mu$ and $\mu + 2\sigma$, so `plot_quantiles()` draws the
+REML fit, and we add the BIC fit as a layer.
 
 ```{r}
 #| label: fig-abdom
-#| fig-cap: "Abdominal circumference against gestational age. The lines are the fitted mean and the mean plus and minus two standard deviations, with the smoothing parameters estimated by REML and by BIC."
+#| fig-cap: "Abdominal circumference against gestational age. The lines are the fitted mean and the mean plus and minus two standard deviations, with the smoothing parameters estimated by REML (solid and dashed blue) and by BIC (dotted rust)."
 #| fig-height: 4
 xg <- data.frame(x = seq(from = min(abdom$x), to = max(abdom$x), length.out = 200))
-band <- function(fit, label) {
-  m <- predict(fit, what = "mu", newdata = xg)
-  s <- predict(fit, what = "sigma", newdata = xg)
-  data.frame(x = xg$x, mean = m, lower = m - 2 * s, upper = m + 2 * s,
-             criterion = label)
-}
-bands_ab <- rbind(band(ab_reml, "REML"), band(ab_bic, "BIC"))
-ggplot(abdom, aes(x = x, y = y)) +
-  geom_point(colour = book_grey, size = 0.6, alpha = 0.6) +
-  geom_line(data = bands_ab, aes(y = mean, colour = criterion, linetype = criterion)) +
-  geom_line(data = bands_ab, aes(y = lower, colour = criterion, linetype = criterion)) +
-  geom_line(data = bands_ab, aes(y = upper, colour = criterion, linetype = criterion)) +
+m_bic <- predict(ab_bic, what = "mu", newdata = xg)
+s_bic <- predict(ab_bic, what = "sigma", newdata = xg)
+bic_lines <- data.frame(x = rep(xg$x, times = 3),
+                        y = c(m_bic - 2 * s_bic, m_bic, m_bic + 2 * s_bic),
+                        line = rep(1:3, each = nrow(xg)))
+autoplot(ab_reml, plot_type = plot_quantiles(over = "x",
+                                             probs = pnorm(c(-2, 0, 2))),
+         data = abdom) +
+  geom_line(aes(x = x, y = y, group = line), data = bic_lines,
+            colour = book_palette[2], linetype = "dotted", linewidth = 0.8) +
   labs(x = "gestational age (weeks)", y = "abdominal circumference (mm)")
 ```
 
@@ -495,29 +499,85 @@ model.
 
 ```{r}
 #| label: fig-film
-#| fig-cap: "Logarithm of the box office revenue after the first week against the logarithm of the opening revenue. The lines are the fitted median and the 5% and 95% quantiles of the Student t model and of the gaussian model."
+#| fig-cap: "Logarithm of the box office revenue after the first week against the logarithm of the opening revenue. The blue lines are the fitted median and the 5% and 95% quantiles of the Student t model, and the dotted rust lines are those of the gaussian model."
 #| fig-height: 4
 og <- data.frame(lboopen = seq(from = min(film90$lboopen),
                                to = max(film90$lboopen), length.out = 200))
-quant <- function(fit, dist, label) {
-  th <- list(mu = predict(fit, what = "mu", newdata = og),
-             sigma = predict(fit, what = "sigma", newdata = og))
-  if (label == "t") th$nu <- predict(fit, what = "nu", newdata = og)
-  rbind(data.frame(lboopen = og$lboopen, quantile = "5%", model = label,
-                   value = distrib_quantile(dist, p = 0.05, theta = th)),
-        data.frame(lboopen = og$lboopen, quantile = "50%", model = label,
-                   value = distrib_quantile(dist, p = 0.5, theta = th)),
-        data.frame(lboopen = og$lboopen, quantile = "95%", model = label,
-                   value = distrib_quantile(dist, p = 0.95, theta = th)))
-}
-qf <- rbind(quant(film_t, student_t1_distrib(), "t"),
-            quant(film_g, gaussian1_distrib(), "gaussian"))
-qf$group <- paste(qf$model, qf$quantile)
-ggplot(film90, aes(x = lboopen, y = lborev1)) +
-  geom_point(colour = book_grey, size = 0.4, alpha = 0.4) +
-  geom_line(data = qf, aes(y = value, colour = model, linetype = model,
-                           group = group)) +
+m_g <- predict(film_g, what = "mu", newdata = og)
+s_g <- predict(film_g, what = "sigma", newdata = og)
+z <- qnorm(c(0.05, 0.5, 0.95))
+gauss_lines <- data.frame(lboopen = rep(og$lboopen, times = 3),
+                          y = c(m_g + z[1] * s_g, m_g + z[2] * s_g,
+                                m_g + z[3] * s_g),
+                          line = rep(1:3, each = nrow(og)))
+autoplot(film_t, plot_type = plot_quantiles(over = "lboopen",
+                                            probs = c(0.05, 0.5, 0.95)),
+         data = film90) +
+  geom_line(aes(x = lboopen, y = y, group = line), data = gauss_lines,
+            colour = book_palette[2], linetype = "dotted", linewidth = 0.8) +
   labs(x = "log opening revenue", y = "log revenue after the first week")
+```
+
+The difference between the two distributions is in the weight that each
+gives to an observation far from the median. The contribution of
+observation $i$ to the score of the equation of $\mu$ is
+$s_i = \partial \ell_i / \partial \eta_i$, with $\ell_i$ the log-likelihood
+of the observation and $\eta_i$ the predictor of $\mu$. Under the gaussian
+distribution $s_i = (y_i - \mu_i)/\sigma_i^2$ grows without limit with the
+residual. Under the $t$ distribution
+$s_i = (\nu + 1)(y_i - \mu_i)/\{\nu\sigma_i^2 + (y_i - \mu_i)^2\}$ is
+bounded, so a film far from the curve pulls it less. The type `plot_score()`
+draws $s_i$ against a covariate and labels the five largest contributions
+(@fig-film-score).
+
+```{r}
+#| label: fig-film-score
+#| fig-cap: "Contribution of each film to the score of the equation of the location, against the logarithm of the opening revenue. Left: gaussian. Right: Student t. The five largest contributions are labeled with their row."
+#| fig-height: 3.8
+#| fig-width: 9
+library(patchwork)
+(autoplot(film_g, plot_type = plot_score(param = "mu", against = "lboopen"),
+          data = film90) + labs(title = "gaussian")) |
+  (autoplot(film_t, plot_type = plot_score(param = "mu", against = "lboopen"),
+            data = film90) + labs(title = "t"))
+```
+
+```{r}
+#| label: film-influence-numbers
+#| include: false
+cook_g <- autoplot(film_g, plot_type = plot_influence(param = "mu"))$layers[[1]]$data
+cook_t <- autoplot(film_t, plot_type = plot_influence(param = "mu"))$layers[[1]]$data
+top_g <- order(cook_g$y, decreasing = TRUE)[1:2]
+top_t <- order(cook_t$y, decreasing = TRUE)[1:2]
+r_top <- residuals(film_g)[top_g]
+lb_range <- range(film90$lboopen)
+stopifnot(identical(top_g, top_t), all(abs(r_top) < 2),
+          setequal(film90$lboopen[top_g], lb_range))
+```
+
+A bounded score does not bound the influence of an observation on the
+fitted curve. The Cook distance measures how far the
+coefficients of an equation move when one observation is deleted, and it
+grows with the residual of the observation and with its leverage, the
+weight that its position in the covariates gives it. The type
+`plot_influence()` draws it for each observation (@fig-film-influence).
+Under both distributions the two largest distances belong to rows
+`r top_g[1]` and `r top_g[2]`, the films with the largest and the smallest
+opening revenue (`r fmt(film90$lboopen[top_g[1]], 1)` and
+`r fmt(film90$lboopen[top_g[2]], 1)`). Their quantile residuals under the
+gaussian model, `r fmt(r_top[1])` and `r fmt(r_top[2])`, are not large, and
+their influence comes from their position at the two ends of the range of
+`lboopen`, where few other films determine the curve.
+
+```{r}
+#| label: fig-film-influence
+#| fig-cap: "Cook distance of each film in the equation of the location, against its row. Left: gaussian. Right: Student t."
+#| fig-height: 3.8
+#| fig-width: 9
+(autoplot(film_g, plot_type = plot_influence(param = "mu")) +
+   labs(title = "gaussian")) |
+  (autoplot(film_t, plot_type = plot_influence(param = "mu")) +
+     labs(title = "t"))
 ```
 
 ## When a fit does not converge {#sec-choosing-convergence}
@@ -709,16 +769,16 @@ information, and keep the highest.
 
 ```{r}
 #| label: fig-gag-nu
-#| fig-cap: "Degrees of freedom of the Student t against age, at the two maxima of the REML criterion with the expected information."
+#| fig-cap: "Degrees of freedom of the Student t against age, at the two maxima of the REML criterion with the expected information: from the default start (blue, with its 95% interval) and from the joint mode (dashed rust)."
 #| fig-height: 3.6
-ag <- data.frame(Age = seq(from = 0, to = 17, length.out = 100))
-nu_df <- rbind(
-  data.frame(Age = ag$Age, nu = predict(gag_e, what = "nu", newdata = ag),
-             maximum = "default start"),
-  data.frame(Age = ag$Age, nu = predict(gag_je, what = "nu", newdata = ag),
-             maximum = "start from the joint mode"))
-ggplot(nu_df, aes(x = Age, y = nu, colour = maximum, linetype = maximum)) +
-  geom_line() +
+ag <- data.frame(Age = seq(from = min(GAGurine$Age), to = max(GAGurine$Age),
+                           length.out = 100))
+nu_je <- data.frame(Age = ag$Age,
+                    nu = predict(gag_je, what = "nu", newdata = ag))
+autoplot(gag_e, plot_type = plot_param(param = "nu", over = "Age"),
+         data = GAGurine) +
+  geom_line(aes(x = Age, y = nu), data = nu_je, colour = book_palette[2],
+            linetype = "dashed", linewidth = 0.8) +
   scale_y_log10() +
   labs(x = "age (years)", y = expression(nu))
 ```

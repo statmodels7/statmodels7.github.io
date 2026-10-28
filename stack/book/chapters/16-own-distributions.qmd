@@ -160,30 +160,34 @@ interval of two standard deviations, $\mu \pm 2\sqrt{\phi\mu}$.
 
 ```{r}
 #| label: fig-genpois
-#| fig-cap: "Number of warp breaks for each wool and tension. The lines join the fitted means of the generalized Poisson model, and the bars span two standard deviations on either side."
-#| echo: false
+#| fig-cap: "Number of warp breaks for each tension, one panel for each wool. The blue points are the fitted means of the generalized Poisson model with their 95% intervals, the rust bars to their right span two standard deviations on either side of the mean, and the grey points are the observations."
 #| fig-height: 3.8
+#| fig-width: 9
+library(patchwork)
 cells <- unique(warpbreaks[, c("wool", "tension")])
 cells$mu <- predict(fit_gp, what = "mu", newdata = cells)
-cells$phi <- predict(fit_gp, what = "phi", newdata = cells)
-op <- par(mar = c(4, 4, 1, 1))
-xpos <- as.integer(warpbreaks$tension) + ifelse(warpbreaks$wool == "A", -0.12, 0.12)
-plot(xpos, warpbreaks$breaks, pch = ifelse(warpbreaks$wool == "A", 1, 2),
-     col = "grey45", xaxt = "n", xlab = "tension", ylab = "breaks",
-     xlim = c(0.6, 3.4), ylim = c(0, max(warpbreaks$breaks)))
-axis(1, at = 1:3, labels = levels(warpbreaks$tension))
-for (w in c("A", "B")) {
-  cw <- cells[cells$wool == w, ]
-  cw <- cw[order(cw$tension), ]
-  xx <- as.integer(cw$tension) + if (w == "A") -0.12 else 0.12
-  sdv <- sqrt(cw$phi * cw$mu)
-  segments(xx, cw$mu - 2 * sdv, xx, cw$mu + 2 * sdv, lwd = 1.5)
-  lines(xx, cw$mu, lwd = 2, lty = if (w == "A") 1 else 2)
+cells$sd <- sqrt(predict(fit_gp, what = "phi", newdata = cells) * cells$mu)
+wool_panel <- function(w) {
+  autoplot(fit_gp, plot_type = plot_param(param = "mu", over = "tension",
+                                          at = list(wool = w)),
+           data = warpbreaks) +
+    geom_jitter(aes(x = tension, y = breaks),
+                data = warpbreaks[warpbreaks$wool == w, ],
+                colour = "grey45", width = 0.08, height = 0, size = 1) +
+    geom_errorbar(aes(x = tension, ymin = mu - 2 * sd, ymax = mu + 2 * sd),
+                  data = cells[cells$wool == w, ], width = 0,
+                  colour = book_palette[2], position = position_nudge(x = 0.2)) +
+    labs(title = paste("wool", w), y = "breaks")
 }
-legend("topright", legend = c("wool A", "wool B"), pch = 1:2,
-       lty = 1:2, bty = "n")
-par(op)
+(wool_panel("A") | wool_panel("B")) &
+  coord_cartesian(ylim = c(0, max(warpbreaks$breaks, cells$mu + 2 * cells$sd)))
 ```
+
+The type `plot_param()` of @sec-graphs-distribution works with a family
+written by the user as with a family of the toolkit, because it reads the
+parameters through `predict()`. It draws the mean at the three tensions for the wool
+named in `at`, and we add the observations and the interval
+$\mu \pm 2\sqrt{\phi\mu}$ as layers.
 
 The negative binomial distribution of @sec-glm-overdispersion has a
 variance that grows with the square of the mean. The AIC compares the two
@@ -472,17 +476,15 @@ and of the gamma model.
 
 ```{r}
 #| label: fig-burr-qq
-#| fig-cap: "Normal quantile plots of the quantile residuals of the Burr XII model (left) and of the gamma model (right) for the Munich rents."
-#| echo: false
+#| fig-cap: "Normal quantile plots of the quantile residuals of the Burr XII model (left) and of the gamma model (right) for the Munich rents. The line is the identity and the band is the 95% interval of the order statistics."
 #| fig-height: 3.6
-r_gamma <- residuals(fit_rent_gamma)
-op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
-qqnorm(r_burr_c, main = "Burr XII", pch = 20, col = "grey40", cex = 0.5)
-abline(0, 1)
-qqnorm(r_gamma, main = "gamma", pch = 20, col = "grey40", cex = 0.5)
-abline(0, 1)
-par(op)
+#| fig-width: 9
+(autoplot(fit_burr_c, plot_type = plot_qq()) + labs(title = "Burr XII")) |
+  (autoplot(fit_rent_gamma, plot_type = plot_qq()) + labs(title = "gamma"))
 ```
+
+The type `plot_qq()` reads the residuals through the cdf of the family, so
+for the Burr XII model it uses the closed cdf of the class.
 
 ## A link with a parameter: Aranda-Ordaz {#sec-own-link}
 
@@ -582,24 +584,25 @@ on one degree of freedom. @fig-ao shows the three fitted curves.
 
 ```{r}
 #| label: fig-ao
-#| fig-cap: "Proportion of girls who had reached menarche against the mean age of each group, with the fitted probability under the Aranda-Ordaz link at the estimated alpha (solid), the logit link (dashed) and the complementary log-log link (dotted)."
-#| echo: false
+#| fig-cap: "Proportion of girls who had reached menarche against the mean age of each group, with the fitted probability and its 95% interval under the Aranda-Ordaz link at the estimated alpha (solid blue), and the fitted probability under the logit link (dashed) and the complementary log-log link (dotted)."
 #| fig-height: 3.8
-ages <- data.frame(Age = seq(min(menarche$Age), max(menarche$Age),
+ages <- data.frame(Age = seq(from = min(menarche$Age), to = max(menarche$Age),
                              length.out = 200), Total = 1)
-op <- par(mar = c(4, 4, 1, 1))
-plot(menarche$Age, menarche$Menarche / menarche$Total, pch = 1,
-     col = "grey40", xlab = "mean age (years)",
-     ylab = "proportion reached menarche")
-lines(ages$Age, predict(fit_ao, what = "mu", newdata = ages), lwd = 2)
-lines(ages$Age, predict(fit_logit, what = "mu", newdata = ages), lwd = 1.5,
-      lty = 2)
-lines(ages$Age, predict(fit_cloglog, what = "mu", newdata = ages), lwd = 1.5,
-      lty = 3)
-legend("bottomright", lty = 1:3, lwd = c(2, 1.5, 1.5), bty = "n",
-       legend = c(sprintf("Aranda-Ordaz, alpha = %.2f", alpha_hat), "logit",
-                  "complementary log-log"))
-par(op)
+other_links <- data.frame(
+  Age = rep(ages$Age, times = 2),
+  p = c(predict(fit_logit, what = "mu", newdata = ages),
+        predict(fit_cloglog, what = "mu", newdata = ages)),
+  link = rep(c("logit", "complementary log-log"), each = nrow(ages)))
+autoplot(fit_ao, plot_type = plot_param(param = "mu", over = "Age"),
+         data = menarche) +
+  geom_point(aes(x = Age, y = Menarche / Total), data = menarche,
+             colour = "grey40", shape = 1) +
+  geom_line(aes(x = Age, y = p, linetype = link), data = other_links,
+            colour = "grey15") +
+  scale_linetype_manual(values = c(logit = "dashed",
+                                   "complementary log-log" = "dotted")) +
+  labs(title = sprintf("Aranda-Ordaz link, alpha = %.2f", alpha_hat),
+       x = "mean age (years)", y = "proportion reached menarche")
 ```
 
 ### Analytic derivatives of a link

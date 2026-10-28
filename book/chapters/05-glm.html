@@ -466,7 +466,7 @@ y_i \sim \mathrm{Poisson}(\mu_i), \qquad
 <span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -68.280771    effective df 9.00</span></span>
 <span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 154.562    cBIC 168.299</span></span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 640 ms</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 710 ms</span></span>
 <span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 3.3e-15   min eigen 0.039</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The distribution <code>poisson_distrib()</code> has one parameter, the mean <code>mu</code>, with the log link. The model has no dispersion, so the estimates are those of <code>glm()</code>:</p>
@@ -603,7 +603,7 @@ y_i \sim \mathrm{Binomial}(m_i, p_i), \qquad
 <span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
 <span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -17.552064    effective df 4.00</span></span>
 <span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 43.104    cBIC 45.044</span></span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 880 ms</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 1.03 s</span></span>
 <span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 6.3e-16   min eigen 0.035</span></span>
 <span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(glm_bw)</span>
 <span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        sexM       ldose  sexM:ldose </span></span>
@@ -640,8 +640,26 @@ y_i \sim \mathrm{Binomial}(m_i, p_i), \qquad
 <span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2  probit -17.83818 41.67636</span></span>
 <span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 cloglog -18.46901 42.93802</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The three models have the same number of parameters, so their log-likelihoods compare directly. The probit link has the largest log-likelihood, but the differences are small: with only 12 batches the data cannot separate the links well. <a href="#fig-links" class="quarto-xref">Figure&nbsp;<span>5.2</span></a> shows why. The three curves are close in the middle of the range of doses and differ at the ends.</p>
+<p>The three models have the same number of parameters, so their log-likelihoods compare directly. The probit link has the largest log-likelihood, but the differences are small: with only 12 batches the data cannot separate the links well. <a href="#fig-links" class="quarto-xref">Figure&nbsp;<span>5.2</span></a> shows why. The three curves are close in the middle of the range of doses and differ at the ends. The type <code>plot_param()</code> of <a href="03-graphs.html" class="quarto-xref"><span>Chapter 3</span></a> draws the probability of the logit model for the males with its 95% band, and we add the curves of the other two links and the observed proportions as layers of <code>ggplot2</code>.</p>
 <div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>males <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">sex =</span> <span class="fu">factor</span>(<span class="st">"M"</span>, <span class="at">levels =</span> <span class="fu">levels</span>(budworm<span class="sc">$</span>sex)))</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>grid <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">ldose =</span> <span class="fu">seq</span>(<span class="at">from =</span> <span class="dv">0</span>, <span class="at">to =</span> <span class="dv">5</span>, <span class="at">length.out =</span> <span class="dv">100</span>),</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">sex =</span> males<span class="sc">$</span>sex, <span class="at">numdead =</span> <span class="dv">0</span>, <span class="at">n =</span> <span class="dv">20</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>other_links <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">ldose =</span> <span class="fu">rep</span>(grid<span class="sc">$</span>ldose, <span class="at">times =</span> <span class="dv">2</span>),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">prop =</span> <span class="fu">c</span>(<span class="fu">predict</span>(fit_bw_probit, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> grid),</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>           <span class="fu">predict</span>(fit_bw_cloglog, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> grid)),</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">link =</span> <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">"probit"</span>, <span class="st">"cloglog"</span>), <span class="at">each =</span> <span class="fu">nrow</span>(grid)))</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>observed_m <span class="ot">&lt;-</span> <span class="fu">subset</span>(budworm, sex <span class="sc">==</span> <span class="st">"M"</span>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(fit_bw_logit, <span class="at">plot_type =</span> <span class="fu">plot_param</span>(<span class="at">param =</span> <span class="st">"mu"</span>, <span class="at">over =</span> <span class="st">"ldose"</span>,</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">at =</span> males),</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>         <span class="at">data =</span> budworm) <span class="sc">+</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">x =</span> ldose, <span class="at">y =</span> prop, <span class="at">linetype =</span> link), <span class="at">data =</span> other_links,</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>            <span class="at">colour =</span> rust) <span class="sc">+</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> ldose, <span class="at">y =</span> numdead <span class="sc">/</span> n), <span class="at">data =</span> observed_m,</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>             <span class="at">colour =</span> <span class="st">"grey40"</span>, <span class="at">size =</span> <span class="fl">1.8</span>) <span class="sc">+</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="at">probit =</span> <span class="st">"dashed"</span>, <span class="at">cloglog =</span> <span class="st">"dotted"</span>)) <span class="sc">+</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"log-dose"</span>, <span class="at">y =</span> <span class="st">"proportion dead"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div id="fig-links" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
 <figure class="quarto-float quarto-float-fig figure">
@@ -649,7 +667,7 @@ y_i \sim \mathrm{Binomial}(m_i, p_i), \qquad
 <img src="05-glm_files/figure-html/fig-links-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-links-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;5.2: Proportion of dead male moths against the log-dose, with the fitted probability of the additive model under three links.
+Figure&nbsp;5.2: Proportion of dead male moths against the log-dose (points), with the fitted probability of the additive model under the logit link (solid, with its 95% band), the probit link (dashed) and the complementary log-log link (dotted).
 </figcaption>
 </figure>
 </div>
@@ -660,78 +678,78 @@ Figure&nbsp;5.2: Proportion of dead male moths against the log-dose, with the fi
 <h3 class="anchored" data-anchor-id="a-binary-response">A binary response</h3>
 <p>When every row is one subject, the response is 0 or 1 and the distribution is the Bernoulli distribution, which is the binomial distribution with one trial. The data frame <code>birthwt</code> from the <code>MASS</code> package has the birth weight of 189 babies, and <code>low</code> is 1 when the weight is below 2.5 kg <span class="citation" data-cites="hosmer1989">(<a href="A2-references.html#ref-hosmer1989" role="doc-biblioref">Hosmer and Lemeshow 1989</a>)</span>. The covariates are the age and the weight of the mother at the last menstrual period, <code>smoke</code> for smoking during the pregnancy and <code>ht</code> for a history of hypertension:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(birthwt, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>fit_bwt <span class="ot">&lt;-</span> <span class="fu">statmod</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht,</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">bernoulli_distrib</span>(), <span class="at">data =</span> birthwt)</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>glm_bwt <span class="ot">&lt;-</span> <span class="fu">glm</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht, <span class="at">family =</span> binomial,</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>               <span class="at">data =</span> birthwt)</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_bwt)</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = low ~ age + lwt + smoke + ht, distrib = bernoulli_distrib(), </span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = birthwt)</span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: bernoulli     Observations: 189</span></span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [logit link]</span></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate       se     z        p    lower     upper</span></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.767    1.052 1.679 0.093133  -0.2955     3.829</span></span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   age          -0.03569  0.03337 -1.07 0.284801  -0.1011   0.02971</span></span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lwt          -0.01696 0.006623 -2.56 0.010466 -0.02994 -0.003974</span></span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   smoke           0.679   0.3319 2.046 0.040794  0.02843      1.33</span></span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   ht              1.788   0.6859 2.607 0.009132   0.4439     3.132</span></span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -107.842166    effective df 5.00</span></span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 225.684    cBIC 241.893</span></span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 10 ms</span></span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.6e-15   min eigen 0.016</span></span>
-<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(glm_bwt)</span>
-<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)         age         lwt       smoke          ht </span></span>
-<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  1.76685576 -0.03568724 -0.01695511  0.67902040  1.78815623</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(birthwt, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>fit_bwt <span class="ot">&lt;-</span> <span class="fu">statmod</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">distrib =</span> <span class="fu">bernoulli_distrib</span>(), <span class="at">data =</span> birthwt)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>glm_bwt <span class="ot">&lt;-</span> <span class="fu">glm</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht, <span class="at">family =</span> binomial,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>               <span class="at">data =</span> birthwt)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_bwt)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = low ~ age + lwt + smoke + ht, distrib = bernoulli_distrib(), </span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = birthwt)</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: bernoulli     Observations: 189</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [logit link]</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate       se     z        p    lower     upper</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     1.767    1.052 1.679 0.093133  -0.2955     3.829</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   age          -0.03569  0.03337 -1.07 0.284801  -0.1011   0.02971</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   lwt          -0.01696 0.006623 -2.56 0.010466 -0.02994 -0.003974</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   smoke           0.679   0.3319 2.046 0.040794  0.02843      1.33</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   ht              1.788   0.6859 2.607 0.009132   0.4439     3.132</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -107.842166    effective df 5.00</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 225.684    cBIC 241.893</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 30 ms</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 4.6e-15   min eigen 0.016</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(glm_bwt)</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)         age         lwt       smoke          ht </span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  1.76685576 -0.03568724 -0.01695511  0.67902040  1.78815623</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The coefficients are those of <code>glm()</code>. Each coefficient is a log odds ratio, so we exponentiate the estimates and the ends of the intervals:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>ci_bwt <span class="ot">&lt;-</span> <span class="fu">confint</span>(fit_bwt)</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>ci_bwt <span class="ot">&lt;-</span> ci_bwt[ci_bwt<span class="sc">$</span>coefficient <span class="sc">!=</span> <span class="st">"(Intercept)"</span>, ]</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>odds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">odds_ratio =</span> <span class="fu">exp</span>(ci_bwt<span class="sc">$</span>estimate),</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">lower =</span> <span class="fu">exp</span>(ci_bwt<span class="sc">$</span>lower),</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">upper =</span> <span class="fu">exp</span>(ci_bwt<span class="sc">$</span>upper),</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">row.names =</span> ci_bwt<span class="sc">$</span>coefficient)</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>odds</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       odds_ratio     lower      upper</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; age    0.9649420 0.9038591  1.0301529</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; lwt    0.9831878 0.9705078  0.9960335</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; smoke  1.9719451 1.0288393  3.7795672</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ht     5.9784194 1.5587006 22.9303170</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>ci_bwt <span class="ot">&lt;-</span> <span class="fu">confint</span>(fit_bwt)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>ci_bwt <span class="ot">&lt;-</span> ci_bwt[ci_bwt<span class="sc">$</span>coefficient <span class="sc">!=</span> <span class="st">"(Intercept)"</span>, ]</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>odds <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">odds_ratio =</span> <span class="fu">exp</span>(ci_bwt<span class="sc">$</span>estimate),</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">lower =</span> <span class="fu">exp</span>(ci_bwt<span class="sc">$</span>lower),</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">upper =</span> <span class="fu">exp</span>(ci_bwt<span class="sc">$</span>upper),</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">row.names =</span> ci_bwt<span class="sc">$</span>coefficient)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>odds</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       odds_ratio     lower      upper</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; age    0.9649420 0.9038591  1.0301529</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; lwt    0.9831878 0.9705078  0.9960335</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; smoke  1.9719451 1.0288393  3.7795672</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; ht     5.9784194 1.5587006 22.9303170</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Smoking multiplies the odds of a low birth weight by 1.97, and a history of hypertension by 5.98. The intervals are Wald intervals, built on the log scale and mapped back, so they are not symmetric around the odds ratio. The function <code>confint()</code> of <code>stats</code> computes profile intervals for a fit of <code>glm()</code>, which differ from the Wald ones when the sample is small. <a href="02-beyond.html#sec-beyond-invert" class="quarto-xref"><span>Section 2.4</span></a> gave the intervals of <code>statmod()</code> that invert the likelihood ratio.</p>
 <p>The Bernoulli distribution takes the same links. We fit four of the links that the <code>linkfunctions7</code> package provides for a probability, with the cauchit link, the inverse of the Cauchy distribution function, in addition to the three of the previous section:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fit_bwt_probit <span class="ot">&lt;-</span> <span class="fu">statmod</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht,</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>                          <span class="at">distrib =</span> <span class="fu">bernoulli_distrib</span>(<span class="at">link_mu =</span> <span class="fu">probit_link</span>()),</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>                          <span class="at">data =</span> birthwt)</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>fit_bwt_cloglog <span class="ot">&lt;-</span> <span class="fu">statmod</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht,</span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>                           <span class="at">distrib =</span> <span class="fu">bernoulli_distrib</span>(<span class="at">link_mu =</span> <span class="fu">cloglog_link</span>()),</span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>                           <span class="at">data =</span> birthwt)</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>fit_bwt_cauchit <span class="ot">&lt;-</span> <span class="fu">statmod</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht,</span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>                           <span class="at">distrib =</span> <span class="fu">bernoulli_distrib</span>(<span class="at">link_mu =</span> <span class="fu">cauchit_link</span>()),</span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>                           <span class="at">data =</span> birthwt)</span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>bwt_links <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">link =</span> <span class="fu">c</span>(<span class="st">"logit"</span>, <span class="st">"probit"</span>, <span class="st">"cloglog"</span>, <span class="st">"cauchit"</span>),</span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">logLik =</span> <span class="fu">c</span>(<span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bwt)), <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bwt_probit)),</span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>             <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bwt_cloglog)),</span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>             <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bwt_cauchit))),</span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_bwt), <span class="fu">AIC</span>(fit_bwt_probit), <span class="fu">AIC</span>(fit_bwt_cloglog),</span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>          <span class="fu">AIC</span>(fit_bwt_cauchit)))</span>
-<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>bwt_links</span>
-<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      link    logLik      AIC</span></span>
-<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1   logit -107.8422 225.6843</span></span>
-<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2  probit -107.7750 225.5500</span></span>
-<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 cloglog -108.1650 226.3300</span></span>
-<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4 cauchit -108.1472 226.2945</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>fit_bwt_probit <span class="ot">&lt;-</span> <span class="fu">statmod</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht,</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>                          <span class="at">distrib =</span> <span class="fu">bernoulli_distrib</span>(<span class="at">link_mu =</span> <span class="fu">probit_link</span>()),</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>                          <span class="at">data =</span> birthwt)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>fit_bwt_cloglog <span class="ot">&lt;-</span> <span class="fu">statmod</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht,</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>                           <span class="at">distrib =</span> <span class="fu">bernoulli_distrib</span>(<span class="at">link_mu =</span> <span class="fu">cloglog_link</span>()),</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>                           <span class="at">data =</span> birthwt)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>fit_bwt_cauchit <span class="ot">&lt;-</span> <span class="fu">statmod</span>(low <span class="sc">~</span> age <span class="sc">+</span> lwt <span class="sc">+</span> smoke <span class="sc">+</span> ht,</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>                           <span class="at">distrib =</span> <span class="fu">bernoulli_distrib</span>(<span class="at">link_mu =</span> <span class="fu">cauchit_link</span>()),</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>                           <span class="at">data =</span> birthwt)</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>bwt_links <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">link =</span> <span class="fu">c</span>(<span class="st">"logit"</span>, <span class="st">"probit"</span>, <span class="st">"cloglog"</span>, <span class="st">"cauchit"</span>),</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">logLik =</span> <span class="fu">c</span>(<span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bwt)), <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bwt_probit)),</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>             <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bwt_cloglog)),</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>             <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bwt_cauchit))),</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_bwt), <span class="fu">AIC</span>(fit_bwt_probit), <span class="fu">AIC</span>(fit_bwt_cloglog),</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>          <span class="fu">AIC</span>(fit_bwt_cauchit)))</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>bwt_links</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      link    logLik      AIC</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1   logit -107.8422 225.6843</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2  probit -107.7750 225.5500</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3 cloglog -108.1650 226.3300</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4 cauchit -108.1472 226.2945</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The four log-likelihoods differ by at most 0.39 units, so the data do not choose among them. The logit link is the usual choice because its coefficients are log odds ratios.</p>
 </section>
@@ -743,109 +761,124 @@ y_i \sim \mathrm{Gamma}(\mu_i, \phi), \qquad
 \log\mu_i = \beta_0 + \beta_1 a_i .
 \]</span></p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(GAGurine, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>fit_gam <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(), <span class="at">data =</span> GAGurine)</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>glm_gam <span class="ot">&lt;-</span> <span class="fu">glm</span>(GAG <span class="sc">~</span> Age, <span class="at">family =</span> <span class="fu">Gamma</span>(<span class="at">link =</span> <span class="st">"log"</span>), <span class="at">data =</span> GAGurine)</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_gam)</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = GAG ~ Age, distrib = gamma1_distrib(), data = GAGurine)</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gamma1     Observations: 314</span></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate       se      z       p   lower   upper</span></span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     3.017  0.02884  104.6 &lt; 1e-16    2.96   3.073</span></span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Age           -0.1108 0.003839 -28.87 &lt; 1e-16 -0.1184 -0.1033</span></span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === phi   [log link]</span></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z       p  lower  upper</span></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -2.024 0.07835 -25.83 &lt; 1e-16 -2.178 -1.871</span></span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -876.108985    effective df 3.00</span></span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1758.218    cBIC 1769.466</span></span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 580 ms</span></span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2e-15   min eigen 0.3</span></span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.4e-07   min eigen 1</span></span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(glm_gam)</span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)         Age </span></span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   3.0168913  -0.1108308</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(GAGurine, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>fit_gam <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(), <span class="at">data =</span> GAGurine)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>glm_gam <span class="ot">&lt;-</span> <span class="fu">glm</span>(GAG <span class="sc">~</span> Age, <span class="at">family =</span> <span class="fu">Gamma</span>(<span class="at">link =</span> <span class="st">"log"</span>), <span class="at">data =</span> GAGurine)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_gam)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = GAG ~ Age, distrib = gamma1_distrib(), data = GAGurine)</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gamma1     Observations: 314</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate       se      z       p   lower   upper</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     3.017  0.02884  104.6 &lt; 1e-16    2.96   3.073</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Age           -0.1108 0.003839 -28.87 &lt; 1e-16 -0.1184 -0.1033</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === phi   [log link]</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z       p  lower  upper</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -2.024 0.07835 -25.83 &lt; 1e-16 -2.178 -1.871</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -876.108985    effective df 3.00</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1758.218    cBIC 1769.466</span></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 670 ms</span></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 2e-15   min eigen 0.3</span></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.4e-07   min eigen 1</span></span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(glm_gam)</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)         Age </span></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   3.0168913  -0.1108308</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The distribution <code>gamma1_distrib()</code> has two parameters, the mean <code>mu</code> and the dispersion <code>phi</code>, both with the log link. The formula has no equation for <code>phi</code>, so <code>statmod()</code> estimates it as a constant. The coefficients of the mean are those of <code>glm()</code>. The dispersion is not:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>n_gag <span class="ot">&lt;-</span> <span class="fu">nrow</span>(GAGurine)</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>fit_gam_ml <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(), <span class="at">data =</span> GAGurine,</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>                      <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>phi_table <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">phi =</span> <span class="fu">c</span>(<span class="fu">exp</span>(<span class="fu">coef</span>(fit_gam)<span class="sc">$</span>phi), <span class="fu">exp</span>(<span class="fu">coef</span>(fit_gam_ml)<span class="sc">$</span>phi),</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>          <span class="fu">summary</span>(glm_gam)<span class="sc">$</span>dispersion, glm_gam<span class="sc">$</span>deviance <span class="sc">/</span> n_gag,</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>          <span class="dv">1</span> <span class="sc">/</span> MASS<span class="sc">::</span><span class="fu">gamma.shape</span>(glm_gam)<span class="sc">$</span>alpha),</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"statmod, default"</span>, <span class="st">"statmod, ml()"</span>, <span class="st">"glm, Pearson"</span>,</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>                <span class="st">"glm, deviance / n"</span>, <span class="st">"MASS::gamma.shape"</span>))</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>phi_table</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                         phi</span></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod, default  0.1321160</span></span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod, ml()     0.1313098</span></span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; glm, Pearson      0.1750716</span></span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; glm, deviance / n 0.1341786</span></span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; MASS::gamma.shape 0.1313098</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>n_gag <span class="ot">&lt;-</span> <span class="fu">nrow</span>(GAGurine)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>fit_gam_ml <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(), <span class="at">data =</span> GAGurine,</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>                      <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>phi_table <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">phi =</span> <span class="fu">c</span>(<span class="fu">exp</span>(<span class="fu">coef</span>(fit_gam)<span class="sc">$</span>phi), <span class="fu">exp</span>(<span class="fu">coef</span>(fit_gam_ml)<span class="sc">$</span>phi),</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>          <span class="fu">summary</span>(glm_gam)<span class="sc">$</span>dispersion, glm_gam<span class="sc">$</span>deviance <span class="sc">/</span> n_gag,</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>          <span class="dv">1</span> <span class="sc">/</span> MASS<span class="sc">::</span><span class="fu">gamma.shape</span>(glm_gam)<span class="sc">$</span>alpha),</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">row.names =</span> <span class="fu">c</span>(<span class="st">"statmod, default"</span>, <span class="st">"statmod, ml()"</span>, <span class="st">"glm, Pearson"</span>,</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>                <span class="st">"glm, deviance / n"</span>, <span class="st">"MASS::gamma.shape"</span>))</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>phi_table</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                         phi</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod, default  0.1321160</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod, ml()     0.1313098</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; glm, Pearson      0.1750716</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; glm, deviance / n 0.1341786</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; MASS::gamma.shape 0.1313098</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Four of the estimates are close to each other, and the Pearson estimate of <code>glm()</code> is larger. The maximum likelihood estimate is 0.1313. It is the value of <code>MASS::gamma.shape()</code>, and it is the estimate of <code>statmod()</code> with the criterion <code>ml()</code>. The default criterion of <code>statmod()</code> is REML. It integrates the two coefficients of the mean out of the likelihood, and for a gamma response its estimate is close to the maximum likelihood estimate times <span class="math inline">\(n/(n - 2)\)</span>, as the two numbers below show:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>phi_table[<span class="st">"statmod, ml()"</span>, <span class="st">"phi"</span>] <span class="sc">*</span> n_gag <span class="sc">/</span> (n_gag <span class="sc">-</span> <span class="dv">2</span>)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1321515</span></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>phi_table[<span class="st">"statmod, default"</span>, <span class="st">"phi"</span>]</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.132116</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>phi_table[<span class="st">"statmod, ml()"</span>, <span class="st">"phi"</span>] <span class="sc">*</span> n_gag <span class="sc">/</span> (n_gag <span class="sc">-</span> <span class="dv">2</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1321515</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>phi_table[<span class="st">"statmod, default"</span>, <span class="st">"phi"</span>]</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.132116</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The estimate of <code>glm()</code> is different in kind. It is the moment estimate, the Pearson statistic divided by <span class="math inline">\(n - 2\)</span>, and it is 0.1751, larger than the others. The function <code>glm()</code> computes the standard errors of the coefficients of the mean from the expected (Fisher) information, which is proportional to <span class="math inline">\(1/\phi\)</span>, so its standard errors are proportional to <span class="math inline">\(\sqrt\phi\)</span>. The log link is not the canonical link of the gamma distribution, so the expected and the observed information of the mean differ, and <code>statmod()</code> uses the observed one by default. With <code>information = expected_info()</code> the standard errors of the two functions are in the ratio of the square roots of the two estimates of <span class="math inline">\(\phi\)</span>. With the default they are not:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>se_exp <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(fit_gam, <span class="at">vcov_type =</span> <span class="fu">bayesian_vcov</span>(</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">information =</span> <span class="fu">expected_info</span>()))))[[<span class="st">"mu:Age"</span>]]</span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>se_obs <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(fit_gam)))[[<span class="st">"mu:Age"</span>]]</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>se_glm <span class="ot">&lt;-</span> <span class="fu">summary</span>(glm_gam)<span class="sc">$</span>coefficients[<span class="st">"Age"</span>, <span class="st">"Std. Error"</span>]</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">expected =</span> se_exp, <span class="at">observed =</span> se_obs, <span class="at">glm =</span> se_glm)</span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    expected    observed         glm </span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 0.004122248 0.003839012 0.004745307</span></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">expected =</span> se_glm <span class="sc">/</span> se_exp, <span class="at">observed =</span> se_glm <span class="sc">/</span> se_obs)</span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; expected observed </span></span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.151145 1.236075</span></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="fu">sqrt</span>(phi_table[<span class="st">"glm, Pearson"</span>, <span class="st">"phi"</span>] <span class="sc">/</span> phi_table[<span class="st">"statmod, default"</span>, <span class="st">"phi"</span>])</span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.151145</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>se_exp <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(fit_gam, <span class="at">vcov_type =</span> <span class="fu">bayesian_vcov</span>(</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">information =</span> <span class="fu">expected_info</span>()))))[[<span class="st">"mu:Age"</span>]]</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>se_obs <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(fit_gam)))[[<span class="st">"mu:Age"</span>]]</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>se_glm <span class="ot">&lt;-</span> <span class="fu">summary</span>(glm_gam)<span class="sc">$</span>coefficients[<span class="st">"Age"</span>, <span class="st">"Std. Error"</span>]</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">expected =</span> se_exp, <span class="at">observed =</span> se_obs, <span class="at">glm =</span> se_glm)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;    expected    observed         glm </span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 0.004122248 0.003839012 0.004745307</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">expected =</span> se_glm <span class="sc">/</span> se_exp, <span class="at">observed =</span> se_glm <span class="sc">/</span> se_obs)</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; expected observed </span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1.151145 1.236075</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="fu">sqrt</span>(phi_table[<span class="st">"glm, Pearson"</span>, <span class="st">"phi"</span>] <span class="sc">/</span> phi_table[<span class="st">"statmod, default"</span>, <span class="st">"phi"</span>])</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1.151145</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The default standard error of the age, 0.00384, is 6.9 per cent smaller than the one of the expected information, 0.00412.</p>
 <p>The log-likelihood depends on the dispersion too. <code>logLik()</code> of <code>statmod()</code> evaluates the gamma density at its estimate of <span class="math inline">\(\phi\)</span>. <code>logLik()</code> of <code>glm()</code> evaluates it at the deviance divided by <span class="math inline">\(n\)</span>, which approximates the maximum likelihood estimate. Both count three parameters, the two coefficients and <span class="math inline">\(\phi\)</span>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_gam)</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -876.109 (df=3)</span></span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_gam_ml)</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -876.1059 (df=3)</span></span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(glm_gam)</span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -876.1439 (df=3)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_gam)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -876.109 (df=3)</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(fit_gam_ml)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -876.1059 (df=3)</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">logLik</span>(glm_gam)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 'log Lik.' -876.1439 (df=3)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="the-inverse-gaussian-distribution" class="level3">
 <h3 class="anchored" data-anchor-id="the-inverse-gaussian-distribution">The inverse gaussian distribution</h3>
 <p>When the standard deviation grows faster with the mean, the inverse gaussian distribution, with variance <span class="math inline">\(\phi\mu^3\)</span>, is an alternative. The two models describe the same response, so we compare them through the AIC:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fit_ig <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">invgauss1_distrib</span>(), <span class="at">data =</span> GAGurine)</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">gamma =</span> <span class="fu">AIC</span>(fit_gam), <span class="at">inverse_gaussian =</span> <span class="fu">AIC</span>(fit_ig))</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            gamma inverse_gaussian </span></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         1758.218         1819.355</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>fit_ig <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">invgauss1_distrib</span>(), <span class="at">data =</span> GAGurine)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">gamma =</span> <span class="fu">AIC</span>(fit_gam), <span class="at">inverse_gaussian =</span> <span class="fu">AIC</span>(fit_ig))</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            gamma inverse_gaussian </span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         1758.218         1819.355</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The gamma distribution has the smaller AIC, by 61.1 units. The linear log-mean is a restriction that we can relax. A smooth function of the age gives a much better fit:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>fit_gam_s <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> <span class="fu">s</span>(Age, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)),</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(), <span class="at">data =</span> GAGurine)</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">linear =</span> <span class="fu">AIC</span>(fit_gam), <span class="at">smooth =</span> <span class="fu">AIC</span>(fit_gam_s))</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   linear   smooth </span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1758.218 1635.401</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>fit_gam_s <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> <span class="fu">s</span>(Age, <span class="fu">bspline_smooth</span>(<span class="at">k =</span> <span class="dv">10</span>)),</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(), <span class="at">data =</span> GAGurine)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">linear =</span> <span class="fu">AIC</span>(fit_gam), <span class="at">smooth =</span> <span class="fu">AIC</span>(fit_gam_s))</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   linear   smooth </span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1758.218 1635.401</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The effective number of parameters of the smooth model is 8.4, against 3 for the linear model. <a href="#fig-gag" class="quarto-xref">Figure&nbsp;<span>5.3</span></a> shows that the curve is steeper for the youngest children than a straight line on the log scale can be. The smooth terms are the subject of a later chapter.</p>
+<p>The effective number of parameters of the smooth model is 8.4, against 3 for the linear model. <a href="#fig-gag" class="quarto-xref">Figure&nbsp;<span>5.3</span></a> shows that the curve is steeper for the youngest children than a straight line on the log scale can be. The smooth terms are the subject of a later chapter. The figure draws the mean of the smooth model with <code>plot_param()</code> and adds the data and the means of the two linear models as layers.</p>
 <div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>ga <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Age =</span> <span class="fu">seq</span>(<span class="at">from =</span> <span class="dv">0</span>, <span class="at">to =</span> <span class="dv">17</span>, <span class="at">length.out =</span> <span class="dv">200</span>))</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>linear_fits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">Age =</span> <span class="fu">rep</span>(ga<span class="sc">$</span>Age, <span class="at">times =</span> <span class="dv">2</span>),</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">GAG =</span> <span class="fu">c</span>(<span class="fu">predict</span>(fit_gam, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> ga),</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>          <span class="fu">predict</span>(fit_ig, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> ga)),</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">model =</span> <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">"gamma, linear"</span>, <span class="st">"inverse gaussian, linear"</span>),</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>              <span class="at">each =</span> <span class="fu">nrow</span>(ga)))</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(fit_gam_s, <span class="at">plot_type =</span> <span class="fu">plot_param</span>(<span class="at">param =</span> <span class="st">"mu"</span>, <span class="at">over =</span> <span class="st">"Age"</span>),</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">data =</span> GAGurine) <span class="sc">+</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> Age, <span class="at">y =</span> GAG), <span class="at">data =</span> GAGurine, <span class="at">colour =</span> <span class="st">"grey60"</span>,</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>             <span class="at">size =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">x =</span> Age, <span class="at">y =</span> GAG, <span class="at">linetype =</span> model), <span class="at">data =</span> linear_fits,</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>            <span class="at">colour =</span> rust) <span class="sc">+</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_linetype_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"dashed"</span>, <span class="st">"dotted"</span>)) <span class="sc">+</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"age (years)"</span>, <span class="at">y =</span> <span class="st">"GAG"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div id="fig-gag" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
 <figure class="quarto-float quarto-float-fig figure">
@@ -853,7 +886,7 @@ y_i \sim \mathrm{Gamma}(\mu_i, \phi), \qquad
 <img src="05-glm_files/figure-html/fig-gag-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-gag-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;5.3: GAG concentration against age, with three fitted means: gamma with a linear log-mean, inverse gaussian with a linear log-mean, and gamma with a smooth log-mean.
+Figure&nbsp;5.3: GAG concentration against age, with three fitted means: gamma with a smooth log-mean (solid, with its 95% band), gamma with a linear log-mean (dashed) and inverse gaussian with a linear log-mean (dotted).
 </figcaption>
 </figure>
 </div>
@@ -865,9 +898,9 @@ Figure&nbsp;5.3: GAG concentration against age, with three fitted means: gamma w
 <h2 data-number="5.4" class="anchored" data-anchor-id="sec-glm-overdispersion"><span class="header-section-number">5.4</span> Counts that vary too much</h2>
 <p>The data frame <code>quine</code> from the <code>MASS</code> package records the days of absence from school in one year for 146 children in a town in New South Wales <span class="citation" data-cites="aitkin1978 venables2002">(<a href="A2-references.html#ref-aitkin1978" role="doc-biblioref">Aitkin 1978</a>; <a href="A2-references.html#ref-venables2002" role="doc-biblioref">Venables and Ripley 2002</a>)</span>. The covariates are the ethnic background of the child (<code>Eth</code>), the sex, the age group and the learner status (<code>Lrn</code>). The mean number of days is 16.5 and the variance is 264.2, so the counts vary far more than a Poisson distribution allows.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(quine, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>formula_q <span class="ot">&lt;-</span> Days <span class="sc">~</span> Eth <span class="sc">+</span> Sex <span class="sc">+</span> Age <span class="sc">+</span> Lrn</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>fit_q_pois <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">poisson_distrib</span>(), <span class="at">data =</span> quine)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(quine, <span class="at">package =</span> <span class="st">"MASS"</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>formula_q <span class="ot">&lt;-</span> Days <span class="sc">~</span> Eth <span class="sc">+</span> Sex <span class="sc">+</span> Age <span class="sc">+</span> Lrn</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>fit_q_pois <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">poisson_distrib</span>(), <span class="at">data =</span> quine)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="four-distributions-for-the-variance" class="level3">
 <h3 class="anchored" data-anchor-id="four-distributions-for-the-variance">Four distributions for the variance</h3>
@@ -915,69 +948,69 @@ Figure&nbsp;5.3: GAG concentration against age, with three fitted means: gamma w
 </table>
 <p>Of these, only the Poisson distribution and the negative binomial distribution with a known <span class="math inline">\(\theta\)</span> are in the exponential family. The other three are extensions of the generalized linear model: the variance function of <code>negbin1_distrib()</code> is linear in the mean, like that of the quasi-Poisson model of <code>glm()</code> but with a proper distribution and a likelihood, and the Poisson-inverse gaussian distribution, <code>pig</code>, is a mixture of Poisson distributions with an inverse gaussian mean. In <code>pig1_distrib()</code> it has the same variance function as <code>negbin2_distrib()</code>, with a longer right tail. In <code>pig2_distrib()</code> the dispersion <span class="math inline">\(\sigma\)</span> is a function of the mean and of a parameter <span class="math inline">\(\alpha\)</span>. We fit the four distributions:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>fit_q_nb2 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> quine)</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>fit_q_nb1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">negbin1_distrib</span>(), <span class="at">data =</span> quine)</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>fit_q_pig1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">pig1_distrib</span>(), <span class="at">data =</span> quine)</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>fit_q_pig2 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">pig2_distrib</span>(), <span class="at">data =</span> quine)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>fit_q_nb2 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> quine)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>fit_q_nb1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">negbin1_distrib</span>(), <span class="at">data =</span> quine)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>fit_q_pig1 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">pig1_distrib</span>(), <span class="at">data =</span> quine)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>fit_q_pig2 <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">pig2_distrib</span>(), <span class="at">data =</span> quine)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>To see whether the variance function of a fitted model is right, we divide the Pearson statistic by the residual degrees of freedom. For a model with effective number of parameters <span class="math inline">\(\tau\)</span> the statistic is <span class="math display">\[
 \frac{1}{n - \tau} \sum_{i=1}^{n}
 \frac{(y_i - \hat\mu_i)^2}{\widehat{\mathrm{Var}}(y_i)} ,
 \]</span> and its value is close to one when the variance function is right <span class="citation" data-cites="mccullagh1989">(<a href="A2-references.html#ref-mccullagh1989" role="doc-biblioref">McCullagh and Nelder 1989, sec. 4.5</a>)</span>. The function <code>variance()</code> returns the variance of a distribution at given values of its parameters. The function <code>pearson_ratio()</code> below collects the fitted values of the parameters with <code>predict()</code> and applies it:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>pearson_ratio <span class="ot">&lt;-</span> <span class="cf">function</span>(fit, distrib, data, y) {</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  theta <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (p <span class="cf">in</span> distrib<span class="sc">@</span>params) {</span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    theta[[p]] <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit, <span class="at">what =</span> p, <span class="at">newdata =</span> data)</span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  v <span class="ot">&lt;-</span> <span class="fu">variance</span>(distrib, <span class="at">theta =</span> theta)</span>
-<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  tau <span class="ot">&lt;-</span> <span class="fu">sum</span>(fit<span class="sc">@</span>edf<span class="sc">$</span>edf)</span>
-<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>((y <span class="sc">-</span> theta<span class="sc">$</span>mu)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> v) <span class="sc">/</span> (<span class="fu">length</span>(y) <span class="sc">-</span> tau)</span>
-<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>quine_fits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">distribution =</span> <span class="fu">c</span>(<span class="st">"Poisson"</span>, <span class="st">"negbin2"</span>, <span class="st">"negbin1"</span>, <span class="st">"pig1"</span>, <span class="st">"pig2"</span>),</span>
-<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_q_pois), <span class="fu">AIC</span>(fit_q_nb2), <span class="fu">AIC</span>(fit_q_nb1), <span class="fu">AIC</span>(fit_q_pig1),</span>
-<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>          <span class="fu">AIC</span>(fit_q_pig2)),</span>
-<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">pearson =</span> <span class="fu">c</span>(</span>
-<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_pois, <span class="fu">poisson_distrib</span>(), quine, quine<span class="sc">$</span>Days),</span>
-<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_nb2, <span class="fu">negbin2_distrib</span>(), quine, quine<span class="sc">$</span>Days),</span>
-<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_nb1, <span class="fu">negbin1_distrib</span>(), quine, quine<span class="sc">$</span>Days),</span>
-<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_pig1, <span class="fu">pig1_distrib</span>(), quine, quine<span class="sc">$</span>Days),</span>
-<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_pig2, <span class="fu">pig2_distrib</span>(), quine, quine<span class="sc">$</span>Days)))</span>
-<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>quine_fits</span>
-<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   distribution      AIC    pearson</span></span>
-<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1      Poisson 2299.184 13.1668426</span></span>
-<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2      negbin2 1109.320  0.9518252</span></span>
-<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3      negbin1 1111.958  0.9725180</span></span>
-<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4         pig1 1125.403  0.6349324</span></span>
-<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5         pig2 1129.753  0.6995814</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>pearson_ratio <span class="ot">&lt;-</span> <span class="cf">function</span>(fit, distrib, data, y) {</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  theta <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (p <span class="cf">in</span> distrib<span class="sc">@</span>params) {</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    theta[[p]] <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit, <span class="at">what =</span> p, <span class="at">newdata =</span> data)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  v <span class="ot">&lt;-</span> <span class="fu">variance</span>(distrib, <span class="at">theta =</span> theta)</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  tau <span class="ot">&lt;-</span> <span class="fu">sum</span>(fit<span class="sc">@</span>edf<span class="sc">$</span>edf)</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>((y <span class="sc">-</span> theta<span class="sc">$</span>mu)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> v) <span class="sc">/</span> (<span class="fu">length</span>(y) <span class="sc">-</span> tau)</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>quine_fits <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">distribution =</span> <span class="fu">c</span>(<span class="st">"Poisson"</span>, <span class="st">"negbin2"</span>, <span class="st">"negbin1"</span>, <span class="st">"pig1"</span>, <span class="st">"pig2"</span>),</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(fit_q_pois), <span class="fu">AIC</span>(fit_q_nb2), <span class="fu">AIC</span>(fit_q_nb1), <span class="fu">AIC</span>(fit_q_pig1),</span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>          <span class="fu">AIC</span>(fit_q_pig2)),</span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">pearson =</span> <span class="fu">c</span>(</span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_pois, <span class="fu">poisson_distrib</span>(), quine, quine<span class="sc">$</span>Days),</span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_nb2, <span class="fu">negbin2_distrib</span>(), quine, quine<span class="sc">$</span>Days),</span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_nb1, <span class="fu">negbin1_distrib</span>(), quine, quine<span class="sc">$</span>Days),</span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_pig1, <span class="fu">pig1_distrib</span>(), quine, quine<span class="sc">$</span>Days),</span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pearson_ratio</span>(fit_q_pig2, <span class="fu">pig2_distrib</span>(), quine, quine<span class="sc">$</span>Days)))</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>quine_fits</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   distribution      AIC    pearson</span></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1      Poisson 2299.184 13.1668426</span></span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2      negbin2 1109.320  0.9518252</span></span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3      negbin1 1111.958  0.9725180</span></span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4         pig1 1125.403  0.6349324</span></span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5         pig2 1129.753  0.6995814</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The Poisson model has a ratio of 13.2: the counts vary about 13 times as much as the Poisson variance. The negative binomial distribution <code>negbin2_distrib()</code> brings the ratio to 0.95, and it has the smallest AIC. We may compare the AIC of the five models, although the distributions are different, because every log-likelihood is the logarithm of the probability that its model gives to the same observed counts <span class="citation" data-cites="akaike1974">(<a href="A2-references.html#ref-akaike1974" role="doc-biblioref">Akaike 1974</a>)</span>. The ratios of the <code>pig</code> models are below one, because their variance function overstates the variance of these counts.</p>
 <p><a href="#fig-quine" class="quarto-xref">Figure&nbsp;<span>5.4</span></a> compares the observed number of children in six classes of absence with the numbers that the Poisson and the <code>negbin2</code> model expect. For each class we sum over the children the probability that the fitted distribution gives to the class:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>brk <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="fl">5.5</span>, <span class="fl">10.5</span>, <span class="fl">20.5</span>, <span class="fl">40.5</span>, <span class="cn">Inf</span>)</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>cls <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"0"</span>, <span class="st">"1-5"</span>, <span class="st">"6-10"</span>, <span class="st">"11-20"</span>, <span class="st">"21-40"</span>, <span class="st">"41+"</span>)</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>observed <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">table</span>(<span class="fu">cut</span>(quine<span class="sc">$</span>Days, <span class="at">breaks =</span> brk)))</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>mu_pois <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_q_pois, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> quine)</span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>mu_nb2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_q_nb2, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> quine)</span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>th_nb2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_q_nb2, <span class="at">what =</span> <span class="st">"theta"</span>, <span class="at">newdata =</span> quine)</span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>exp_pois <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="dv">6</span>)</span>
-<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>exp_nb2 <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="dv">6</span>)</span>
-<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>) {</span>
-<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>  exp_pois[j] <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">ppois</span>(<span class="at">q =</span> brk[j <span class="sc">+</span> <span class="dv">1</span>], <span class="at">lambda =</span> mu_pois) <span class="sc">-</span></span>
-<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>                       <span class="fu">ppois</span>(<span class="at">q =</span> brk[j], <span class="at">lambda =</span> mu_pois))</span>
-<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>  exp_nb2[j] <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">pnbinom</span>(<span class="at">q =</span> brk[j <span class="sc">+</span> <span class="dv">1</span>], <span class="at">size =</span> th_nb2, <span class="at">mu =</span> mu_nb2) <span class="sc">-</span></span>
-<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>                      <span class="fu">pnbinom</span>(<span class="at">q =</span> brk[j], <span class="at">size =</span> th_nb2, <span class="at">mu =</span> mu_nb2))</span>
-<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">class =</span> cls, <span class="at">observed =</span> observed, <span class="at">Poisson =</span> exp_pois,</span>
-<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>           <span class="at">negbin2 =</span> exp_nb2)</span>
-<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   class observed     Poisson   negbin2</span></span>
-<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     0        9  0.01410729  6.851823</span></span>
-<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2   1-5       36  5.72624460 36.183505</span></span>
-<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3  6-10       24 29.66198662 28.054857</span></span>
-<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4 11-20       35 70.68303434 34.605013</span></span>
-<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5 21-40       28 39.41117058 27.380918</span></span>
-<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6   41+       14  0.50345657 12.923884</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>brk <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="fl">5.5</span>, <span class="fl">10.5</span>, <span class="fl">20.5</span>, <span class="fl">40.5</span>, <span class="cn">Inf</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>cls <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"0"</span>, <span class="st">"1-5"</span>, <span class="st">"6-10"</span>, <span class="st">"11-20"</span>, <span class="st">"21-40"</span>, <span class="st">"41+"</span>)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>observed <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">table</span>(<span class="fu">cut</span>(quine<span class="sc">$</span>Days, <span class="at">breaks =</span> brk)))</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>mu_pois <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_q_pois, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> quine)</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>mu_nb2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_q_nb2, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> quine)</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>th_nb2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_q_nb2, <span class="at">what =</span> <span class="st">"theta"</span>, <span class="at">newdata =</span> quine)</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>exp_pois <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="dv">6</span>)</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>exp_nb2 <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="dv">6</span>)</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>) {</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>  exp_pois[j] <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">ppois</span>(<span class="at">q =</span> brk[j <span class="sc">+</span> <span class="dv">1</span>], <span class="at">lambda =</span> mu_pois) <span class="sc">-</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>                       <span class="fu">ppois</span>(<span class="at">q =</span> brk[j], <span class="at">lambda =</span> mu_pois))</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>  exp_nb2[j] <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">pnbinom</span>(<span class="at">q =</span> brk[j <span class="sc">+</span> <span class="dv">1</span>], <span class="at">size =</span> th_nb2, <span class="at">mu =</span> mu_nb2) <span class="sc">-</span></span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>                      <span class="fu">pnbinom</span>(<span class="at">q =</span> brk[j], <span class="at">size =</span> th_nb2, <span class="at">mu =</span> mu_nb2))</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">class =</span> cls, <span class="at">observed =</span> observed, <span class="at">Poisson =</span> exp_pois,</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>           <span class="at">negbin2 =</span> exp_nb2)</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   class observed     Poisson   negbin2</span></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1     0        9  0.01410729  6.851823</span></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2   1-5       36  5.72624460 36.183505</span></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3  6-10       24 29.66198662 28.054857</span></span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4 11-20       35 70.68303434 34.605013</span></span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5 21-40       28 39.41117058 27.380918</span></span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6   41+       14  0.50345657 12.923884</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
@@ -999,22 +1032,22 @@ Figure&nbsp;5.4: Number of children in six classes of days of absence: observed 
 <h3 class="anchored" data-anchor-id="the-dispersion-of-the-negative-binomial">The dispersion of the negative binomial</h3>
 <p>The function <code>MASS::glm.nb()</code> fits the same negative binomial model. It alternates the estimation of the coefficients with the maximum likelihood estimation of <span class="math inline">\(\theta\)</span>. The default criterion of <code>statmod()</code> is REML, as for the gamma distribution, and the estimate of <span class="math inline">\(\theta\)</span> is a little smaller. With the criterion <code>ml()</code> the two functions agree:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>glm_q_nb <span class="ot">&lt;-</span> MASS<span class="sc">::</span><span class="fu">glm.nb</span>(formula_q, <span class="at">data =</span> quine)</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>fit_q_nb2_ml <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> quine,</span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">reml =</span> <span class="fu">exp</span>(<span class="fu">coef</span>(fit_q_nb2)<span class="sc">$</span>theta), <span class="at">ml =</span> <span class="fu">exp</span>(<span class="fu">coef</span>(fit_q_nb2_ml)<span class="sc">$</span>theta),</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">glm.nb =</span> glm_q_nb<span class="sc">$</span>theta)</span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; reml.(Intercept)   ml.(Intercept)           glm.nb </span></span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         1.210202         1.274893         1.274893</span></span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">coef</span>(fit_q_nb2_ml)<span class="sc">$</span>mu <span class="sc">-</span> <span class="fu">coef</span>(glm_q_nb)))</span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.667142e-08</span></span>
-<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>move_nb <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">coef</span>(fit_q_nb2)<span class="sc">$</span>mu <span class="sc">-</span> <span class="fu">coef</span>(glm_q_nb)))</span>
-<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>move_nb</span>
-<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.0007519732</span></span>
-<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod_ml =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_q_nb2_ml)),</span>
-<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">glm.nb =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(glm_q_nb)))</span>
-<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod_ml     glm.nb </span></span>
-<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  -546.5755  -546.5755</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>glm_q_nb <span class="ot">&lt;-</span> MASS<span class="sc">::</span><span class="fu">glm.nb</span>(formula_q, <span class="at">data =</span> quine)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>fit_q_nb2_ml <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> quine,</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">outer_criterion =</span> <span class="fu">ml</span>())</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">reml =</span> <span class="fu">exp</span>(<span class="fu">coef</span>(fit_q_nb2)<span class="sc">$</span>theta), <span class="at">ml =</span> <span class="fu">exp</span>(<span class="fu">coef</span>(fit_q_nb2_ml)<span class="sc">$</span>theta),</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">glm.nb =</span> glm_q_nb<span class="sc">$</span>theta)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; reml.(Intercept)   ml.(Intercept)           glm.nb </span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;         1.210202         1.274893         1.274893</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">coef</span>(fit_q_nb2_ml)<span class="sc">$</span>mu <span class="sc">-</span> <span class="fu">coef</span>(glm_q_nb)))</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2.667142e-08</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>move_nb <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">abs</span>(<span class="fu">coef</span>(fit_q_nb2)<span class="sc">$</span>mu <span class="sc">-</span> <span class="fu">coef</span>(glm_q_nb)))</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>move_nb</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.0007519732</span></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod_ml =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_q_nb2_ml)),</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">glm.nb =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(glm_q_nb)))</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; statmod_ml     glm.nb </span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  -546.5755  -546.5755</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The REML estimate of the dispersion removes the bias that comes from estimating the seven coefficients of the mean, in the same way as in <a href="04-lm.html#sec-lm-linear" class="quarto-xref"><span>Section 4.1</span></a>, where REML gave the residual variance <span class="math inline">\(\mathrm{RSS}/(n - p)\)</span>. The coefficients of the mean move by at most 0.00075.</p>
 </section>
@@ -1024,65 +1057,65 @@ Figure&nbsp;5.4: Number of children in six classes of days of absence: observed 
 \mathrm{Var}(Y) = m\mu(1 - \mu)\left(1 + (m - 1)\frac{\sigma}{1 + \sigma}\right) ,
 \]</span> which is the binomial variance multiplied by a factor above one. The factor <span class="math inline">\(\sigma/(1 + \sigma)\)</span> is the correlation between two trials of the same group. We draw 200 groups of 20 trials from this distribution with <code>rstatmod()</code>, with the true values <span class="math inline">\(\mu = \mathrm{logit}^{-1}(0.2 + x)\)</span> and <span class="math inline">\(\sigma = 0.5\)</span>, and we fit the binomial and the beta-binomial models:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>xs <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">runif</span>(<span class="at">n =</span> <span class="dv">200</span>, <span class="at">min =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">max =</span> <span class="dv">1</span>))</span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>sim_bb <span class="ot">&lt;-</span> <span class="fu">rstatmod</span>(y <span class="sc">~</span> x <span class="sc">|</span> sigma <span class="sc">~</span> <span class="dv">1</span>, <span class="at">distrib =</span> <span class="fu">betabinom1_distrib</span>(<span class="at">size =</span> <span class="dv">20</span>),</span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> xs, <span class="at">par =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">c</span>(<span class="fl">0.2</span>, <span class="dv">1</span>), <span class="at">sigma =</span> <span class="fu">log</span>(<span class="fl">0.5</span>)))</span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>fit_b_bin <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> x, <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">20</span>),</span>
-<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> sim_bb<span class="sc">$</span>data)</span>
-<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>fit_b_bb <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> x, <span class="at">distrib =</span> <span class="fu">betabinom1_distrib</span>(<span class="at">size =</span> <span class="dv">20</span>),</span>
-<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>                    <span class="at">data =</span> sim_bb<span class="sc">$</span>data)</span>
-<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_b_bb)</span>
-<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = y ~ x, distrib = betabinom1_distrib(size = 20), </span></span>
-<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = sim_bb$data)</span></span>
-<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: beta-binomial [size=20]     Observations: 200</span></span>
-<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [logit link]</span></span>
-<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se     z         p  lower  upper</span></span>
-<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    0.3263 0.0879 3.712 0.0002058  0.154 0.4985</span></span>
-<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   x               1.045 0.1663 6.285 3.277e-10 0.7194  1.371</span></span>
-<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
-<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se      z         p   lower   upper</span></span>
-<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)   -0.6732 0.1087 -6.193 5.912e-10 -0.8863 -0.4601</span></span>
-<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -582.383273    effective df 3.00</span></span>
-<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1170.767    cBIC 1180.661</span></span>
-<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 380 ms</span></span>
-<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.3e-15   min eigen 0.81</span></span>
-<span id="cb24-35"><a href="#cb24-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2e-11   min eigen 1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>xs <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">runif</span>(<span class="at">n =</span> <span class="dv">200</span>, <span class="at">min =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">max =</span> <span class="dv">1</span>))</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>sim_bb <span class="ot">&lt;-</span> <span class="fu">rstatmod</span>(y <span class="sc">~</span> x <span class="sc">|</span> sigma <span class="sc">~</span> <span class="dv">1</span>, <span class="at">distrib =</span> <span class="fu">betabinom1_distrib</span>(<span class="at">size =</span> <span class="dv">20</span>),</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> xs, <span class="at">par =</span> <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">c</span>(<span class="fl">0.2</span>, <span class="dv">1</span>), <span class="at">sigma =</span> <span class="fu">log</span>(<span class="fl">0.5</span>)))</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>fit_b_bin <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> x, <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">size =</span> <span class="dv">20</span>),</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> sim_bb<span class="sc">$</span>data)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>fit_b_bb <span class="ot">&lt;-</span> <span class="fu">statmod</span>(y <span class="sc">~</span> x, <span class="at">distrib =</span> <span class="fu">betabinom1_distrib</span>(<span class="at">size =</span> <span class="dv">20</span>),</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>                    <span class="at">data =</span> sim_bb<span class="sc">$</span>data)</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_b_bb)</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = y ~ x, distrib = betabinom1_distrib(size = 20), </span></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = sim_bb$data)</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: beta-binomial [size=20]     Observations: 200</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [logit link]</span></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se     z         p  lower  upper</span></span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    0.3263 0.0879 3.712 0.0002058  0.154 0.4985</span></span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   x               1.045 0.1663 6.285 3.277e-10 0.7194  1.371</span></span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === sigma   [log link]</span></span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se      z         p   lower   upper</span></span>
+<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)   -0.6732 0.1087 -6.193 5.912e-10 -0.8863 -0.4601</span></span>
+<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -582.383273    effective df 3.00</span></span>
+<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1170.767    cBIC 1180.661</span></span>
+<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 450 ms</span></span>
+<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.3e-15   min eigen 0.81</span></span>
+<span id="cb26-35"><a href="#cb26-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 2e-11   min eigen 1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The estimate of <span class="math inline">\(\log\sigma\)</span> is -0.67 against the true value <span class="math inline">\(\log 0.5 = -0.69\)</span>. The binomial model fits the same mean with the same kind of coefficients, but its standard errors are too small, because it treats the 20 trials of a group as independent:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>se_bin <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(fit_b_bin)))</span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>se_bb <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(fit_b_bb)))[<span class="fu">c</span>(<span class="st">"mu:(Intercept)"</span>, <span class="st">"mu:x"</span>)]</span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(<span class="at">binomial =</span> se_bin, <span class="at">beta_binomial =</span> se_bb, <span class="at">ratio =</span> se_bb <span class="sc">/</span> se_bin)</span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  binomial beta_binomial    ratio</span></span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:(Intercept) 0.03426012     0.0878973 2.565586</span></span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:x           0.06478789     0.1663370 2.567410</span></span>
-<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">binomial =</span> <span class="fu">AIC</span>(fit_b_bin), <span class="at">beta_binomial =</span> <span class="fu">AIC</span>(fit_b_bb))</span>
-<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      binomial beta_binomial </span></span>
-<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      2245.085      1170.767</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>se_bin <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(fit_b_bin)))</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>se_bb <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(fit_b_bb)))[<span class="fu">c</span>(<span class="st">"mu:(Intercept)"</span>, <span class="st">"mu:x"</span>)]</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(<span class="at">binomial =</span> se_bin, <span class="at">beta_binomial =</span> se_bb, <span class="at">ratio =</span> se_bb <span class="sc">/</span> se_bin)</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  binomial beta_binomial    ratio</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:(Intercept) 0.03426012     0.0878973 2.565586</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:x           0.06478789     0.1663370 2.567410</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">binomial =</span> <span class="fu">AIC</span>(fit_b_bin), <span class="at">beta_binomial =</span> <span class="fu">AIC</span>(fit_b_bb))</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      binomial beta_binomial </span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;      2245.085      1170.767</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The ratio of the two standard errors should be close to the square root of the Pearson ratio of the binomial fit, and to the square root of the factor <span class="math inline">\(1 + 19 \cdot 0.5/1.5\)</span> by which the true variance exceeds the binomial one. We compute the three squared numbers:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>mu_b <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_b_bin, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> sim_bb<span class="sc">$</span>data)</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>x2_b <span class="ot">&lt;-</span> <span class="fu">sum</span>((sim_bb<span class="sc">$</span>data<span class="sc">$</span>y <span class="sc">-</span> <span class="dv">20</span> <span class="sc">*</span> mu_b)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> (<span class="dv">20</span> <span class="sc">*</span> mu_b <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> mu_b)))</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>x2_b <span class="sc">/</span> (<span class="fu">nrow</span>(sim_bb<span class="sc">$</span>data) <span class="sc">-</span> <span class="dv">2</span>)</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 7.531307</span></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span> <span class="sc">+</span> <span class="dv">19</span> <span class="sc">*</span> <span class="fl">0.5</span> <span class="sc">/</span> <span class="fl">1.5</span></span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 7.333333</span></span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>(se_bb <span class="sc">/</span> se_bin)<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:(Intercept)           mu:x </span></span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       6.582232       6.591592</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>mu_b <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit_b_bin, <span class="at">what =</span> <span class="st">"mu"</span>, <span class="at">newdata =</span> sim_bb<span class="sc">$</span>data)</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>x2_b <span class="ot">&lt;-</span> <span class="fu">sum</span>((sim_bb<span class="sc">$</span>data<span class="sc">$</span>y <span class="sc">-</span> <span class="dv">20</span> <span class="sc">*</span> mu_b)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> (<span class="dv">20</span> <span class="sc">*</span> mu_b <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> mu_b)))</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>x2_b <span class="sc">/</span> (<span class="fu">nrow</span>(sim_bb<span class="sc">$</span>data) <span class="sc">-</span> <span class="dv">2</span>)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 7.531307</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span> <span class="sc">+</span> <span class="dv">19</span> <span class="sc">*</span> <span class="fl">0.5</span> <span class="sc">/</span> <span class="fl">1.5</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 7.333333</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>(se_bb <span class="sc">/</span> se_bin)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; mu:(Intercept)           mu:x </span></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       6.582232       6.591592</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The ratio of the two standard errors is about 2.6. Its square, 6.6, is of the same size as the Pearson ratio of the binomial fit, 7.5, and as the factor 7.3.</p>
 </section>
@@ -1091,106 +1124,106 @@ Figure&nbsp;5.4: Number of children in six classes of days of absence: observed 
 <h2 data-number="5.5" class="anchored" data-anchor-id="sec-glm-dispersion"><span class="header-section-number">5.5</span> A dispersion with covariates</h2>
 <p>Every parameter of a distribution can have its own equation, as <span class="math inline">\(\sigma\)</span> had in <a href="04-lm.html#sec-lm-spread" class="quarto-xref"><span>Section 4.3</span></a>. The dispersion of a generalized linear model is the second parameter, and we can let it depend on covariates. A model with a regression for the dispersion is a joint model for the mean and the dispersion <span class="citation" data-cites="smyth1989">(<a href="A2-references.html#ref-smyth1989" role="doc-biblioref">Smyth 1989</a>)</span>, an extension of the generalized linear model that <code>glm()</code> does not fit. In the <code>GAGurine</code> data the variation of the concentration may change with age. We give the dispersion <span class="math inline">\(\phi\)</span> of the gamma model a linear equation in the age:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>fit_gam_phi <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age <span class="sc">|</span> phi <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(),</span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>                       <span class="at">data =</span> GAGurine)</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_gam_phi)</span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = GAG ~ Age | phi ~ Age, distrib = gamma1_distrib(), </span></span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = GAGurine)</span></span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gamma1     Observations: 314</span></span>
-<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
-<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate       se     z       p   lower   upper</span></span>
-<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     3.047  0.02881 105.8 &lt; 1e-16   2.991   3.104</span></span>
-<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Age           -0.1173 0.004845 -24.2 &lt; 1e-16 -0.1268 -0.1078</span></span>
-<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === phi   [log link]</span></span>
-<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z        p   lower   upper</span></span>
-<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -2.286  0.1179 -19.39  &lt; 1e-16  -2.517  -2.055</span></span>
-<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Age           0.04489 0.01656  2.712 0.006697 0.01244 0.07734</span></span>
-<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -872.187227    effective df 4.00</span></span>
-<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1752.374    cBIC 1767.372</span></span>
-<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 190 ms</span></span>
-<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5e-07   min eigen 0.34</span></span>
-<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 4.3e-06   min eigen 0.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>fit_gam_phi <span class="ot">&lt;-</span> <span class="fu">statmod</span>(GAG <span class="sc">~</span> Age <span class="sc">|</span> phi <span class="sc">~</span> Age, <span class="at">distrib =</span> <span class="fu">gamma1_distrib</span>(),</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>                       <span class="at">data =</span> GAGurine)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_gam_phi)</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = GAG ~ Age | phi ~ Age, distrib = gamma1_distrib(), </span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             data = GAGurine)</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: gamma1     Observations: 314</span></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate       se     z       p   lower   upper</span></span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)     3.047  0.02881 105.8 &lt; 1e-16   2.991   3.104</span></span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Age           -0.1173 0.004845 -24.2 &lt; 1e-16 -0.1268 -0.1078</span></span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === phi   [log link]</span></span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate      se      z        p   lower   upper</span></span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    -2.286  0.1179 -19.39  &lt; 1e-16  -2.517  -2.055</span></span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   Age           0.04489 0.01656  2.712 0.006697 0.01244 0.07734</span></span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -872.187227    effective df 4.00</span></span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1752.374    cBIC 1767.372</span></span>
+<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 250 ms</span></span>
+<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 5e-07   min eigen 0.34</span></span>
+<span id="cb29-30"><a href="#cb29-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 4.3e-06   min eigen 0.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The coefficient of the age in the equation of <span class="math inline">\(\log\phi\)</span> is 0.045, so the dispersion grows by a factor <span class="math inline">\(e^{0.045} =
 1.046\)</span> for each year of age. We compute the dispersion at three ages with <code>predict()</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>ages <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Age =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">9</span>, <span class="dv">17</span>))</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit_gam_phi, <span class="at">what =</span> <span class="st">"phi"</span>, <span class="at">newdata =</span> ages)</span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1063187 0.1522582 0.2180477</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>ages <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Age =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">9</span>, <span class="dv">17</span>))</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit_gam_phi, <span class="at">what =</span> <span class="st">"phi"</span>, <span class="at">newdata =</span> ages)</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1063187 0.1522582 0.2180477</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The criterion of both fits integrates the coefficients of the mean out of the likelihood. For a gamma or a negative binomial response the integral is approximated by the Laplace method. The two models have the same equation for the mean, so they integrate the same coefficients, and the two criteria are marginal likelihoods of the same data. Their difference is a legitimate likelihood ratio statistic, as for the standard deviation of <code>cars</code> in <a href="04-lm.html#sec-lm-spread" class="quarto-xref"><span>Section 4.3</span></a>. The model with a constant dispersion is the one with a zero coefficient of the age:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>l0_gam <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_gam, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>l1_gam <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_gam_phi, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>lr_gam <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (<span class="fu">as.numeric</span>(l1_gam) <span class="sc">-</span> <span class="fu">as.numeric</span>(l0_gam))</span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>lr_gam</span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 7.934969</span></span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="fu">pchisq</span>(lr_gam, <span class="at">df =</span> <span class="dv">1</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.004848846</span></span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">constant =</span> <span class="fu">AIC</span>(fit_gam), <span class="at">age =</span> <span class="fu">AIC</span>(fit_gam_phi))</span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; constant      age </span></span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1758.218 1752.374</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>l0_gam <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_gam, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>l1_gam <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_gam_phi, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>lr_gam <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (<span class="fu">as.numeric</span>(l1_gam) <span class="sc">-</span> <span class="fu">as.numeric</span>(l0_gam))</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>lr_gam</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 7.934969</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="fu">pchisq</span>(lr_gam, <span class="at">df =</span> <span class="dv">1</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.004848846</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">constant =</span> <span class="fu">AIC</span>(fit_gam), <span class="at">age =</span> <span class="fu">AIC</span>(fit_gam_phi))</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; constant      age </span></span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1758.218 1752.374</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The p-value is 0.0048, and the AIC falls by 5.8, so the dispersion depends on the age.</p>
 <p>The same can be done for a count model. In the negative binomial model of <code>quine</code> the dispersion <span class="math inline">\(\theta\)</span> may depend on the ethnic background and on the learner status:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>fit_q_theta <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Days <span class="sc">~</span> Eth <span class="sc">+</span> Sex <span class="sc">+</span> Age <span class="sc">+</span> Lrn <span class="sc">|</span> theta <span class="sc">~</span> Eth <span class="sc">+</span> Lrn,</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>                       <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> quine)</span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_q_theta)</span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = Days ~ Eth + Sex + Age + Lrn | theta ~ Eth + </span></span>
-<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             Lrn, distrib = negbin2_distrib(), data = quine)</span></span>
-<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: negbin2     Observations: 146</span></span>
-<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
-<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se      z        p    lower   upper</span></span>
-<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)      2.82 0.2237  12.61  &lt; 1e-16    2.381   3.258</span></span>
-<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   EthN           -0.533 0.1643 -3.245 0.001175  -0.8549 -0.2111</span></span>
-<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   SexM          0.05365 0.1674 0.3205 0.748567  -0.2744  0.3817</span></span>
-<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   AgeF1          -0.352 0.2468 -1.426 0.153749  -0.8356  0.1317</span></span>
-<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   AgeF2          0.2252 0.2538 0.8872 0.374946  -0.2722  0.7226</span></span>
-<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   AgeF3          0.3686 0.2437  1.512 0.130426  -0.1091  0.8463</span></span>
-<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   LrnSL          0.2948 0.1868  1.578 0.114658 -0.07144   0.661</span></span>
-<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === theta   [log link]</span></span>
-<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
-<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se       z       p   lower  upper</span></span>
-<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    0.4903 0.2239   2.189 0.02856 0.05139 0.9293</span></span>
-<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   EthN          -0.4989 0.2674  -1.866 0.06208  -1.023 0.0252</span></span>
-<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   LrnSL        -0.08744  0.257 -0.3403 0.73364 -0.5911 0.4162</span></span>
-<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
-<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -544.838083    effective df 10.00</span></span>
-<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1109.676    cBIC 1139.512</span></span>
-<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 140 ms</span></span>
-<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.8e-15   min eigen 0.081</span></span>
-<span id="cb30-36"><a href="#cb30-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.7e-06   min eigen 0.21</span></span>
-<span id="cb30-37"><a href="#cb30-37" aria-hidden="true" tabindex="-1"></a>l0_q <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_q_nb2, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
-<span id="cb30-38"><a href="#cb30-38" aria-hidden="true" tabindex="-1"></a>l1_q <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_q_theta, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
-<span id="cb30-39"><a href="#cb30-39" aria-hidden="true" tabindex="-1"></a>lr_q <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (<span class="fu">as.numeric</span>(l1_q) <span class="sc">-</span> <span class="fu">as.numeric</span>(l0_q))</span>
-<span id="cb30-40"><a href="#cb30-40" aria-hidden="true" tabindex="-1"></a>lr_q</span>
-<span id="cb30-41"><a href="#cb30-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 3.458544</span></span>
-<span id="cb30-42"><a href="#cb30-42" aria-hidden="true" tabindex="-1"></a><span class="fu">pchisq</span>(lr_q, <span class="at">df =</span> <span class="dv">2</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb30-43"><a href="#cb30-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1774135</span></span>
-<span id="cb30-44"><a href="#cb30-44" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">constant =</span> <span class="fu">AIC</span>(fit_q_nb2), <span class="at">covariates =</span> <span class="fu">AIC</span>(fit_q_theta))</span>
-<span id="cb30-45"><a href="#cb30-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   constant covariates </span></span>
-<span id="cb30-46"><a href="#cb30-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   1109.320   1109.676</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>fit_q_theta <span class="ot">&lt;-</span> <span class="fu">statmod</span>(Days <span class="sc">~</span> Eth <span class="sc">+</span> Sex <span class="sc">+</span> Age <span class="sc">+</span> Lrn <span class="sc">|</span> theta <span class="sc">~</span> Eth <span class="sc">+</span> Lrn,</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>                       <span class="at">distrib =</span> <span class="fu">negbin2_distrib</span>(), <span class="at">data =</span> quine)</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_q_theta)</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; A statmod fit</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Call:  statmod(formula = Days ~ Eth + Sex + Age + Lrn | theta ~ Eth + </span></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;             Lrn, distrib = negbin2_distrib(), data = quine)</span></span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Distribution: negbin2     Observations: 146</span></span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === mu   [log link]</span></span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se      z        p    lower   upper</span></span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)      2.82 0.2237  12.61  &lt; 1e-16    2.381   3.258</span></span>
+<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   EthN           -0.533 0.1643 -3.245 0.001175  -0.8549 -0.2111</span></span>
+<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   SexM          0.05365 0.1674 0.3205 0.748567  -0.2744  0.3817</span></span>
+<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   AgeF1          -0.352 0.2468 -1.426 0.153749  -0.8356  0.1317</span></span>
+<span id="cb32-19"><a href="#cb32-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   AgeF2          0.2252 0.2538 0.8872 0.374946  -0.2722  0.7226</span></span>
+<span id="cb32-20"><a href="#cb32-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   AgeF3          0.3686 0.2437  1.512 0.130426  -0.1091  0.8463</span></span>
+<span id="cb32-21"><a href="#cb32-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   LrnSL          0.2948 0.1868  1.578 0.114658 -0.07144   0.661</span></span>
+<span id="cb32-22"><a href="#cb32-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-23"><a href="#cb32-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; === theta   [log link]</span></span>
+<span id="cb32-24"><a href="#cb32-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-25"><a href="#cb32-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Parametric terms</span></span>
+<span id="cb32-26"><a href="#cb32-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                estimate     se       z       p   lower  upper</span></span>
+<span id="cb32-27"><a href="#cb32-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   (Intercept)    0.4903 0.2239   2.189 0.02856 0.05139 0.9293</span></span>
+<span id="cb32-28"><a href="#cb32-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   EthN          -0.4989 0.2674  -1.866 0.06208  -1.023 0.0252</span></span>
+<span id="cb32-29"><a href="#cb32-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   LrnSL        -0.08744  0.257 -0.3403 0.73364 -0.5911 0.4162</span></span>
+<span id="cb32-30"><a href="#cb32-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-31"><a href="#cb32-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 95% intervals, bayesian variance</span></span>
+<span id="cb32-32"><a href="#cb32-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; conditional log-likelihood -544.838083    effective df 10.00</span></span>
+<span id="cb32-33"><a href="#cb32-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; cAIC 1109.676    cBIC 1139.512</span></span>
+<span id="cb32-34"><a href="#cb32-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; fitted in 170 ms</span></span>
+<span id="cb32-35"><a href="#cb32-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; inner   max |grad|/se 1.8e-15   min eigen 0.081</span></span>
+<span id="cb32-36"><a href="#cb32-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; outer   max |grad|/se 1.7e-06   min eigen 0.21</span></span>
+<span id="cb32-37"><a href="#cb32-37" aria-hidden="true" tabindex="-1"></a>l0_q <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_q_nb2, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb32-38"><a href="#cb32-38" aria-hidden="true" tabindex="-1"></a>l1_q <span class="ot">&lt;-</span> <span class="fu">logLik</span>(fit_q_theta, <span class="at">loglik_type =</span> <span class="st">"marginal"</span>)</span>
+<span id="cb32-39"><a href="#cb32-39" aria-hidden="true" tabindex="-1"></a>lr_q <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">*</span> (<span class="fu">as.numeric</span>(l1_q) <span class="sc">-</span> <span class="fu">as.numeric</span>(l0_q))</span>
+<span id="cb32-40"><a href="#cb32-40" aria-hidden="true" tabindex="-1"></a>lr_q</span>
+<span id="cb32-41"><a href="#cb32-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 3.458544</span></span>
+<span id="cb32-42"><a href="#cb32-42" aria-hidden="true" tabindex="-1"></a><span class="fu">pchisq</span>(lr_q, <span class="at">df =</span> <span class="dv">2</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb32-43"><a href="#cb32-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1774135</span></span>
+<span id="cb32-44"><a href="#cb32-44" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">constant =</span> <span class="fu">AIC</span>(fit_q_nb2), <span class="at">covariates =</span> <span class="fu">AIC</span>(fit_q_theta))</span>
+<span id="cb32-45"><a href="#cb32-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   constant covariates </span></span>
+<span id="cb32-46"><a href="#cb32-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   1109.320   1109.676</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Here the test does not reject a constant dispersion. The statistic 3.46 has a p-value of 0.18 on two degrees of freedom, and the AIC of the larger model is larger. The data contain no evidence that the two covariates change the dispersion, and we keep the simpler model.</p>
 </section>
@@ -1198,35 +1231,35 @@ Figure&nbsp;5.4: Number of children in six classes of days of absence: observed 
 <h2 data-number="5.6" class="anchored" data-anchor-id="sec-glm-links"><span class="header-section-number">5.6</span> The link</h2>
 <p>The link of a parameter is an object of the <code>linkfunctions7</code> package, and the distribution takes it as an argument. A link has two functions that invert each other, <code>linkfun()</code> from the parameter to the linear predictor and <code>linkinv()</code> from the predictor to the parameter, and it has derivatives of both. The square root link, for example, maps a positive mean <span class="math inline">\(\mu\)</span> to <span class="math inline">\(\eta = \sqrt\mu\)</span>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>lk <span class="ot">&lt;-</span> <span class="fu">sqrt_link</span>()</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>mu_values <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">9</span>)</span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>eta_values <span class="ot">&lt;-</span> <span class="fu">linkfun</span>(lk, <span class="at">theta =</span> mu_values)</span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>eta_values</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1 2 3</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="fu">linkinv</span>(lk, <span class="at">eta =</span> eta_values)</span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1 4 9</span></span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a><span class="fu">dlinkinv</span>(lk, <span class="at">eta =</span> eta_values)</span>
-<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2 4 6</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>lk <span class="ot">&lt;-</span> <span class="fu">sqrt_link</span>()</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>mu_values <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">9</span>)</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>eta_values <span class="ot">&lt;-</span> <span class="fu">linkfun</span>(lk, <span class="at">theta =</span> mu_values)</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>eta_values</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1 2 3</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="fu">linkinv</span>(lk, <span class="at">eta =</span> eta_values)</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 1 4 9</span></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a><span class="fu">dlinkinv</span>(lk, <span class="at">eta =</span> eta_values)</span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 2 4 6</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The last call gives the derivative of the mean with respect to the predictor, <span class="math inline">\(d\mu/d\eta = 2\eta\)</span>. The fitting functions use it, and the derivatives of higher order, to compute the score and the information on the scale of the linear predictor.</p>
 <p>We fit the model for <code>quine</code> with the Poisson distribution and the square root link, and compare it with <code>glm()</code>:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>fit_q_sqrt <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">poisson_distrib</span>(<span class="at">link_mu =</span> <span class="fu">sqrt_link</span>()),</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data =</span> quine)</span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>glm_q_sqrt <span class="ot">&lt;-</span> <span class="fu">glm</span>(formula_q, <span class="at">family =</span> <span class="fu">poisson</span>(<span class="at">link =</span> <span class="st">"sqrt"</span>), <span class="at">data =</span> quine)</span>
-<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_q_sqrt)<span class="sc">$</span>mu</span>
-<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        EthN        SexM       AgeF1       AgeF2       AgeF3 </span></span>
-<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   4.1500341  -1.0836883   0.2199745  -0.7105797   0.3716439   0.7527030 </span></span>
-<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       LrnSL </span></span>
-<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   0.5911173</span></span>
-<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(glm_q_sqrt)</span>
-<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        EthN        SexM       AgeF1       AgeF2       AgeF3 </span></span>
-<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   4.1500494  -1.0836823   0.2199676  -0.7105841   0.3716270   0.7526871 </span></span>
-<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       LrnSL </span></span>
-<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   0.5911071</span></span>
-<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">AIC</span>(fit_q_sqrt), <span class="at">glm =</span> <span class="fu">AIC</span>(glm_q_sqrt), <span class="at">log_link =</span> <span class="fu">AIC</span>(fit_q_pois))</span>
-<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod      glm log_link </span></span>
-<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2312.439 2312.439 2299.184</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>fit_q_sqrt <span class="ot">&lt;-</span> <span class="fu">statmod</span>(formula_q, <span class="at">distrib =</span> <span class="fu">poisson_distrib</span>(<span class="at">link_mu =</span> <span class="fu">sqrt_link</span>()),</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data =</span> quine)</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>glm_q_sqrt <span class="ot">&lt;-</span> <span class="fu">glm</span>(formula_q, <span class="at">family =</span> <span class="fu">poisson</span>(<span class="at">link =</span> <span class="st">"sqrt"</span>), <span class="at">data =</span> quine)</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_q_sqrt)<span class="sc">$</span>mu</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        EthN        SexM       AgeF1       AgeF2       AgeF3 </span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   4.1500341  -1.0836883   0.2199745  -0.7105797   0.3716439   0.7527030 </span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       LrnSL </span></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   0.5911173</span></span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(glm_q_sqrt)</span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        EthN        SexM       AgeF1       AgeF2       AgeF3 </span></span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   4.1500494  -1.0836823   0.2199676  -0.7105841   0.3716270   0.7526871 </span></span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       LrnSL </span></span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   0.5911071</span></span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">statmod =</span> <span class="fu">AIC</span>(fit_q_sqrt), <span class="at">glm =</span> <span class="fu">AIC</span>(glm_q_sqrt), <span class="at">log_link =</span> <span class="fu">AIC</span>(fit_q_pois))</span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  statmod      glm log_link </span></span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2312.439 2312.439 2299.184</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The estimates are those of <code>glm()</code>. The two links give different models, and the log link has the smaller AIC.</p>
 <section id="a-link-written-by-the-user" class="level3">
@@ -1236,43 +1269,43 @@ p = \left(\frac{1}{1 + e^{-\eta}}\right)^2 ,
 \qquad \eta = \mathrm{logit}\left(\sqrt p\right),
 \]</span> which maps the real line onto the interval <span class="math inline">\((0, 1)\)</span>, as the links of a probability do, and it is not symmetric. We define the class, register the two methods, and create the object:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>SqLogit <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"SqLogit"</span>, <span class="at">parent =</span> link)</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkfun, SqLogit) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) <span class="fu">qlogis</span>(<span class="fu">sqrt</span>(theta))</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkinv, SqLogit) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta) <span class="fu">plogis</span>(eta)<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>sq_logit <span class="ot">&lt;-</span> <span class="fu">SqLogit</span>(<span class="at">link_name =</span> <span class="st">"square-logistic"</span>, <span class="at">link_bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>),</span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>                    <span class="at">link_params =</span> <span class="cn">NULL</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>SqLogit <span class="ot">&lt;-</span> S7<span class="sc">::</span><span class="fu">new_class</span>(<span class="st">"SqLogit"</span>, <span class="at">parent =</span> link)</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkfun, SqLogit) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) <span class="fu">qlogis</span>(<span class="fu">sqrt</span>(theta))</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>S7<span class="sc">::</span><span class="fu">method</span>(linkinv, SqLogit) <span class="ot">&lt;-</span> <span class="cf">function</span>(x, eta) <span class="fu">plogis</span>(eta)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>sq_logit <span class="ot">&lt;-</span> <span class="fu">SqLogit</span>(<span class="at">link_name =</span> <span class="st">"square-logistic"</span>, <span class="at">link_bounds =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>),</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>                    <span class="at">link_params =</span> <span class="cn">NULL</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The derivatives are not written, so the package computes them by finite differences. The function <code>link_fallback_orders()</code> returns the number of orders of each direction that are analytic, here zero, and <code>check_link()</code> tests the properties of the link:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">link_fallback_orders</span>(sq_logit)</span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $forward</span></span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $inverse</span></span>
-<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
-<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">check_link</span>(sq_logit))</span>
-<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Checking S7 Link Object: square-logistic </span></span>
-<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [1] Invertibility (Theta space): [PASSED] </span></span>
-<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [2] Invertibility (Eta space):   [PASSED] </span></span>
-<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [3] Strict Monotonicity:         [PASSED] </span></span>
-<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [4] Inverse Function Theorem:    [PASSED] </span></span>
-<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [5] Link Derivatives:            [numerical] </span></span>
-<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [numerical]</span></span>
-<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a><span class="fu">dlinkinv</span>(sq_logit, <span class="at">eta =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>))</span>
-<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1057542 0.2500000 0.2874697</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">link_fallback_orders</span>(sq_logit)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $forward</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; $inverse</span></span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0</span></span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">check_link</span>(sq_logit))</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Checking S7 Link Object: square-logistic </span></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [1] Invertibility (Theta space): [PASSED] </span></span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [2] Invertibility (Eta space):   [PASSED] </span></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [3] Strict Monotonicity:         [PASSED] </span></span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [4] Inverse Function Theorem:    [PASSED] </span></span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [5] Link Derivatives:            [numerical] </span></span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;   [6] Inverse Link Derivatives:    [numerical]</span></span>
+<span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a><span class="fu">dlinkinv</span>(sq_logit, <span class="at">eta =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>))</span>
+<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] 0.1057542 0.2500000 0.2874697</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The checks of invertibility and monotonicity pass, and the derivative rows are marked as numerical, because a numerical derivative cannot be checked against another numerical derivative. The link now works in any distribution. We fit the additive budworm model with it and compare it with the logit link:</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>fit_bw_sq <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(numdead, n <span class="sc">-</span> numdead) <span class="sc">~</span> sex <span class="sc">+</span> ldose,</span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> sq_logit),</span>
-<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> budworm)</span>
-<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_bw_sq)<span class="sc">$</span>mu</span>
-<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        sexM       ldose </span></span>
-<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  -1.8829947   0.8632426   0.8792607</span></span>
-<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">square_logistic =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bw_sq)),</span>
-<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">logit =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bw_logit)))</span>
-<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; square_logistic           logit </span></span>
-<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       -18.31835       -18.43373</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>fit_bw_sq <span class="ot">&lt;-</span> <span class="fu">statmod</span>(<span class="fu">cbind</span>(numdead, n <span class="sc">-</span> numdead) <span class="sc">~</span> sex <span class="sc">+</span> ldose,</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>                     <span class="at">distrib =</span> <span class="fu">binomial_distrib</span>(<span class="at">link_mu =</span> sq_logit),</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> budworm)</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(fit_bw_sq)<span class="sc">$</span>mu</span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; (Intercept)        sexM       ldose </span></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  -1.8829947   0.8632426   0.8792607</span></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">square_logistic =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bw_sq)),</span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">logit =</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(fit_bw_logit)))</span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; square_logistic           logit </span></span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;       -18.31835       -18.43373</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 
 

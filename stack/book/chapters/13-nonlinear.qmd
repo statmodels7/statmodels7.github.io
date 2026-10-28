@@ -7,6 +7,10 @@ source("R/_setup.R")
 source("R/nonlinear-certificates.R")
 chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"; ink <- "grey15"
 fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
+sci <- function(x, d = 1) {
+  e <- floor(log10(abs(x)))
+  sprintf("%.*f \\times 10^{%d}", d, x / 10^e, e)
+}
 pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
 ```
 
@@ -104,8 +108,8 @@ The estimates and the standard errors agree with those of `nls()` to four
 significant digits. The rate approaches $\hat V_m = `r fmt(cf_mm[["nl.Vm"]], 1)`$
 counts per minute per minute, and it is half of that at
 $\hat K = `r fmt(cf_mm[["nl.K"]], 4)`$ parts per million. The two estimates
-of $\sigma$, `r fmt(sig_mm, 5)` and `r fmt(sigma(nls_mm), 5)`, differ in the
-fourth decimal place. Both are the restricted maximum
+of $\sigma$, `r fmt(sig_mm, 5)` and `r fmt(sigma(nls_mm), 5)`, differ by
+$`r sci(abs(sig_mm - sigma(nls_mm)))`$. Both are the restricted maximum
 likelihood estimate, which for a gaussian model with $p = 2$ coefficients is
 $\{\sum_i (y_i - \hat\mu_i)^2/(n - p)\}^{1/2}$. `nls()` computes it in closed
 form, while `statmod()` maximizes the restricted likelihood numerically and
@@ -114,29 +118,25 @@ the last digits of $\hat\sigma$ approximate. The two log-likelihoods differ
 for another reason: ours is evaluated at $\hat\sigma = `r fmt(sig_mm, 3)`$,
 and `logLik()` of `nls()` is evaluated at the maximum likelihood estimate
 $\{\sum_i (y_i - \hat\mu_i)^2/n\}^{1/2}$.
-@fig-nl-mm shows the fitted curve with a 95% confidence band, which we obtain
-from `predict()` with `se = TRUE`.
+@fig-nl-mm shows the fitted curve with a 95% confidence band. The type
+`plot_param()` of @sec-graphs draws the mean against the concentration with
+the band from `predict()` with `se = TRUE`, and we add the observations as a
+layer of `ggplot2`.
 
 ```{r}
 #| label: fig-nl-mm
 #| fig-cap: "Initial rate against the concentration of the substrate for treated cells, with the fitted Michaelis–Menten curve and its 95% confidence band."
-#| echo: false
 #| fig-height: 3.8
-gc <- data.frame(conc = seq(0, max(puro$conc), length.out = 200))
-band_mm <- predict(fit_mm, what = "mu", newdata = gc, se = TRUE)
-band_df <- data.frame(conc = gc$conc, fit = band_mm$fit,
-                      lower = band_mm$lower, upper = band_mm$upper)
-ggplot(puro, aes(x = conc, y = rate)) +
-  geom_ribbon(data = band_df, aes(x = conc, ymin = lower, ymax = upper,
-                                  fill = "95% band"),
-              inherit.aes = FALSE, alpha = 0.2) +
-  geom_point(colour = book_grey) +
-  geom_line(data = band_df, aes(x = conc, y = fit, colour = "fitted curve"),
-            linewidth = 0.9) +
-  scale_colour_manual(values = chalk) +
-  scale_fill_manual(values = chalk) +
-  coord_cartesian(ylim = c(0, 230)) +
+autoplot(fit_mm, plot_type = plot_param(param = "mu", over = "conc"),
+         data = puro) +
+  geom_point(aes(x = conc, y = rate), data = puro, colour = book_grey) +
   labs(x = "concentration (ppm)", y = "rate (counts/min/min)")
+```
+
+```{r}
+#| label: nl-grid
+#| include: false
+gc <- data.frame(conc = seq(0, max(puro$conc), length.out = 200))
 ```
 
 ## Links on the parameters {#sec-nonlinear-links}
@@ -228,26 +228,21 @@ so $\hat\phi = `r fmt(phi_gam, 5)`$ is the maximum likelihood estimate.
 `logLik()` of `glm()` evaluates the log-likelihood at the deviance divided by
 $n$, `r fmt(deviance(glm_mm) / nrow(puro), 5)`, which is close to it, and the
 two log-likelihoods agree to four decimals. @fig-nl-gamma compares the
-gaussian and the gamma fits.
+gaussian and the gamma fits. The graph of `plot_param()` draws the gamma fit
+with its band, and the curve of the gaussian fit is a layer computed with
+`predict()`.
 
 ```{r}
 #| label: fig-nl-gamma
-#| fig-cap: "Initial rate against the concentration for treated cells, with the Michaelis–Menten curves fitted with a gaussian response and with a gamma response."
-#| echo: false
+#| fig-cap: "Initial rate against the concentration for treated cells, with the Michaelis–Menten curve fitted with a gamma response and its 95% band (solid line) and the curve fitted with a gaussian response (dashed line)."
 #| fig-height: 3.8
-curves_gam <- data.frame(
-  conc = rep(gc$conc, times = 2),
-  rate = c(predict(fit_mm, what = "mu", newdata = gc),
-           predict(fit_mm_gam, what = "mu", newdata = gc)),
-  curve = factor(rep(c("gaussian", "gamma"), each = nrow(gc)),
-                 levels = c("gaussian", "gamma")))
-ggplot(puro, aes(x = conc, y = rate)) +
-  geom_point(colour = book_grey) +
-  geom_line(data = curves_gam, aes(colour = curve, linetype = curve),
-            linewidth = 0.9) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c(1, 2)) +
-  coord_cartesian(ylim = c(0, 230)) +
+gauss_mm <- data.frame(conc = gc$conc,
+                       rate = predict(fit_mm, what = "mu", newdata = gc))
+autoplot(fit_mm_gam, plot_type = plot_param(param = "mu", over = "conc"),
+         data = puro) +
+  geom_line(aes(x = conc, y = rate), data = gauss_mm, colour = rust,
+            linetype = "dashed") +
+  geom_point(aes(x = conc, y = rate), data = puro, colour = book_grey) +
   labs(x = "concentration (ppm)", y = "rate (counts/min/min)")
 ```
 
@@ -325,31 +320,28 @@ smaller model the treatment raises the largest rate from
 `r fmt(cf_st0[["nl.Vm.(Intercept)"]] + cf_st0[["nl.Vm.stateuntreated"]], 1)`
 to `r fmt(cf_st0[["nl.Vm.(Intercept)"]], 1)`, and the common $K$ is
 `r fmt(cf_st0[["nl.K"]], 4)`. @fig-nl-state shows the two models, one panel
-for each state.
+for each state. The argument `at` of `plot_param()` fixes the state, so we
+draw one graph for each level and join them with the package `patchwork`.
 
 ```{r}
 #| label: fig-nl-state
-#| fig-cap: "Initial rate against the concentration, one panel for each state of the cells, with the curves of the model in which both parameters depend on the state and of the model with a common K."
-#| echo: false
+#| fig-cap: "Initial rate against the concentration, one panel for each state of the cells, with the curve of the model in which both parameters depend on the state and its 95% band (solid line) and the curve of the model with a common K (dashed line)."
 #| fig-height: 3.6
 #| fig-width: 8
-gs <- expand.grid(conc = gc$conc, state = levels(Puromycin$state))
-gs$state <- factor(gs$state, levels = levels(Puromycin$state))
-st_names <- c("Vm and K by state", "common K")
-curves_st <- data.frame(
-  conc = rep(gs$conc, times = 2), state = rep(gs$state, times = 2),
-  rate = c(predict(fit_st, what = "mu", newdata = gs),
-           predict(fit_st0, what = "mu", newdata = gs)),
-  curve = factor(rep(st_names, each = nrow(gs)), levels = st_names))
-ggplot(Puromycin, aes(x = conc, y = rate)) +
-  geom_point(colour = book_grey) +
-  geom_line(data = curves_st, aes(colour = curve, linetype = curve),
-            linewidth = 0.9) +
-  facet_wrap(~state, nrow = 1) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c(1, 2)) +
-  coord_cartesian(ylim = c(0, 230)) +
-  labs(x = "concentration (ppm)", y = "rate (counts/min/min)")
+library(patchwork)
+graphs_st <- lapply(levels(Puromycin$state), function(s) {
+  common_k <- data.frame(conc = gc$conc, state = s)
+  common_k$rate <- predict(fit_st0, what = "mu", newdata = common_k)
+  autoplot(fit_st, plot_type = plot_param(param = "mu", over = "conc",
+                                          at = list(state = s)),
+           data = Puromycin) +
+    geom_line(aes(x = conc, y = rate), data = common_k, colour = rust,
+              linetype = "dashed") +
+    geom_point(aes(x = conc, y = rate),
+               data = Puromycin[Puromycin$state == s, ], colour = book_grey) +
+    labs(title = s, x = "concentration (ppm)", y = "rate (counts/min/min)")
+})
+wrap_plots(graphs_st, nrow = 1) & coord_cartesian(ylim = c(0, 230))
 ```
 
 The formula of a parameter takes any term of the package, not only factors:
@@ -474,12 +466,15 @@ The argument `random` of `predict()` sets the random effects aside. With
 typical tree, also for a tree that the fit never saw. @fig-nl-orange shows
 three trees, the one with the smallest final circumference, one in the
 middle and the one with the largest, each with its own curve and with the
-curve of the typical tree.
+curve of the typical tree. The graph of `plot_param()` sets the random
+effects to zero, so it draws the curve of the typical tree with its band. We
+add the curve of each tree and its observations as layers that carry the
+variable `panel`, and `facet_wrap()` repeats the curve of the typical tree
+in every panel.
 
 ```{r}
 #| label: fig-nl-orange
-#| fig-cap: "Trunk circumference against age for three orange trees, each with the curve that the model fits to it and with the curve of a typical tree, which has the random effect at zero."
-#| echo: false
+#| fig-cap: "Trunk circumference against age for three orange trees, each with the curve that the model fits to it (red line) and with the curve of a typical tree, which has the random effect at zero, with its 95% band (blue line and band)."
 #| fig-height: 3.6
 #| fig-width: 9
 b_or <- coef(fit_or)$mu[paste0("nl.Asym.random.", levels(Orange$Tree))]
@@ -487,31 +482,19 @@ names(b_or) <- levels(Orange$Tree)
 sel_or <- names(sort(b_or))[c(1, 3, 5)]
 sel_or <- sel_or[order(as.numeric(sel_or))]
 ag <- seq(100, 1600, length.out = 200)
-or_names <- c("this tree", "typical tree")
-curves_or <- do.call(rbind, lapply(sel_or, function(tr) {
+trees_or <- do.call(rbind, lapply(sel_or, function(tr) {
   nd <- data.frame(age = ag, Tree = factor(tr, levels = levels(Orange$Tree)))
-  data.frame(age = rep(ag, times = 2), tree = tr,
-             circumference = c(predict(fit_or, what = "mu", newdata = nd),
-                               predict(fit_or, what = "mu", newdata = nd,
-                                       random = "zero")),
-             curve = rep(or_names, each = length(ag)))
+  data.frame(age = ag, panel = paste("tree", tr),
+             circumference = predict(fit_or, what = "mu", newdata = nd))
 }))
-curves_or$curve <- factor(curves_or$curve, levels = or_names)
-obs_or <- data.frame(age = Orange$age, tree = as.character(Orange$Tree),
-                     circumference = Orange$circumference)
-obs_or <- obs_or[obs_or$tree %in% sel_or, ]
-curves_or$panel <- factor(paste("tree", curves_or$tree),
-                          levels = paste("tree", sel_or))
-obs_or$panel <- factor(paste("tree", obs_or$tree),
-                       levels = paste("tree", sel_or))
-ggplot(obs_or, aes(x = age, y = circumference)) +
-  geom_point(colour = book_grey) +
-  geom_line(data = curves_or, aes(colour = curve, linetype = curve),
-            linewidth = 0.9) +
-  facet_wrap(~panel, nrow = 1) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c(1, 2)) +
-  coord_cartesian(xlim = range(ag), ylim = range(Orange$circumference)) +
+obs_or <- Orange[Orange$Tree %in% sel_or, ]
+obs_or$panel <- paste("tree", obs_or$Tree)
+autoplot(fit_or, plot_type = plot_param(param = "mu", over = "age"),
+         data = Orange) +
+  geom_line(aes(x = age, y = circumference), data = trees_or, colour = rust) +
+  geom_point(aes(x = age, y = circumference), data = obs_or,
+             colour = book_grey) +
+  facet_wrap(facets = vars(panel), nrow = 1) +
   labs(x = "age (days)", y = "circumference (mm)")
 ```
 
@@ -913,36 +896,28 @@ coef(fit_fg)$mu
 The estimates are the same. With the exact gradient the design block of the
 term is exact, and the higher derivatives are finite differences of the
 gradient rather than of the function itself. @fig-nl-function shows the fitted
-curve for three subjects with different doses.
+curve for three subjects with different doses. As in @fig-nl-state, we fix
+the dose with the argument `at` of `plot_param()` and draw one graph for
+each subject.
 
 ```{r}
 #| label: fig-nl-function
-#| fig-cap: "Concentration of theophylline against time for three subjects with different doses, with the curve of the model in which all subjects share the three parameters, at the dose of each subject."
-#| echo: false
+#| fig-cap: "Concentration of theophylline against time for three subjects with different doses, with the curve of the model in which all subjects share the three parameters, at the dose of each subject, and its 95% band."
 #| fig-height: 3.6
 #| fig-width: 9
 dose_s <- tapply(Theoph$Dose, Theoph$Subject, function(v) v[1])
 sel_fn <- names(sort(dose_s))[c(1, 6, 12)]
 sel_fn <- sel_fn[order(as.numeric(sel_fn))]
-pan_fn <- sprintf("subject %s, dose %.2f", sel_fn, dose_s[sel_fn])
-names(pan_fn) <- sel_fn
-curves_fn <- do.call(rbind, lapply(sel_fn, function(s) {
-  nd <- data.frame(Time = tt, Dose = dose_s[[s]])
-  data.frame(Time = tt, panel = pan_fn[[s]],
-             conc = predict(fit_fn, what = "mu", newdata = nd))
-}))
-curves_fn$panel <- factor(curves_fn$panel, levels = pan_fn)
-obs_fn <- data.frame(Time = Theoph$Time, conc = Theoph$conc,
-                     subject = as.character(Theoph$Subject))
-obs_fn <- obs_fn[obs_fn$subject %in% sel_fn, ]
-obs_fn$panel <- factor(unname(pan_fn[obs_fn$subject]), levels = pan_fn)
-ggplot(obs_fn, aes(x = Time, y = conc)) +
-  geom_point(colour = book_grey) +
-  geom_line(data = curves_fn, aes(colour = "fitted curve"), linewidth = 0.9) +
-  facet_wrap(~panel, nrow = 1) +
-  scale_colour_manual(values = chalk) +
-  coord_cartesian(ylim = c(0, 12)) +
-  labs(x = "time (hours)", y = "concentration (mg/L)")
+graphs_fn <- lapply(sel_fn, function(s) {
+  autoplot(fit_fn, plot_type = plot_param(param = "mu", over = "Time",
+                                          at = list(Dose = dose_s[[s]])),
+           data = Theoph) +
+    geom_point(aes(x = Time, y = conc),
+               data = Theoph[Theoph$Subject == s, ], colour = book_grey) +
+    labs(title = sprintf("subject %s, dose %.2f", s, dose_s[[s]]),
+         x = "time (hours)", y = "concentration (mg/L)")
+})
+wrap_plots(graphs_fn, nrow = 1) & coord_cartesian(ylim = c(0, 12))
 ```
 
 ```{r}

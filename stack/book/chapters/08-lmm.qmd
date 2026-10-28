@@ -95,6 +95,23 @@ b_lme <- nlme::ranef(lme_ri)[, 1]
 max(abs(b_ri - b_lme))
 ```
 
+The graph `plot_caterpillar()` draws the predicted random intercepts, one row
+for each subject, with their 95% intervals (@sec-graphs describes all the
+graphs of a fit). The open circles are the unshrunk estimates: for a gaussian
+random intercept, the mean of the residuals of the subject plus its predicted
+effect. @fig-caterpillar shows that every predicted intercept lies between
+its unshrunk estimate and zero, and that the subjects with the largest
+unshrunk estimates are pulled furthest towards zero.
+
+```{r}
+#| label: fig-caterpillar
+#| fig-cap: "Predicted random intercepts of the 27 subjects of the `Orthodont` data, with 95% intervals (filled points and lines) and the unshrunk estimates (open circles)."
+#| fig-height: 6
+autoplot(fit_ri, term = "Subject", plot_type = plot_caterpillar(),
+         data = Orthodont) +
+  labs(x = "random intercept (mm)")
+```
+
 ### A standard deviation for each sex
 
 As in every chapter of this part, the other parameters of the distribution can
@@ -224,41 +241,38 @@ pchisq(lr_cor, df = 1, lower.tail = FALSE)
 The data do not show a correlation between the intercepts and the slopes.
 
 @fig-shrinkage shows what the random effects do to the lines of the
-subjects. We fit a separate least squares line to each subject with
-`nlme::lmList()`, and compare its intercept and slope with those of the
-mixed model, $(\hat\beta_0 + \hat b_{0i}, \hat\beta_1 + \hat b_{1i})$. The
-cross is the pair of estimated fixed effects $(\hat\beta_0, \hat\beta_1)$: it
-is the line of a subject whose random effects are zero, which we call the
-line of a typical subject. The mixed model pulls every line towards the line
-of a typical subject. It pulls most the subjects whose own line is far from
-it, and whose data do not determine that line well.
+subjects. The graph `plot_random_cov()` draws the predicted random effects
+$(\hat b_{0i}, \hat b_{1i})$ of each subject as filled points, with the
+ellipse that holds 95% of the fitted gaussian distribution of the effects.
+The origin is the line of a subject whose random effects are zero, which we
+call the line of a typical subject. We also fit a separate least squares line
+to each subject with `nlme::lmList()`, and we add its departure from the
+fixed effects, $(\tilde\beta_{0i} - \hat\beta_0, \tilde\beta_{1i} -
+\hat\beta_1)$, as an open circle, with an arrow to the predicted effects of
+the same subject. The mixed model pulls every line towards the line of a
+typical subject. It pulls most the subjects whose own line is far from it,
+and whose data do not determine that line well.
 
 ```{r}
 #| label: fig-shrinkage
-#| fig-cap: "Intercept and slope of each subject of the sleepstudy data, from a least squares line fitted to the subject alone and from the mixed model with correlated random effects. The arrows go from the first to the second. The cross is the pair of estimated fixed effects."
-#| echo: false
+#| fig-cap: "Random intercept and slope of each subject of the sleepstudy data: the departures of the least squares line of the subject from the fixed effects (open circles) and the predicted random effects of the mixed model (filled points). The arrows go from the first to the second, and the ellipse holds 95% of the fitted distribution of the random effects."
 #| fig-height: 4.2
 ols <- coef(nlme::lmList(Reaction ~ Days | Subject, data = sleepstudy))
 cf_sc <- coef(fit_sc)$mu
 subj <- rownames(ols)
 mix_int <- cf_sc[["(Intercept)"]] + cf_sc[paste0("random.", subj, ".(Intercept)")]
 mix_slo <- cf_sc[["Days"]] + cf_sc[paste0("random.", subj, ".Days")]
-est_lev <- c("least squares, one subject", "mixed model", "fixed effects")
-pts <- data.frame(
-  intercept = c(ols[, 1], mix_int, cf_sc[["(Intercept)"]]),
-  slope = c(ols[, 2], mix_slo, cf_sc[["Days"]]),
-  estimate = factor(rep(est_lev, times = c(nrow(ols), length(mix_int), 1)),
-                    levels = est_lev))
-arr <- data.frame(x = ols[, 1], y = ols[, 2], xend = mix_int, yend = mix_slo)
-ggplot(pts, aes(x = intercept, y = slope)) +
-  geom_segment(data = arr, aes(x = x, y = y, xend = xend, yend = yend),
-               colour = grey, arrow = arrow(length = unit(0.06, "inches"))) +
-  geom_point(aes(colour = estimate, shape = estimate, size = estimate),
-             stroke = 0.9) +
-  scale_colour_manual(values = c(rust, chalk, ink)) +
-  scale_shape_manual(values = c(1, 16, 3)) +
-  scale_size_manual(values = c(2, 2, 3.5)) +
-  labs(x = "intercept (ms)", y = "slope (ms per day)")
+arr <- data.frame(x = ols[, 1] - cf_sc[["(Intercept)"]],
+                  y = ols[, 2] - cf_sc[["Days"]],
+                  xend = mix_int - cf_sc[["(Intercept)"]],
+                  yend = mix_slo - cf_sc[["Days"]])
+autoplot(fit_sc, term = "Subject", plot_type = plot_random_cov(),
+         data = sleepstudy) +
+  geom_segment(aes(x = x, y = y, xend = xend, yend = yend), data = arr,
+               colour = "grey55", arrow = arrow(length = unit(0.06, "inches"))) +
+  geom_point(aes(x = x, y = y), data = arr, shape = 1, colour = rust,
+             size = 2) +
+  labs(x = "random intercept (ms)", y = "random slope (ms per day)")
 ```
 
 ### A standard deviation at zero
@@ -815,6 +829,21 @@ c(gaussian = sqrt(mean((re_hg - b_true)^2)),
   student_t = sqrt(mean((re_ht - b_true)^2)))
 ```
 
+The graph `plot_prior()` compares the predicted random intercepts with the
+distribution that the fit estimated for them: a histogram of the predicted
+intercepts with the fitted density on top. @fig-lmm-prior shows it for the
+gaussian fit. The gaussian density has to reach the three far groups, so it
+is too wide for the seventeen groups near zero, which form the tall bar in
+the middle.
+
+```{r}
+#| label: fig-lmm-prior
+#| fig-cap: "Histogram of the predicted random intercepts of the simulated groups under a gaussian distribution of the random effects, with the fitted gaussian density."
+#| fig-height: 3.8
+autoplot(fit_hg, term = "g", plot_type = plot_prior(), data = heavy) +
+  labs(x = "random intercept")
+```
+
 The t distribution reduces the error of the random intercepts by more than
 half.
 @fig-lmm-heavy shows why: under the gaussian distribution the seventeen groups
@@ -1341,45 +1370,31 @@ and a new observation for each, and the 95% intervals cover it
 `r pct(cover_pct[["bootstrap"]])` (bootstrap).
 
 @fig-predict-new shows the three intervals over the days, with the data of
-the 18 subjects.
+the 18 subjects. The graph `plot_param()` draws the mean line with the random
+effects at zero and its confidence interval, and we add the other two
+intervals as layers.
 
 ```{r}
 #| label: fig-predict-new
-#| fig-cap: "Reaction time of a new subject against the days of sleep deprivation: the mean line with its confidence interval, the interval of the mean line of a new subject, and the prediction interval of one measurement. The grey points are the data of the 18 subjects."
-#| echo: false
+#| fig-cap: "Reaction time of a new subject against the days of sleep deprivation: the mean line with its confidence interval (solid line and dark band), the interval of the mean line of a new subject (light band), and the prediction interval of one measurement (dashed lines). The grey points are the data of the 18 subjects."
 #| fig-height: 4
 dd <- data.frame(Days = seq(from = 0, to = 9, length.out = 50), Subject = "new")
-gz <- predict(fit_sc, what = "mu", newdata = dd, se = TRUE, random = "zero")
 gg <- predict(fit_sc, what = "mu", newdata = dd, se = TRUE, random = "zero",
               interval = group_interval())
 gr <- predict(fit_sc, what = "response", newdata = dd, se = TRUE,
               random = "zero", interval = prediction_interval())
-band_lev <- c("confidence interval", "group interval")
-bands_new <- data.frame(
-  Days = rep(dd$Days, times = 2),
-  lower = c(gz$lower, gg$lower), upper = c(gz$upper, gg$upper),
-  band = factor(rep(band_lev, each = nrow(dd)), levels = band_lev))
-line_lev <- c("mean line", "prediction interval")
-lines_new <- data.frame(
-  Days = rep(dd$Days, times = 3),
-  value = c(gz$fit, gr$upper, gr$lower),
-  curve = factor(rep(line_lev[c(1, 2, 2)], each = nrow(dd)),
-                 levels = line_lev),
-  piece = rep(c("fit", "upper", "lower"), each = nrow(dd)))
-ggplot(sleepstudy, aes(x = Days)) +
-  geom_point(aes(y = Reaction), colour = book_grey, size = 0.8) +
-  geom_ribbon(data = bands_new[bands_new$band == band_lev[2], ],
-              aes(ymin = lower, ymax = upper, fill = band)) +
-  geom_ribbon(data = bands_new[bands_new$band == band_lev[1], ],
-              aes(ymin = lower, ymax = upper, fill = band)) +
-  geom_line(data = lines_new,
-            aes(y = value, colour = curve, linetype = curve,
-                linewidth = curve, group = piece)) +
-  scale_fill_manual(values = c(alpha(chalk, 0.4), alpha(chalk, 0.15)),
-                    limits = band_lev) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c("solid", "dashed")) +
-  scale_linewidth_manual(values = c(1, 0.5)) +
+new_bands <- data.frame(Days = dd$Days, g_lower = gg$lower, g_upper = gg$upper,
+                        p_lower = gr$lower, p_upper = gr$upper)
+autoplot(fit_sc, plot_type = plot_param(param = "mu", over = "Days"),
+         data = sleepstudy) +
+  geom_point(aes(x = Days, y = Reaction), data = sleepstudy, colour = "grey60",
+             size = 0.8) +
+  geom_ribbon(aes(x = Days, ymin = g_lower, ymax = g_upper), data = new_bands,
+              fill = "steelblue", alpha = 0.12) +
+  geom_line(aes(x = Days, y = p_lower), data = new_bands, colour = rust,
+            linetype = "dashed") +
+  geom_line(aes(x = Days, y = p_upper), data = new_bands, colour = rust,
+            linetype = "dashed") +
   labs(x = "days of sleep deprivation", y = "reaction time (ms)")
 ```
 

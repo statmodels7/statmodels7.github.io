@@ -35,14 +35,14 @@ inner and for the outer fit.
 A term of the additive branch is an S7 class that inherits from
 `additive_term`. The class adds four properties to the common ones of every
 term: the design block `X`, the names of its coefficients `coef_names`, a
-list `blueprint` that keeps what is needed to rebuild the block at new data,
+list `build_info` that keeps what is needed to rebuild the block at new data,
 and the penalty `penalty`, which is `NULL` for an unpenalized term. The
 label and the hyperparameters are common to all terms, and each class keeps
 the variables of its formula in a property of its own.
 
 Two methods make the term work in a fit. `term_build()` receives the term and
 the data, evaluates the variables and returns the term with `X`, `coef_names`,
-`blueprint` and `penalty` filled in. `term_predict()` receives the term and
+`build_info` and `penalty` filled in. `term_predict()` receives the term and
 new data and returns the block at those data; `predict()` and the residuals
 use it. A term whose block does not depend on the coefficients needs nothing
 more. A term whose block does depend on them also has `term_refresh()`, which
@@ -76,7 +76,7 @@ season <- function(x, period, k = 3) {
   xe <- substitute(x)
   SeasonTerm(label = sprintf("season(%s)", deparse(xe)), expr = xe,
              spec = list(period = period, k = k), hyper = list(), X = NULL,
-             coef_names = character(0), blueprint = list(), penalty = NULL)
+             coef_names = character(0), build_info = list(), penalty = NULL)
 }
 season_X <- function(x, period, k) {
   w <- outer(2 * pi * x / period, seq_len(k))
@@ -88,13 +88,13 @@ S7::method(term_build, SeasonTerm) <- function(term, data, ...) {
   x <- as.numeric(eval(term@expr, data, baseenv()))
   sp <- term@spec
   X <- season_X(x, sp$period, sp$k)
-  S7::set_props(term, X = X, coef_names = colnames(X), blueprint = sp,
+  S7::set_props(term, X = X, coef_names = colnames(X), build_info = sp,
                 penalty = penalties7::quadratic_penalty(
                   diag(rep(seq_len(sp$k)^4, 2))))
 }
 S7::method(term_predict, SeasonTerm) <- function(term, newdata, ...) {
   x <- as.numeric(eval(term@expr, newdata, baseenv()))
-  season_X(x, term@blueprint$period, term@blueprint$k)
+  season_X(x, term@build_info$period, term@build_info$k)
 }
 ```
 
@@ -173,6 +173,136 @@ plot(nt$time, nt$temp, pch = 16, cex = 0.5, col = "grey40",
 lines(nt$time, fitted(f_season), lwd = 2)
 ```
 
+The graphs of @sec-graphs need no further work for a term written by the
+user. The type `plot_effect()` draws the contribution of the term to the
+predictor against its variable, with a 95% band and the partial residuals,
+from the block and the coefficients of the term (@fig-season-effect).
+
+```{r}
+#| label: fig-season-effect
+#| fig-cap: "Contribution of season(month, period = 12, k = 4) to the mean temperature at Nottingham, with a 95% band and the partial residuals."
+autoplot(f_season, term = "month", data = nt) +
+  labs(x = "month", y = "effect on the mean temperature")
+```
+
+### A graph for the term {#sec-own-season-graph}
+
+A graph of a fit is an object of a class that inherits from `term_plot`,
+`model_plot` or `diagnostic_plot` (@sec-graphs). A graph of one term inherits
+from `term_plot`, and it is drawn in two steps. The generic `plot_data()`
+computes the quantities to draw and returns them as a list of data frames,
+and the generic `plot_layers()` turns that list into layers of `ggplot2`.
+The first generic dispatches on the class of the graph and on the class of
+the term, and the second dispatches on the class of the graph alone.
+
+For the seasonal term we write a graph `plot_cycle()` that draws the cycle
+over one whole period, from 0 to $P$, with a pointwise band. The graph of
+@fig-season-effect covers the observed values of `month`, from 1 to 12. The
+cycle also covers the interval from 0 to 1, in which the curve returns to its
+value at the start of the period. The class has one property, the level of
+the band:
+
+```{r}
+#| label: cycle-class
+plot_cycle <- S7::new_class("plot_cycle", parent = term_plot,
+  properties = list(level = S7::class_double),
+  constructor = function(level = 0.95) {
+    S7::new_object(S7::S7_object(), label = "plot_cycle()", level = level)
+  })
+```
+
+The method of `plot_data()` receives the graph `type`, the term `x`, the fit
+and a context `ctx`, a list whose element `param` is the equation of the
+term and whose element `name` is the name of the term. It evaluates the block
+of the term on a grid of 200 points of the period with `term_predict()`. Let
+$X$ be this block, a matrix with one row for each point of the grid and one
+column for each coefficient of the term, let $\hat\beta$ be the estimated
+coefficients of the term and let $V$ be their covariance matrix. The curve is
+$X\hat\beta$, and its standard error at each point is the square root of the
+corresponding diagonal element of $X V X^\top$. The coefficients come from
+`coef()`, and $V$ is the block of `vcov()` whose rows and columns are named by
+the equation and the coefficient, as `mu:cos1`. The attribute `labels` of the
+result gives the title and the names of the axes. The method of
+`plot_layers()` draws the band with `geom_ribbon()` and the curve with
+`geom_line()`.
+
+```{r}
+#| label: cycle-methods
+S7::method(plot_data, list(plot_cycle, SeasonTerm)) <-
+  function(type, x, fit, ctx, ...) {
+    period <- x@build_info$period
+    grid <- data.frame(seq(from = 0, to = period, length.out = 200))
+    names(grid) <- deparse(x@expr)
+    X <- term_predict(x, newdata = grid)
+    b <- coef(fit)[[ctx$param]][x@coef_names]
+    keep <- paste0(ctx$param, ":", x@coef_names)
+    V <- vcov(fit)[keep, keep]
+    se <- sqrt(rowSums((X %*% V) * X))
+    z <- qnorm((1 + type@level) / 2)
+    curve <- drop(X %*% b)
+    structure(list(curve = data.frame(t = grid[[1]], fit = curve,
+                                      lower = curve - z * se,
+                                      upper = curve + z * se)),
+              labels = list(title = paste("cycle of", ctx$name),
+                            x = "time within the period", y = "effect"))
+  }
+S7::method(plot_layers, plot_cycle) <- function(type, data, ...) {
+  list(geom_ribbon(aes(x = t, ymin = lower, ymax = upper), data = data$curve,
+                   fill = "steelblue", alpha = 0.3),
+       geom_line(aes(x = t, y = fit), data = data$curve,
+                 colour = "steelblue4", linewidth = 1))
+}
+```
+
+The function `autoplot()` draws the new graph when we pass `plot_cycle()` as
+`plot_type` (@fig-season-cycle).
+
+```{r}
+#| label: fig-season-cycle
+#| fig-cap: "The cycle of season(month, period = 12, k = 4) over one period, with a 95% band."
+autoplot(f_season, term = "season(month, period = 12, k = 4)",
+         plot_type = plot_cycle(), data = nt) +
+  labs(x = "month", y = "effect on the mean temperature")
+```
+
+```{r}
+#| label: cycle-check
+#| include: false
+cyc <- plot_data(plot_cycle(),
+                 f_season@spec@terms$mu[["season(month, period = 12, k = 4)"]],
+                 f_season,
+                 ctx = list(param = "mu",
+                            name = "season(month, period = 12, k = 4)"))$curve
+lin <- coef(f_season)$mu[["(Intercept)"]] + coef(f_season)$mu[["time"]] * 1930
+cyc_err <- max(abs(predict(f_season, what = "mu",
+                           newdata = data.frame(time = 1930, month = cyc$t)) -
+                     lin - cyc$fit))
+stopifnot(cyc_err < 1e-10, abs(cyc$fit[1] - cyc$fit[nrow(cyc)]) < 1e-10)
+t_min <- cyc$t[which.min(cyc$fit)]
+t_max <- cyc$t[which.max(cyc$fit)]
+```
+
+The curve is lowest at $t = `r fmt(t_min, 1)`$, where the effect is
+`r fmt(min(cyc$fit), 1)` degrees Fahrenheit, and highest at
+$t = `r fmt(t_max, 1)`$, where it is `r fmt(max(cyc$fit), 1)` degrees. Its
+value at $t = 12$ equals its value at $t = 0$, because every column of the
+block is periodic with period $P$. The curve agrees with `predict()`, from
+which we subtract the intercept and the trend, to within
+$`r sci(cyc_err)`$.
+
+A graph that we pass as `plot_type` is drawn only at that call. To make
+`plot_cycle()` the graph that `autoplot()` draws for the term when
+`plot_type` is not given, we write a method of `default_plot()` for the
+class of the term. After this method is defined, the call
+`autoplot(f_season, term = "month", data = nt)` draws the cycle in place of
+the effect of @fig-season-effect.
+
+```{r}
+#| label: cycle-default
+S7::method(default_plot, SeasonTerm) <- function(term, ...) plot_cycle()
+default_plot(season(month, period = 12, k = 4))
+```
+
 ## A moving block: an asymptotic growth term {#sec-own-asym}
 
 The asymptotic curve $f(x) = \mathrm{Asym}\,\{1 - \exp(-e^{\mathrm{lrc}}\,x)\}$
@@ -181,7 +311,7 @@ Jacobian of $f$ with respect to them: the column of $\mathrm{Asym}$ is
 $1 - e^{-e^{\mathrm{lrc}}x}$, and the column of $\mathrm{lrc}$ is
 $\mathrm{Asym}\,x\,e^{\mathrm{lrc}}e^{-e^{\mathrm{lrc}}x}$. The block depends
 on the coefficients, so it has to be recomputed whenever they move. The term
-keeps the coefficients in its blueprint, and `term_refresh()` puts the new
+keeps the coefficients in its `build_info`, and `term_refresh()` puts the new
 values in and rebuilds the block.
 
 ```{r}
@@ -193,7 +323,7 @@ asym <- function(x, start = c(Asym = 60, lrc = -2)) {
   xe <- substitute(x)
   AsymTerm(label = sprintf("asym(%s)", deparse(xe)), expr = xe, start = start,
            hyper = list(), X = NULL, coef_names = character(0),
-           blueprint = list(), penalty = NULL)
+           build_info = list(), penalty = NULL)
 }
 asym_parts <- function(x, cf) {
   r <- exp(cf[2]); e <- exp(-r * x)
@@ -204,25 +334,25 @@ S7::method(term_build, AsymTerm) <- function(term, data, ...) {
   x <- as.numeric(eval(term@expr, data, baseenv()))
   cf <- as.numeric(term@start)
   S7::set_props(term, X = asym_parts(x, cf)$J, coef_names = c("Asym", "lrc"),
-                blueprint = list(x = x, coef = cf), penalty = NULL)
+                build_info = list(x = x, coef = cf), penalty = NULL)
 }
 S7::method(term_refresh, AsymTerm) <- function(term, coef, ...) {
-  bp <- term@blueprint
+  bp <- term@build_info
   bp$coef <- as.numeric(coef)
-  S7::set_props(term, X = asym_parts(bp$x, bp$coef)$J, blueprint = bp)
+  S7::set_props(term, X = asym_parts(bp$x, bp$coef)$J, build_info = bp)
 }
 S7::method(term_value, AsymTerm) <- function(term, coef = NULL, newdata = NULL, ...) {
-  bp <- term@blueprint
+  bp <- term@build_info
   cf <- if (is.null(coef)) bp$coef else as.numeric(coef)
   x <- if (is.null(newdata)) bp$x else as.numeric(eval(term@expr, newdata, baseenv()))
   asym_parts(x, cf)$value
 }
 S7::method(term_coef_start, AsymTerm) <- function(term, target = NULL, ...) {
-  term@blueprint$coef
+  term@build_info$coef
 }
 S7::method(term_predict, AsymTerm) <- function(term, newdata, ...) {
   asym_parts(as.numeric(eval(term@expr, newdata, baseenv())),
-             term@blueprint$coef)$J
+             term@build_info$coef)$J
 }
 ```
 
@@ -295,13 +425,17 @@ pa
 
 ```{r}
 #| label: fig-asym
-#| fig-cap: "Height of the Loblolly pines against age (points), with the asymptotic curve fitted by asym() (line)."
-plot(lob$age, lob$height, pch = 16, cex = 0.5, col = "grey40",
-     xlab = "age (years)", ylab = "height (feet)")
-ag <- seq(min(lob$age), max(lob$age), length.out = 100)
-lines(ag, predict(f_asym, what = "mu", newdata = data.frame(age = ag),
-                  se = TRUE)$fit, lwd = 2)
+#| fig-cap: "Height of the Loblolly pines against age (points), with the asymptotic curve fitted by asym() and its 95% band (line)."
+autoplot(f_asym, plot_type = plot_param(param = "mu", over = "age"),
+         data = lob) +
+  geom_point(aes(x = age, y = height), data = lob, colour = "grey40",
+             size = 1) +
+  labs(x = "age (years)", y = "height (feet)")
 ```
+
+The type `plot_param()` reads the curve through `predict()`, so the band is
+the one that `predict(se = TRUE)` computes from the block that `asym()`
+rebuilds at the fitted coefficients.
 
 ## The structure of an optimizer and its stopping rule {#sec-own-optim}
 
@@ -309,7 +443,7 @@ An optimizer of `optimizers7` is an S7 object that inherits from `optimizer`.
 It holds a criterion, which is its stopping rule, a budget of iterations and of
 evaluations, and the settings for the trace. Its method `minimize()` receives
 the objective `fn`, the starting point `par`, the gradient `gr` and the Hessian
-`he`, and it returns an `optimizer_result` with the point, the value, the
+`hess`, and it returns an `optimizer_result` with the point, the value, the
 number of iterations, the counts of evaluations and whether the criterion was
 met. The method calls `crit_met()` after each accepted step, and the criterion
 decides what finished means. The optimizer also declares what it needs, through
@@ -456,9 +590,9 @@ S7::method(optimizer_provides, TrustRegion) <- function(optimizer) "gradient"
 # refuses finite bounds, as prox_grad() does.
 S7::method(optimizer_bounded, TrustRegion) <- function(optimizer) FALSE
 S7::method(minimize, TrustRegion) <- function(optimizer, fn, par, gr = NULL,
-                                              he = NULL, lower = -Inf,
+                                              hess = NULL, lower = -Inf,
                                               upper = Inf, ...) {
-  if (is.null(gr) || is.null(he)) {
+  if (is.null(gr) || is.null(hess)) {
     stop("trust_region() needs a gradient and a Hessian.", call. = FALSE)
   }
   if (any(is.finite(lower)) || any(is.finite(upper))) {
@@ -471,7 +605,7 @@ S7::method(minimize, TrustRegion) <- function(optimizer, fn, par, gr = NULL,
   f <- fn(x)
   nf <- 1L
   g <- gr(x)
-  H <- he(x)
+  H <- hess(x)
   ng <- 1L
   nh <- 1L
   Delta <- o@radius
@@ -507,7 +641,7 @@ S7::method(minimize, TrustRegion) <- function(optimizer, fn, par, gr = NULL,
     if (accepted) {
       g <- gr(xn)
       ng <- ng + 1L
-      H <- he(xn)
+      H <- hess(xn)
       nh <- nh + 1L
       state <- list(iter = it, f_new = fx, f_old = f, x_new = xn,
                     x_old = x, gradient = g)
@@ -586,9 +720,9 @@ S7::method(optimizer_bounded, RunLog) <- function(optimizer) {
   optimizer_bounded(optimizer@inner)
 }
 S7::method(minimize, RunLog) <- function(optimizer, fn, par, gr = NULL,
-                                         he = NULL, lower = -Inf,
+                                         hess = NULL, lower = -Inf,
                                          upper = Inf, ...) {
-  r <- optimizers7::minimize(optimizer@inner, fn, par, gr = gr, he = he,
+  r <- optimizers7::minimize(optimizer@inner, fn, par, gr = gr, hess = hess,
                              lower = lower, upper = upper, ...)
   n <- length(optimizer@log$runs) + 1L
   optimizer@log$runs[[n]] <- list(iterations = r@iterations,

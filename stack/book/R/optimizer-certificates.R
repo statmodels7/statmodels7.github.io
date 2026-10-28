@@ -169,13 +169,13 @@
     hnum <- vapply(eta, function(e)
       numDeriv::grad(function(z) optimizers7::bounded_transform(b, z)$h, e),
       numeric(1))
-    if (max(abs(tr$d1 - hnum)) > tol) {
+    if (max(abs(tr$deriv1 - hnum)) > tol) {
       out <- c(out, sprintf("bounds (%s, %s): h' disagrees with a numerical h'",
                             format(b[1]), format(b[2])))
     }
 
     # The composed gradient: d/deta f(h(eta)) = f'(h(eta)) h'(eta).
-    chain <- gr(tr$h) * tr$d1
+    chain <- gr(tr$h) * tr$deriv1
     dnum <- vapply(eta, function(e)
       numDeriv::grad(function(z) f(optimizers7::bounded_transform(b, z)$h), e),
       numeric(1))

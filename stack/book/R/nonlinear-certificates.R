@@ -67,11 +67,10 @@ assert_nonlinear_ok <- function(fits, ref, data, claims) {
   mu_h <- predict(fits$mm, what = "mu", newdata = pu)
   rss <- sum(stats::residuals(ns)^2)
   # both are sqrt(RSS / (n - p)): nls() in closed form at its coefficients,
-  # statmod() to the tolerance of its search, which the text puts in the
-  # fourth decimal place
+  # statmod() to the tolerance of its search; the text prints the difference
   rss_s <- sum((pu$rate - mu_h)^2)
   if (abs(sqrt(rss_s / (nrow(pu) - 2)) / stats::sigma(ns) - 1) > 1e-7 ||
-      abs(sg - stats::sigma(ns)) >= 1e-3 || abs(sg - stats::sigma(ns)) < 1e-5) {
+      abs(sg - stats::sigma(ns)) >= 1e-3) {
     fail("the two estimates of sigma")
   }
   # the start: K searched, Vm the least squares solution at that K

@@ -454,43 +454,28 @@ ci_g1 <- confint(fit_c1, parm = "sigma:speed")
 exp(c(ci_g1$estimate, ci_g1$lower, ci_g1$upper))
 ```
 
-@fig-cars shows the band $\hat\mu \pm 2\hat\sigma$ of the two models. With a
-constant standard deviation the band is too wide at low speeds and too narrow
-at high speeds.
+@fig-cars shows the 2.5% and 97.5% quantiles of the two models, which are
+$\hat\mu \pm 1.96\hat\sigma$. The type `plot_quantiles()` of @sec-graphs
+draws the quantiles of the model with the modeled standard deviation, and we
+add those of the model with a constant standard deviation as a layer of
+`ggplot2`. With a constant standard deviation the quantiles are too far
+apart at low speeds and too close at high speeds.
 
 ```{r}
 #| label: fig-cars
-#| fig-cap: "Stopping distance against speed. The line is the fitted mean. The shaded band is the fitted mean plus or minus two standard deviations with the modeled standard deviation, and the dashed lines are the same band with a constant standard deviation."
-#| echo: false
+#| fig-cap: "Stopping distance against speed. The blue curves are the median and the 2.5% and 97.5% quantiles of the model with the modeled standard deviation, and the rust dotted curves are the 2.5% and 97.5% quantiles of the model with a constant standard deviation."
 #| fig-height: 4.2
-#| fig-width: 8.5
 gr <- data.frame(speed = seq(from = 4, to = 25, length.out = 100))
-m1 <- predict(fit_c1, what = "mu", newdata = gr)
-s1 <- predict(fit_c1, what = "sigma", newdata = gr)
 m0 <- predict(fit_c0, what = "mu", newdata = gr)
 s0 <- predict(fit_c0, what = "sigma", newdata = gr)
-cars_curves <- c("fitted mean", "mean plus or minus 2 sigma, constant")
-cars_lines <- data.frame(
-  speed = rep(gr$speed, times = 3),
-  value = c(m1, m0 - 2 * s0, m0 + 2 * s0),
-  end = rep(c("fit", "lower", "upper"), each = nrow(gr)),
-  curve = factor(rep(cars_curves[c(1, 2, 2)], each = nrow(gr)),
-                 levels = cars_curves))
-cars_band <- data.frame(speed = gr$speed, lower = m1 - 2 * s1,
-                        upper = m1 + 2 * s1)
-ggplot(cars, aes(x = speed)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper,
-                  fill = "mean plus or minus 2 sigma(v)"),
-              data = cars_band) +
-  geom_point(aes(y = dist, shape = "data"), colour = book_grey, size = 1.5) +
-  geom_line(aes(y = value, colour = curve, linetype = curve, group = end),
-            data = cars_lines, linewidth = 0.8) +
-  scale_shape_manual(values = 16) +
-  scale_colour_manual(values = c(chalk, rust)) +
-  scale_linetype_manual(values = c("solid", "dashed")) +
-  scale_fill_manual(values = adjustcolor(chalk, 0.2)) +
-  guides(shape = guide_legend(order = 1), colour = guide_legend(order = 2),
-         linetype = guide_legend(order = 2), fill = guide_legend(order = 3)) +
+q0 <- data.frame(speed = rep(gr$speed, times = 2),
+                 dist = c(m0 + qnorm(0.025) * s0, m0 + qnorm(0.975) * s0),
+                 end = rep(c("lower", "upper"), each = nrow(gr)))
+autoplot(fit_c1, plot_type = plot_quantiles(over = "speed",
+                                            probs = c(0.025, 0.5, 0.975)),
+         data = cars) +
+  geom_line(aes(x = speed, y = dist, group = end), data = q0,
+            linetype = "dotted", colour = rust, linewidth = 0.8) +
   labs(x = "speed (mph)", y = "stopping distance (ft)")
 ```
 
@@ -582,39 +567,25 @@ p_s0$se
 @fig-sprays shows the counts with the two sets of 95% intervals of the
 means. The insecticides C, D and E have small counts and small standard
 deviations, and the modeled standard deviation gives them intervals that are
-narrower than the pooled ones.
+narrower than the pooled ones. For a factor, the type `plot_param()` draws
+one estimate with its interval for each level. We add the intervals of the
+model with a pooled standard deviation, moved to the right of each level, and
+the counts as layers of `ggplot2`.
 
 ```{r}
 #| label: fig-sprays
-#| fig-cap: "Insect counts for the six insecticides, with the 95% interval of each mean: modeled standard deviations (solid) and a pooled standard deviation (dashed)."
-#| echo: false
+#| fig-cap: "Insect counts for the six insecticides (grey points), with the 95% interval of each mean: modeled standard deviations (blue) and a pooled standard deviation (rust, to the right)."
 #| fig-height: 3.8
-xs <- as.integer(InsectSprays$spray)
+pooled <- data.frame(spray = sprays$spray, fit = p_s0$fit,
+                     lower = p_s0$lower, upper = p_s0$upper)
 set.seed(5)
-sp_what <- c("counts", "mean and interval, modeled sigma",
-             "mean and interval, pooled sigma")
-sp_counts <- data.frame(x = xs + runif(length(xs), -0.15, 0.15),
-                        count = InsectSprays$count,
-                        what = factor(sp_what[1], levels = sp_what))
-sp_means <- data.frame(x = c(1:6 + 0.25, 1:6 + 0.4),
-                       fit = c(p_s1$fit, p_s0$fit),
-                       lower = c(p_s1$lower, p_s0$lower),
-                       upper = c(p_s1$upper, p_s0$upper),
-                       what = factor(rep(sp_what[2:3], each = 6),
-                                     levels = sp_what))
-ggplot(mapping = aes(x = x, colour = what, shape = what, linetype = what)) +
-  geom_point(aes(y = count), data = sp_counts, size = 1.3) +
-  geom_linerange(aes(ymin = lower, ymax = upper), data = sp_means,
-                 linewidth = 0.8) +
-  geom_point(aes(y = fit), data = sp_means, size = 2) +
-  scale_colour_manual(values = setNames(c(book_grey, chalk, rust), sp_what),
-                      breaks = sp_what) +
-  scale_shape_manual(values = setNames(c(16, 15, 17), sp_what),
-                     breaks = sp_what) +
-  scale_linetype_manual(values = setNames(c("blank", "solid", "dashed"),
-                                          sp_what),
-                        breaks = sp_what) +
-  scale_x_continuous(breaks = 1:6, labels = LETTERS[1:6]) +
+autoplot(fit_s1, plot_type = plot_param(param = "mu", over = "spray"),
+         data = InsectSprays) +
+  geom_jitter(aes(x = spray, y = count), data = InsectSprays,
+              colour = "grey60", size = 1, width = 0.12, height = 0) +
+  geom_pointrange(aes(x = spray, y = fit, ymin = lower, ymax = upper),
+                  data = pooled, colour = rust, shape = 17,
+                  position = position_nudge(x = 0.3)) +
   expand_limits(y = 0) +
   labs(x = "insecticide", y = "insect count")
 ```
