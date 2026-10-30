@@ -5,6 +5,7 @@
 #| include: false
 source("R/_setup.R")
 source("R/beyond-certificates.R")
+source("R/beyond-tools-certificates.R")
 chalk <- "#3D6B4C"; rust <- "#9C3E11"; grey <- "grey55"
 fmt <- function(x, d = 2) formatC(x, format = "f", digits = d, big.mark = ",")
 pct <- function(x, d = 1) paste0(fmt(100 * x, d), "%")
@@ -16,12 +17,13 @@ data(mcycle, package = "MASS")
 ```
 
 @sec-model fitted one model and read what `statmod()` returns for it. This
-chapter goes further in nine directions. We compare the three variance
-matrices that a penalized fit offers, and we explain the two
-log-likelihoods of a model with random effects. We test a single
-coefficient with four different statistics, invert these tests into
-confidence intervals, and compare two nested models with a likelihood ratio
-test. Then we predict for a group that the data do not contain, start a fit
+chapter goes further in twelve directions. We compare the three variance
+matrices that a penalized fit offers and the sandwich variances that do not
+rely on the distribution, and we explain the two log-likelihoods of a model
+with random effects. We test a single coefficient with four different
+statistics, invert these tests into confidence intervals, draw the profile
+likelihood, build intervals by the bootstrap, and compare two nested models
+with a likelihood ratio test. Then we predict for a group that the data do not contain, start a fit
 from the estimates of another fit, change the criterion that estimates the
 hyperparameters, and use prior weights, offsets and parameters with a known
 value.
@@ -227,6 +229,258 @@ the true mean `r pct(cv[["bayesian"]])` of the time, the frequentist ones
 intervals cover less because $V_f$ does not include the bias of the
 penalized curve. This agrees with @marra2012, and it is the reason for the
 default.
+
+## Sandwich variances {#sec-beyond-sandwich}
+
+The three matrices of the previous section rest on the model. $V_f$, for
+example, uses the information $H$ in two roles: as the curvature of the
+log-likelihood, which converts a change of the score into a change of the
+estimate, and as the variance of the score. The second role holds only when
+the distribution is right. If the variance of the response is not the one
+that the family implies, the score varies more, or less, than $H$ says, and
+the standard errors are wrong even though the estimates may still be good.
+
+A sandwich variance keeps the first role of $H$ and estimates the variance
+of the score from the data. Let $s_i$ be the score of observation $i$, the
+vector of derivatives of its log-likelihood $\ell_i$ with respect to the
+coefficients, evaluated at the fit. The sandwich variance is
+$$
+V_s = V_b \, B \, V_b, \qquad B = \sum_{i=1}^n s_i s_i^\top ,
+$$
+where $V_b = (H + S)^{-1}$ is the matrix of the previous section. The two
+outer factors are the "bread", and $B$, the empirical variance of the
+scores, is the "meat". For a model without penalties $V_b = H^{-1}$, and
+$V_s$ is the estimator of @white1980. If the model is right, $B$ estimates
+$H$ and $V_s$ is close to $V_f$.
+
+The scores at the fit are smaller than the scores at the true coefficients,
+because the fit has adapted the coefficients to the same observations, and
+the shrinkage is strongest for observations with high leverage. Let $h_i$ be
+the leverage of observation $i$, the diagonal element of the hat matrix,
+and let $\bar h$ be its mean. The corrections HC0 to HC4 replace $s_i$ with
+$s_i (1 - h_i)^{-\delta_i/2}$, where $\delta_i = 0$ for HC0, $1$ for HC2, $2$
+for HC3 and $\min(4, h_i/\bar h)$ for HC4 [@mackinnon1985; @cribari2004].
+HC1 multiplies HC0 by $n/(n - p)$. We obtain each of them as an argument of
+`frequentist_vcov()`:
+
+```{r}
+#| label: fit-schools
+data("PublicSchools", package = "sandwich")
+schools <- na.omit(PublicSchools)
+schools$Income <- schools$Income / 1e4
+fit_ps <- statmod(Expenditure ~ Income + I(Income^2),
+                  distrib = gaussian1_distrib(), data = schools)
+summary(fit_ps)
+```
+
+The data contain the expenditure on public schools and the income, both
+per person, of `r nrow(schools)` states of the United States in 1979, with
+the income in tens of thousands of dollars. The quadratic term in income is the classical
+example of @cribari2004. @fig-schools shows the diagnostic graphs of the
+fit.
+
+```{r}
+#| label: fig-schools
+#| fig-cap: "Diagnostic graphs of the quadratic model for the expenditure on public schools."
+#| fig-height: 6
+plot(fit_ps, data = schools)
+```
+
+We compute the standard errors of the three coefficients under the five
+corrections, and we divide them by those of the function `vcovHC()` of the
+package `sandwich` [@zeileis2004] on the same model fitted with `lm()`:
+
+```{r}
+#| label: hc-schools
+hc <- list(HC0 = hc0_sandwich(), HC1 = hc1_sandwich(), HC2 = hc2_sandwich(),
+           HC3 = hc3_sandwich(), HC4 = hc4_sandwich())
+se_hc <- sapply(hc, function(s) {
+  sqrt(diag(vcov(fit_ps, vcov_type = frequentist_vcov(sandwich = s),
+                 param = "mu")))
+})
+lm_ps <- lm(Expenditure ~ Income + I(Income^2), data = schools)
+se_ref <- sapply(names(hc), function(type) {
+  sqrt(diag(sandwich::vcovHC(lm_ps, type = type)))
+})
+se_hc
+se_hc / se_ref
+```
+
+```{r}
+#| label: hc-numbers
+#| include: false
+se_model <- sqrt(diag(vcov(fit_ps, vcov_type = frequentist_vcov(),
+                           param = "mu")))
+h_ps <- hatvalues(lm_ps)
+k_ps <- length(coef(lm_ps))
+```
+
+Four of the five corrections are those of `vcovHC()`. The standard errors
+of HC1 differ by the factor
+`r fmt(sqrt((nrow(schools) - k_ps) / (nrow(schools) - k_ps - 1)), 6)`. In
+`statmodels7` the number $p$ in $n/(n - p)$ is the number of effective
+parameters of the whole model, which here includes the coefficient of the
+equation for $\sigma$, so $p = `r k_ps + 1`$ where `vcovHC()` takes
+$p = `r k_ps`$. The model-based standard error of the quadratic term is
+`r fmt(se_model[[3]], 1)`, HC0 gives `r fmt(se_hc[3, "HC0"], 1)` and HC4
+gives `r fmt(se_hc[3, "HC4"], 1)`. The corrections grow so much because
+one state has a leverage of `r fmt(max(h_ps), 3)`, against a mean of
+`r fmt(mean(h_ps), 3)`: `r names(which.max(h_ps))`, with the highest
+income and the highest expenditure, decides the curvature of the fitted
+parabola almost alone.
+
+With an equation for each of the $d$ parameters of the distribution, the
+score $s_i$ has a block for each equation, and the leverage of observation
+$i$ is a $d \times d$ block $H_{ii}$ of the hat matrix. HC2 to HC4 then
+replace $s_i$ with $F_i s_i$, where
+$$
+F_i = \exp\left\{-\tfrac{1}{2} D_i \log(I - H_{ii}) D_i\right\}, \qquad
+D_i = \mathrm{diag}\left(\delta_{i1}^{1/2}, \ldots, \delta_{id}^{1/2}\right),
+$$
+$\log$ and $\exp$ are functions of a matrix, and $\delta_{ia}$ is the
+exponent of the correction for equation $a$, computed for HC4 from the
+leverages of that equation. When every $\delta_{ia}$ equals $\delta$, $F_i$
+is $(I - H_{ii})^{-\delta/2}$. In the gaussian model above the block is
+diagonal, and the correction of the mean is the one of the textbook.
+
+### Clusters and serial dependence
+
+When the observations come in groups, the scores of one group can be
+correlated, and the meat sums the scores of each group before it squares
+them [@liang1986]:
+$$
+B = \sum_{g=1}^G S_g S_g^\top, \qquad S_g = \sum_{i \in g} s_i .
+$$
+The same functions take the argument `cluster`. With a cluster they give the
+corrections CR0 to CR3; CR2 is the correction of @bell2002. The data
+`PetersenCL` of the package `sandwich` are a simulated panel of 500 firms
+observed for 10 years, in which both the regressor and the error have a
+component that is common to the years of a firm:
+
+```{r}
+#| label: fit-petersen
+data("PetersenCL", package = "sandwich")
+fit_pc <- statmod(y ~ x, distrib = gaussian1_distrib(), data = PetersenCL)
+summary(fit_pc)
+cr2 <- hc2_sandwich(cluster = ~ firm, data = PetersenCL)
+vcov(fit_pc, vcov_type = frequentist_vcov(sandwich = cr2), param = "mu")
+sandwich::vcovCL(lm(y ~ x, data = PetersenCL), cluster = ~ firm,
+                 type = "HC2")
+```
+
+```{r}
+#| label: cluster-numbers
+#| include: false
+se_pc_cr2 <- sqrt(diag(vcov(fit_pc, param = "mu",
+                            vcov_type = frequentist_vcov(sandwich = cr2))))
+se_pc_hc0 <- sqrt(diag(vcov(fit_pc, param = "mu",
+                            vcov_type = frequentist_vcov(sandwich = hc0_sandwich()))))
+```
+
+The two matrices are equal. The standard error of the slope is
+`r fmt(se_pc_cr2[[2]], 4)` with the clusters and `r fmt(se_pc_hc0[[2]], 4)`
+without them: ignoring the firms understates it by a factor of
+`r fmt(se_pc_cr2[[2]] / se_pc_hc0[[2]], 2)`.
+
+In a time series the scores of nearby times are correlated. The function
+`hac_sandwich()` adds to the meat the products of scores $l$ steps apart,
+with weights that decrease with $l$ [@newey1987]:
+$$
+B = \sum_t s_t s_t^\top + \sum_{l=1}^{L} w_l \sum_{t > l}
+\left( s_t s_{t-l}^\top + s_{t-l} s_t^\top \right), \qquad
+w_l = 1 - \frac{l}{L + 1},
+$$
+with the default bandwidth $L = \lfloor 4 (T/100)^{2/9} \rfloor$ of
+@newey1994 for $T$ observations. We regress the level of Lake Huron on the
+year, from 1875 to 1972:
+
+```{r}
+#| label: fit-huron
+huron <- data.frame(level = as.numeric(LakeHuron),
+                    year = as.numeric(time(LakeHuron)))
+fit_lh <- statmod(level ~ year, distrib = gaussian1_distrib(), data = huron)
+summary(fit_lh)
+hac <- hac_sandwich(time = ~ year, data = huron)
+vcov(fit_lh, vcov_type = frequentist_vcov(sandwich = hac), param = "mu")
+sandwich::NeweyWest(lm(level ~ year, data = huron), lag = 3,
+                    prewhite = FALSE, adjust = FALSE)
+```
+
+```{r}
+#| label: hac-numbers
+#| include: false
+se_lh_hac <- sqrt(diag(vcov(fit_lh, param = "mu",
+                            vcov_type = frequentist_vcov(sandwich = hac))))
+se_lh_model <- sqrt(diag(vcov(fit_lh, param = "mu",
+                              vcov_type = frequentist_vcov())))
+```
+
+With $T = `r nrow(huron)`$ the bandwidth is 3, and the matrix is the one of
+`NeweyWest()` with three lags, no prewhitening and no correction for the
+degrees of freedom. The standard error of the slope is
+`r fmt(se_lh_hac[[2]], 5)` metres per year, against `r fmt(se_lh_model[[2]], 5)`
+under the model: the level of the lake is serially correlated, and a model
+with independent errors overstates the information about the trend.
+
+### A penalized model with two equations
+
+The bread $V_b$ makes the sandwich available for penalized models too. We
+return to the second motorcycle model, whose mean and standard deviation are
+both smooth functions of time, and we compare the standard error of each
+fitted curve under HC3 with the Bayesian one:
+
+```{r}
+#| label: sandwich-mcycle
+hc3 <- frequentist_vcov(sandwich = hc3_sandwich())
+pb_mu <- predict(fit1, what = "mu", newdata = grid, se = TRUE)
+p3_mu <- predict(fit1, what = "mu", newdata = grid, se = TRUE,
+                 vcov_type = hc3)
+pb_sigma <- predict(fit1, what = "sigma", newdata = grid, se = TRUE)
+p3_sigma <- predict(fit1, what = "sigma", newdata = grid, se = TRUE,
+                    vcov_type = hc3)
+summary(p3_mu$se / pb_mu$se)
+summary(p3_sigma$se / pb_sigma$se)
+```
+
+```{r}
+#| label: sandwich-mcycle-numbers
+#| include: false
+r_mu <- p3_mu$se / pb_mu$se
+r_sigma <- p3_sigma$se / pb_sigma$se
+t_mu_max <- grid$times[which.max(r_mu)]
+t_sigma_max <- grid$times[which.max(r_sigma)]
+```
+
+@fig-sandwich-mcycle shows the two ratios. The HC3 standard error of the
+mean is between `r fmt(min(r_mu), 2)` and `r fmt(max(r_mu), 2)` times the
+Bayesian one, and the one of the standard deviation between
+`r fmt(min(r_sigma), 2)` and `r fmt(max(r_sigma), 2)` times. Both ratios
+are largest at an end of the time range, the first at
+`r fmt(t_mu_max, 1)` milliseconds and the second at
+`r fmt(t_sigma_max, 1)`, where few observations with a high leverage carry
+the curve, and both are below one over most of the middle. Here there
+is no reference package: the sandwich of a model with an equation for each
+parameter of the distribution, with penalties in each equation, is a part
+of `statmodels7` that we cannot compare with another implementation.
+
+```{r}
+#| label: fig-sandwich-mcycle
+#| fig-cap: "The HC3 standard error of the fitted mean and of the fitted standard deviation of the second motorcycle model, as a ratio to the Bayesian one."
+#| echo: false
+#| fig-height: 3.6
+ratio_df <- data.frame(
+  times = rep(grid$times, times = 2),
+  ratio = c(r_mu, r_sigma),
+  curve = factor(rep(c("mean", "standard deviation"), each = nrow(grid)),
+                 levels = c("mean", "standard deviation")))
+ggplot(ratio_df, aes(x = times, y = ratio, colour = curve,
+                     linetype = curve)) +
+  geom_hline(yintercept = 1, colour = book_grey) +
+  geom_line(linewidth = 0.8) +
+  scale_colour_manual(values = c(chalk, rust)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  labs(x = "time after impact (ms)", y = "HC3 / bayesian")
+```
 
 ## Which likelihood {#sec-beyond-likelihood}
 
@@ -530,6 +784,435 @@ sqrt((n_p - 2) * (exp(qchisq(p = 0.95, df = 1) / n_p) - 1))
 The $\chi^2_1$ distribution is the limit of the distribution of $L$ as $n$
 grows. With `r nrow(puro)` observations the limit is optimistic, and the
 interval of `nls()` is the better one.
+
+## The profile likelihood {#sec-beyond-profile}
+
+The likelihood ratio interval of the previous section solves an equation in
+the profile log-likelihood of one coefficient. Let $\beta_j$ be the
+coefficient, and let $\ell_p(\beta_{j0})$ be the largest log-likelihood that
+the model reaches when $\beta_j$ is held at the value $\beta_{j0}$ and every
+other coefficient is estimated. The likelihood ratio statistic is
+$2\{\hat\ell - \ell_p(\beta_{j0})\}$, where $\hat\ell$ is the log-likelihood
+of the fit, and the interval contains the values where it does not exceed
+the quantile of the $\chi^2_1$ distribution [@severini2000]. The function
+`statmod_profile()` computes $\ell_p$ on a grid of values, so that we can
+look at the whole curve and not only at the two points where it crosses the
+cutoff.
+
+We return to the days of absence from school of @sec-glm-overdispersion
+[@aitkin1978; @venables2002], with the Poisson model of that section:
+
+```{r}
+#| label: fit-quine
+data(quine, package = "MASS")
+fit_q <- statmod(Days ~ Eth + Sex + Age + Lrn,
+                 distrib = poisson_distrib(), data = quine)
+summary(fit_q)
+```
+
+```{r}
+#| label: fig-beyond-quine
+#| fig-cap: "Diagnostic graphs of the Poisson model for the days of absence."
+#| fig-height: 6
+plot(fit_q, data = quine)
+```
+
+The diagnostic graphs in @fig-beyond-quine show again that the counts vary much
+more than a Poisson distribution allows, and @sec-glm-overdispersion
+replaces the Poisson with families that allow it. Here the Poisson model
+serves to compare the profile with the one of `glm()`, which computes the
+same function. We profile two coefficients, each by itself:
+
+```{r}
+#| label: profile-quine
+prof_q <- statmod_profile(fit_q, which = c("mu:EthN", "mu:LrnSL"),
+                          joint = FALSE)
+prof_q
+confint(prof_q)
+glm_q <- glm(Days ~ Eth + Sex + Age + Lrn, family = poisson, data = quine)
+confint(glm_q, parm = c("EthN", "LrnSL"))
+```
+
+```{r}
+#| label: profile-quine-numbers
+#| include: false
+ci_prof <- confint(prof_q)
+ci_glm <- suppressMessages(confint(glm_q, parm = c("EthN", "LrnSL")))
+d_prof <- max(abs(as.matrix(ci_prof[, c("lower", "upper")]) - ci_glm))
+```
+
+The argument `which` names each coefficient by its equation and its name,
+as `coef_labels()` lists them. The grid has 21 values by default, from three
+standard errors below the estimate to three above it, and every point is a
+refit with the coefficient held. The printed table has one row per point.
+The column `profile_loglik` is $\ell_p$, and the column named in the header,
+here `profile_pen_loglik`, is the one that the intervals use: for a model
+with penalties it is the penalized log-likelihood, and for this model it is
+the same as `profile_loglik`. The function `confint()` interpolates the
+signed root of the statistic with a spline and solves for the two ends. The
+intervals agree with those of `glm()`, which also profiles the
+log-likelihood, to $`r sci(d_prof)`$. @fig-profile-quine draws the two
+profiles with `autoplot()`.
+
+```{r}
+#| label: fig-profile-quine
+#| fig-cap: "The profile log-likelihood of two coefficients of the Poisson model, with the estimate and the cutoff of the 95% interval."
+autoplot(prof_q)
+```
+
+### Joint profiles
+
+With `joint = TRUE`, which is the default, the coefficients of `which` are
+held together on the grid of all their combinations. For two coefficients
+the profile is a surface, and its level sets are the likelihood ratio
+confidence regions, where the statistic is compared with the quantiles of
+the $\chi^2_2$ distribution:
+
+```{r}
+#| label: profile-joint
+prof_j <- statmod_profile(fit_q, which = c("mu:EthN", "mu:LrnSL"),
+                          values = profile_range(width = 4, n = 31))
+confint(prof_j, type = "simultaneous")
+```
+
+```{r}
+#| label: fig-profile-joint
+#| fig-cap: "Likelihood ratio confidence regions for two coefficients of the Poisson model, from their joint profile."
+#| fig-height: 5
+autoplot(prof_j)
+```
+
+```{r}
+#| label: profile-joint-numbers
+#| include: false
+ci_sim <- confint(prof_j, type = "simultaneous")
+lev2 <- pchisq(qchisq(0.95, df = 2), df = 1)
+ci_lev2 <- confint(prof_q, level = lev2)
+d_sim <- max(abs(as.matrix(ci_sim[, c("lower", "upper")]) -
+                   as.matrix(ci_lev2[, c("lower", "upper")])))
+```
+
+With `profile_range(width = 4, n = 31)` the grid has 31 values on each
+axis, from four standard errors below the estimate to four above it, so it
+has 961 points. @fig-profile-joint shows the regions. The intervals of
+`type = "simultaneous"` are the projections of the 95% region on each axis:
+together they cover both coefficients with probability 95%, and each of them
+is wider than the marginal interval. They are the one-dimensional intervals
+at the level `r fmt(lev2, 4)`, whose cutoff is the 95% quantile of the
+$\chi^2_2$ distribution, and the two computations agree to
+$`r sci(d_sim)`$. With `type = "marginal"`, the default, the intervals are
+those of each coefficient alone.
+
+A grid refits the model at every point. The argument `method` chooses
+cheaper routes. With `profile_continuation()` the coefficients that are not
+held are extrapolated from the previous point of the grid, and a Newton
+step brings them to the optimum. With `profile_taylor()` there is no refit:
+they are written as a polynomial in the held coefficient around the
+estimate, and the log-likelihood is computed exactly at the coefficients
+that the polynomial gives.
+
+```{r}
+#| label: profile-methods
+prof_t <- statmod_profile(fit_q, which = c("mu:EthN", "mu:LrnSL"),
+                          joint = FALSE, method = profile_taylor())
+confint(prof_t)
+```
+
+```{r}
+#| label: profile-methods-numbers
+#| include: false
+d_taylor <- max(abs(as.matrix(confint(prof_t)[, c("lower", "upper")]) -
+                      as.matrix(ci_prof[, c("lower", "upper")])))
+```
+
+The intervals differ from those of the grid by at most $`r sci(d_taylor)`$.
+The column `converged` of a profile computed in
+this way is `NA`, because no point is the result of a fit.
+
+### Hyperparameters and the REML criterion
+
+A hyperparameter, such as the standard deviation of a random effect, is
+profiled on the criterion that estimated it. We fit the reaction times of
+18 subjects deprived of sleep for ten days [@belenky2003] with a random
+intercept for each subject:
+
+```{r}
+#| label: fit-sleep
+data(sleepstudy, package = "lme4")
+fit_s <- statmod(Reaction ~ Days + random(~ 1 | Subject),
+                 distrib = gaussian1_distrib(), data = sleepstudy)
+summary(fit_s)
+```
+
+```{r}
+#| label: fig-sleep
+#| fig-cap: "Diagnostic graphs of the model for the reaction times, with a random intercept for each subject."
+#| fig-height: 6
+plot(fit_s, data = sleepstudy)
+```
+
+@fig-sleep shows the diagnostic graphs of the fit. The hyperparameter has
+the label `"mu/random(~1 | Subject)/sigma"`, which
+names the equation, the term and the parameter of the term. It is estimated
+on the logarithmic scale, so the profile is a function of
+$\log \sigma_b$, where $\sigma_b$ is the standard deviation of the random
+intercepts:
+
+```{r}
+#| label: profile-sleep
+lab_sb <- "mu/random(~1 | Subject)/sigma"
+prof_s <- statmod_profile(fit_s, which = lab_sb,
+                          values = profile_range(width = 4, n = 41))
+exp(confint(prof_s)[, c("estimate", "lower", "upper")])
+fit_s_ml <- statmod(Reaction ~ Days + random(~ 1 | Subject),
+                    distrib = gaussian1_distrib(), data = sleepstudy,
+                    outer_criterion = ml())
+prof_s_ml <- statmod_profile(fit_s_ml, which = lab_sb,
+                             values = profile_range(width = 4, n = 41))
+exp(confint(prof_s_ml)[, c("estimate", "lower", "upper")])
+lmer_s <- lme4::lmer(Reaction ~ Days + (1 | Subject), data = sleepstudy)
+confint(lmer_s, parm = ".sig01", method = "profile")
+```
+
+```{r}
+#| label: profile-sleep-numbers
+#| include: false
+ci_s <- exp(unlist(confint(prof_s)[, c("lower", "upper")]))
+ci_s_ml <- exp(unlist(confint(prof_s_ml)[, c("lower", "upper")]))
+ci_lmer <- suppressMessages(confint(lmer_s, parm = ".sig01",
+                                    method = "profile"))[1, ]
+```
+
+The fit uses REML, and its profile is the profile of the REML criterion:
+the interval runs from `r fmt(ci_s[1], 2)` to `r fmt(ci_s[2], 2)`. The
+function `confint()` of `lme4` gives `r fmt(ci_lmer[1], 2)` to
+`r fmt(ci_lmer[2], 2)` for the same model fitted by REML, because it
+profiles the maximum likelihood deviance whichever criterion estimated the
+model. The profile of the fit by maximum likelihood, from
+`r fmt(ci_s_ml[1], 2)` to `r fmt(ci_s_ml[2], 2)`, is that interval. The REML
+interval is wider and further to the right, because REML accounts for the
+two fixed effects that the data have to estimate, and so it estimates a
+larger standard deviation from the same data.
+
+## The bootstrap {#sec-beyond-bootstrap}
+
+Every interval of this chapter so far relies on an approximation that
+holds as the number of observations grows: a normal distribution for the
+estimate, or a $\chi^2$ distribution for a statistic. The bootstrap
+replaces the approximation with a simulation [@efron1993; @davison1997].
+It draws many data sets that resemble the observed one, refits the model on
+each, and reads the variability of the estimates across the refits.
+
+The function `add_bootstrap()` draws the data sets, refits the model on
+each, and stores the coefficients of the refits, the replicates, in the
+fitted object. Its argument `resample` chooses how the data sets are drawn:
+
+- `parametric_resample()` draws a new response from the fitted
+  distribution, at the fitted parameters of each observation;
+- `case_resample()` draws $n$ observations with replacement;
+- `cluster_resample()` draws whole groups with replacement, with the groups
+  named by a one-sided formula;
+- `bayesian_resample()` gives each observation a random weight, drawn from
+  an exponential distribution and normalized to sum to $n$ [@rubin1981].
+
+The argument `refit` says what each refit estimates. With
+`refit = "coefficients"`, the default, the hyperparameters stay at the
+values of the fit; with `refit = "full"` they are estimated again on every
+data set. The argument `n` is the number of replicates, and `cores` spreads
+the refits over that number of R processes. The replicates depend only on
+the random seed at the call. @sec-lmm-predict uses the same idea for
+predictions with `pred_bootstrap()`.
+
+We return to the concentration of glycosaminoglycans (GAG) in the urine of
+children of @sec-glm-positive, and we fit a gamma distribution with log
+link whose mean depends on the logarithm of the age:
+
+```{r}
+#| label: fit-gag
+data(GAGurine, package = "MASS")
+GAGurine$log_age <- log(GAGurine$Age + 1)
+fit_g <- statmod(GAG ~ log_age, distrib = gamma1_distrib(), data = GAGurine)
+summary(fit_g)
+```
+
+```{r}
+#| label: fig-beyond-gag
+#| fig-cap: "Diagnostic graphs of the gamma model for the concentration of GAG."
+#| fig-height: 6
+plot(fit_g, data = GAGurine)
+```
+
+@fig-beyond-gag shows the diagnostic graphs of the fit. We add 499
+replicates from the case bootstrap:
+
+```{r}
+#| label: boot-gag
+set.seed(11)
+fit_g <- add_bootstrap(fit_g, n = 499, resample = case_resample())
+statmod_bootstrap(fit_g)
+```
+
+The table lists one entry for each set of replicates in the fit, with its
+scheme and its refit. A replicate whose refit fails, by an error, by a
+gradient that does not vanish, or by a coefficient that the resampled data
+cannot identify, is replaced by the next draw, and the last four columns
+count the replaced replicates in all and by cause. Here no refit failed.
+The replacement conditions the bootstrap on the refits that succeed, so
+a large count is a warning that the replicates understate the variability.
+
+The bootstrap variance is the sample covariance of the replicates, and we
+obtain it with the object `bootstrap_vcov()`. For a model without
+penalties, the case bootstrap estimates the same quantity as the sandwich
+HC0 of @sec-beyond-sandwich, and the two agree when $n$ is large:
+
+```{r}
+#| label: boot-gag-vcov
+sqrt(diag(vcov(fit_g, vcov_type = bootstrap_vcov(), param = "mu")))
+sqrt(diag(vcov(fit_g, vcov_type = frequentist_vcov(sandwich = hc0_sandwich()),
+               param = "mu")))
+```
+
+The function `confint()` builds three bootstrap intervals from the
+replicates, chosen with its argument `interval`. Let $\hat\beta$ be the
+estimate, let $\hat\beta^*_1, \ldots, \hat\beta^*_B$ be its $B$ replicates,
+and let $q_\alpha$ be their quantile of order $\alpha$. The percentile
+interval is $(q_{\alpha/2}, q_{1-\alpha/2})$ and the basic interval is
+$(2\hat\beta - q_{1-\alpha/2},\, 2\hat\beta - q_{\alpha/2})$. The BCa
+interval of @efron1987 uses the quantiles of orders
+$$
+\alpha_1 = \Phi\left(z_0 + \frac{z_0 + z_{\alpha/2}}
+                               {1 - a(z_0 + z_{\alpha/2})}\right), \qquad
+\alpha_2 = \Phi\left(z_0 + \frac{z_0 + z_{1-\alpha/2}}
+                               {1 - a(z_0 + z_{1-\alpha/2})}\right),
+$$
+where $\Phi$ is the standard normal distribution function and $z_\alpha$
+its quantile of order $\alpha$. The bias correction $z_0 =
+\Phi^{-1}\{\#(\hat\beta^*_b < \hat\beta)/B\}$ measures how far the
+replicates sit from the estimate, and the acceleration $a$ measures how
+the standard error of the estimate changes with the coefficient; we
+compute $a$ from the $n$ refits that leave out one observation each.
+
+```{r}
+#| label: boot-gag-intervals
+confint(fit_g, parm = "mu:log_age", interval = percentile_interval())
+confint(fit_g, parm = "mu:log_age", interval = basic_interval())
+confint(fit_g, parm = "mu:log_age", interval = bca_interval())
+```
+
+The BCa interval needs `r nrow(GAGurine)` further refits, one for each
+observation left out, and `confint()` computes them the first time that it
+builds the interval. We compare the three intervals with those of the package
+`boot` [@davison1997], run on the same model fitted by `glm()`:
+
+```{r}
+#| label: boot-gag-boot
+glm_coef <- function(data, index) {
+  coef(glm(GAG ~ log_age, family = Gamma(link = "log"),
+           data = data[index, ]))
+}
+set.seed(11)
+boot_g <- boot::boot(GAGurine, statistic = glm_coef, R = 499)
+boot::boot.ci(boot_g, index = 2, type = c("perc", "basic", "bca"))
+```
+
+```{r}
+#| label: boot-gag-numbers
+#| include: false
+ci_perc <- confint(fit_g, parm = "mu:log_age", interval = percentile_interval())
+ci_bca <- confint(fit_g, parm = "mu:log_age", interval = bca_interval())
+se_boot_g <- sqrt(diag(vcov(fit_g, vcov_type = bootstrap_vcov(),
+                            param = "mu")))
+se_hc0_g <- sqrt(diag(vcov(fit_g, param = "mu",
+                           vcov_type = frequentist_vcov(sandwich = hc0_sandwich()))))
+reps_g <- coef(statmod_bootstrap(fit_g, resample = case_resample()))
+```
+
+The two packages draw different data sets, so the intervals agree only up
+to the simulation error, which for 499 replicates is of the order of a
+tenth of a standard error at each end. Two conventions differ as well. The quantiles
+$q_\alpha$ of `statmodels7` are those of `quantile()` with its default
+type 7, while `boot.ci()` interpolates between order statistics on the
+normal scale. The acceleration of `statmodels7` comes from the refits
+without one observation, while `boot.ci()` estimates it by default from a
+regression on the replicates; with the jackknife the two accelerations are
+practically equal.
+
+### The parametric and the cluster bootstrap
+
+The parametric bootstrap draws the response from the fitted model, so it
+also works when the observations are not independent, as with random
+effects. We take the reaction times of @sec-beyond-profile and estimate the
+distribution of the standard deviation $\sigma_b$ of the random intercepts.
+With `refit = "full"` each replicate estimates $\sigma_b$ again, and the
+replicates of the hyperparameters, on their natural scale, are in the
+property `hyper` of the entry:
+
+```{r}
+#| label: boot-sleep
+set.seed(2)
+fit_s <- add_bootstrap(fit_s, n = 199, resample = parametric_resample(),
+                       refit = "full")
+entry_s <- statmod_bootstrap(fit_s, refit = "full")
+sb_star <- entry_s@hyper[, "mu.random(~1 | Subject).sigma"]
+quantile(sb_star, probs = c(0.025, 0.5, 0.975))
+set.seed(2)
+boot_lmer <- lme4::bootMer(lmer_s, FUN = function(m) {
+  sqrt(lme4::VarCorr(m)$Subject[1, 1])
+}, nsim = 199, use.u = FALSE, type = "parametric")
+quantile(boot_lmer$t[, 1], probs = c(0.025, 0.5, 0.975))
+```
+
+```{r}
+#| label: boot-sleep-numbers
+#| include: false
+sb_lmer <- boot_lmer$t[, 1]
+```
+
+The function `bootMer()` of `lme4` does the same with a fit by REML, and
+the two sets of 199 replicates have means `r fmt(mean(sb_star), 2)` and
+`r fmt(mean(sb_lmer), 2)` and standard deviations
+`r fmt(sd(sb_star), 2)` and `r fmt(sd(sb_lmer), 2)`: they agree within the
+simulation error.
+
+The cluster bootstrap draws the subjects instead of the observations, and
+it is the bootstrap counterpart of the cluster sandwich. We fit a model
+that ignores the subjects and let the resampling account for them:
+
+```{r}
+#| label: boot-cluster
+fit_c <- statmod(Reaction ~ Days, distrib = gaussian1_distrib(),
+                 data = sleepstudy)
+summary(fit_c)
+set.seed(31)
+fit_c <- add_bootstrap(fit_c, n = 499,
+                       resample = cluster_resample(~ Subject,
+                                                   data = sleepstudy))
+vcov(fit_c, vcov_type = bootstrap_vcov(), param = "mu")
+sandwich::vcovCL(lm(Reaction ~ Days, data = sleepstudy),
+                 cluster = ~ Subject, type = "HC0", cadjust = FALSE)
+```
+
+```{r}
+#| label: boot-cluster-numbers
+#| include: false
+v_cl_boot <- vcov(fit_c, vcov_type = bootstrap_vcov(), param = "mu")
+v_cl_ref <- sandwich::vcovCL(lm(Reaction ~ Days, data = sleepstudy),
+                             cluster = ~ Subject, type = "HC0",
+                             cadjust = FALSE)
+r_cl <- v_cl_boot[2, 2] / v_cl_ref[2, 2]
+v_cl_model <- vcov(fit_c, vcov_type = frequentist_vcov(), param = "mu")
+```
+
+The bootstrap variance of the slope is `r fmt(r_cl, 2)` times the cluster
+sandwich CR0 of the package `sandwich`, which is the agreement that the
+simulation error of 499 replicates allows. The variance of the slope under
+the model, which treats the `r nrow(sleepstudy)` observations as
+independent, is `r fmt(v_cl_model[2, 2] / v_cl_boot[2, 2], 2)` times the
+bootstrap one, while the two variances of the intercept differ by a factor
+of `r fmt(v_cl_model[1, 1] / v_cl_boot[1, 1], 2)`. The subjects differ in
+how fast their reaction time grows with the days of deprivation, and the
+model without the subjects counts this variation as independent noise
+around a single slope.
 
 ## Comparing two models {#sec-beyond-lr}
 
@@ -1118,4 +1801,10 @@ assert_beyond_ok(
                 t_sex = t_sex, pz = pz, pm = pm, pg = pg, pr = pr,
                 tests = list(wald = t_w, lr = t_l, score = t_s,
                              gradient = t_g)))
+```
+
+```{r}
+#| label: gate-02-tools
+#| include: false
+assert_beyond_tools_ok(environment())
 ```
